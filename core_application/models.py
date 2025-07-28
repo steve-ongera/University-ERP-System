@@ -704,7 +704,7 @@ class Hostel(models.Model):
     
     name = models.CharField(max_length=100)
     hostel_type = models.CharField(max_length=10, choices=HOSTEL_TYPES)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='hostels')
+    school = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='hostels')
     warden = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_hostels')
     total_rooms = models.IntegerField(validators=[MinValueValidator(1)])
     description = models.TextField(blank=True)
