@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Report Details</h2>
+    
+    <div class="card">
+        <div class="card-header">
+            <h4>{{ report.subject }}</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Type:</strong> {{ report.get_report_type_display }}</p>
+            <p><strong>Status:</strong> {{ report.get_status_display }}</p>
+            <p><strong>Priority:</strong> {{ report.get_priority_display }}</p>
+            <p><strong>Created:</strong> {{ report.created_at|date:"Y-m-d H:i" }}</p>
+            
+            <div class="mb-4">
+                <h5>Description</h5>
+                <p>{{ report.description }}</p>
+            </div>
+            
+            {% if report.admin_response %}
+            <div class="mb-4">
+                <h5>Admin Response</h5>
+                <p>{{ report.admin_response }}</p>
+            </div>
+            {% endif %}
+            
+            <a href="{% url 'student_reporting_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

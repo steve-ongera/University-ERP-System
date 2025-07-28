@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #4300FF;  /* Purple */
+        --secondary: #6C63FF;  /* Lighter Purple */
+        --light: #F0EBFF;  /* Very Light Purple */
+        --accent: #9370DB;  /* Soft Purple */
+        --dark: #2A0080;    /* Darker Purple */
+    }
+    
+    /* Strengthen CSS specificity with more targeted selectors */
+    .bg-primary, 
+    div.bg-primary, 
+    .card-header.bg-primary {
+        background-color: var(--primary) !important;
+    }
+
+    .btn-primary,
+    button.btn-primary,
+    input[type="submit"].btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+    
+    .text-primary {
+        color: var(--primary) !important;
+    }
+    
+    .bg-success {
+        background-color: var(--secondary) !important;
+    }
+    
+    .bg-warning {
+        background-color: #FFC107 !important; /* Keeping original warning color */
+    }
+    
+    .text-success {
+        color: var(--secondary) !important;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .shadow-sm {
+        box-shadow: 0 0.125rem 0.25rem rgba(67, 0, 255, 0.1) !important;
+    }
+    
+    .border-bottom {
+        border-bottom: 1px solid rgba(67, 0, 255, 0.1) !important;
+    }
+    
+    .bg-light {
+        background-color: var(--light) !important;
+    }
+    
+    .form-control:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 0.25rem rgba(108, 99, 255, 0.25);
+    }
+    
+    .list-group-item-action:hover {
+        background-color: rgba(108, 99, 255, 0.05);
+    }
+    
+    .text-muted {
+        color: #6c757d !important;
+    }
+    
+    /* Full width container styles */
+    .container-fluid {
+        padding-left: 15px;
+        padding-right: 15px;
+        width: 100%;
+    }
+</style>
+
+<!-- Changed from container to container-fluid and removed col-lg-10 -->
+<div class="container-fluid py-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm mb-5">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-comments me-2"></i>Student Comments/Questions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Comment Form -->
+                            <div class="card mb-4 border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom">
+                                    <h5 class="mb-0 text-primary">Submit New Comment</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST" class="needs-validation" novalidate>
+                                        {% csrf_token %}
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentInput" class="form-label fw-bold">Your Comment/Question</label>
+                                            <textarea 
+                                                class="form-control" 
+                                                id="commentInput" 
+                                                name="comment" 
+                                                rows="5" 
+                                                required
+                                                placeholder="Please enter your comment or question in detail..."
+                                            >{% if form.comment.value %}{{ form.comment.value }}{% endif %}</textarea>
+                                            <div class="invalid-feedback">
+                                                Please provide your comment or question.
+                                            </div>
+                                            {% if form.comment.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {{ form.comment.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-primary btn-lg">
+                                                <i class="fas fa-paper-plane me-2"></i>Submit Comment
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Previous Comments -->
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-bottom">
+                                    <h5 class="mb-0 text-primary">Your Comment History</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if comments %}
+                                        <div class="list-group list-group-flush">
+                                            {% for comment in comments %}
+                                            <div class="list-group-item list-group-item-action py-3 px-0 border-bottom">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <span class="badge bg-{% if comment.is_resolved %}success{% else %}warning{% endif %} rounded-pill me-2">
+                                                            {% if comment.is_resolved %}
+                                                            <i class="fas fa-check-circle me-1"></i>Resolved
+                                                            {% else %}
+                                                            <i class="fas fa-hourglass-half me-1"></i>Pending
+                                                            {% endif %}
+                                                        </span>
+                                                        <small class="text-muted">{{ comment.created_at|date:"F j, Y H:i" }}</small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <p class="mb-2 fw-bold">Your comment:</p>
+                                                    <p class="mb-0 ps-3">{{ comment.comment }}</p>
+                                                </div>
+                                                
+                                                {% if comment.admin_response %}
+                                                <div class="bg-light p-3 rounded mb-2">
+                                                    <p class="mb-1 fw-bold text-success">Administrator Response:</p>
+                                                    <p class="mb-0 ps-3">{{ comment.admin_response }}</p>
+                                                    <small class="text-muted d-block mt-2">
+                                                        Last updated: {{ comment.updated_at|date:"F j, Y H:i" }}
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center py-4">
+                                            <i class="far fa-comments fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">You haven't submitted any comments yet.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+                                <div class="card-header bg-white border-bottom">
+                                    <h5 class="mb-0 text-primary"><i class="fas fa-info-circle me-2"></i>Comment Guidelines</h5>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-unstyled">
+                                        <li class="mb-3">
+                                            <div class="d-flex">
+                                                <div class="me-3 text-primary">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Be Specific</h6>
+                                                    <p class="small text-muted mb-0">Clearly state your question or concern with relevant details.</p>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <div class="d-flex">
+                                                <div class="me-3 text-primary">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Academic Matters</h6>
+                                                    <p class="small text-muted mb-0">Include course codes and specific assignment details when relevant.</p>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="mb-3">
+                                            <div class="d-flex">
+                                                <div class="me-3 text-primary">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Response Time</h6>
+                                                    <p class="small text-muted mb-0">Allow 2-3 working days for a response.</p>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li class="mb-0">
+                                            <div class="d-flex">
+                                                <div class="me-3 text-primary">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-1">Check Back</h6>
+                                                    <p class="small text-muted mb-0">Review your comment history for updates.</p>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+{% endblock %}

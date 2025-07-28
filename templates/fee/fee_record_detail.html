@@ -1,0 +1,510 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header Section -->
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Fee Records - {{ student.user.get_full_name }}</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <button type="button" class="btn btn-success float-end add-payment-btn" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                        <i class="bi bi-plus-circle"></i> Add Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Info Card -->
+    <div class="row p-3">
+        <div class="card shadow-sm student-info-card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5><i class="bi bi-person-fill me-2"></i>{{ student.user.get_full_name }}</h5>
+                        <p class="mb-1"><strong>Student ID:</strong> {{ student.student_id }}</p>
+                        <p class="mb-1"><strong>Course:</strong> {{ student.course.name }} ({{ student.course.code }})</p>
+                        <p class="mb-1"><strong>Current Year/Semester:</strong> Year {{ student.current_year }}, Semester {{ student.current_semester }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Status:</strong> 
+                            <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning{% else %}danger{% endif %}">
+                                {{ student.get_status_display }}
+                            </span>
+                        </p>
+                        <p class="mb-1"><strong>Admission Date:</strong> {{ student.admission_date|date:"M d, Y" }}</p>
+                        <p class="mb-1"><strong>Guardian:</strong> {{ student.guardian_name }} ({{ student.guardian_phone }})</p>
+                        <p class="mb-1"><strong>Department:</strong> {{ student.course.department.name }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Year Tabs -->
+    <!-- Replace the Academic Year Tabs section in your template with this: -->
+
+<div class="tab-content mt-3" id="academicYearTabsContent">
+    {% for year_data in summary_data_list %}
+    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+         id="year-{{ year_data.academic_year.year }}" 
+         role="tabpanel">
+        
+        <!-- Semester Cards for this Academic Year -->
+        <div class="row">
+            {% for semester_info in year_data.semesters %}
+            <div class="col-md-6 mb-3">
+                <div class="card fee-card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <span class="semester-badge">Semester {{ semester_info.semester_number }}</span>
+                            <span class="float-end">
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="addPaymentForSemester('{{ year_data.academic_year.id }}', '{{ semester_info.semester_number }}')">
+                                    <i class="bi bi-plus"></i> Add Payment
+                                </button>
+                            </span>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <small class="text-muted">Total Fee</small>
+                                <div class="h5">ksh{{ semester_info.structure.total_fee|floatformat:2 }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Amount Paid</small>
+                                <div class="h5 paid-amount">ksh{{ semester_info.paid|floatformat:2 }}</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <small class="text-muted">Outstanding</small>
+                                <div class="h5 outstanding-amount">ksh{{ semester_info.outstanding|floatformat:2 }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Fee Breakdown -->
+                        <div class="accordion" id="feeBreakdown{{ year_data.academic_year.year }}{{ semester_info.semester_number }}">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse{{ year_data.academic_year.year }}{{ semester_info.semester_number }}">
+                                        <small>Fee Breakdown</small>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ year_data.academic_year.year }}{{ semester_info.semester_number }}" 
+                                     class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        <table class="table table-sm">
+                                            <tr><td>Tuition Fee:</td><td>ksh{{ semester_info.structure.tuition_fee }}</td></tr>
+                                            <tr><td>Lab Fee:</td><td>ksh{{ semester_info.structure.lab_fee }}</td></tr>
+                                            <tr><td>Library Fee:</td><td>ksh{{ semester_info.structure.library_fee }}</td></tr>
+                                            <tr><td>Exam Fee:</td><td>ksh{{ semester_info.structure.exam_fee }}</td></tr>
+                                            <tr><td>Development Fee:</td><td>ksh{{ semester_info.structure.development_fee }}</td></tr>
+                                            <tr><td>Other Fee:</td><td>ksh{{ semester_info.structure.other_fee }}</td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment History -->
+                        {% if semester_info.payments %}
+                        <div class="mt-3">
+                            <h6 class="mb-2">Payment History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Status</th>
+                                            <th>Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in semester_info.payments %}
+                                        <tr>
+                                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                            <td>ksh{{ payment.amount_paid }}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>
+                                                <span class="payment-status status-{{ payment.payment_status }}">
+                                                    {{ payment.get_payment_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ payment.receipt_number }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted mt-3">
+                            <i class="bi bi-receipt-cutoff fs-1"></i>
+                            <p>No payments recorded yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+    <!-- Recent Payments Section -->
+    {% if recent_payments %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Payments</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Receipt No.</th>
+                                    <th>Date</th>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Transaction ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_payments %}
+                                <tr>
+                                    <td>{{ payment.receipt_number }}</td>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>{{ payment.fee_structure.academic_year.year }}</td>
+                                    <td>{{ payment.fee_structure.semester }}</td>
+                                    <td>ksh{{ payment.amount_paid }}</td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                    <td>
+                                        <span class="payment-status status-{{ payment.payment_status }}">
+                                            {{ payment.get_payment_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ payment.transaction_id|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPaymentModalLabel">
+                    <i class="bi bi-credit-card me-2"></i>Add Fee Payment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPaymentForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="studentId" name="student_id" value="{{ student.student_id }}">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="academicYear" class="form-label">Academic Year</label>
+                            <select class="form-select" id="academicYear" name="academic_year" required>
+                                <option value="">Select Academic Year</option>
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}">{{ year.year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="semester" class="form-label">Semester</label>
+                            <select class="form-select" id="semester" name="semester" required>
+                                <option value="">Select Semester</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="paymentAmount" class="form-label">Amount</label>
+                            <input type="number" class="form-control" id="paymentAmount" name="amount_paid" step="0.01" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                            <select class="form-select" id="paymentMethod" name="payment_method" required>
+                                {% for method_code, method_name in payment_methods %}
+                                <option value="{{ method_code }}">{{ method_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="paymentDate" class="form-label">Payment Date</label>
+                            <input type="date" class="form-control" id="paymentDate" name="payment_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transactionId" class="form-label">Transaction ID</label>
+                            <input type="text" class="form-control" id="transactionId" name="transaction_id">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+                    </div>
+
+                    <!-- Fee Structure Display -->
+                    <div id="feeStructureDisplay" class="card bg-light mb-3" style="display: none;">
+                        <div class="card-body">
+                            <h6>Fee Structure</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small>Total Fee: ksh<span id="totalFeeAmount">0.00</span></small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small>Outstanding: ksh<span id="outstandingAmount">0.00</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitPayment()">Add Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.fee-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.fee-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.payment-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-completed { background-color: #d4edda; color: #155724; }
+.status-pending { background-color: #fff3cd; color: #856404; }
+.status-failed { background-color: #f8d7da; color: #721c24; }
+.status-refunded { background-color: #d1ecf1; color: #0c5460; }
+
+.outstanding-amount {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.paid-amount {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.student-info-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #3639A4;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #3639A4;
+    border-color: #3639A4;
+    color: white;
+}
+
+.semester-badge {
+    background-color: #6c757d;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+}
+
+.add-payment-btn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.add-payment-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+    
+    // Academic year change handler
+    document.getElementById('academicYear').addEventListener('change', function() {
+        const academicYearId = this.value;
+        const semesterSelect = document.getElementById('semester');
+        
+        // Clear semester options
+        semesterSelect.innerHTML = '<option value="">Select Semester</option>';
+        
+        if (academicYearId) {
+            // Add semester options based on course structure
+            {% for i in "12345678910"|make_list %}
+            if ({{ i }} <= {{ student.course.total_semesters }}) {
+                semesterSelect.innerHTML += '<option value="{{ i }}">Semester {{ i }}</option>';
+            }
+            {% endfor %}
+        }
+    });
+    
+    // Semester change handler - fetch fee structure
+    document.getElementById('semester').addEventListener('change', function() {
+        const academicYearId = document.getElementById('academicYear').value;
+        const semester = this.value;
+        const courseId = {{ student.course.id }};
+        
+        if (academicYearId && semester) {
+            fetch(`{% url 'get_fee_structure' %}?course_id=${courseId}&academic_year_id=${academicYearId}&semester=${semester}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('totalFeeAmount').textContent = data.data.total_fee.toFixed(2);
+                        document.getElementById('paymentAmount').max = data.data.total_fee;
+                        document.getElementById('paymentAmount').placeholder = `Max: ksh${data.data.total_fee}`;
+                        document.getElementById('feeStructureDisplay').style.display = 'block';
+                        
+                        // Store fee structure ID for form submission
+                        document.getElementById('addPaymentForm').setAttribute('data-fee-structure-id', data.data.id);
+                    } else {
+                        alert('Fee structure not found for selected criteria.');
+                        document.getElementById('feeStructureDisplay').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error fetching fee structure.');
+                });
+        }
+    });
+});
+
+function addPaymentForSemester(academicYearId, semester) {
+    document.getElementById('academicYear').value = academicYearId;
+    document.getElementById('academicYear').dispatchEvent(new Event('change'));
+    
+    setTimeout(() => {
+        document.getElementById('semester').value = semester;
+        document.getElementById('semester').dispatchEvent(new Event('change'));
+    }, 100);
+    
+    const modal = new bootstrap.Modal(document.getElementById('addPaymentModal'));
+    modal.show();
+}
+
+function submitPayment() {
+    const form = document.getElementById('addPaymentForm');
+    const feeStructureId = form.getAttribute('data-fee-structure-id');
+    
+    if (!feeStructureId) {
+        alert('Please select academic year and semester first.');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = {
+        student_id: formData.get('student_id'),
+        fee_structure_id: feeStructureId,
+        amount_paid: formData.get('amount_paid'),
+        payment_method: formData.get('payment_method'),
+        payment_date: formData.get('payment_date'),
+        transaction_id: formData.get('transaction_id'),
+        remarks: formData.get('remarks')
+    };
+    
+    fetch('{% url 'add_fee_payment' %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment added successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting payment.');
+    });
+}
+</script>
+
+{% endblock %}

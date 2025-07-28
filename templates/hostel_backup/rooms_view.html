@@ -1,0 +1,147 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">{{ hostel.name }} Rooms</p>
+                <p class="text-muted">{{ academic_year.year }} Academic Year</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="text-end">
+                    <p class="text-muted mb-1">Total Rooms: {{ room_data|length }}</p>
+                    <p class="text-muted">Type: {{ hostel.get_hostel_type_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rooms List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if room_data %}
+                    <div class="row">
+                        {% for room_info in room_data %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="card-title">{{ room_info.room.room_name }}</h5>
+                                            <p class="text-muted">Floor {{ room_info.room.floor }}</p>
+                                            {% if room_info.room.facilities %}
+                                            <p class="text-muted small">{{ room_info.room.facilities }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="d-flex gap-3 mb-2">
+                                                <div>
+                                                    <p class="mb-0 text-success fw-bold">{{ room_info.available_beds }}</p>
+                                                    <p class="small text-muted">Available</p>
+                                                </div>
+                                                <div>
+                                                    <p class="mb-0 text-danger fw-bold">{{ room_info.occupied_beds }}</p>
+                                                    <p class="small text-muted">Occupied</p>
+                                                </div>
+                                                <div>
+                                                    <p class="mb-0 text-primary fw-bold">{{ room_info.total_beds }}</p>
+                                                    <p class="small text-muted">Total</p>
+                                                </div>
+                                            </div>
+                                            
+                                            {% if room_info.pending_bookings > 0 %}
+                                            <span class="badge bg-warning text-dark mb-2">
+                                                {{ room_info.pending_bookings }} pending
+                                            </span>
+                                            {% endif %}
+                                            
+                                            <a href="{% url 'room_detail' room_info.room.id academic_year.id %}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> View Details
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bookings preview -->
+                                    {% if room_info.bookings %}
+                                    <div class="mt-3 pt-3 border-top">
+                                        <h6 class="small fw-bold">Current Bookings:</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            {% for booking in room_info.bookings %}
+                                            <span class="badge 
+                                                {% if booking.status == 'approved' %}bg-success
+                                                {% elif booking.status == 'pending' %}bg-warning text-dark
+                                                {% elif booking.status == 'rejected' %}bg-danger
+                                                {% else %}bg-secondary{% endif %}">
+                                                {{ booking.bed.bed_name }}: {{ booking.student.user.get_full_name }}
+                                            </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-door-closed text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No rooms found for this hostel.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Available Hostels{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Available Hostels</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'hostel_booking_dashboard' %}">
+                    <i class="ri-arrow-left-line me-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-2">
+        {% if hostels %}
+        {% for hostel in hostels %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">{{ hostel.name }} <small class="text-muted">({{ hostel.initials }})</small></h3>
+                        <span class="badge bg-primary">{{ hostel.get_hostel_type_display }}</span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div class="text-center">
+                            <p class="mb-0 text-muted small">Total Rooms</p>
+                            <h5 class="mb-0 fw-bold">{{ hostel.total_rooms }}</h5>
+                        </div>
+                        <div class="text-center">
+                            <p class="mb-0 text-muted small">Available Beds</p>
+                            <h5 class="mb-0 fw-bold text-success">{{ hostel.available_beds }}</h5>
+                        </div>
+                        <div class="text-center">
+                            <p class="mb-0 text-muted small">Occupied Beds</p>
+                            <h5 class="mb-0 fw-bold text-danger">{{ hostel.occupied_beds }}</h5>
+                        </div>
+                    </div>
+                    
+                    {% if hostel.warden %}
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="ri-user-star-line me-2 text-primary"></i>
+                        <div>
+                            <p class="mb-0 small text-muted">Warden</p>
+                            <p class="mb-0 fw-semibold">{{ hostel.warden.get_full_name }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if hostel.description %}
+                    <div class="mb-3">
+                        <h6 class="fw-semibold"><i class="ri-file-text-line me-2"></i>Description</h6>
+                        <p class="small">{{ hostel.description|truncatechars:100 }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if hostel.facilities %}
+                    <div class="mb-3">
+                        <h6 class="fw-semibold"><i class="ri-home-gear-line me-2"></i>Facilities</h6>
+                        <ul class="list-unstyled small">
+                            {% for facility in hostel.facilities|slice:":3" %}
+                            <li class="mb-1"><i class="ri-checkbox-circle-fill text-success me-2"></i>{{ facility }}</li>
+                            {% endfor %}
+                            {% if hostel.facilities|length > 3 %}
+                            <li class="text-muted">+{{ hostel.facilities|length|add:"-3" }} more</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'hostel_detail' hostel.id %}" class="btn primary-btn btn-sm">
+                            <i class="ri-door-open-line me-1"></i> View Rooms
+                        </a>
+                        {% if hostel.rules %}
+                        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="tooltip" title="View Hostel Rules">
+                            <i class="ri-information-line"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="ri-building-2-line display-4 text-muted mb-3"></i>
+                    <h3 class="fw-bold mb-3">No Hostels Available</h3>
+                    <p class="text-muted mb-4">There are currently no hostels available for your gender category.</p>
+                    <a href="{% url 'hostel_booking_dashboard' %}" class="btn primary-btn">
+                        <i class="ri-arrow-left-line me-1"></i> Return to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .primary-btn {
+        background-color: #3639A4;
+        color: white;
+        border: none;
+    }
+    
+    .primary-btn:hover {
+        background-color: #2a2d8a;
+        color: white;
+    }
+    
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.35em 0.65em;
+    }
+</style>
+
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends 'base.html'%}
+{% load static %}
+
+{% block content %}
+
+<div class="container onprintContainer">
+        <!-- System Messages -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Page Header -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h4 class="primary-text"><i class="bi bi-newspaper me-2"></i>University News</h4>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row shadow-lg mt-4 p-3 card default-height academic">
+            <div class="col-md-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0"><i class="bi bi-megaphone me-2"></i>Latest Updates</h5>
+                            <span class="badge bg-light text-dark">
+                                {{ news_articles|length }} article{{ news_articles|length|pluralize }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Featured Article -->
+                        {% if featured_article %}
+                        <div class="mb-5">
+                            <div class="card border-0 shadow-sm">
+                                {% if featured_article.image %}
+                                <img src="{{ featured_article.image.url }}" class="card-img-top" alt="{{ featured_article.title }}" style="max-height: 400px; object-fit: cover;">
+                                {% endif %}
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="badge bg-primary">{{ featured_article.category }}</span>
+                                        <small class="text-muted">{{ featured_article.publish_date|date:"M d, Y" }}</small>
+                                    </div>
+                                    <h3 class="card-title">{{ featured_article.title }}</h3>
+                                    <p class="card-text">{{ featured_article.summary }}</p>
+                                    <a href="#" class="btn btn-primary">Read More</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Regular Articles -->
+                        <div class="row mb-4">
+                            {% for article in regular_articles %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    {% if article.image %}
+                                    <img src="{{ article.image.url }}" class="card-img-top" alt="{{ article.title }}" style="height: 180px; object-fit: cover;">
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="badge bg-secondary">{{ article.category }}</span>
+                                            <small class="text-muted">{{ article.publish_date|date:"M d" }}</small>
+                                        </div>
+                                        <h5 class="card-title">{{ article.title }}</h5>
+                                        <p class="card-text text-muted small">{{ article.summary|truncatewords:20 }}</p>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="#" class="btn btn-sm btn-outline-primary w-100">Read More</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Older Articles -->
+                        {% if older_articles %}
+                        <h5 class="text-primary mb-3"><i class="bi bi-clock-history me-2"></i>Older News</h5>
+                        <div class="list-group">
+                            {% for article in older_articles %}
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ article.title }}</h6>
+                                        <small class="text-muted">{{ article.summary|truncatewords:15 }}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-light text-dark">{{ article.category }}</span>
+                                        <small class="text-muted d-block">{{ article.publish_date|date:"M d" }}</small>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-footer bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Last updated: {% now "M d, Y H:i" %}
+                            </small>
+                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-archive me-1"></i> View News Archive
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<style>
+    :root {
+        --primary: #4300FF;
+        --secondary: #6C63FF;
+        --light: #F0EBFF;
+        --dark: #2A0080;
+    }
+    
+    .primary-text {
+        color: var(--primary);
+    }
+    
+    .bg-primary {
+        background-color: var(--primary) !important;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+    
+    .border-nav {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .default-height {
+        min-height: 500px;
+    }
+    
+    .avatar {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .user-message .card {
+        background-color: #e3f2fd;
+    }
+    
+    .assistant-message .card {
+        background-color: #f8f9fa;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        color: var(--primary);
+        background-color: rgba(67, 0, 255, 0.05);
+    }
+    
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: var(--primary);
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    .card-img-top {
+        border-top-left-radius: 0.375rem;
+        border-top-right-radius: 0.375rem;
+    }
+    
+    .list-group-item {
+        transition: background-color 0.2s;
+    }
+    
+    .list-group-item:hover {
+        background-color: var(--light);
+    }
+    
+    .news-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,318 @@
+{% extends 'base.html'%}
+{% load static %}
+
+{% block content %}
+
+<div class="container onprintContainer">
+        <!-- System Messages -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Page Header -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h4 class="primary-text"><i class="bi bi-robot me-2"></i>Virtual Assistant</h4>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row shadow-lg mt-4 p-3 card default-height academic">
+            <div class="col-md-12">
+                <ul class="nav nav-tabs border-nav" id="assistantTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" 
+                            data-bs-target="#chat-panel" type="button" role="tab" 
+                            aria-controls="chat-panel" aria-selected="true">
+                            <i class="bi bi-chat-left-text me-2"></i>Chat
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="quickhelp-tab" data-bs-toggle="tab" 
+                            data-bs-target="#quickhelp-panel" type="button" role="tab" 
+                            aria-controls="quickhelp-panel" aria-selected="false">
+                            <i class="bi bi-lightning me-2"></i>Quick Help
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="assistantTabContent">
+                    <!-- Chat Panel -->
+                    <div class="tab-pane fade p-3 show active" id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-headset me-2"></i>MUT Virtual Assistant</h5>
+                            </div>
+                            
+                            <div class="card-body p-0">
+                                <div id="chat-container" class="p-3" style="height: 300px; overflow-y: auto; background-color: #f8f9fa;">
+                                    <!-- Chat messages will appear here -->
+                                    <div class="assistant-message mb-3">
+                                        <div class="d-flex">
+                                            <div class="flex-shrink-0">
+                                                <div class="avatar bg-primary text-white rounded-circle p-2">
+                                                    <i class="bi bi-robot fs-5"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <div class="card bg-light">
+                                                    <div class="card-body p-2">
+                                                        <p class="mb-0">Hello {% if user.first_name %}{{ user.first_name }}{% else %}there{% endif %}! I'm the MUT Virtual Assistant. How can I help you today?</p>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">Just now</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="p-3 border-top">
+                                    <div class="input-group">
+                                        <input type="text" id="user-query" class="form-control" placeholder="Ask me anything..." aria-label="Ask question">
+                                        <button class="btn btn-primary" id="send-query">
+                                            <i class="bi bi-send"></i> Send
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Try asking about results, fees, hostels, or library services</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Help Panel -->
+                    <div class="tab-pane fade p-3" id="quickhelp-panel" role="tabpanel" aria-labelledby="quickhelp-tab">
+                        <div class="row">
+                            <!-- Quick Links -->
+                            <div class="col-md-6">
+                                <div class="card mb-4 border-0 shadow-sm">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Quick Links</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="list-group">
+                                            {% for link in quick_links %}
+                                            <a href="{{ link.url }}" class="list-group-item list-group-item-action">
+                                                <i class="bi {{ link.icon }} me-2"></i> {{ link.title }}
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Common Questions -->
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="bi bi-question-circle me-2"></i>Common Questions</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="accordion" id="faqAccordion">
+                                            {% for item in common_questions %}
+                                            <div class="accordion-item mb-3 border-0 shadow-sm">
+                                                <h2 class="accordion-header">
+                                                    <button class="accordion-button collapsed" type="button" 
+                                                        data-bs-toggle="collapse" data-bs-target="#faq{{ forloop.counter }}"
+                                                        style="background-color: rgba(67, 0, 255, 0.05); color: #4300FF;">
+                                                        {{ item.question }}
+                                                    </button>
+                                                </h2>
+                                                <div id="faq{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                                    <div class="accordion-body">
+                                                        {{ item.answer }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<style>
+    :root {
+        --primary: #4300FF;
+        --secondary: #6C63FF;
+        --light: #F0EBFF;
+        --dark: #2A0080;
+    }
+    
+    .primary-text {
+        color: var(--primary);
+    }
+    
+    .bg-primary {
+        background-color: var(--primary) !important;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+    
+    .border-nav {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .default-height {
+        min-height: 500px;
+    }
+    
+    .avatar {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .user-message .card {
+        background-color: #e3f2fd;
+    }
+    
+    .assistant-message .card {
+        background-color: #f8f9fa;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        color: var(--primary);
+        background-color: rgba(67, 0, 255, 0.05);
+    }
+    
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: var(--primary);
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatContainer = document.getElementById('chat-container');
+    const userQuery = document.getElementById('user-query');
+    const sendButton = document.getElementById('send-query');
+    
+    function addMessage(sender, message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `${sender}-message mb-3`;
+        
+        const messageHTML = `
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="avatar ${sender === 'user' ? 'bg-primary' : 'bg-primary'} text-white rounded-circle p-2">
+                        <i class="bi ${sender === 'user' ? 'bi-person' : 'bi-robot'} fs-5"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div class="card ${sender === 'user' ? 'bg-primary text-white' : 'bg-light'}">
+                        <div class="card-body p-2">
+                            <p class="mb-0">${message}</p>
+                        </div>
+                    </div>
+                    <small class="text-muted">Just now</small>
+                </div>
+            </div>
+        `;
+        
+        messageDiv.innerHTML = messageHTML;
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function processQuery() {
+        const query = userQuery.value.trim();
+        if (query === '') return;
+        
+        // Add user message to chat
+        addMessage('user', query);
+        userQuery.value = '';
+        
+        // Show typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'assistant-message mb-3';
+        typingIndicator.innerHTML = `
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="avatar bg-primary text-white rounded-circle p-2">
+                        <i class="bi bi-robot fs-5"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div class="card bg-light">
+                        <div class="card-body p-2">
+                            <p class="mb-0"><i>Assistant is typing...</i></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(typingIndicator);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        // Send query to server
+        fetch('{% url "process_assistant_query" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({query: query})
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Remove typing indicator
+            chatContainer.removeChild(typingIndicator);
+            
+            // Add assistant response
+            if (data.response) {
+                addMessage('assistant', data.response);
+            } else if (data.error) {
+                addMessage('assistant', 'Sorry, I encountered an error. Please try again later.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            chatContainer.removeChild(typingIndicator);
+            addMessage('assistant', 'Sorry, I encountered an error. Please try again later.');
+        });
+    }
+    
+    // Event listeners
+    sendButton.addEventListener('click', processQuery);
+    userQuery.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            processQuery();
+        }
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,1010 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - KMTC{% endblock %}
+
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <h1 class="fw-bold card-title text-start">KMTC Admin Dashboard</h1>
+                <p class="text-muted">Academic Year: {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %} | Current Semester: {% if current_semester %}{{ current_semester.semester_number }}{% else %}Not Set{% endif %}</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="text-end">
+                    <span class="fw-bold text-muted">Today is {{ current_date|date:"l, F d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row p-2">
+        <!-- Users Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Users</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_users }} active</span> | 
+                                <span class="text-info">{{ new_users_today }} new today</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Students</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_students }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_students }} active</span> | 
+                                <span class="text-info">{{ new_students_today }} new today</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Faculty Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Faculty</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_faculty }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_faculty }} active</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Staff</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_staff }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_staff }} active</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-tie fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row p-2">
+        <!-- Gender Distribution (Donut Chart) -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Student Gender Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="genderChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Admissions Trend (Bar Chart) -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Student Admissions Trend (Last 5 Years)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="admissionTrendChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Enrollment and Student Reporting Row -->
+    <div class="row p-2">
+        <!-- Programme Enrollment (Line Chart) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Programme Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="programmeChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Reporting (Last 6 Semesters) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Student Reporting (Last 6 Semesters)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="reportingChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row p-2">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Academic Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Academic Overview</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Schools</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_schools }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Programmes</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_programmes }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Units/Subjects</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_units }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Clinical Sites</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ active_placements }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Recent Activities</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for activity in recent_activities %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div class="d-flex">
+                                    <i class="fas {{ activity.icon }} text-{{ activity.color }} me-3 mt-1"></i>
+                                    <div>
+                                        <p class="mb-1 small">{{ activity.message }}</p>
+                                        <small class="text-muted">{{ activity.date|timesince }} ago</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent activities
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Collection Trends -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Fee Collection Trends (Last 12 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="collectionChart" width="800" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Financial Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Financial Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Payments</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_fee_payments }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Today's Payments</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ today_fee_payments }}</div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-semibold primary-text mb-3">Recent Payments</h6>
+                    <div class="list-group list-group-flush">
+                        {% for payment in recent_payments %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 small fw-semibold">{{ payment.student.registration_number }}</h6>
+                                <span class="text-success fw-bold">KES {{ payment.amount_paid|floatformat:0 }}</span>
+                            </div>
+                            <small class="text-muted">{{ payment.payment_method|title }} - {{ payment.payment_date|date:"M d, Y" }}</small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent payments
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Performing Students -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Top Performing Students</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for student_data in top_students %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold">{{ student_data.student.user.get_full_name }}</h6>
+                                    <small class="text-muted">{{ student_data.student.registration_number }} - {{ student_data.student.programme.name }}</small>
+                                </div>
+                                <span class="badge bg-success">{{ student_data.gpa }} GPA</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No data available
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary btn-sm">
+                            <i class="fas fa-user-plus me-1"></i> Add Student
+                        </a>
+                        <a href="#" class="btn btn-success btn-sm">
+                            <i class="fas fa-chalkboard-teacher me-1"></i> Add Faculty
+                        </a>
+                        <a href="#" class="btn btn-info btn-sm">
+                            <i class="fas fa-graduation-cap me-1"></i> Add Programme
+                        </a>
+                        <a href="#" class="btn btn-warning btn-sm">
+                            <i class="fas fa-money-bill me-1"></i> Record Payment
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Performance Row -->
+    <div class="row p-2">
+        <!-- Programme Performance Chart -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Programme Performance (Average GPA)</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Summary Row -->
+    <div class="row p-2">
+        <!-- Clinical Placements Overview -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Clinical Placements</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">Manage</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Active</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ active_placements }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Completed</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ completed_placements }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Semester Attendance -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Current Semester Attendance</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="attendanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug: Check if Chart.js is loaded
+    console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+    console.log('Chart version:', Chart?.version);
+    
+    // Chart.js default configuration
+    Chart.defaults.font.size = 12;
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+
+    // Get chart data with validation
+    const genderData = {{ gender_chart_data|safe }};
+    const admissionData = {{ admission_trend_data|safe }};
+    const programmeData = {{ programme_chart_data|safe }};
+    const reportingData = {{ reporting_chart_data|safe }};
+    const collectionData = {{ collection_chart_data|safe }};
+    const performanceData = {{ performance_chart_data|safe }};
+    
+    console.log('Chart data loaded:', {
+        genderData,
+        admissionData,
+        programmeData,
+        reportingData,
+        collectionData,
+        performanceData
+    });
+
+    // Gender Distribution Donut Chart
+    if (genderData && genderData.labels && genderData.labels.length > 0) {
+        const genderCtx = document.getElementById('genderChart').getContext('2d');
+        new Chart(genderCtx, {
+            type: 'doughnut',
+            data: {
+                labels: genderData.labels,
+                datasets: [{
+                    data: genderData.data,
+                    backgroundColor: genderData.colors || ['#9d0101', '#ff6b6b', '#ffa3a3'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('genderChart').parentElement.innerHTML = '<p class="text-center text-muted">No gender data available</p>';
+    }
+
+    // Student Admissions Trend Bar Chart
+    if (admissionData && admissionData.labels && admissionData.labels.length > 0) {
+        const admissionCtx = document.getElementById('admissionTrendChart').getContext('2d');
+        new Chart(admissionCtx, {
+            type: 'bar',
+            data: {
+                labels: admissionData.labels,
+                datasets: [{
+                    label: 'New Admissions',
+                    data: admissionData.data,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return `Year: ${context[0].label}`;
+                            },
+                            label: function(context) {
+                                return `New Students: ${context.raw}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('admissionTrendChart').parentElement.innerHTML = '<p class="text-center text-muted">No admission data available</p>';
+    }
+
+    // Programme Enrollment Line Chart
+    if (programmeData && programmeData.labels && programmeData.labels.length > 0) {
+        const programmeCtx = document.getElementById('programmeChart').getContext('2d');
+        new Chart(programmeCtx, {
+            type: 'line',
+            data: {
+                labels: programmeData.labels,
+                datasets: [{
+                    label: 'Enrolled Students',
+                    data: programmeData.data,
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('programmeChart').parentElement.innerHTML = '<p class="text-center text-muted">No programme data available</p>';
+    }
+
+    // Student Reporting Chart (Last 6 Semesters)
+    if (reportingData && reportingData.labels && reportingData.labels.length > 0) {
+        const reportingCtx = document.getElementById('reportingChart').getContext('2d');
+        new Chart(reportingCtx, {
+            type: 'bar',
+            data: {
+                labels: reportingData.labels,
+                datasets: [{
+                    label: 'Reported',
+                    data: reportingData.reported,
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Expected',
+                    data: reportingData.expected,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const percentage = reportingData.percentages[index];
+                                return `Reporting Rate: ${percentage}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('reportingChart').parentElement.innerHTML = '<p class="text-center text-muted">No reporting data available</p>';
+    }
+
+    // Fee Collection Trends Chart
+    if (collectionData && collectionData.labels && collectionData.labels.length > 0) {
+        const collectionCtx = document.getElementById('collectionChart').getContext('2d');
+        new Chart(collectionCtx, {
+            type: 'line',
+            data: {
+                labels: collectionData.labels,
+                datasets: [{
+                    label: 'Collection Amount (KES)',
+                    data: collectionData.amounts,
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
+                    borderWidth: 2,
+                    yAxisID: 'y',
+                    tension: 0.4
+                }, {
+                    label: 'Number of Payments',
+                    data: collectionData.counts,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    yAxisID: 'y1',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Amount (KES)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Number of Payments'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('collectionChart').parentElement.innerHTML = '<p class="text-center text-muted">No collection data available</p>';
+    }
+
+    // Programme Performance Chart - FIXED for Chart.js 3.9.1
+    if (performanceData && performanceData.labels && performanceData.labels.length > 0) {
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'bar', // ✅ Changed from 'horizontalBar' which doesn't exist in v3+
+            data: {
+                labels: performanceData.labels,
+                datasets: [{
+                    label: 'Average GPA',
+                    data: performanceData.data,
+                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
+                    borderColor: 'rgba(157, 1, 1, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // ✅ This makes it horizontal in Chart.js v3+
+                scales: {
+                    x: { // ✅ Fixed axis configuration for v3+
+                        beginAtZero: true,
+                        max: 4.0,
+                        title: {
+                            display: true,
+                            text: 'GPA'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Average GPA: ${context.raw}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('performanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No performance data available</p>';
+    }
+
+    // Attendance Chart
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    
+    // Build attendance data array
+    const attendanceData = [];
+    const attendanceCounts = {
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0
+    };
+    
+    // Parse attendance summary from Django template
+    {% for status in attendance_summary %}
+        attendanceCounts['{{ status.status }}'] = {{ status.count }};
+    {% endfor %}
+    
+    attendanceData.push(attendanceCounts.present);
+    attendanceData.push(attendanceCounts.absent);
+    attendanceData.push(attendanceCounts.late);
+    attendanceData.push(attendanceCounts.excused);
+
+    // Only create chart if there's data
+    const totalAttendance = attendanceData.reduce((a, b) => a + b, 0);
+    if (totalAttendance > 0) {
+        new Chart(attendanceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Late', 'Excused'],
+                datasets: [{
+                    data: attendanceData,
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(157, 1, 1, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(23, 162, 184, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(157, 1, 1, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('attendanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No attendance data available</p>';
+    }
+    
+    console.log('All charts initialized successfully!');
+});
+</script>
+
+<style>
+/* Custom styles for admin dashboard */
+.card {
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    padding: 1rem 1.25rem;
+    background-color: #fff !important;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.border-left-primary {
+    border-left: 0.25rem solid #9d0101 !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #28a745 !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #17a2b8 !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #ffc107 !important;
+}
+
+.list-group-item {
+    transition: background-color 0.2s;
+    border: none !important;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+.primary-text {
+    color: #9d0101 !important;
+}
+
+.font-weight-bold {
+    font-weight: 700 !important;
+}
+
+.text-xs {
+    font-size: 0.7rem;
+}
+
+/* Chart containers */
+canvas {
+    max-height: 400px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-xl-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .h4 {
+        font-size: 1.2rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .btn, .alert {
+        display: none !important;
+    }
+}
+
+/* Loading animation for charts */
+.chart-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #6c757d;
+}
+
+.chart-loading::after {
+    content: "Loading chart...";
+}
+
+/* Error message styling */
+.text-center.text-muted {
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Button colors */
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.text-primary {
+    color: #9d0101 !important;
+}
+
+/* Alert colors */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+</style>
+{% endblock %}

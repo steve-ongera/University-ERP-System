@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Placements{% endblock %}
+
+{% block content %}
+<h2>Placement Opportunities</h2>
+<h3>Available Drives</h3>
+<ul>
+    {% for drive in available_drives %}
+    <li>
+        {{ drive.company.name }} - {{ drive.title }}
+        <a href="{% url 'apply_placement' drive.id %}">Apply</a>
+    </li>
+    {% endfor %}
+</ul>
+
+<h3>Your Applications</h3>
+<ul>
+    {% for application in applied_placements %}
+    <li>
+        {{ application.placement_drive.company.name }} - 
+        {{ application.placement_drive.title }}: 
+        {{ application.status }}
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

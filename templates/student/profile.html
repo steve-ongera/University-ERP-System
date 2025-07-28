@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row mt-3 d-flex flex-row pb-3">
+        <div class="col-md-12 d-flex justify-content-between">
+            <h3 class="primary-text">Profile Settings</h3>
+        </div>
+    </div>
+
+    <div class="row bg-white shadow">
+        <!-- Left Side - Navigation -->
+        <div class="col-md-3">
+            <div class="card col-md-12">
+                <div class="card-body text-md-left ml-0">
+                    <div class="nav flex-column nav-tabs prof" id="v-tabs-tab" role="tablist" aria-orientation="vertical">
+                        <div class="mb-4 d-flex align-items-center flex-column">
+                            <div class="profile-pic mb-3 position-relative">
+                                {% if request.user.profile_picture %}
+                                    <img src="{{ request.user.profile_picture.url }}" id="profilePicture" class="img-fluid rounded-circle" alt="Profile Picture" />
+                                {% else %}
+                                    <img src="{% static 'avatar2.png' %}" id="profilePicture" class="img-fluid rounded-circle" alt="Default Profile" />
+                                {% endif %}
+                                <span class="position-absolute bottom-0 start-100 translate-middle badge border border-blue rounded-circle uploadIcon bg-white">
+                                    <span class="elementinput">
+                                        <i class="ri-upload-line profIconClick" data-bs-toggle="tooltip" data-bs-placement="right"
+                                           data-bs-custom-class="custom-tooltip" data-bs-title="Upload Profile Picture"></i>
+                                        <input class="profileInputFile" type="file" id="uploadedProf" accept="image/png, image/gif, image/jpeg, image/jpg">
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="sticky-top mb-2">
+                                <div class="p-1">
+                                    <button type="button" class="btn primary-outline-btn btn-md profileInputFile" id="profileUpload"><i class="ri-upload-line"></i> Upload</button>
+                                </div>
+                                <div>
+                                    <h6 class="mb-2">{{ request.user.get_full_name }}</h6>
+                                    <p class="text-muted small">{{ student.student_id }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="nav flex-column prof">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active px-1" href="#" id="Stud-PersonalDetails-tab" data-bs-toggle="tab" data-bs-target="#Stud-PersonalDetails" role="tab" aria-controls="Stud-PersonalDetails" aria-selected="true"><i class="bi bi-person mx-3"></i><span>Personal Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Stud-ContactDetails-tab" data-bs-toggle="tab" data-bs-target="#Stud-ContactDetails" role="tab" aria-controls="Stud-ContactDetails" aria-selected="false"><i class="bi bi-telephone mx-3"></i><span>Contact Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Stud-Em-ContactDetails-tab" data-bs-toggle="tab" data-bs-target="#Stud-Em-ContactDetails" role="tab" aria-controls="Stud-Em-ContactDetails" aria-selected="false"><i class="bi bi-telephone mx-1"></i><span>Emergency Contact</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Academics-tab" data-bs-toggle="tab" data-bs-target="#Academics" role="tab" aria-controls="Academics" aria-selected="false"><i class="bi bi-file-earmark-text-fill mx-1"></i><span>Academic Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Password-tab" data-bs-toggle="tab" data-bs-target="#Password" role="tab" aria-controls="Password" aria-selected="false"><i class="bi bi-lock-fill mx-1"></i><span>Change Password</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Content -->
+        <div class="col-md-9 profile">
+            <div class="tab-content">
+                <!-- Personal Details Tab -->
+                <div id="Stud-PersonalDetails" class="container tab-pane show active" role="tabpanel" aria-labelledby="Stud-PersonalDetails-tab">
+                    <form method="post" action="{% url 'student_profile' %}">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Registration Number</label>
+                                    <input type="text" class="form-control" disabled value="{{ student.student_id }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>First Name</label>
+                                    <input type="text" class="form-control" name="first_name" value="{{ request.user.first_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Last Name</label>
+                                    <input type="text" class="form-control" name="last_name" value="{{ request.user.last_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Phone</label>
+                                    <input type="text" class="form-control" name="phone" value="{{ request.user.phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Address</label>
+                                    <input type="text" class="form-control" name="address" value="{{ request.user.address }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="form-control" disabled value="{{ request.user.date_of_birth|date:'Y-m-d' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Programme</label>
+                                    <input type="text" class="form-control" disabled value="{{ student.course }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Current Semester</label>
+                                    <input type="text" class="form-control" disabled value="{{ student.current_semester }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Contact Details Tab -->
+                <div id="Stud-ContactDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Stud-ContactDetails-tab">
+                    <form method="post" action="{% url 'student_profile' %}">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Phone Number</label>
+                                    <input type="text" class="form-control" name="phone" value="{{ request.user.phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Address</label>
+                                    <input type="text" class="form-control" name="address" value="{{ request.user.address }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Emergency Contact Tab -->
+                <div id="Stud-Em-ContactDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Stud-Em-ContactDetails-tab">
+                    <form method="post" action="{% url 'student_profile' %}">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Guardian Name</label>
+                                    <input type="text" class="form-control" name="guardian_name" value="{{ student.guardian_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Guardian Relationship</label>
+                                    <input type="text" class="form-control" name="guardian_relation" value="{{ student.guardian_relation }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Guardian Phone</label>
+                                    <input type="text" class="form-control" name="guardian_phone" value="{{ student.guardian_phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Emergency Contact</label>
+                                    <input type="text" class="form-control" name="emergency_contact" value="{{ student.emergency_contact }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Blood Group</label>
+                                    <input type="text" class="form-control" name="blood_group" value="{{ student.blood_group }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Academic Details Tab -->
+                <div id="Academics" class="container tab-pane fade" role="tabpanel" aria-labelledby="Academics-tab">
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Student ID</label>
+                                <input type="text" class="form-control" disabled value="{{ student.student_id }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Programme</label>
+                                <input type="text" class="form-control" disabled value="{{ student.course }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Current Year</label>
+                                <input type="text" class="form-control" disabled value="{{ student.current_year }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Current Semester</label>
+                                <input type="text" class="form-control" disabled value="{{ student.current_semester }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Admission Date</label>
+                                <input type="text" class="form-control" disabled value="{{ student.admission_date|date:'Y-m-d' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Admission Type</label>
+                                <input type="text" class="form-control" disabled value="{{ student.get_admission_type_display }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Status</label>
+                                <input type="text" class="form-control" disabled value="{{ student.get_status_display }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password Tab -->
+                <div id="Password" class="container tab-pane fade" role="tabpanel" aria-labelledby="Password-tab">
+                    <form method="post" action="{% url 'student_profile' %}">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Current Password</label>
+                                    <input type="password" class="form-control" name="current_password" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>New Password</label>
+                                    <input type="password" class="form-control" name="new_password1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" class="form-control" name="new_password2" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                                <button type="submit" class="btn primary-btn btn-md light">Change Password</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Handle profile picture upload
+    $('#profileUpload').click(function() {
+        $('#uploadedProf').click();
+    });
+
+    $('#uploadedProf').change(function() {
+        if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            
+            reader.onload = function(e) {
+                $('#profilePicture').attr('src', e.target.result);
+                
+                // You would typically upload the file here via AJAX
+                var formData = new FormData();
+                formData.append('profile_picture', $('#uploadedProf')[0].files[0]);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                $.ajax({
+                    url: '{% url "student_profile" %}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        toastr.success('Profile picture updated successfully');
+                    },
+                    error: function(xhr, errmsg, err) {
+                        toastr.error('Error updating profile picture');
+                    }
+                });
+            }
+            
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}

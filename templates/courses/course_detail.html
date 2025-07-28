@@ -1,0 +1,390 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Course Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ course.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ course.code }}</span> | 
+                            <span class="badge bg-{% if course.course_type == 'ug' %}info{% elif course.course_type == 'pg' %}success{% else %}warning{% endif %}">
+                                {{ course.get_course_type_display }}
+                            </span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ course.department.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">ksh{{ course.fees_per_semester|floatformat:0 }}</h4>
+                            <small class="text-muted">per semester</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'edit_course' course.id %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-pencil"></i> Edit Course
+                            </a>
+                            <a href="{% url 'course_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ course_stats.total_subjects }}</h5>
+                            <p class="small text-muted mb-0">Total Subjects</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ course_stats.total_credits }}</h5>
+                            <p class="small text-muted mb-0">Total Credits</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ course_stats.total_theory_hours }}</h5>
+                            <p class="small text-muted mb-0">Theory Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ course_stats.total_practical_hours }}</h5>
+                            <p class="small text-muted mb-0">Practical Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ course_stats.core_subjects }}</h5>
+                            <p class="small text-muted mb-0">Core Subjects</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-primary">{{ course_stats.elective_subjects }}</h5>
+                            <p class="small text-muted mb-0">Electives</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Description -->
+    {% if course.description %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Course Description</h5>
+                    <p class="card-text">{{ course.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Subjects by Year and Semester -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Course Curriculum</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Year Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="yearTabs" role="tablist">
+                        {% for year in years %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                        id="year-{{ year }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#year-{{ year }}" 
+                                        type="button" 
+                                        role="tab">
+                                    Year {{ year }}
+                                </button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Year Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year, semesters in subjects_by_year.items %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                 id="year-{{ year }}" 
+                                 role="tabpanel">
+                                
+                                <!-- Semester Tabs -->
+                                <div class="d-flex mb-3">
+                                    {% for semester, subjects in semesters.items %}
+                                        <button class="btn btn-sm btn-outline-secondary me-2 {% if forloop.first %}active{% endif %}" 
+                                                onclick="showSemester('year-{{ year }}-sem-{{ semester }}', this)">
+                                            Semester {{ semester }}
+                                        </button>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Semester Content -->
+                                {% for semester, subjects in semesters.items %}
+                                    <div class="semester-content {% if not forloop.first %}d-none{% endif %}" 
+                                         id="year-{{ year }}-sem-{{ semester }}">
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead class="thead-light">
+                                                    <tr>
+                                                        <th>Code</th>
+                                                        <th>Subject Name</th>
+                                                        <th>Type</th>
+                                                        <th>Credits</th>
+                                                        <th>Theory</th>
+                                                        <th>Practical</th>
+                                                        <th>Prerequisites</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for subject in subjects %}
+                                                    <tr>
+                                                        <td>{{ subject.code }}</td>
+                                                        <td>{{ subject.name }}</td>
+                                                        <td>
+                                                            <span class="badge bg-{% if subject.is_elective %}success{% else %}danger{% endif %}">
+                                                                {% if subject.is_elective %}Elective{% else %}Core{% endif %}
+                                                            </span>
+                                                        </td>
+                                                        <td>{{ subject.credits }}</td>
+                                                        <td>{{ subject.theory_hours }}h</td>
+                                                        <td>{{ subject.practical_hours }}h</td>
+                                                        <td>
+                                                            {% for prereq in subject.prerequisites.all %}
+                                                                <span class="badge bg-warning text-dark">{{ prereq.code }}</span>
+                                                            {% endfor %}
+                                                        </td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr>
+                                                        <td colspan="7" class="text-center py-4">No subjects found for this semester</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'course_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Courses
+                    </a>
+                    <a href="{% url 'edit_course' course.id %}" class="btn btn-primary me-2">
+                        <i class="bi bi-pencil"></i> Edit Course
+                    </a>
+                    <a href="{% url 'delete_course' course.id %}" class="btn btn-outline-danger" id="deleteCourseBtn">
+                        <i class="bi bi-trash"></i> Delete Course
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete this course? This will also delete all associated subjects and student enrollments.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal handling (existing functionality)
+    const deleteButton = document.getElementById('deleteCourseBtn');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('href');
+            deleteForm.setAttribute('action', deleteUrl);
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        });
+    }
+    
+    // Enhanced showSemester function
+    function showSemester(semesterId, button) {
+        // Hide all semester content in the current year
+        const yearTab = button.closest('.tab-pane');
+        const semesterContents = yearTab.querySelectorAll('.semester-content');
+        const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
+        
+        // Hide all semester contents
+        semesterContents.forEach(content => content.classList.add('d-none'));
+        
+        // Remove active class from all semester buttons
+        semesterButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show selected semester content
+        const targetContent = document.getElementById(semesterId);
+        if (targetContent) {
+            targetContent.classList.remove('d-none');
+        }
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+    }
+    
+    // Enhanced function to ensure tabs are properly activated
+    function ensureActiveTab() {
+        // First, handle year tabs
+        const yearTabs = document.querySelectorAll('#yearTabs .nav-link');
+        const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
+        
+        // Check if any year tab is active, if not activate the first one
+        let hasActiveYearTab = false;
+        yearTabs.forEach(tab => {
+            if (tab.classList.contains('active')) {
+                hasActiveYearTab = true;
+            }
+        });
+        
+        if (!hasActiveYearTab && yearTabs.length > 0) {
+            // Activate first year tab
+            yearTabs[0].classList.add('active');
+            yearTabs[0].setAttribute('aria-selected', 'true');
+            
+            // Activate corresponding year content
+            const targetId = yearTabs[0].getAttribute('data-bs-target');
+            if (targetId) {
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        }
+        
+        // Now handle semester tabs for each year
+        yearTabContents.forEach(yearPane => {
+            const semesterButtons = yearPane.querySelectorAll('.btn-outline-secondary');
+            const semesterContents = yearPane.querySelectorAll('.semester-content');
+            
+            // Check if this year pane is active
+            if (yearPane.classList.contains('active') || yearPane.classList.contains('show')) {
+                // Check if any semester button is active in this year
+                let hasActiveSemesterTab = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemesterTab = true;
+                    }
+                });
+                
+                if (!hasActiveSemesterTab && semesterButtons.length > 0) {
+                    // Activate first semester button
+                    semesterButtons[0].classList.add('active');
+                    
+                    // Show corresponding semester content
+                    if (semesterContents.length > 0) {
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    }
+    
+    // Handle Bootstrap tab events to ensure semester tabs are activated when year changes
+    const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
+    yearTabElements.forEach(tabElement => {
+        tabElement.addEventListener('shown.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+            
+            if (targetPane) {
+                const semesterButtons = targetPane.querySelectorAll('.btn-outline-secondary');
+                const semesterContents = targetPane.querySelectorAll('.semester-content');
+                
+                // Check if any semester is active, if not activate the first one
+                let hasActiveSemester = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemester = true;
+                    }
+                });
+                
+                if (!hasActiveSemester && semesterButtons.length > 0) {
+                    semesterButtons[0].classList.add('active');
+                    if (semesterContents.length > 0) {
+                        // Hide all semester contents first
+                        semesterContents.forEach(content => content.classList.add('d-none'));
+                        // Show the first one
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    });
+    
+    // Initialize tabs on page load
+    ensureActiveTab();
+    
+    // Expose showSemester function globally
+    window.showSemester = showSemester;
+    
+    // Additional safety check - run after a small delay to ensure Bootstrap is fully loaded
+    setTimeout(ensureActiveTab, 100);
+});
+</script>
+
+{% endblock %}

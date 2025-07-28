@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+
+{% block title %}Frequently Asked Questions{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #4300FF;  /* Purple */
+        --secondary: #6C63FF;  /* Lighter Purple */
+        --light: #F0EBFF;  /* Very Light Purple */
+        --accent: #9370DB;  /* Soft Purple */
+        --dark: #2A0080;    /* Darker Purple */
+    }
+    
+    .bg-primary {
+        background-color: var(--primary) !important;
+    }
+
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+    
+    .text-primary {
+        color: var(--primary) !important;
+    }
+    
+    .bg-light {
+        background-color: var(--light) !important;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        color: var(--primary);
+        background-color: rgba(67, 0, 255, 0.05);
+    }
+    
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    }
+    
+    .search-box {
+        border: 2px solid var(--light);
+    }
+    
+    .search-box:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 0.25rem rgba(108, 99, 255, 0.25);
+    }
+</style>
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0"><i class="fas fa-question-circle me-2"></i>Frequently Asked Questions</h3>
+                        <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#askQuestionModal">
+                            <i class="fas fa-plus me-1"></i> Ask a Question
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Search Box -->
+                    <div class="row mb-4">
+                        <div class="col-md-8 mx-auto">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="fas fa-search text-primary"></i>
+                                </span>
+                                <input type="text" class="form-control search-box border-start-0" 
+                                       placeholder="Search FAQs..." id="faqSearch">
+                                <button class="btn btn-primary" type="button" id="searchButton">
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- FAQ Categories -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-sm btn-outline-primary active">All</button>
+                                <button class="btn btn-sm btn-outline-primary">Admissions</button>
+                                <button class="btn btn-sm btn-outline-primary">Registration</button>
+                                <button class="btn btn-sm btn-outline-primary">Academic</button>
+                                <button class="btn btn-sm btn-outline-primary">Financial</button>
+                                <button class="btn btn-sm btn-outline-primary">Student Life</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- FAQ Accordion -->
+                    <div class="accordion" id="faqAccordion">
+                        <!-- FAQ Item 1 -->
+                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseOne" 
+                                    aria-expanded="false" aria-controls="collapseOne">
+                                    <span class="badge bg-primary me-2">Admissions</span>
+                                    How do I apply for admission to the university?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" 
+                                aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>To apply for admission:</p>
+                                    <ol>
+                                        <li>Visit our online application portal</li>
+                                        <li>Create an account or log in if you already have one</li>
+                                        <li>Complete the application form with your personal and academic details</li>
+                                        <li>Upload all required documents (certificates, ID, etc.)</li>
+                                        <li>Pay the application fee</li>
+                                        <li>Submit your application</li>
+                                    </ol>
+                                    <p class="mb-0">You'll receive a confirmation email with your application details.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- FAQ Item 2 -->
+                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseTwo" 
+                                    aria-expanded="false" aria-controls="collapseTwo">
+                                    <span class="badge bg-primary me-2">Registration</span>
+                                    What is the deadline for unit registration?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" 
+                                aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>The deadline for unit registration varies by semester:</p>
+                                    <ul>
+                                        <li><strong>Semester 1:</strong> Typically the second week of September</li>
+                                        <li><strong>Semester 2:</strong> Typically the second week of February</li>
+                                        <li><strong>Summer Semester:</strong> Typically the first week of June</li>
+                                    </ul>
+                                    <p class="mb-0">Exact dates are published in the academic calendar available on the student portal.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- FAQ Item 3 -->
+                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseThree" 
+                                    aria-expanded="false" aria-controls="collapseThree">
+                                    <span class="badge bg-primary me-2">Academic</span>
+                                    How can I access my exam results?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" 
+                                aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>Exam results are available through the following channels:</p>
+                                    <ol>
+                                        <li>Log in to the student portal</li>
+                                        <li>Navigate to the "Academic Records" section</li>
+                                        <li>Select "Exam Results"</li>
+                                        <li>Choose the semester you want to view</li>
+                                    </ol>
+                                    <p class="mb-0">Results are typically released 4-6 weeks after the end of exams.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- FAQ Item 4 -->
+                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseFour" 
+                                    aria-expanded="false" aria-controls="collapseFour">
+                                    <span class="badge bg-primary me-2">Financial</span>
+                                    What payment methods are accepted for tuition fees?
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" 
+                                aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>We accept several payment methods:</p>
+                                    <ul>
+                                        <li>Credit/Debit Card (Visa, Mastercard)</li>
+                                        <li>Bank Transfer</li>
+                                        <li>Mobile Money</li>
+                                        <li>Bankers Cheque</li>
+                                        <li>Cash (at the finance office only)</li>
+                                    </ul>
+                                    <p class="mb-0">Payment plans and financial aid options are also available for eligible students.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- FAQ Item 5 -->
+                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                            <h2 class="accordion-header" id="headingFive">
+                                <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseFive" 
+                                    aria-expanded="false" aria-controls="collapseFive">
+                                    <span class="badge bg-primary me-2">Student Life</span>
+                                    What extracurricular activities are available?
+                                </button>
+                            </h2>
+                            <div id="collapseFive" class="accordion-collapse collapse" 
+                                aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <p>Our university offers a wide range of extracurricular activities including:</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <ul>
+                                                <li>Sports teams (football, basketball, volleyball, etc.)</li>
+                                                <li>Music and performing arts groups</li>
+                                                <li>Debate and public speaking clubs</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <ul>
+                                                <li>Academic and professional societies</li>
+                                                <li>Volunteer and community service programs</li>
+                                                <li>Cultural and international student groups</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <p class="mb-0">Visit the Student Affairs Office or check the student portal for current offerings.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <nav aria-label="FAQ pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1">Previous</a>
+                            </li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item">
+                                <a class="page-link" href="#">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ask Question Modal -->
+<div class="modal fade" id="askQuestionModal" tabindex="-1" aria-labelledby="askQuestionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="askQuestionModalLabel"><i class="fas fa-question-circle me-2"></i>Ask a Question</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="questionCategory" class="form-label">Category</label>
+                        <select class="form-select" id="questionCategory" required>
+                            <option value="" selected disabled>Select a category</option>
+                            <option value="admissions">Admissions</option>
+                            <option value="registration">Registration</option>
+                            <option value="academic">Academic</option>
+                            <option value="financial">Financial</option>
+                            <option value="student-life">Student Life</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="questionTitle" class="form-label">Question Title</label>
+                        <input type="text" class="form-control" id="questionTitle" placeholder="Briefly describe your question" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="questionDetails" class="form-label">Details</label>
+                        <textarea class="form-control" id="questionDetails" rows="5" placeholder="Provide more details about your question..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="studentEmail" class="form-label">Your Email</label>
+                        <input type="email" class="form-control" id="studentEmail" placeholder="Enter your email for response" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Submit Question</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // FAQ Search Functionality
+    const faqSearch = document.getElementById('faqSearch');
+    const searchButton = document.getElementById('searchButton');
+    const accordionItems = document.querySelectorAll('.accordion-item');
+    
+    function searchFAQs() {
+        const searchTerm = faqSearch.value.toLowerCase();
+        
+        accordionItems.forEach(item => {
+            const question = item.querySelector('.accordion-button').textContent.toLowerCase();
+            const answer = item.querySelector('.accordion-body').textContent.toLowerCase();
+            
+            if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    searchButton.addEventListener('click', searchFAQs);
+    faqSearch.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            searchFAQs();
+        }
+    });
+    
+    // Category Filtering
+    const categoryButtons = document.querySelectorAll('.btn-outline-primary');
+    
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            categoryButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const category = this.textContent.trim();
+            
+            if (category === 'All') {
+                accordionItems.forEach(item => {
+                    item.style.display = 'block';
+                });
+            } else {
+                accordionItems.forEach(item => {
+                    const badgeText = item.querySelector('.badge').textContent.trim();
+                    if (badgeText === category) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

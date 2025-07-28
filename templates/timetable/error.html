@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Error Occurred{% endblock %}
+
+{% block content %}
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="error-container text-center">
+                <!-- Error Icon -->
+                <div class="error-icon mb-4">
+                    <i class="bi bi-exclamation-octagon-fill text-danger" style="font-size: 5rem;"></i>
+                </div>
+                
+                <!-- Error Heading -->
+                <h1 class="error-title mb-3">
+                    {% block error_title %}
+                        {% if error_code == 404 %}
+                            Page Not Found
+                        {% elif error_code == 403 %}
+                            Access Denied
+                        {% elif error_code == 500 %}
+                            Server Error
+                        {% else %}
+                            Something Went Wrong
+                        {% endif %}
+                    {% endblock %}
+                </h1>
+                
+                <!-- Error Code -->
+                <div class="error-code mb-4">
+                    <span class="badge bg-secondary">Error {% block error_code %}{{ error_code|default:"Unknown" }}{% endblock %}</span>
+                </div>
+                
+                <!-- Error Message -->
+                <div class="error-message mb-4">
+                    <p class="lead">
+                        {% block error_message %}
+                            {% if error_message %}
+                                {{ error_message }}
+                            {% else %}
+                                {% if error_code == 404 %}
+                                    The page you requested could not be found.
+                                {% elif error_code == 403 %}
+                                    You don't have permission to access this resource.
+                                {% elif error_code == 500 %}
+                                    An internal server error occurred.
+                                {% else %}
+                                    An unexpected error occurred while processing your request.
+                                {% endif %}
+                            {% endif %}
+                        {% endblock %}
+                    </p>
+                </div>
+                
+                <!-- Error Details (for debugging, shown only in DEBUG mode) -->
+                {% if debug and error_details %}
+                <div class="error-details card mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Debug Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre class="text-start"><code>{{ error_details }}</code></pre>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Action Buttons -->
+                <div class="error-actions mt-4">
+                    <div class="btn-group" role="group">
+                        <a href="/" class="btn btn-primary">
+                            <i class="bi bi-house-door"></i> Return Home
+                        </a>
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Go Back
+                        </a>
+                        <button class="btn btn-outline-info" onclick="window.location.reload()">
+                            <i class="bi bi-arrow-clockwise"></i> Reload Page
+                        </button>
+                        <a href="mailto:support@yourdomain.com" class="btn btn-outline-danger">
+                            <i class="bi bi-envelope"></i> Contact Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+}
+
+.error-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.error-title {
+    font-size: 2.5rem;
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.error-code .badge {
+    font-size: 1.2rem;
+    padding: 0.5rem 1rem;
+}
+
+.error-message {
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+.error-details pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.btn-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-group .btn {
+    margin: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .error-title {
+        font-size: 1.8rem;
+    }
+    
+    .error-message {
+        font-size: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        max-width: 300px;
+        margin: 0.25rem 0;
+    }
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Hostels for Academic Year {{ academic_year.year }}</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'overview' %}" class="btn btn-outline-secondary float-end">
+                        <i class="bi bi-arrow-left"></i> Back to Overview
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostel Statistics -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title">Hostel Statistics</h2>
+                    
+                    {% if hostel_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Hostel Name</th>
+                                    <th>Type</th>
+                                    <th>Total Bookings</th>
+                                    <th>Approved Bookings</th>
+                                    <th>Pending Bookings</th>
+                                    <th>Available Beds</th>
+                                    <th>Occupied Beds</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in hostel_data %}
+                                <tr>
+                                    <td>{{ data.hostel.name }}</td>
+                                    <td>{{ data.hostel.get_hostel_type_display }}</td>
+                                    <td>{{ data.total_bookings }}</td>
+                                    <td>{{ data.approved_bookings }}</td>
+                                    <td>{{ data.pending_bookings }}</td>
+                                    <td>{{ data.available_beds }}</td>
+                                    <td>{{ data.occupied_beds }}</td>
+                                    <td>
+                                        <a href="{% url 'rooms_view' data.hostel.id academic_year.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-door-open"></i> View Rooms
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill"></i> No hostels found for this academic year.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+    color: #3639A4;
+    margin-bottom: 1rem;
+}
+
+.alert-info {
+    background-color: #e7f5ff;
+    color: #1864ab;
+}
+
+.btn-outline-primary {
+    color: #3639A4;
+    border-color: #3639A4;
+}
+
+.btn-outline-primary:hover {
+    background-color: #3639A4;
+    color: white;
+}
+</style>
+
+{% endblock %}

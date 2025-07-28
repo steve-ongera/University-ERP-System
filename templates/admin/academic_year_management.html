@@ -1,0 +1,422 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-12">
+                <p class="fw-bold card-stitle text-start">Academic Year Management</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create New Academic Year Card -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>Create New Academic Year
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'create_academic_year' %}">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="year" name="year" placeholder="2024-25" required>
+                                    <label for="year">Academic Year</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control" id="start_date" name="start_date" required>
+                                    <label for="start_date">Start Date</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control" id="end_date" name="end_date" required>
+                                    <label for="end_date">End Date</label>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_current" name="is_current">
+                                    <label class="form-check-label" for="is_current">
+                                        <i class="bi bi-star-fill me-1"></i> Set as Current Academic Year
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save-fill me-1"></i> Create Academic Year
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Years List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar3 me-2"></i>Academic Years
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Current Year</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for academic_year in academic_years %}
+                                <tr>
+                                    <td>{{ academic_year.year }}</td>
+                                    <td>{{ academic_year.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ academic_year.end_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <form method="post" action="{% url 'toggle_current_year' academic_year.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="is_current" 
+                                                       {% if academic_year.is_current %}checked{% endif %} 
+                                                       onchange="this.form.submit()">
+                                            </div>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    onclick="editAcademicYear({{ academic_year.id }}, '{{ academic_year.year }}', '{{ academic_year.start_date|date:"Y-m-d" }}', '{{ academic_year.end_date|date:"Y-m-d" }}', {{ academic_year.is_current|yesno:"true,false" }})">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="toggleSemesterForm({{ academic_year.id }})">
+                                                <i class="bi bi-collection"></i> Semesters
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Semester Management Section (Hidden by default) -->
+                                <tr id="semester-section-{{ academic_year.id }}" style="display: none;">
+                                    <td colspan="5">
+                                        <div class="card shadow-sm mt-2">
+                                            <div class="card-header bg-light">
+                                                <h6 class="card-title mb-0">
+                                                    <i class="bi bi-calendar2-week me-2"></i>Semesters for {{ academic_year.year }}
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <!-- Create Semester Form -->
+                                                <form method="post" action="{% url 'create_semester' academic_year.id %}" class="mb-4">
+                                                    {% csrf_token %}
+                                                    <div class="row g-3">
+                                                        <div class="col-md-3">
+                                                            <div class="form-floating">
+                                                                <select class="form-select" id="semester_number_{{ academic_year.id }}" name="semester_number" required>
+                                                                    <option value="1">Semester 1</option>
+                                                                    <option value="2">Semester 2</option>
+                                                                </select>
+                                                                <label for="semester_number_{{ academic_year.id }}">Semester</label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <div class="form-floating">
+                                                                <input type="date" class="form-control" id="start_date_{{ academic_year.id }}" name="start_date" required>
+                                                                <label for="start_date_{{ academic_year.id }}">Start Date</label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <div class="form-floating">
+                                                                <input type="date" class="form-control" id="end_date_{{ academic_year.id }}" name="end_date" required>
+                                                                <label for="end_date_{{ academic_year.id }}">End Date</label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3 d-flex align-items-center">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input" type="checkbox" id="is_current_sem_{{ academic_year.id }}" name="is_current">
+                                                                <label class="form-check-label" for="is_current_sem_{{ academic_year.id }}">
+                                                                    Current Semester
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-12">
+                                                            <button type="submit" class="btn btn-success btn-sm">
+                                                                <i class="bi bi-plus-circle me-1"></i> Create Semester
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                                
+                                                <!-- Existing Semesters -->
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Semester</th>
+                                                                <th>Start Date</th>
+                                                                <th>End Date</th>
+                                                                <th>Current</th>
+                                                                <th>Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for semester in academic_year.semesters.all %}
+                                                            <tr>
+                                                                <td>Semester {{ semester.semester_number }}</td>
+                                                                <td>{{ semester.start_date|date:"M d, Y" }}</td>
+                                                                <td>{{ semester.end_date|date:"M d, Y" }}</td>
+                                                                <td>
+                                                                    <form method="post" action="{% url 'toggle_current_semester' semester.id %}" class="d-inline">
+                                                                        {% csrf_token %}
+                                                                        <div class="form-check form-switch">
+                                                                            <input class="form-check-input" type="checkbox" name="is_current" 
+                                                                                   {% if semester.is_current %}checked{% endif %} 
+                                                                                   onchange="this.form.submit()">
+                                                                        </div>
+                                                                    </form>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="btn-group" role="group">
+                                                                        <button class="btn btn-sm btn-outline-warning" 
+                                                                                onclick="editSemester({{ semester.id }}, {{ semester.semester_number }}, '{{ semester.start_date|date:"Y-m-d" }}', '{{ semester.end_date|date:"Y-m-d" }}', {{ semester.is_current|yesno:"true,false" }})">
+                                                                            <i class="bi bi-pencil"></i>
+                                                                        </button>
+                                                                        <form method="post" action="{% url 'delete_semester' semester.id %}" class="d-inline">
+                                                                            {% csrf_token %}
+                                                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                                    onclick="return confirm('Are you sure you want to delete this semester?')">
+                                                                                <i class="bi bi-trash"></i>
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            {% empty %}
+                                                            <tr>
+                                                                <td colspan="5" class="text-center py-3 text-muted">
+                                                                    <i class="bi bi-info-circle me-2"></i>No semesters created yet.
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="bi bi-info-circle me-2"></i>No academic years found.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Academic Year Modal -->
+<div class="modal fade" id="editAcademicYearModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square me-2"></i>Edit Academic Year
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="editAcademicYearForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="edit_year" name="year" required>
+                        <label for="edit_year">Academic Year</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
+                        <label for="edit_start_date">Start Date</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
+                        <label for="edit_end_date">End Date</label>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_is_current" name="is_current">
+                        <label class="form-check-label" for="edit_is_current">
+                            <i class="bi bi-star-fill me-1"></i> Current Academic Year
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save-fill me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Semester Modal -->
+<div class="modal fade" id="editSemesterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square me-2"></i>Edit Semester
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="editSemesterForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-floating mb-3">
+                        <select class="form-select" id="edit_semester_number" name="semester_number" required>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                        </select>
+                        <label for="edit_semester_number">Semester Number</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="date" class="form-control" id="edit_semester_start_date" name="start_date" required>
+                        <label for="edit_semester_start_date">Start Date</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="date" class="form-control" id="edit_semester_end_date" name="end_date" required>
+                        <label for="edit_semester_end_date">End Date</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="edit_semester_is_current" name="is_current">
+                        <label class="form-check-label" for="edit_semester_is_current">
+                            <i class="bi bi-star-fill me-1"></i> Current Semester
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save-fill me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSemesterForm(academicYearId) {
+    const semesterSection = document.getElementById('semester-section-' + academicYearId);
+    if (semesterSection.style.display === 'none') {
+        semesterSection.style.display = '';
+    } else {
+        semesterSection.style.display = 'none';
+    }
+}
+
+function editAcademicYear(id, year, startDate, endDate, isCurrent) {
+    document.getElementById('edit_year').value = year;
+    document.getElementById('edit_start_date').value = startDate;
+    document.getElementById('edit_end_date').value = endDate;
+    document.getElementById('edit_is_current').checked = isCurrent;
+    document.getElementById('editAcademicYearForm').action = '/admin/edit_academic_year/' + id + '/';
+    
+    const modal = new bootstrap.Modal(document.getElementById('editAcademicYearModal'));
+    modal.show();
+}
+
+function editSemester(id, semesterNumber, startDate, endDate, isCurrent) {
+    document.getElementById('edit_semester_number').value = semesterNumber;
+    document.getElementById('edit_semester_start_date').value = startDate;
+    document.getElementById('edit_semester_end_date').value = endDate;
+    document.getElementById('edit_semester_is_current').checked = isCurrent;
+    document.getElementById('editSemesterForm').action = '/admin/edit_semester/' + id + '/';
+    
+    const modal = new bootstrap.Modal(document.getElementById('editSemesterModal'));
+    modal.show();
+}
+</script>
+
+<style>
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.form-check-input:checked {
+    background-color: #3639A4;
+    border-color: #3639A4;
+}
+
+.form-switch .form-check-input {
+    height: 1.5em;
+    width: 2.75em;
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+</style>
+
+{% endblock %}

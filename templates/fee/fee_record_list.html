@@ -1,0 +1,411 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Fee Records Management</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <button class="btn btn-success float-end me-2" onclick="exportToExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Export Excel
+                    </button>
+                    <button class="btn btn-info float-end" onclick="printReport()">
+                        <i class="bi bi-printer"></i> Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-3">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="Search students...">
+                </div>
+                
+                <div class="col-md-2">
+                    <select class="form-select" name="course">
+                        <option value="">All Courses</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}" {% if course.id|stringformat:"s" == course_filter %}selected{% endif %}>
+                                {{ course.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <select class="form-select" name="year">
+                        <option value="">All Years</option>
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year|stringformat:"s" == year_filter %}selected{% endif %}>
+                                Year {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <select class="form-select" name="status">
+                        <option value="">All Status</option>
+                        {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if status_code == status_filter %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+                
+                <div class="col-md-1">
+                    <a href="{% url 'fee_record_list' %}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fee Summary Cards -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Total Collected</h4>
+                            <h2 id="totalCollected">KSh 0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-cash-coin fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Outstanding</h4>
+                            <h2 id="totalOutstanding">KSh 0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-exclamation-triangle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Total Students</h4>
+                            <h2>{{ students.paginator.count }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Defaulters</h4>
+                            <h2 id="defaultersCount">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-person-x fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Records Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="feeRecordsTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Course</th>
+                                    <th>Year/Semester</th>
+                                    <th>Total Due</th>
+                                    <th>Amount Paid</th>
+                                    <th>Outstanding</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student_data in students %}
+                                <tr data-paid="{{ student_data.total_paid }}" data-outstanding="{{ student_data.outstanding }}">
+                                    <td>{{ student_data.student.student_id }}</td>
+                                    <td>{{ student_data.student.user.get_full_name }}</td>
+                                    <td>{{ student_data.student.course.name }}</td>
+                                    <td>Year {{ student_data.student.current_year }}, Sem {{ student_data.student.current_semester }}</td>
+                                    <td>KSh {{ student_data.total_due|floatformat:2 }}</td>
+                                    <td>KSh {{ student_data.total_paid|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="fw-bold {% if student_data.outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                            KSh {{ student_data.outstanding|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if student_data.fee_status == 'Paid' %}success{% elif student_data.fee_status == 'Pending' %}warning{% else %}danger{% endif %}">
+                                            {{ student_data.fee_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'fee_record_detail' student_data.student.student_id %}" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i> View Details
+                                            </a>
+                                            {% if student_data.outstanding > 0 %}
+                                            <button class="btn btn-sm btn-success" onclick="quickPayment('{{ student_data.student.student_id }}')">
+                                                <i class="bi bi-plus-circle"></i> Add Payment
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-4">No fee records found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if students.has_other_pages %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if students.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in students.paginator.page_range %}
+                        {% if students.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > students.number|add:'-3' and i < students.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if students.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center text-muted">
+                Showing {{ students.start_index }} to {{ students.end_index }} of {{ students.paginator.count }} students
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Payment Modal -->
+<div id="quickPaymentModal" class="modal fade">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Quick Payment Entry</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickPaymentForm">
+                    <input type="hidden" id="quickStudentId" name="student_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Amount Paid *</label>
+                                <input type="number" class="form-control" id="quickAmount" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Method *</label>
+                                <select class="form-select" id="quickPaymentMethod" required>
+                                    <option value="">Select Method</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="online">Online Payment</option>
+                                    <option value="cheque">Cheque</option>
+                                    <option value="dd">Demand Draft</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Date *</label>
+                                <input type="date" class="form-control" id="quickPaymentDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Transaction ID</label>
+                                <input type="text" class="form-control" id="quickTransactionId">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Remarks</label>
+                                <textarea class="form-control" id="quickRemarks" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitQuickPayment()">Record Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    calculateSummary();
+    
+    // Set today's date as default
+    document.getElementById('quickPaymentDate').value = new Date().toISOString().split('T')[0];
+});
+
+function calculateSummary() {
+    let totalCollected = 0;
+    let totalOutstanding = 0;
+    let defaultersCount = 0;
+    
+    const rows = document.querySelectorAll('#feeRecordsTable tbody tr[data-paid]');
+    rows.forEach(row => {
+        const paid = parseFloat(row.getAttribute('data-paid')) || 0;
+        const outstanding = parseFloat(row.getAttribute('data-outstanding')) || 0;
+        
+        totalCollected += paid;
+        totalOutstanding += outstanding;
+        
+        if (outstanding > 0) {
+            defaultersCount++;
+        }
+    });
+    
+    document.getElementById('totalCollected').textContent = `KSh ${totalCollected.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('totalOutstanding').textContent = `KSh ${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('defaultersCount').textContent = defaultersCount;
+}
+
+function quickPayment(studentId) {
+    document.getElementById('quickStudentId').value = studentId;
+    const modal = new bootstrap.Modal(document.getElementById('quickPaymentModal'));
+    modal.show();
+}
+
+function submitQuickPayment() {
+    const form = document.getElementById('quickPaymentForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        student_id: document.getElementById('quickStudentId').value,
+        amount_paid: document.getElementById('quickAmount').value,
+        payment_method: document.getElementById('quickPaymentMethod').value,
+        payment_date: document.getElementById('quickPaymentDate').value,
+        transaction_id: document.getElementById('quickTransactionId').value,
+        remarks: document.getElementById('quickRemarks').value
+    };
+    
+    // Validate required fields
+    if (!data.amount_paid || !data.payment_method || !data.payment_date) {
+        alert('Please fill all required fields.');
+        return;
+    }
+    
+    // You would need to implement the fee structure selection logic here
+    // For now, showing alert for demonstration
+    alert('Quick payment feature requires fee structure selection. Please use the detailed view for complete payment processing.');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('quickPaymentModal'));
+    modal.hide();
+}
+
+function exportToExcel() {
+    // Implement Excel export functionality
+    alert('Export to Excel functionality would be implemented here');
+}
+
+function printReport() {
+    window.print();
+}
+</script>
+
+<style>
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+</style>
+
+{% endblock %}

@@ -1,0 +1,406 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Admin login for Polytechnic Management System. Secure access for administrators and staff.">
+    <meta name="keywords" content="admin, login, polytechnic, management system, administrator">
+    <meta name="author" content="InnovationHub Softwares">
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Admin Login | kmtc portal</title>
+    <link rel="icon" id="portalLogo" href="{% static 'kmtc_logo.png' %}" />
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+    
+    <!-- Fontawesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Toastr -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet" />
+    
+    <!-- Custom CSS -->
+    <link href="{% static 'main.css' %}" rel="stylesheet" />
+    <link href="{% static 'site.css' %}" rel="stylesheet" />
+    
+    <color theme="#dc3545" tab="#b02a37" secondary="#dc3545" hidden></color>
+    <script src="{% static 'color.js'%}"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            min-height: 100vh;
+            align-items: center;
+        }
+        .login-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .login-card {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .login-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #dc3545, #c82333);
+        }
+        .admin-badge {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+
+        .clogo {
+            height: 120px;
+        }
+        .rlogo {
+            
+            margin-bottom: 20px;
+        }
+        .primary-btn {
+            background-color: #dc3545;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .primary-btn:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+        }
+        .form-control:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        .togglePassword {
+            background-color: transparent;
+            cursor: pointer;
+            border-left: none;
+            transition: all 0.3s ease;
+        }
+        .togglePassword:hover {
+            background-color: #f8f9fa;
+            color: #dc3545;
+        }
+        .input-group-text {
+            background-color: white;
+            border-left: none;
+        }
+        .forgottext:hover {
+            color: #dc3545 !important;
+        }
+        .password-toggle-btn {
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            padding: 0.375rem 0.75rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .password-toggle-btn:hover {
+            color: #dc3545;
+        }
+        .password-toggle-btn:focus {
+            outline: none;
+            box-shadow: none;
+        }
+        .form-check-input:checked {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .security-notice {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.2);
+            border-radius: 8px;
+            padding: 3px;
+            margin-bottom: 20px;
+            color: #721c24;
+            font-size: 13px;
+        }
+        .security-notice i {
+            color: #dc3545;
+            margin-right: 8px;
+        }
+        .admin-title {
+            color: #dc3545;
+            font-weight: 700;
+            position: relative;
+        }
+        .admin-title::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 2px;
+            background: linear-gradient(90deg, #dc3545, #c82333);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <svg version="1.1" class="svg-loader" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 80 80" xml:space="preserve">
+            <path fill="#dc3545" d="M10,40c0,0,0-0.4,0-1.1c0-0.3,0-0.8,0-1.3c0-0.3,0-0.5,0-0.8c0-0.3,0.1-0.6,0.1-0.9c0.1-0.6,0.1-1.4,0.2-2.1 c0.2-0.8,0.3-1.6,0.5-2.5c0.2-0.9,0.6-1.8,0.8-2.8c0.3-1,0.8-1.9,1.2-3c0.5-1,1.1-2,1.7-3.1c0.7-1,1.4-2.1,2.2-3.1 c1.6-2.1,3.7-3.9,6-5.6c2.3-1.7,5-3,7.9-4.1c0.7-0.2,1.5-0.4,2.2-0.7c0.7-0.3,1.5-0.3,2.3-0.5c0.8-0.2,1.5-0.3,2.3-0.4l1.2-0.1 l0.6-0.1l0.3,0l0.1,0l0.1,0l0,0c0.1,0-0.1,0,0.1,0c1.5,0,2.9-0.1,4.5,0.2c0.8,0.1,1.6,0.1,2.4,0.3c0.8,0.2,1.5,0.3,2.3,0.5 c3,0.8,5.9,2,8.5,3.6c2.6,1.6,4.9,3.4,6.8,5.4c1,1,1.8,2.1,2.7,3.1c0.8,1.1,1.5,2.1,2.1,3.2c0.6,1.1,1.2,2.1,1.6,3.1 c0.4,1,0.9,2,1.2,3c0.3,1,0.6,1.9,0.8,2.7c0.2,0.9,0.3,1.6,0.5,2.4c0.1,0.4,0.1,0.7,0.2,1c0,0.3,0.1,0.6,0.1,0.9 c0.1,0.6,0.1,1,0.1,1.4C74,39.6,74,40,74,40c0.2,2.2-1.5,4.1-3.7,4.3s-4.1-1.5-4.3-3.7c0-0.1,0-0.2,0-0.3l0-0.4c0,0,0-0.3,0-0.9 c0-0.3,0-0.7,0-1.1c0-0.2,0-0.5,0-0.7c0-0.2-0.1-0.5-0.1-0.8c-0.1-0.6-0.1-1.2-0.2-1.9c-0.1-0.7-0.3-1.4-0.4-2.2 c-0.2-0.8-0.5-1.6-0.7-2.4c-0.3-0.8-0.7-1.7-1.1-2.6c-0.5-0.9-0.9-1.8-1.5-2.7c-0.6-0.9-1.2-1.8-1.9-2.7c-1.4-1.8-3.2-3.4-5.2-4.9 c-2-1.5-4.4-2.7-6.9-3.6c-0.6-0.2-1.3-0.4-1.9-0.6c-0.7-0.2-1.3-0.3-1.9-0.4c-1.2-0.3-2.8-0.4-4.2-0.5l-2,0c-0.7,0-1.4,0.1-2.1,0.1 c-0.7,0.1-1.4,0.1-2,0.3c-0.7,0.1-1.3,0.3-2,0.4c-2.6,0.7-5.2,1.7-7.5,3.1c-2.2,1.4-4.3,2.9-6,4.7c-0.9,0.8-1.6,1.8-2.4,2.7 c-0.7,0.9-1.3,1.9-1.9,2.8c-0.5,1-1,1.9-1.4,2.8c-0.4,0.9-0.8,1.8-1,2.6c-0.3,0.9-0.5,1.6-0.7,2.4c-0.2,0.7-0.3,1.4-0.4,2.1 c-0.1,0.3-0.1,0.6-0.2,0.9c0,0.3-0.1,0.6-0.1,0.8c0,0.5-0.1,0.9-0.1,1.3C10,39.6,10,40,10,40z"></path>
+            <path fill="#c82333" d="M62,40.1c0,0,0,0.2-0.1,0.7c0,0.2,0,0.5-0.1,0.8c0,0.2,0,0.3,0,0.5c0,0.2-0.1,0.4-0.1,0.7 c-0.1,0.5-0.2,1-0.3,1.6c-0.2,0.5-0.3,1.1-0.5,1.8c-0.2,0.6-0.5,1.3-0.7,1.9c-0.3,0.7-0.7,1.3-1,2.1c-0.4,0.7-0.9,1.4-1.4,2.1 c-0.5,0.7-1.1,1.4-1.7,2c-1.2,1.3-2.7,2.5-4.4,3.6c-1.7,1-3.6,1.8-5.5,2.4c-2,0.5-4,0.7-6.2,0.7c-1.9-0.1-4.1-0.4-6-1.1 c-1.9-0.7-3.7-1.5-5.2-2.6c-1.5-1.1-2.9-2.3-4-3.7c-0.6-0.6-1-1.4-1.5-2c-0.4-0.7-0.8-1.4-1.2-2c-0.3-0.7-0.6-1.3-0.8-2 c-0.2-0.6-0.4-1.2-0.6-1.8c-0.1-0.6-0.3-1.1-0.4-1.6c-0.1-0.5-0.1-1-0.2-1.4c-0.1-0.9-0.1-1.5-0.1-2c0-0.5,0-0.7,0-0.7 s0,0.2,0.1,0.7c0.1,0.5,0,1.1,0.2,2c0.1,0.4,0.2,0.9,0.3,1.4c0.1,0.5,0.3,1,0.5,1.6c0.2,0.6,0.4,1.1,0.7,1.8 c0.3,0.6,0.6,1.2,0.9,1.9c0.4,0.6,0.8,1.3,1.2,1.9c0.5,0.6,1,1.3,1.6,1.8c1.1,1.2,2.5,2.3,4,3.2c1.5,0.9,3.2,1.6,5,2.1 c1.8,0.5,3.6,0.6,5.6,0.6c1.8-0.1,3.7-0.4,5.4-1c1.7-0.6,3.3-1.4,4.7-2.4c1.4-1,2.6-2.1,3.6-3.3c0.5-0.6,0.9-1.2,1.3-1.8 c0.4-0.6,0.7-1.2,1-1.8c0.3-0.6,0.6-1.2,0.8-1.8c0.2-0.6,0.4-1.1,0.5-1.7c0.1-0.5,0.2-1,0.3-1.5c0.1-0.4,0.1-0.8,0.1-1.2 c0-0.2,0-0.4,0.1-0.5c0-0.2,0-0.4,0-0.5c0-0.3,0-0.6,0-0.8c0-0.5,0-0.7,0-0.7c0-1.1,0.9-2,2-2s2,0.9,2,2C62,40,62,40.1,62,40.1z"></path>
+        </svg>
+    </div>
+
+    <!-- System Messages -->
+        
+    
+    <div class="container login-container">
+        <div class="row justify-content-center align-items-center">
+            <div class="col-lg-5 col-md-6">
+                <div class="card login-card">
+                    <div class="admin-badge">
+                        <i class="bi bi-shield-lock"></i> Admin
+                    </div>
+                    
+                    <div class="row mt-3" style="margin-top: 1rem; margin-right: 2rem">
+                        <div class="col-md-12" style="width: 80%;">
+                            {% for message in messages %}
+                            <div style="
+                                padding: 15px;
+                                margin-bottom: 15px;
+                                border: 1px solid {% if message.tags == 'success' %}#28a745{% else %}#dc3545{% endif %};
+                                background-color: {% if message.tags == 'success' %}#d4edda{% else %}#f8d7da{% endif %};
+                                color: {% if message.tags == 'success' %}#155724{% else %}#721c24{% endif %};
+                                border-radius: 5px;
+                                position: relative;
+                            ">
+                                <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %}" style="margin-right: 8px;"></i>
+                                {{ message }}
+                                <button type="button" style="
+                                    position: absolute;
+                                    top: 10px;
+                                    right: 10px;
+                                    background: none;
+                                    border: none;
+                                    font-weight: bold;
+                                    font-size: 16px;
+                                    line-height: 1;
+                                    color: inherit;
+                                    cursor: pointer;
+                                " onclick="this.parentElement.style.display='none';">&times;</button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <img src="{% static 'kmtc_logo.png' %}" class="clogo"  alt="School Logo">
+                            <h2 class="admin-title fw-bold mt-3">Administrator Access</h2>
+                            <p class="text-muted">Secure login for system administrators</p>
+                        </div>
+                        
+                        <div class="security-notice">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Security Notice:</strong> This area is restricted to authorized administrators only. All login attempts are monitored.
+                        </div>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="username" class="form-label fw-bold">Admin Username</label>
+                                <input type="text" class="form-control" id="username" name="username" placeholder="Enter admin username" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label fw-bold">Admin Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="password" name="password" placeholder="Enter admin password" required>
+                                    <button class="btn btn-outline-secondary password-toggle-btn" type="button" id="togglePassword" tabindex="-1">
+                                        <i class="bi bi-eye-slash" id="toggleIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="RememberMe" name="RememberMe">
+                                    <label class="form-check-label small" for="RememberMe">Keep me signed in</label>
+                                </div>
+                                <a href="#" class="text-decoration-none small text-primary forgottext">Reset Password?</a>
+                            </div>
+                            
+                            <button type="submit" class="btn primary-btn mb-3">
+                                <i class="bi bi-shield-lock"></i> Secure Login
+                            </button>
+                            
+                            <p class="text-center small mt-3">
+                                <a href="{% url 'student_login' %}" class="text-decoration-none fw-bold text-primary">
+                                    <i class="bi bi-arrow-left"></i> Back to Student Login
+                                </a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <p class="small text-muted">
+                        &copy; <script>document.write(new Date().getFullYear())</script> Polytechnic Management System. 
+                        <br><strong>Admin Portal</strong> - kemcom softwares ltd
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{% static 'main.js' %}"></script>
+    <script src="{% static 'site.js' %}"></script>
+    <script src="{% static 'loader.js' %}"></script>
+    
+    <script>
+        // Enhanced Password toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            // Ensure elements exist before adding event listeners
+            if (togglePassword && passwordInput && toggleIcon) {
+                togglePassword.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Toggle Bootstrap icons
+                    if (type === 'text') {
+                        toggleIcon.classList.remove('bi-eye-slash');
+                        toggleIcon.classList.add('bi-eye');
+                        togglePassword.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        toggleIcon.classList.remove('bi-eye');
+                        toggleIcon.classList.add('bi-eye-slash');
+                        togglePassword.setAttribute('aria-label', 'Show password');
+                    }
+                });
+                
+                // Add keyboard support
+                togglePassword.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+            }
+        });
+        
+        // Additional form validation and user experience enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            
+            // Add real-time validation feedback
+            if (usernameInput) {
+                usernameInput.addEventListener('input', function() {
+                    if (this.value.length >= 3) {
+                        this.classList.add('is-valid');
+                        this.classList.remove('is-invalid');
+                    } else {
+                        this.classList.remove('is-valid');
+                    }
+                });
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('input', function() {
+                    if (this.value.length >= 6) {
+                        this.classList.add('is-valid');
+                        this.classList.remove('is-invalid');
+                    } else {
+                        this.classList.remove('is-valid');
+                    }
+                });
+            }
+            
+            // Form submission handling
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    let isValid = true;
+                    
+                    // Validate username
+                    const username = usernameInput.value.trim();
+                    if (!username || username.length < 3) {
+                        usernameInput.classList.add('is-invalid');
+                        isValid = false;
+                    }
+                    
+                    // Validate password
+                    const password = passwordInput.value.trim();
+                    if (!password || password.length < 6) {
+                        passwordInput.classList.add('is-invalid');
+                        isValid = false;
+                    }
+                    
+                    if (!isValid) {
+                        e.preventDefault();
+                        // Show error message if toastr is available
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('Please provide valid admin credentials');
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Admin-specific security features
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+            }
+        });
+        
+        // Session timeout warning for admin
+        setTimeout(() => {
+            if (typeof toastr !== 'undefined') {
+                toastr.warning('Admin session will expire soon. Please complete your login.');
+            }
+        }, 1800000); // 30 minutes
+    </script>
+</body>
+</html>

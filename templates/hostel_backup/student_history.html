@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.user.get_full_name }} - Hostel History{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="bg-white rounded-lg shadow p-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Hostel History</h1>
+                <p class="text-gray-600">{{ student.user.get_full_name }} - {{ student.student_id }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500">Total Bookings: {{ bookings|length }}</p>
+                <p class="text-sm text-gray-500">Course: {{ student.course }}</p>
+            </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 class="font-semibold text-gray-800 mb-3">Student Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <span class="text-gray-600">Full Name:</span>
+                    <p class="font-medium">{{ student.user.get_full_name }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Student ID:</span>
+                    <p class="font-medium">{{ student.student_id }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Email:</span>
+                    <p class="font-medium">{{ student.user.email }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Course:</span>
+                    <p class="font-medium">{{ student.course }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Current Year:</span>
+                    <p class="font-medium">{{ student.current_year }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-600">Current Semester:</span>
+                    <p class="font-medium">{{ student.current_semester }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Booking History -->
+            <div>
+                <h3 class="font-semibold text-gray-800 mb-4">Booking History</h3>
+                {% if bookings %}
+                    <div class="space-y-4">
+                        {% for booking in bookings %}
+                            <div class="border rounded-lg p-4 hover:bg-gray-50">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">{{ booking.bed.bed_name }}</h4>
+                                        <p class="text-sm text-gray-600">{{ booking.bed.room.hostel.name }}</p>
+                                        <p class="text-xs text-gray-500">{{ booking.academic_year.year }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="px-2 py-1 text-xs rounded
+                                            {% if booking.status == 'approved' %}bg-green-100 text-green-800
+                                            {% elif booking.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                            {% elif booking.status == 'rejected' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ booking.get_status_display }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="text-sm text-gray-600 space-y-1">
+                                    <div class="flex justify-between">
+                                        <span>Booking Date:</span>
+                                        <span>{{ booking.booking_date|date:"M d, Y" }}</span>
+                                    </div>
+                                    {% if booking.check_in_date %}
+                                        <div class="flex justify-between">
+                                            <span>Check-in:</span>
+                                            <span>{{ booking.check_in_date|date:"M d, Y" }}</span>
+                                        </div>
+                                    {% endif %}
+                                    {% if booking.check_out_date %}
+                                        <div class="flex justify-between">
+                                            <span>Check-out:</span>
+                                            <span>{{ booking.check_out_date|date:"M d, Y" }}</span>
+                                        </div>
+                                    {% endif %}
+                                    {% if booking.approved_by %}
+                                        <div class="flex justify-between">
+                                            <span>Approved by:</span>
+                                            <span>{{ booking.approved_by.get_full_name }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if booking.rejection_reason %}
+                                    <div class="mt-3 p-2 bg-red-50 rounded border border-red-200">
+                                        <p class="text-xs text-red-600">
+                                            <strong>Rejection Reason:</strong> {{ booking.rejection_reason }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+
+                                {% if booking.medical_info %}
+                                    <div class="mt-3 p-2 bg-yellow-50 rounded border border-yellow-200">
+                                        <p class="text-xs text-yellow-700">
+                                            <strong>Medical Info:</strong> {{ booking.medical_info }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+
+                                <div class="mt-3 pt-3 border-t">
+                                    <a href="{% url 'booking_detail' booking.id %}" 
+                                       class="text-sm text-blue-600 hover:text-blue-800">
+                                        View Full Details →
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <p class="text-gray-500">No booking history found.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Transfer History -->
+            <div>
+                <h3 class="font-semibold text-gray-800 mb-4">Transfer History</h3>
+                {% if transfers %}
+                    <div class="space-y-4">
+                        {% for transfer in transfers %}
+                            <div class="border rounded-lg p-4">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Room Transfer</h4>
+                                        <p class="text-sm text-gray-600">
+                                            {{ transfer.from_bed.bed_name }} → {{ transfer.to_bed.bed_name }}
+                                        </p>
+                                        <p class="text-xs text-gray-500">{{ transfer.get_reason_display }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="px-2 py-1 text-xs rounded
+                                            {% if transfer.status == 'completed' %}bg-green-100 text-green-800
+                                            {% elif transfer.status == 'approved' %}bg-blue-100 text-blue-800
+                                            {% elif transfer.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {{ transfer.get_status_display }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="text-sm text-gray-600 space-y-1">
+                                    <div class="flex justify-between">
+                                        <span>Transfer Date:</span>
+                                        <span>{{ transfer.transfer_date|date:"M d, Y" }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Requested by:</span>
+                                        <span>{{ transfer.requested_by.get_full_name }}</span>
+                                    </div>
+                                    {% if transfer.approved_by %}
+                                        <div class="flex justify-between">
+                                            <span>Approved by:</span>
+                                            <span>{{ transfer.approved_by.get_full_name }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if transfer.notes %}
+                                    <div class="mt-3 p-2 bg-gray-50 rounded">
+                                        <p class="text-xs text-gray-600">
+                                            <strong>Notes:</strong> {{ transfer.notes }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <p class="text-gray-500">No transfer history found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        {% if bookings %}
+            <div class="mt-6 pt-6 border-t">
+                <h3 class="font-semibold text-gray-800 mb-4">Summary</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-3 bg-green-50 rounded">
+                        <p class="text-2xl font-bold text-green-600">
+                            {{ bookings|length|add:0 }}
+                        </p>
+                        <p class="text-sm text-green-700">Total Bookings</p>
+                    </div>
+                    <div class="text-center p-3 bg-blue-50 rounded">
+                        <p class="text-2xl font-bold text-blue-600">
+                            {% widthratio bookings|length 1 1 %}
+                        </p>
+                        <p class="text-sm text-blue-700">Academic Years</p>
+                    </div>
+                    <div class="text-center p-3 bg-yellow-50 rounded">
+                        <p class="text-2xl font-bold text-yellow-600">
+                            {{ transfers|length }}
+                        </p>
+                        <p class="text-sm text-yellow-700">Room Transfers</p>
+                    </div>
+                    <div class="text-center p-3 bg-purple-50 rounded">
+                        <p class="text-2xl font-bold text-purple-600">
+                            {% now "Y" as current_year %}
+                            {{ current_year|add:"-2000"|add:student.current_year }}
+                        </p>
+                        <p class="text-sm text-purple-700">Years at Hostel</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Back Button -->
+        <div class="mt-6 pt-6 border-t">
+            <a href="{% url 'all_bookings' %}" 
+               class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                ← Back to All Bookings
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

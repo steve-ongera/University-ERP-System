@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Student Reports Management</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="">All</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label>Type</label>
+                        <select name="type" class="form-control">
+                            <option value="">All</option>
+                            <option value="academic" {% if type_filter == 'academic' %}selected{% endif %}>Academic</option>
+                            <option value="disciplinary" {% if type_filter == 'disciplinary' %}selected{% endif %}>Disciplinary</option>
+                            <option value="facility" {% if type_filter == 'facility' %}selected{% endif %}>Facility</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label>Search</label>
+                        <input type="text" name="search" class="form-control" value="{{ search|default:'' }}">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-2">Filter</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if reports %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Subject</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>{{ report.student.student_id }}</td>
+                        <td>{{ report.subject }}</td>
+                        <td>{{ report.get_report_type_display }}</td>
+                        <td>{{ report.get_status_display }}</td>
+                        <td>{{ report.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-info">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% include 'partials/pagination.html' with page_obj=reports %}
+            {% else %}
+            <p>No reports found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

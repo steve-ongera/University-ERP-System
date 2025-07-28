@@ -1,0 +1,691 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Units/Curriculum - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+
+<!-- System Messages -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <h4 class="primary-text">Units/Curriculum</h4>
+        </div>
+    </div>
+
+    <div class="row shadow-lg mt-4 p-3 card default-height academic">
+        <div class="col-md-12">
+            <ul class="nav nav-tabs border-nav" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="UnitRegistration-tab" data-bs-toggle="tab" 
+                        data-bs-target="#UnitRegistration" type="button" role="tab" 
+                        aria-controls="UnitRegistration" aria-selected="true">
+                        Unit Registration
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="UnitHistory-tab" data-bs-toggle="tab" 
+                        data-bs-target="#UnitHistory" type="button" role="tab" 
+                        aria-controls="UnitHistory" aria-selected="false">
+                        Unit History
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="Curriculum-tab" data-bs-toggle="tab" 
+                        data-bs-target="#Curriculum" type="button" role="tab" 
+                        aria-controls="Curriculum" aria-selected="false">
+                        Curriculum
+                    </button>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="col-md-12">
+            <div class="tab-content" id="myTabContent">
+                <!-- Unit Registration Tab -->
+                <div class="tab-pane fade p-3 show active" id="UnitRegistration" role="tabpanel" 
+                    aria-labelledby="UnitRegistration-tab">
+                    <div class="mb-4 row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Unit Registration Information</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="card-text"><strong>Name:</strong> {{ student.user.get_full_name }}</p>
+                                            <p class="card-text"><strong>Registration Number:</strong> {{ student.registration_number }}</p>
+                                            <p class="card-text"><strong>Programme:</strong> {{ student.programme.name }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="card-text"><strong>Current Year:</strong> {{ student.current_year }}</p>
+                                            <p class="card-text"><strong>Current Semester:</strong> {{ student.current_semester }}</p>
+                                            <p class="card-text"><strong>Registration Status:</strong>
+                                                {% if show_registration %}
+                                                    <span class="badge bg-success">Open</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Closed</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if show_registration and available_units %}
+                    <form method="post" action="{% url 'student_units' %}" id="mySubmitForm">
+                        {% csrf_token %}
+                        <div class="accordion accordion-flush" id="accordionFlushExample">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="flush-heading-current">
+                                    <button class="accordion-button" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#flush-collapse-current" 
+                                        aria-expanded="true" aria-controls="flush-collapse-current">
+                                        <i class="bi bi-book me-2"></i>
+                                        Year {{ student.current_year }} - Semester {{ student.current_semester }} Available Units
+                                        <span class="badge bg-primary ms-2">{{ available_units|length }} unit{{ available_units|length|pluralize }}</span>
+                                    </button>
+                                </h2>
+                                <div id="flush-collapse-current" class="accordion-collapse collapse show" 
+                                    aria-labelledby="flush-heading-current" data-bs-parent="#accordionFlushExample">
+                                    <div class="accordion-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">Select units to register:</h6>
+                                                    <div>
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">
+                                                            Select All
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAll">
+                                                            Clear All
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-12 table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th width="10%">Select</th>
+                                                            <th width="15%">Unit Code</th>
+                                                            <th width="35%">Unit Name</th>
+                                                            <th width="15%">Type</th>
+                                                            <th width="10%">Credits</th>
+                                                            <th width="15%">Prerequisites</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for unit in available_units %}
+                                                        <tr>
+                                                            <td>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input unit-checkbox" type="checkbox" 
+                                                                        id="unit_{{ unit.id }}" name="units" 
+                                                                        value="{{ unit.id }}">
+                                                                    <label class="form-check-label" for="unit_{{ unit.id }}"></label>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <strong>{{ unit.code }}</strong>
+                                                            </td>
+                                                            <td>
+                                                                {{ unit.name }}
+                                                                {% if unit.description %}
+                                                                <br><small class="text-muted">{{ unit.description|truncatewords:15 }}</small>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
+                                                            </td>
+                                                            <td>
+                                                                {% if unit.prerequisites.exists %}
+                                                                    {% for prereq in unit.prerequisites.all %}
+                                                                        <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
+                                                                        {% if not forloop.last %}<br>{% endif %}
+                                                                    {% endfor %}
+                                                                {% else %}
+                                                                    <small class="text-muted">None</small>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-4">
+                                            <div class="col-md-12">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <span id="selectedCount" class="text-muted">0 units selected</span>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary btn-lg">
+                                                        <i class="bi bi-check-circle me-2"></i>
+                                                        Register Selected Units
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            {% if not show_registration %}
+                                <strong>Registration Closed:</strong> Unit registration is currently closed or you have already registered for this semester.
+                                {% if current_semester %}
+                                <br><small>Registration period: {{ current_semester.registration_start_date|date:"M d, Y" }} - {{ current_semester.registration_end_date|date:"M d, Y" }}</small>
+                                {% endif %}
+                            {% else %}
+                                <strong>No Units Available:</strong> No units are available for registration at this time for Year {{ student.current_year }}, Semester {{ student.current_semester }}.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Unit History Tab -->
+                <div class="tab-pane fade p-3" id="UnitHistory" role="tabpanel" aria-labelledby="UnitHistory-tab">
+                    <div class="mb-3">
+                        <h5><i class="bi bi-clock-history me-2"></i>Unit Enrollment History</h5>
+                        <p class="text-muted">View your complete unit enrollment history organized by academic year and semester.</p>
+                    </div>
+                    
+                    {% if enrollment_history %}
+                        {% for year, semesters in enrollment_history.items %}
+                        <div class="accordion accordion-flush mb-4" id="unitReg1-YEAR-{{ year|slugify }}">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="year{{ year|slugify }}-unit-reg-heading">
+                                    <button class="accordion-button collapsed" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#year{{ year|slugify }}-unit-reg" 
+                                        aria-expanded="false" aria-controls="year{{ year|slugify }}-unit-reg">
+                                        <i class="bi bi-calendar-event me-2"></i>
+                                        YEAR {{ year }}
+                                        <span class="badge bg-primary ms-2">
+                                            {% for semester, enrollments in semesters.items %}{{ enrollments|length }}{% if not forloop.last %} + {% endif %}{% endfor %} units
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="year{{ year|slugify }}-unit-reg" class="accordion-collapse collapse" 
+                                    aria-labelledby="year{{ year|slugify }}-unit-reg-heading" 
+                                    data-bs-parent="#unitReg1-YEAR-{{ year|slugify }}">
+                                    <div class="accordion-body">
+                                        <div class="accordion accordion-flush" id="year{{ year|slugify }}unitReg">
+                                            {% for semester, enrollments in semesters.items %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" 
+                                                    id="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}-heading">
+                                                    <button class="accordion-button collapsed" type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}" 
+                                                        aria-expanded="false" 
+                                                        aria-controls="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}">
+                                                        <i class="bi bi-bookmark me-2"></i>
+                                                        SEMESTER {{ semester }}
+                                                        <span class="badge bg-success ms-2">{{ enrollments|length }} units</span>
+                                                    </button>
+                                                </h2>
+                                                <div id="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}" 
+                                                    class="accordion-collapse collapse" 
+                                                    aria-labelledby="sem{{ semester|slugify }}-unit-reg-year{{ year|slugify }}-heading" 
+                                                    data-bs-parent="#year{{ year|slugify }}unitReg">
+                                                    <div class="accordion-body">
+                                                        <div class="row">
+                                                            <div class="col-md-12 table-responsive">
+                                                                <table class="table table-hover">
+                                                                    <thead class="table-light">
+                                                                        <tr>
+                                                                            <th>Unit Code</th>
+                                                                            <th>Unit Name</th>
+                                                                            <th>Type</th>
+                                                                            <th>Credits</th>
+                                                                            <th>Status</th>
+                                                                            <th>Enrollment Date</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for enrollment in enrollments %}
+                                                                        <tr>
+                                                                            <td><strong>{{ enrollment.unit.code }}</strong></td>
+                                                                            <td>{{ enrollment.unit.name }}</td>
+                                                                            <td>
+                                                                                <span class="badge bg-info">{{ enrollment.unit.get_unit_type_display }}</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                <span class="badge bg-secondary">{{ enrollment.unit.credit_hours }}</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                {% if enrollment.is_active %}
+                                                                                    {% if enrollment.is_repeat %}
+                                                                                        <span class="badge bg-warning">Repeat</span>
+                                                                                    {% else %}
+                                                                                        <span class="badge bg-success">Enrolled</span>
+                                                                                    {% endif %}
+                                                                                {% else %}
+                                                                                    <span class="badge bg-secondary">Inactive</span>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                            <td>
+                                                                                <small>{{ enrollment.enrollment_date|date:"M d, Y" }}</small>
+                                                                            </td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>No History Available:</strong> You have not enrolled in any units yet.
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Curriculum Tab -->
+                <div class="tab-pane fade p-3" id="Curriculum" role="tabpanel" aria-labelledby="Curriculum-tab">
+                    <div class="mb-3">
+                        <h5><i class="bi bi-journal-text me-2"></i>Programme Curriculum</h5>
+                        <p class="text-muted">Complete curriculum structure for {{ student.programme.name }} programme.</p>
+                    </div>
+                    
+                    {% if curriculum_data %}
+                        {% for year, semesters in curriculum_data.items %}
+                        <div class="accordion accordion-flush mb-4" id="unitReg1curr-YEAR-{{ year|slugify }}">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="year{{ year|slugify }}-curr-unit-reg-heading">
+                                    <button class="accordion-button collapsed" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#year{{ year|slugify }}-curr-unit-reg" 
+                                        aria-expanded="false" aria-controls="year{{ year|slugify }}-curr-unit-reg">
+                                        <i class="bi bi-calendar-event me-2"></i>
+                                        YEAR {{ year }}
+                                        <span class="badge bg-primary ms-2">
+                                            {% for semester, units in semesters.items %}{{ units|length }}{% if not forloop.last %} + {% endif %}{% endfor %} units
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="year{{ year|slugify }}-curr-unit-reg" class="accordion-collapse collapse" 
+                                    aria-labelledby="year{{ year|slugify }}-curr-unit-reg-heading" 
+                                    data-bs-parent="#unitReg1curr-YEAR-{{ year|slugify }}">
+                                    <div class="accordion-body">
+                                        <div class="accordion accordion-flush" id="year{{ year|slugify }}unitRegcurr">
+                                            {% for semester, units in semesters.items %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" 
+                                                    id="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}-heading">
+                                                    <button class="accordion-button collapsed" type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}" 
+                                                        aria-expanded="false" 
+                                                        aria-controls="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}">
+                                                        <i class="bi bi-bookmark me-2"></i>
+                                                        SEMESTER {{ semester }}
+                                                        <span class="badge bg-info ms-2">{{ units|length }} units</span>
+                                                    </button>
+                                                </h2>
+                                                <div id="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}" 
+                                                    class="accordion-collapse collapse" 
+                                                    aria-labelledby="sem{{ semester|slugify }}-curr-unit-reg-year{{ year|slugify }}-heading" 
+                                                    data-bs-parent="#year{{ year|slugify }}unitRegcurr">
+                                                    <div class="accordion-body">
+                                                        <div class="row">
+                                                            <div class="col-md-12 table-responsive">
+                                                                <table class="table table-hover">
+                                                                    <thead class="table-light">
+                                                                        <tr>
+                                                                            <th>Unit Code</th>
+                                                                            <th>Unit Name</th>
+                                                                            <th>Type</th>
+                                                                            <th>Credits</th>
+                                                                            <th>Prerequisites</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {% for unit in units %}
+                                                                        <tr>
+                                                                            <td><strong>{{ unit.code }}</strong></td>
+                                                                            <td>
+                                                                                {{ unit.name }}
+                                                                                {% if unit.description %}
+                                                                                <br><small class="text-muted">{{ unit.description|truncatewords:10 }}</small>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                            <td>
+                                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                {% if unit.prerequisites.exists %}
+                                                                                    {% for prereq in unit.prerequisites.all %}
+                                                                                        <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
+                                                                                        {% if not forloop.last %}<br>{% endif %}
+                                                                                    {% endfor %}
+                                                                                {% else %}
+                                                                                    <small class="text-muted">None</small>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>No Curriculum Available:</strong> No curriculum information is available for your programme.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.primary-text {
+    color: #9d0101;
+}
+
+.border-nav {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.default-height {
+    min-height: 500px;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 500;
+    border: none;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #9d0101;
+    background-color: transparent;
+    border-color: transparent transparent #9d0101 transparent;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #9d0101;
+    border-color: transparent transparent rgba(67, 0, 255, 0.3) transparent;
+}
+
+.accordion-button:not(.collapsed) {
+    color: #9d0101;
+    background-color: rgba(67, 0, 255, 0.05);
+    border-color: rgba(67, 0, 255, 0.125);
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    border-color: rgba(67, 0, 255, 0.25);
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-top: none;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(67, 0, 255, 0.05);
+}
+
+.form-check-input:checked {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    border-color: rgba(67, 0, 255, 0.5);
+}
+
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #3500cc;
+    border-color: #3500cc;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.alert {
+    border: none;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    border-left-color: #17a2b8;
+    background-color: rgba(23, 162, 184, 0.1);
+}
+
+.alert-success {
+    border-left-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+@media print {
+    .onprintContainer {
+        max-width: 100% !important;
+    }
+    
+    .nav-tabs, .accordion-button {
+        display: none !important;
+    }
+    
+    .tab-content, .accordion-collapse {
+        display: block !important;
+    }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips (check if bootstrap is loaded)
+    if (typeof bootstrap !== 'undefined') {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+    
+    // Unit selection functionality
+    const unitCheckboxes = document.querySelectorAll('.unit-checkbox');
+    const selectAllBtn = document.getElementById('selectAll');
+    const clearAllBtn = document.getElementById('clearAll');
+    const selectedCount = document.getElementById('selectedCount');
+    const submitForm = document.getElementById('mySubmitForm');
+    
+    // Update selected count
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.unit-checkbox:checked').length;
+        if (selectedCount) {
+            selectedCount.textContent = `${checked} unit${checked !== 1 ? 's' : ''} selected`;
+        }
+        
+        // Update select all button text
+        if (selectAllBtn) {
+            selectAllBtn.textContent = checked === unitCheckboxes.length ? 'All Selected' : 'Select All';
+            selectAllBtn.disabled = checked === unitCheckboxes.length;
+        }
+        
+        // Update clear all button
+        if (clearAllBtn) {
+            clearAllBtn.disabled = checked === 0;
+        }
+    }
+    
+    // Select all units
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            unitCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateSelectedCount();
+        });
+    }
+    
+    // Clear all selections
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function() {
+            unitCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectedCount();
+        });
+    }
+    
+    // Add event listeners to checkboxes
+    unitCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Initial count update
+    if (unitCheckboxes.length > 0) {
+        updateSelectedCount();
+    }
+    
+    // Form submission validation
+    if (submitForm) {
+        submitForm.addEventListener('submit', function(e) {
+            const checked = document.querySelectorAll('.unit-checkbox:checked').length;
+            
+            if (checked === 0) {
+                e.preventDefault();
+                alert('Please select at least one unit to register.');
+                return false;
+            }
+            
+            const confirmMessage = `Are you sure you want to register for ${checked} unit${checked !== 1 ? 's' : ''}?\n\nThis action cannot be undone during the registration period.`;
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Disable submit button to prevent double submission
+            const submitBtn = submitForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Processing...';
+            }
+        });
+    }
+    
+    // Auto-hide alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert:not(.alert-info)');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            if (typeof bootstrap !== 'undefined') {
+                const bsAlert = new bootstrap.Alert(alert);
+                if (bsAlert) bsAlert.close();
+            } else {
+                alert.style.display = 'none';
+            }
+        }, 5000);
+    });
+    
+    // Smooth scroll for accordion items
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Add a small delay to allow accordion animation to complete
+            setTimeout(() => {
+                try {
+                    this.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                } catch (error) {
+                    // Fallback for older browsers
+                    this.scrollIntoView(false);
+                }
+            }, 350);
+        });
+    });
+    
+    // Handle potential Bootstrap issues
+    window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('Failed to load resource')) {
+            console.warn('Resource loading error:', e.message);
+            // Continue execution, don't let missing resources break functionality
+        }
+    });
+});
+</script>
+
+{% endblock %}

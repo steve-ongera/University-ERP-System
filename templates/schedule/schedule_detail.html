@@ -1,0 +1,225 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Schedule Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Schedule Details</h2>
+                <div>
+                    <a href="{% url 'schedule_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                    <a href="{% url 'schedule_update' schedule.id %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'schedule_delete' schedule.id %}" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Schedule Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ schedule.subject.code }} - {{ schedule.subject.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Subject Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Subject Code:</strong></td>
+                                    <td>{{ schedule.subject.code }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Subject Name:</strong></td>
+                                    <td>{{ schedule.subject.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Course:</strong></td>
+                                    <td>{{ schedule.subject.course.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Credits:</strong></td>
+                                    <td>{{ schedule.subject.credits }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Theory Hours:</strong></td>
+                                    <td>{{ schedule.subject.theory_hours }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Practical Hours:</strong></td>
+                                    <td>{{ schedule.subject.practical_hours }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Schedule Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Faculty:</strong></td>
+                                    <td>{{ schedule.faculty.user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Classroom:</strong></td>
+                                    <td>{{ schedule.classroom.name }} ({{ schedule.classroom.room_number }})</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Day:</strong></td>
+                                    <td>{{ schedule.time_slot.get_day_of_week_display }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Time:</strong></td>
+                                    <td>{{ schedule.time_slot.start_time }} - {{ schedule.time_slot.end_time }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Semester:</strong></td>
+                                    <td>{{ schedule.semester.academic_year.year }} - Semester {{ schedule.semester.semester_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Enrolled Students:</strong></td>
+                                    <td>{{ enrolled_students }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Faculty Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Faculty Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ schedule.faculty.user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Employee ID:</strong></td>
+                                    <td>{{ schedule.faculty.employee_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Designation:</strong></td>
+                                    <td>{{ schedule.faculty.get_designation_display }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Department:</strong></td>
+                                    <td>{{ schedule.faculty.department.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Qualification:</strong></td>
+                                    <td>{{ schedule.faculty.qualification }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Experience:</strong></td>
+                                    <td>{{ schedule.faculty.experience_years }} years</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classroom Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Classroom Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ schedule.classroom.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Room Number:</strong></td>
+                                    <td>{{ schedule.classroom.room_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Type:</strong></td>
+                                    <td>{{ schedule.classroom.get_room_type_display }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Capacity:</strong></td>
+                                    <td>{{ schedule.classroom.capacity }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Location:</strong></td>
+                                    <td>{{ schedule.classroom.building }}, Floor {{ schedule.classroom.floor }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Facilities:</strong></td>
+                                    <td>
+                                        {% if schedule.classroom.has_projector %}
+                                            <span class="badge bg-success">Projector</span>
+                                        {% endif %}
+                                        {% if schedule.classroom.has_computer %}
+                                            <span class="badge bg-info">Computer</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Schedules -->
+            {% if related_schedules %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Other Schedules for {{ schedule.subject.code }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Faculty</th>
+                                    <th>Classroom</th>
+                                    <th>Day</th>
+                                    <th>Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for related_schedule in related_schedules %}
+                                <tr>
+                                    <td>{{ related_schedule.faculty.user.get_full_name }}</td>
+                                    <td>{{ related_schedule.classroom.name }}</td>
+                                    <td>{{ related_schedule.time_slot.get_day_of_week_display }}</td>
+                                    <td>{{ related_schedule.time_slot.start_time }} - {{ related_schedule.time_slot.end_time }}</td>
+                                    <td>
+                                        <a href="{% url 'schedule_detail' related_schedule.id %}" class="btn btn-sm btn-outline-info">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

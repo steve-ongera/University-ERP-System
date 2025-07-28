@@ -1,0 +1,486 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Student Details</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                    <a href="{% url 'student_update' student.registration_number %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{% url 'student_delete' student.registration_number %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> Delete
+                    </a>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="bi bi-graph-up"></i> Performance
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <!-- Profile Picture and Quick Info Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-badge"></i> Student Profile
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="profile-picture-container mb-3">
+                        {% if student.user.profile_picture %}
+                            <img src="{{ student.user.profile_picture.url }}" 
+                                 class="profile-picture img-thumbnail rounded-circle" 
+                                 alt="Profile Picture">
+                        {% else %}
+                            <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <h4 class="mb-2">{{ student.user.get_full_name }}</h4>
+                    <p class="text-muted mb-3">{{ student.registration_number }}</p>
+                    
+                    <div class="student-status mb-3">
+                        <span class="badge status-badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning text-dark{% else %}danger{% endif %}">
+                            {{ student.get_status_display }}
+                        </span>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="quick-info text-start">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Course:</span>
+                            <span class="fw-bold">{{ student.programme.name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Year/Semester:</span>
+                            <span class="fw-bold">{{ student.current_year }}/{{ student.current_semester }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold">{{ student.programme.department.name }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-graph-up me-1"></i> View Performance
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Information Card -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-vcard"></i> Personal Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Full Name</label>
+                            <p class="fw-bold">{{ student.user.get_full_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Username</label>
+                            <p class="fw-bold">{{ student.user.username }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Email</label>
+                            <p class="fw-bold">{{ student.user.email|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Phone</label>
+                            <p class="fw-bold">{{ student.user.phone|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Gender</label>
+                            <p class="fw-bold">{{ student.user.get_gender_display|default:"Not specified" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Date of Birth</label>
+                            <p class="fw-bold">{{ student.user.date_of_birth|date:"M d, Y"|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Blood Group</label>
+                            <p class="fw-bold">{{ student.blood_group|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="small text-muted">Address</label>
+                            <p class="fw-bold">{{ student.user.address|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Information Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-book"></i> Academic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Course</label>
+                            <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Department</label>
+                            <p class="fw-bold">{{ student.programme.department.name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">programme Type</label>
+                            <p class="fw-bold">{{ student.programme.get_programme_type_display }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Current Year</label>
+                            <p class="fw-bold">{{ student.current_year }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Current Semester</label>
+                            <p class="fw-bold">{{ student.current_semester }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Admission Date</label>
+                            <p class="fw-bold">{{ student.admission_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Admission Type</label>
+                            <p class="fw-bold">{{ student.get_admission_type_display }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guardian Information Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-people"></i> Guardian Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Guardian Name</label>
+                            <p class="fw-bold">{{ student.guardian_name|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Guardian Phone</label>
+                            <p class="fw-bold">{{ student.guardian_phone|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Relation</label>
+                            <p class="fw-bold">{{ student.guardian_relation|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Emergency Contact</label>
+                            <p class="fw-bold">{{ student.emergency_contact|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Information Card -->
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> System Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Created</label>
+                            <p class="fw-bold">{{ student.user.created_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Updated</label>
+                            <p class="fw-bold">{{ student.user.updated_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Active</label>
+                            <p class="fw-bold">
+                                <span class="badge bg-{% if student.user.is_active %}success{% else %}danger{% endif %}">
+                                    {{ student.user.is_active|yesno:"Yes,No" }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Login</label>
+                            <p class="fw-bold">{{ student.user.last_login|date:"M d, Y H:i"|default:"Never logged in" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete this student record? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal handling
+    const deleteButton = document.querySelector('.btn-outline-danger');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('href');
+            deleteForm.setAttribute('action', deleteUrl);
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        });
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 1rem 1.25rem;
+    background-color: #9d0101 !important;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #9d0101;
+}
+
+.profile-picture-container {
+    position: relative;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+    transition: all 0.3s ease;
+}
+
+.profile-picture:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.profile-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 4px solid #f0f0f0;
+    margin: 0 auto;
+}
+
+.status-badge {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.quick-info {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #9d0101;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
+/* Primary button styling */
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.btn-outline-primary {
+    color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-outline-primary:hover {
+    background-color: #9d0101;
+    border-color: #9d0101;
+    color: white;
+}
+
+.btn-outline-info {
+    border-color: #0dcaf0;
+    color: #0dcaf0;
+}
+
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    color: white;
+}
+
+/* Alert styling */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+
+/* Hover effects */
+.btn-primary:hover, .btn-outline-primary:hover {
+    box-shadow: 0 4px 8px rgba(157, 1, 1, 0.2);
+}
+
+/* Focus states */
+.btn-primary:focus, .btn-outline-primary:focus {
+    box-shadow: 0 0 0 0.25rem rgba(157, 1, 1, 0.25);
+}
+
+@media (max-width: 768px) {
+    .profile-picture, .profile-picture-placeholder {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'base.html'%}
+{% block content %}
+
+        <div class="container onprintContainer">
+            
+            <!-- Header Section -->
+            <div class="row mt-3">
+                <div class="col-md-12 d-flex justify-content-between align-items-center">
+                    <p class="fw-bold card-stitle">Student Reporting</p>
+                    {% if can_report and current_semester %}
+                        <a class="btn primary-btn mb-2" href="{% url 'student_report_current_semester' %}">
+                            <i class="ri-add-line"></i> Report for {{ current_semester.academic_year.year }} Semester {{ current_semester.semester_number }}
+                        </a>
+                    {% else %}
+                        {% if not current_semester %}
+                            <button class="btn btn-secondary mb-2" disabled>
+                                <i class="ri-add-line"></i> No Active Semester
+                            </button>
+                        {% else %}
+                            <button class="btn btn-success mb-2" disabled>
+                                <i class="ri-check-line"></i> Already Reported
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Reporting Table -->
+            <div class="row bg-white p-3 shadow">
+                <table class="table border table-responsive">
+                    <thead class="thead">
+                        <tr>
+                            <th>Semester</th>
+                            <th>Date Reported</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="d-flex justify-content-start flex-column">
+                                            {{ report.semester_display }}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="pt-4">{{ report.reported_date|date:"n/j/Y g:i:s A" }}</td>
+                                <td class="pt-4">{{ report.get_reporting_type_display }}</td>
+                                <td class="pt-4">
+                                    <span class="status-badge status-{{ report.status }}">
+                                        {{ report.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="pt-4">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewReportDetails({{ report.id }})" title="View Details">
+                                        <i class="ri-eye-line"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="ri-file-list-3-line" style="font-size: 2rem;"></i>
+                                        <p class="mt-2">No reporting records found.</p>
+                                        {% if can_report and current_semester %}
+                                            <a href="{% url 'student_report_current_semester' %}" class="btn primary-btn">
+                                                Report for Current Semester
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Student Info Card -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">Student Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                                    <p><strong>Course:</strong> {{ student.course.name }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Current Semester:</strong> {{ student.current_semester }}</p>
+                                    <p><strong>Current Year:</strong> {{ student.current_year }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Report Details Modal -->
+        <div class="modal fade" id="reportDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Report Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="reportDetailsContent">
+                        <!-- Content will be loaded here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="myModal" class="modal fade">
+            <div class="modal-dialog modal-confirm modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="icon-box">
+                        <i class="ri-check-line" style="font-size: 60px; color: white; line-height: 95px;"></i>
+                    </div>
+                    <h4 class="modal-title fw-bold text-dark">Are you sure?</h4>
+                    <div class="modal-body text-dark ms-2 text-center">
+                        <p class="text-dark px-4" style="width: 26rem;">Do you really want to report for this semester? This action will confirm your attendance.</p>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-lg btn-success" onclick="confirmReport()">Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+
+    {% endblock %}

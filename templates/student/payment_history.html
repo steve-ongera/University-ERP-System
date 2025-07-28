@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load fee_filters %}
+{% block content %}
+<div class="container">
+    <h2>Payment History - {{ student.user.get_full_name }}</h2>
+    <p class="text-muted">Student ID: {{ student.student_id }} | Course: {{ student.course.name }}</p>
+    
+    <div class="mb-3">
+        <a href="{% url 'student_fees' %}" class="btn btn-secondary">← Back to Fee Management</a>
+    </div>
+    
+    <!-- Payment Groups by Academic Year and Semester -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Complete Payment History</h5>
+        </div>
+        <div class="card-body">
+            {% if payment_groups %}
+            <div class="accordion" id="paymentHistoryAccordion">
+                {% for key, group in payment_groups.items %}
+                <div class="card">
+                    <div class="card-header" id="heading{{ forloop.counter }}">
+                        <h6 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapse{{ forloop.counter }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ forloop.counter }}">
+                                {{ group.academic_year.year }} - Semester {{ group.semester }}
+                                <span class="float-right">
+                                    <span class="badge badge-secondary">{{ group.payments|length }} payment(s)</span>
+                                    Total: ksh{% for payment in group.payments %}{{ payment.amount_paid|add:0 }}{% if not forloop.last %} + {% endif %}{% endfor %}
+                                </span>
+                            </button>
+                        </h6>
+                    </div>
+                    <div id="collapse{{ forloop.counter }}" class="collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ forloop.counter }}" data-parent="#paymentHistoryAccordion">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Receipt No.</th>
+                                            <th>Date</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Status</th>
+                                            <th>Transaction ID</th>
+                                            <th>Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in group.payments %}
+                                        <tr>
+                                            <td>{{ payment.receipt_number }}</td>
+                                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                            <td>ksh{{ payment.amount_paid|floatformat:2 }}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>
+                                                <span class="badge badge-{% if payment.payment_status == 'completed' %}success{% elif payment.payment_status == 'pending' %}warning{% elif payment.payment_status == 'failed' %}danger{% else %}info{% endif %}">
+                                                    {{ payment.get_payment_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ payment.transaction_id|default:"-" }}</td>
+                                            <td>{{ payment.remarks|default:"-" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-active">
+                                            <td colspan="2"><strong>Semester Total:</strong></td>
+                                            <td><strong>ksh{% for payment in group.payments %}{{ payment.amount_paid|add:0 }}{% if not forloop.last %} + {% endif %}{% endfor %}</strong></td>
+                                            <td colspan="4"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h6>No Payment History Found</h6>
+                <p class="mb-0">You have not made any payments yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Summary Statistics -->
+    {% if payments %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Payment Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Total Payments</h6>
+                        <h4 class="text-info">{{ payments|length }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Total Amount Paid</h6>
+                        <h4 class="text-success">ksh{{ payments|sum_amount_paid|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Completed Payments</h6>
+                        <h4 class="text-success">{{ payments|filter_completed|length }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Last Payment</h6>
+                        <h4 class="text-muted">{{ payments.first.payment_date|date:"M Y" }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Print/Export Options -->
+    <div class="card mt-4">
+        <div class="card-body text-center">
+            <h6>Export Options</h6>
+            <button class="btn btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Payment History
+            </button>
+            <a href="#" class="btn btn-outline-success">
+                <i class="fas fa-file-excel"></i> Export to Excel
+            </a>
+            <a href="#" class="btn btn-outline-danger">
+                <i class="fas fa-file-pdf"></i> Export to PDF
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-header button {
+        display: none;
+    }
+    .card {
+        border: 1px solid #000;
+        margin-bottom: 10px;
+    }
+}
+</style>
+{% endblock %}

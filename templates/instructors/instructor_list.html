@@ -1,0 +1,569 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-people"></i> Instructors Management
+                    <span class="badge bg-secondary ms-2">{{ total_instructors }} Total</span>
+                </p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'instructor_create' %}" class="btn btn-primary" style="background-color: #9d0101; border-color: #9d0101;">
+                        <i class="bi bi-plus-circle"></i> Add Instructor
+                    </a>
+                    <a href="{% url 'instructor_export' %}" class="btn btn-outline-success">
+                        <i class="bi bi-download"></i> Export
+                    </a>
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#bulkActionModal">
+                        <i class="bi bi-lightning"></i> Bulk Actions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-search"></i> Search & Filter
+                        <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body collapse show" id="searchFilters">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search by name, employee number, email...">
+                        </div>
+                        <div class="col-md-2">
+                            <select name="school" class="form-select">
+                                <option value="">All Schools</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}" {% if school_filter == school.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ school.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="designation" class="form-select">
+                                <option value="">All Designations</option>
+                                {% for value, label in designation_choices %}
+                                <option value="{{ value }}" {% if designation_filter == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="btn-group w-100">
+                                <button type="submit" class="btn btn-primary" style="background-color: #9d0101; border-color: #9d0101;">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                                <a href="{% url 'instructor_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructors Table -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if instructors %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="instructorsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" class="form-check-input" id="selectAll">
+                                    </th>
+                                    <th>Photo</th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=employee_number" class="text-decoration-none">
+                                            Employee Number
+                                            {% if order_by == 'employee_number' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=user__first_name" class="text-decoration-none">
+                                            Name
+                                            {% if order_by == 'user__first_name' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>Contact</th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=school__name" class="text-decoration-none">
+                                            School
+                                            {% if order_by == 'school__name' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=designation" class="text-decoration-none">
+                                            Designation
+                                            {% if order_by == 'designation' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=joining_date" class="text-decoration-none">
+                                            Joining Date
+                                            {% if order_by == 'joining_date' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>Status</th>
+                                    <th width="120">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for instructor in instructors %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input instructor-checkbox" 
+                                               value="{{ instructor.employee_number }}">
+                                    </td>
+                                    <td>
+                                        {% if instructor.user.profile_picture %}
+                                            <img src="{{ instructor.user.profile_picture.url }}" 
+                                                 class="instructor-thumb rounded-circle" alt="Profile">
+                                        {% else %}
+                                            <div class="instructor-thumb-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-person-fill"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ instructor.employee_number }}</strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ instructor.user.get_full_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ instructor.user.username }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            {% if instructor.user.email %}
+                                                <i class="bi bi-envelope text-muted"></i> {{ instructor.user.email }}
+                                                <br>
+                                            {% endif %}
+                                            {% if instructor.user.phone %}
+                                                <i class="bi bi-telephone text-muted"></i> {{ instructor.user.phone }}
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge" style="background-color: #9d0101;">{{ instructor.school.name }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ instructor.get_designation_display }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ instructor.get_employment_type_display }}</small>
+                                    </td>
+                                    <td>
+                                        {{ instructor.joining_date|date:"M d, Y" }}
+                                        <br>
+                                        <small class="text-muted">{{ instructor.experience_years }} years exp.</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if instructor.is_active %}success{% else %}danger{% endif %} status-badge" 
+                                              data-employee-number="{{ instructor.employee_number }}">
+                                            {{ instructor.is_active|yesno:"Active,Inactive" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'instructor_detail' instructor.employee_number %}" 
+                                               class="btn btn-outline-info btn-sm" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'instructor_update' instructor.employee_number %}" 
+                                               class="btn btn-outline-primary btn-sm" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger btn-sm delete-btn" 
+                                                    data-employee-number="{{ instructor.employee_number }}"
+                                                    data-name="{{ instructor.user.get_full_name }}" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Instructors pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link" style="background-color: #9d0101; border-color: #9d0101;">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
+                        <h4 class="text-muted mt-3">No Instructors Found</h4>
+                        <p class="text-muted">
+                            {% if search_query %}
+                                No instructors match your search criteria.
+                            {% else %}
+                                No instructors have been added yet.
+                            {% endif %}
+                        </p>
+                        <a href="{% url 'instructor_create' %}" class="btn btn-primary" style="background-color: #9d0101; border-color: #9d0101;">
+                            <i class="bi bi-plus-circle"></i> Add First Instructor
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Modal -->
+<div class="modal fade" id="bulkActionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Actions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'instructor_bulk_action' %}" id="bulkActionForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Action:</label>
+                        <select name="action" class="form-select" required>
+                            <option value="">Choose action...</option>
+                            <option value="activate">Activate Selected</option>
+                            <option value="deactivate">Deactivate Selected</option>
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <span id="selectedCount">0</span> instructor(s) selected.
+                    </div>
+                    <input type="hidden" name="instructor_ids" id="selectedInstructors">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: #9d0101; border-color: #9d0101;">Execute Action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete instructor <strong id="instructorName"></strong>? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all checkbox functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const instructorCheckboxes = document.querySelectorAll('.instructor-checkbox');
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        instructorCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedCount();
+    });
+    
+    instructorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.instructor-checkbox:checked');
+        document.getElementById('selectedCount').textContent = selected.length;
+        
+        // Update hidden input with selected IDs
+        const selectedIds = Array.from(selected).map(cb => cb.value);
+        document.getElementById('selectedInstructors').value = selectedIds.join(',');
+        
+        // Update select all checkbox state
+        selectAllCheckbox.indeterminate = selected.length > 0 && selected.length < instructorCheckboxes.length;
+        selectAllCheckbox.checked = selected.length === instructorCheckboxes.length;
+    }
+    
+    // Delete confirmation modal
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const employeeNumber = this.dataset.employeeNumber;
+            const instructorName = this.dataset.name;
+            
+            document.getElementById('instructorName').textContent = instructorName;
+            deleteForm.action = `/instructors/${employeeNumber}/delete/`;
+            
+            deleteModal.show();
+        });
+    });
+    
+    // Status toggle functionality
+    const statusBadges = document.querySelectorAll('.status-badge');
+    statusBadges.forEach(badge => {
+        badge.addEventListener('click', function() {
+            const employeeNumber = this.dataset.employeeNumber;
+            
+            fetch(`/api/instructors/toggle-status/${employeeNumber}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update badge
+                    this.className = `badge bg-${data.is_active ? 'success' : 'danger'} status-badge`;
+                    this.textContent = data.is_active ? 'Active' : 'Inactive';
+                    
+                    // Show success message
+                    showAlert('success', data.message);
+                } else {
+                    showAlert('error', data.message);
+                }
+            })
+            .catch(error => {
+                showAlert('error', 'An error occurred while updating status.');
+            });
+        });
+    });
+    
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        document.querySelector('.row.mt-3 .col-md-12').insertAdjacentHTML('beforeend', alertHtml);
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #9d0101;
+}
+
+.instructor-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+}
+
+.instructor-thumb-placeholder {
+    width: 40px;
+    height: 40px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+
+.status-badge {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.status-badge:hover {
+    transform: scale(1.1);
+}
+
+.table th a {
+    color: inherit;
+    font-weight: 600;
+}
+
+.table th a:hover {
+    color: #9d0101;
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.775rem;
+}
+
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7d0101;
+    border-color: #7d0101;
+}
+
+.page-item.active .page-link {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.page-link {
+    color: #9d0101;
+}
+
+@media (max-width: 768px) {
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+{% endblock %}

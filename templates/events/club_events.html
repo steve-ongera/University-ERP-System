@@ -1,0 +1,421 @@
+{% extends 'base.html'%}
+{% load static %}
+
+{% block content %}
+
+<div class="container onprintContainer">
+        <!-- System Messages -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Page Header -->
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h4 class="primary-text"><i class="bi bi-calendar-event me-2"></i>
+                    {% if club %}{{ club.name }} Events{% else %}All Club Events{% endif %}
+                </h4>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row shadow-lg mt-4 p-3 card default-height academic">
+            <div class="col-md-12">
+                <!-- Upcoming Events -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0"><i class="bi bi-alarm me-2"></i>Upcoming Events</h5>
+                            <span class="badge bg-light text-dark">
+                                {{ upcoming_events|length }} event{{ upcoming_events|length|pluralize }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if upcoming_events %}
+                        <div class="row">
+                            {% for event in upcoming_events %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    {% if event.image %}
+                                    <img src="{{ event.image.url }}" class="card-img-top" alt="{{ event.title }}" style="height: 180px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                                        <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ event.title }}</h5>
+                                        <p class="card-text text-muted">
+                                            <i class="bi bi-clock me-1"></i> {{ event.start_datetime|date:"M d, Y H:i" }} - {{ event.end_datetime|date:"H:i" }}
+                                        </p>
+                                        <p class="card-text">{{ event.description|truncatewords:20 }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-{% if event.club.category == 'academic' %}info{% elif event.club.category == 'sports' %}danger{% elif event.club.category == 'cultural' %}warning{% elif event.club.category == 'religious' %}success{% else %}secondary{% endif %}">
+                                                {{ event.club.name }}
+                                            </span>
+                                            <span class="badge bg-primary">
+                                                {{ event.get_status_display }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#eventModal{{ event.id }}">
+                                            <i class="bi bi-eye me-1"></i> View Details
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">No upcoming events scheduled yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Latest/Ongoing Events -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0"><i class="bi bi-megaphone me-2"></i>Happening Now</h5>
+                            <span class="badge bg-light text-dark">
+                                {{ latest_events|length }} event{{ latest_events|length|pluralize }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if latest_events %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Time</th>
+                                        <th>Location</th>
+                                        <th>Club</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in latest_events %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ event.title }}</strong>
+                                            <p class="small text-muted mb-0">{{ event.description|truncatewords:10 }}</p>
+                                        </td>
+                                        <td>
+                                            {{ event.start_datetime|date:"H:i" }} - {{ event.end_datetime|date:"H:i" }}
+                                            <p class="small text-muted mb-0">{{ event.start_datetime|date:"M d" }}</p>
+                                        </td>
+                                        <td>{{ event.location }}</td>
+                                        <td>
+                                            <span class="badge bg-{% if event.club.category == 'academic' %}info{% elif event.club.category == 'sports' %}danger{% elif event.club.category == 'cultural' %}warning{% elif event.club.category == 'religious' %}success{% else %}secondary{% endif %}">
+                                                {{ event.club.name }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">
+                                                {{ event.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#eventModal{{ event.id }}">
+                                                <i class="bi bi-eye"></i> Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">No events happening right now.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Past Events -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0"><i class="bi bi-archive me-2"></i>Past Events</h5>
+                            <span class="badge bg-light text-dark">
+                                {{ past_events|length }} event{{ past_events|length|pluralize }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if past_events %}
+                        <div class="accordion" id="pastEventsAccordion">
+                            {% for event in past_events %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ event.id }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ event.id }}" aria-expanded="false" aria-controls="collapse{{ event.id }}">
+                                        <div class="d-flex justify-content-between w-100 me-3">
+                                            <div>
+                                                <strong>{{ event.title }}</strong>
+                                                <span class="badge bg-secondary ms-2">{{ event.club.name }}</span>
+                                            </div>
+                                            <div class="text-muted small">
+                                                {{ event.start_datetime|date:"M d, Y" }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ event.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ event.id }}" data-bs-parent="#pastEventsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                {% if event.image %}
+                                                <img src="{{ event.image.url }}" class="img-fluid rounded mb-3" alt="{{ event.title }}">
+                                                {% endif %}
+                                                <ul class="list-group">
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>Date:</span>
+                                                        <span>{{ event.start_datetime|date:"M d, Y" }}</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>Time:</span>
+                                                        <span>{{ event.start_datetime|time }} - {{ event.end_datetime|time }}</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>Location:</span>
+                                                        <span>{{ event.location }}</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>Organizer:</span>
+                                                        <span>{{ event.organizer.get_full_name }}</span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h5>Event Description</h5>
+                                                <p>{{ event.description }}</p>
+                                                
+                                                <h5 class="mt-4">Event Summary</h5>
+                                                <div class="alert alert-light">
+                                                    <i class="bi bi-info-circle me-2"></i>
+                                                    Past event details and summary would appear here.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">No past events to display.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Event Modals -->
+{% for event in upcoming_events %}
+<div class="modal fade" id="eventModal{{ event.id }}" tabindex="-1" aria-labelledby="eventModalLabel{{ event.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="eventModalLabel{{ event.id }}">{{ event.title }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        {% if event.image %}
+                        <img src="{{ event.image.url }}" class="img-fluid rounded mb-3" alt="{{ event.title }}">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height: 200px;">
+                            <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                        </div>
+                        {% endif %}
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Event Details</h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-calendar me-2"></i>Date</span>
+                                        <span>{{ event.start_datetime|date:"M d, Y" }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-clock me-2"></i>Time</span>
+                                        <span>{{ event.start_datetime|time }} - {{ event.end_datetime|time }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-geo-alt me-2"></i>Location</span>
+                                        <span>{{ event.location }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-people me-2"></i>Organizer</span>
+                                        <span>{{ event.organizer.get_full_name }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-collection me-2"></i>Club</span>
+                                        <span class="badge bg-{% if event.club.category == 'academic' %}info{% elif event.club.category == 'sports' %}danger{% elif event.club.category == 'cultural' %}warning{% elif event.club.category == 'religious' %}success{% else %}secondary{% endif %}">
+                                            {{ event.club.name }}
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <h5>Event Description</h5>
+                        <p>{{ event.description }}</p>
+                        
+                        <div class="mt-4">
+                            <h5>Additional Information</h5>
+                            {% if event.registration_required %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Registration is required for this event.
+                                {% if event.max_participants %}
+                                Maximum participants: {{ event.max_participants }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <button class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i> Register for Event
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">
+                    <i class="bi bi-share me-2"></i> Share Event
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% for event in latest_events %}
+<div class="modal fade" id="eventModal{{ event.id }}" tabindex="-1" aria-labelledby="eventModalLabel{{ event.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="eventModalLabel{{ event.id }}">{{ event.title }} (Happening Now)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    This event is currently happening! Join now at {{ event.location }}.
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-5">
+                        {% if event.image %}
+                        <img src="{{ event.image.url }}" class="img-fluid rounded mb-3" alt="{{ event.title }}">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height: 200px;">
+                            <i class="bi bi-calendar-event fs-1 text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-7">
+                        <h5>Event Description</h5>
+                        <p>{{ event.description }}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h5>Event Location</h5>
+                    <div class="bg-light p-3 rounded">
+                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                        <strong>{{ event.location }}</strong>
+                        <p class="mb-0 small">(Map or directions would appear here)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success">
+                    <i class="bi bi-check-circle me-2"></i> Check In
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<style>
+    :root {
+        --primary: #4300FF;
+        --secondary: #6C63FF;
+        --light: #F0EBFF;
+        --dark: #2A0080;
+    }
+    
+    .primary-text {
+        color: var(--primary);
+    }
+    
+    .bg-primary {
+        background-color: var(--primary) !important;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+    
+    .border-nav {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .default-height {
+        min-height: 500px;
+    }
+    
+    .event-card {
+        transition: transform 0.3s ease;
+    }
+    
+    .event-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: rgba(67, 0, 255, 0.1);
+        color: var(--primary);
+    }
+    
+    .modal-header {
+        border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+    
+    .modal-footer {
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .accordion-button:focus {
+        box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,318 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="card-title">Booking Details</h2>
+                        <p class="text-muted">{{ booking.student.user.get_full_name }} - {{ booking.student.student_id }}</p>
+                    </div>
+                    <div>
+                        <span class="badge 
+                            {% if booking.status == 'approved' %}bg-success
+                            {% elif booking.status == 'pending' %}bg-warning text-dark
+                            {% elif booking.status == 'rejected' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-lg-6 mb-4">
+            <!-- Student Information -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Full Name:</dt>
+                        <dd class="col-sm-8">{{ booking.student.user.get_full_name }}</dd>
+                        
+                        <dt class="col-sm-4">Student ID:</dt>
+                        <dd class="col-sm-8">{{ booking.student.student_id }}</dd>
+                        
+                        <dt class="col-sm-4">Email:</dt>
+                        <dd class="col-sm-8">{{ booking.student.user.email }}</dd>
+                        
+                        <dt class="col-sm-4">Year:</dt>
+                        <dd class="col-sm-8">{{ booking.student.current_year }}</dd>
+                        
+                        <dt class="col-sm-4">Course:</dt>
+                        <dd class="col-sm-8">{{ booking.student.course }}</dd>
+                        
+                        {% if booking.emergency_contact %}
+                        <dt class="col-sm-4">Emergency Contact:</dt>
+                        <dd class="col-sm-8">{{ booking.emergency_contact }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Accommodation Details -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Accommodation Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Hostel:</dt>
+                        <dd class="col-sm-8">{{ booking.bed.room.hostel.name }}</dd>
+                        
+                        <dt class="col-sm-4">Room:</dt>
+                        <dd class="col-sm-8">{{ booking.bed.room.room_name }}</dd>
+                        
+                        <dt class="col-sm-4">Bed:</dt>
+                        <dd class="col-sm-8">{{ booking.bed.bed_name }}</dd>
+                        
+                        <dt class="col-sm-4">Floor:</dt>
+                        <dd class="col-sm-8">{{ booking.bed.room.floor }}</dd>
+                        
+                        <dt class="col-sm-4">Bed Type:</dt>
+                        <dd class="col-sm-8">{{ booking.bed.get_bed_type_display }}</dd>
+                        
+                        <dt class="col-sm-4">Academic Year:</dt>
+                        <dd class="col-sm-8">{{ booking.academic_year.year }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <!-- Booking Status -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Booking Status</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Booking Date:</dt>
+                        <dd class="col-sm-8">{{ booking.booking_date|date:"M d, Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            <span class="
+                                {% if booking.status == 'approved' %}text-success
+                                {% elif booking.status == 'pending' %}text-warning
+                                {% elif booking.status == 'rejected' %}text-danger
+                                {% else %}text-muted{% endif %}">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </dd>
+                        
+                        {% if booking.approved_by %}
+                        <dt class="col-sm-4">Approved By:</dt>
+                        <dd class="col-sm-8">{{ booking.approved_by.get_full_name }}</dd>
+                        
+                        <dt class="col-sm-4">Approved At:</dt>
+                        <dd class="col-sm-8">{{ booking.approved_at|date:"M d, Y H:i" }}</dd>
+                        {% endif %}
+                        
+                        {% if booking.rejection_reason %}
+                        <dt class="col-sm-4">Rejection Reason:</dt>
+                        <dd class="col-sm-8 text-danger">{{ booking.rejection_reason }}</dd>
+                        {% endif %}
+                        
+                        {% if booking.check_in_date %}
+                        <dt class="col-sm-4">Check-in Date:</dt>
+                        <dd class="col-sm-8">{{ booking.check_in_date|date:"M d, Y" }}</dd>
+                        {% endif %}
+                        
+                        {% if booking.check_out_date %}
+                        <dt class="col-sm-4">Check-out Date:</dt>
+                        <dd class="col-sm-8">{{ booking.check_out_date|date:"M d, Y" }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Medical Information -->
+            {% if booking.medical_info %}
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h5 class="mb-0 text-warning">Medical Information</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ booking.medical_info }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    {% if payments %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Payment History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Receipt Number</th>
+                                    <th>Payment Method</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.receipt_number }}</td>
+                                    <td>{{ payment.payment_method|title }}</td>
+                                    <td>₹{{ payment.amount_paid }}</td>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if payment.status == 'completed' %}bg-success
+                                            {% elif payment.status == 'pending' %}bg-warning text-dark
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ payment.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="d-flex gap-2">
+                <a href="{% url 'all_bookings' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Bookings
+                </a>
+                
+                {% if booking.status == 'pending' %}
+                <form method="post" action="{% url 'booking_approve' booking.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Approve Booking
+                    </button>
+                </form>
+                
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="bi bi-x-circle"></i> Reject Booking
+                </button>
+                {% endif %}
+                
+                {% if booking.status == 'approved' and not booking.check_in_date %}
+                <form method="post" action="#" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right"></i> Check In
+                    </button>
+                </form>
+                {% endif %}
+                
+                {% if booking.status == 'approved' and booking.check_in_date and not booking.check_out_date %}
+                <form method="post" action="#" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-box-arrow-right"></i> Check Out
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectModalLabel">Reject Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="#">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rejectionReason" class="form-label">Reason for rejection:</label>
+                        <textarea class="form-control" id="rejectionReason" name="rejection_reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Confirm Rejection</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+dl.row dt {
+    font-weight: 500;
+}
+
+dl.row dd {
+    margin-bottom: 0.5rem;
+}
+</style>
+
+{% endblock %}

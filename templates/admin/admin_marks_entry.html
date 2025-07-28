@@ -1,0 +1,794 @@
+{% extends 'admin_base.html' %}
+{% load transcript_filters %}
+{% load static %}
+
+{% block title %}Student Marks Entry{% endblock %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Student Marks Entry</p>
+                <p class="small text-muted">Enter and manage student marks for the current academic period</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <button class="btn btn-outline-secondary" onclick="window.history.back()">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-outline-success" onclick="calculateAllTotals()">
+                        <i class="bi bi-calculator"></i> Calculate All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Period Info -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-range"></i> Current Academic Period
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="small text-muted">Academic Year</label>
+                            <p class="fw-bold">{{ current_academic_year.year|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="small text-muted">Semester</label>
+                            <p class="fw-bold">Semester {{ current_semester.semester_number|default:"Not Set" }}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="small text-muted">Period</label>
+                            <p class="fw-bold">
+                                {% if current_semester %}
+                                    {{ current_semester.start_date|date:"M d, Y" }} - {{ current_semester.end_date|date:"M d, Y" }}
+                                {% else %}
+                                    Not Set
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Search Card -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search"></i> Search Student
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" id="studentSearchForm">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="registration_number" class="form-label small text-muted">Registration Number</label>
+                                <input type="text" 
+                                       name="registration_number" 
+                                       id="registration_number"
+                                       class="form-control form-control-sm" 
+                                       value="{{ request.GET.registration_number|default:'' }}"
+                                       placeholder="Enter student registration number"
+                                       required>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="student_select" class="form-label small text-muted">Or Select Student</label>
+                                <select name="registration_number_select" id="student_select" class="form-select form-select-sm">
+                                    <option value="">Choose a student...</option>
+                                    {% for std in all_students %}
+                                    <option value="{{ std.registration_number }}" 
+                                            {% if std.registration_number == request.GET.registration_number %}selected{% endif %}>
+                                        {{ std.registration_number }} - {{ std.user.get_full_name }} ({{ std.programme.code }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if student %}
+    <!-- Student Information Card -->
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-badge"></i> Student Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2 text-center">
+                            {% if student.user.profile_picture %}
+                                <img src="{{ student.user.profile_picture.url }}" 
+                                     class="profile-picture img-thumbnail rounded-circle" 
+                                     alt="Profile Picture" width="80">
+                            {% else %}
+                                <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 80px; height: 80px;">
+                                    <i class="bi bi-person-fill" style="font-size: 1.5rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <label class="small text-muted">Name</label>
+                                    <p class="fw-bold">{{ student.user.get_full_name }}</p>
+                                    <label class="small text-muted">Registration Number</label>
+                                    <p class="fw-bold">{{ student.registration_number }}</p>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="small text-muted">Programme</label>
+                                    <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
+                                    <label class="small text-muted">School</label>
+                                    <p class="fw-bold">{{ student.programme.school.name }}</p>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="small text-muted">Current Year/Semester</label>
+                                    <p class="fw-bold">Year {{ student.current_year }}, Semester {{ student.current_semester }}</p>
+                                    <label class="small text-muted">Status</label>
+                                    <p class="fw-bold">
+                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %}">
+                                            {{ student.get_status_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marks Entry Card -->
+    {% if enrollments %}
+    <div class="row p-3">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-journal-check"></i> Enter Marks for Current Semester
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="marksForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="registration_number" value="{{ student.registration_number }}">
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Unit Name</th>
+                                        <th>Type</th>
+                                        <th>Credits</th>
+                                        <th>Theory<br><small class="text-muted">({{ enrollments.0.unit.theory_hours }}hrs)</small></th>
+                                        <th>Practical<br><small class="text-muted">({{ enrollments.0.unit.practical_hours }}hrs)</small></th>
+                                        <th>Clinical<br><small class="text-muted">({{ enrollments.0.unit.clinical_hours }}hrs)</small></th>
+                                        <th>C.A.<br><small class="text-muted">(30%)</small></th>
+                                        <th>Final<br><small class="text-muted">(0-100)</small></th>
+                                        <th>Total</th>
+                                        <th>Grade</th>
+                                        <th>Status</th>
+                                        <th>Exam Date</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for enrollment in enrollments %}
+                                    <tr>
+                                        <td><strong>{{ enrollment.unit.code }}</strong></td>
+                                        <td>{{ enrollment.unit.name }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ enrollment.unit.get_unit_type_display }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ enrollment.unit.credit_hours }}</span>
+                                        </td>
+                                        <!-- Theory Marks -->
+                                        <td>
+                                            {% if enrollment.unit.theory_hours > 0 %}
+                                            <input type="number" 
+                                                   name="theory_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="theory"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'theory_marks'|default:'' }}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <!-- Practical Marks -->
+                                        <td>
+                                            {% if enrollment.unit.practical_hours > 0 %}
+                                            <input type="number" 
+                                                   name="practical_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="practical"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'practical_marks'|default:'' }}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <!-- Clinical Marks -->
+                                        <td>
+                                            {% if enrollment.unit.clinical_hours > 0 %}
+                                            <input type="number" 
+                                                   name="clinical_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="clinical"
+                                                  value="{{ grades_data|get_nested:enrollment.id|get_item:'clinical_marks'|default:'' }}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <!-- Continuous Assessment -->
+                                        <td>
+                                            <input type="number" 
+                                                   name="continuous_assessment_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="ca"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'continuous_assessment'|default:'' }}"
+                                                   min="0" 
+                                                   max="30" 
+                                                   step="0.01"
+                                                   placeholder="0-30">
+                                        </td>
+                                        <!-- Final Exam -->
+                                        <td>
+                                            <input type="number" 
+                                                   name="final_exam_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="final"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'final_exam_marks'|default:'' }}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                        </td>
+                                        <!-- Total Marks -->
+                                        <td>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm total-marks"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'total_marks'|default:'' }}"
+                                                   readonly>
+                                        </td>
+                                        <!-- Grade -->
+                                        <td>
+                                            <span class="badge grade-badge"
+                                                  data-enrollment="{{ enrollment.id }}">
+                                                {% with grade_data=grades_data|get_item:enrollment.id %}
+                                                    {{ grade_data.grade|default:'-' }}
+                                                {% endwith %}
+                                            </span>
+                                        </td>
+                                        <!-- Status -->
+                                        <td>
+                                            <span class="badge status-badge"
+                                                  data-enrollment="{{ enrollment.id }}">
+                                                {% with grade_data=grades_data|get_item:enrollment.id %}
+                                                    {% if grade_data.is_passed %}
+                                                        Passed
+                                                    {% elif grade_data.grade %}
+                                                        Failed
+                                                    {% else %}
+                                                        Pending
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </span>
+                                        </td>
+                                        <!-- Exam Date -->
+                                        <td>
+                                            <input type="date" 
+                                                   name="exam_date_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm"
+                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'exam_date'|default:'' }}">
+                                        </td>
+                                        <!-- Remarks -->
+                                        <td>
+                                            <textarea name="remarks_{{ enrollment.id }}"
+                                                      class="form-control form-control-sm"
+                                                      rows="1"
+                                                      placeholder="Remarks">{{ grades_data|get_nested:enrollment.id|get_item:'remarks'|default:'' }}</textarea>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllMarks()">
+                                <i class="bi bi-eraser"></i> Clear All
+                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-info btn-sm me-2" onclick="calculateAllTotals()">
+                                    <i class="bi bi-calculator"></i> Calculate All
+                                </button>
+                                <button type="submit" name="save_marks" class="btn btn-success btn-sm">
+                                    <i class="bi bi-save"></i> Save All Marks
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Enrollments Alert -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="alert alert-warning">
+                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> No Enrollments Found</h5>
+                <p class="mb-0">The student is not enrolled in any units for the current semester, or no current semester is set.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Student select dropdown functionality
+    document.getElementById('student_select').addEventListener('change', function() {
+        if (this.value) {
+            document.getElementById('registration_number').value = this.value;
+        }
+    });
+    
+    // Add event listeners to all marks inputs
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            calculateTotal(this.dataset.enrollment);
+        });
+    });
+    
+    // Initial calculation for existing marks
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        if (input.value) {
+            calculateTotal(input.dataset.enrollment);
+        }
+    });
+});
+
+function calculateTotal(enrollmentId) {
+    const theoryInput = document.querySelector(`input[name="theory_marks_${enrollmentId}"]`);
+    const practicalInput = document.querySelector(`input[name="practical_marks_${enrollmentId}"]`);
+    const clinicalInput = document.querySelector(`input[name="clinical_marks_${enrollmentId}"]`);
+    const caInput = document.querySelector(`input[name="continuous_assessment_${enrollmentId}"]`);
+    const finalInput = document.querySelector(`input[name="final_exam_marks_${enrollmentId}"]`);
+    const totalInput = document.querySelector(`input[data-enrollment="${enrollmentId}"].total-marks`);
+    const gradeSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].grade-badge`);
+    const statusSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].status-badge`);
+    
+    let componentMarks = [];
+    let ca = 0;
+    let finalExam = 0;
+    
+    // Collect all component marks (theory, practical, clinical) that exist and have values
+    if (theoryInput && theoryInput.value && !isNaN(parseFloat(theoryInput.value))) {
+        componentMarks.push(parseFloat(theoryInput.value));
+    }
+    
+    if (practicalInput && practicalInput.value && !isNaN(parseFloat(practicalInput.value))) {
+        componentMarks.push(parseFloat(practicalInput.value));
+    }
+    
+    if (clinicalInput && clinicalInput.value && !isNaN(parseFloat(clinicalInput.value))) {
+        componentMarks.push(parseFloat(clinicalInput.value));
+    }
+    
+    // Get CA and Final exam marks
+    if (caInput && caInput.value && !isNaN(parseFloat(caInput.value))) {
+        ca = parseFloat(caInput.value);
+    }
+    
+    if (finalInput && finalInput.value && !isNaN(parseFloat(finalInput.value))) {
+        finalExam = parseFloat(finalInput.value);
+    }
+    
+    // Calculate total
+    let total = 0;
+    
+    // If we have component marks, calculate their average and add CA
+    if (componentMarks.length > 0) {
+        const componentAverage = componentMarks.reduce((sum, mark) => sum + mark, 0) / componentMarks.length;
+        total = componentAverage + ca;
+    } else {
+        // If no component marks, just use CA
+        total = ca;
+    }
+    
+    // Final exam mark is the same as total (not added to it)
+    if (finalExam > 0) {
+        total = finalExam;
+    }
+    
+    // Update total input
+    if (totalInput) {
+        totalInput.value = total > 0 ? total.toFixed(2) : '';
+    }
+    
+    // Calculate and update grade
+    const gradeData = calculateGrade(total);
+    
+    if (gradeSpan) {
+        gradeSpan.textContent = gradeData.grade;
+        gradeSpan.className = `badge grade-badge ${gradeData.badgeClass}`;
+    }
+    
+    if (statusSpan) {
+        statusSpan.textContent = gradeData.status;
+        statusSpan.className = `badge status-badge ${gradeData.statusClass}`;
+    }
+}
+
+function calculateGrade(total) {
+    if (total === 0 || isNaN(total)) {
+        return {
+            grade: '-',
+            status: 'Pending',
+            badgeClass: 'bg-secondary',
+            statusClass: 'bg-secondary'
+        };
+    }
+    
+    let grade, status, badgeClass, statusClass;
+    
+    if (total >= 90) {
+        grade = 'A+';
+        status = 'Passed';
+        badgeClass = 'bg-success';
+        statusClass = 'bg-success';
+    } else if (total >= 80) {
+        grade = 'A';
+        status = 'Passed';
+        badgeClass = 'bg-success';
+        statusClass = 'bg-success';
+    } else if (total >= 70) {
+        grade = 'B+';
+        status = 'Passed';
+        badgeClass = 'bg-primary';
+        statusClass = 'bg-success';
+    } else if (total >= 60) {
+        grade = 'B';
+        status = 'Passed';
+        badgeClass = 'bg-primary';
+        statusClass = 'bg-success';
+    } else if (total >= 50) {
+        grade = 'C+';
+        status = 'Passed';
+        badgeClass = 'bg-info';
+        statusClass = 'bg-success';
+    } else if (total >= 40) {
+        grade = 'C';
+        status = 'Passed';
+        badgeClass = 'bg-info';
+        statusClass = 'bg-success';
+    } else if (total >= 30) {
+        grade = 'D';
+        status = 'Failed';
+        badgeClass = 'bg-warning';
+        statusClass = 'bg-danger';
+    } else {
+        grade = 'F';
+        status = 'Failed';
+        badgeClass = 'bg-danger';
+        statusClass = 'bg-danger';
+    }
+    
+    return { grade, status, badgeClass, statusClass };
+}
+
+function calculateAllTotals() {
+    // Get all unique enrollment IDs
+    const enrollmentIds = new Set();
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        if (input.dataset.enrollment) {
+            enrollmentIds.add(input.dataset.enrollment);
+        }
+    });
+    
+    // Calculate totals for each enrollment
+    enrollmentIds.forEach(function(enrollmentId) {
+        calculateTotal(enrollmentId);
+    });
+}
+
+function clearAllMarks() {
+    if (confirm('Are you sure you want to clear all marks? This action cannot be undone.')) {
+        // Clear all input fields
+        document.querySelectorAll('.marks-input').forEach(function(input) {
+            input.value = '';
+        });
+        document.querySelectorAll('.total-marks').forEach(function(input) {
+            input.value = '';
+        });
+        document.querySelectorAll('input[type="date"]').forEach(function(input) {
+            input.value = '';
+        });
+        document.querySelectorAll('textarea').forEach(function(textarea) {
+            textarea.value = '';
+        });
+        
+        // Reset badges
+        document.querySelectorAll('.grade-badge').forEach(function(span) {
+            span.textContent = '-';
+            span.className = 'badge grade-badge bg-secondary';
+        });
+        document.querySelectorAll('.status-badge').forEach(function(span) {
+            span.textContent = 'Pending';
+            span.className = 'badge status-badge bg-secondary';
+        });
+    }
+}
+
+// Form validation
+document.getElementById('marksForm')?.addEventListener('submit', function(e) {
+    let hasMarks = false;
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        if (input.value && parseFloat(input.value) > 0) {
+            hasMarks = true;
+        }
+    });
+    
+    if (!hasMarks) {
+        e.preventDefault();
+        alert('Please enter at least one mark before saving.');
+        return false;
+    }
+    
+    // Validate mark ranges
+    let hasInvalidMarks = false;
+    document.querySelectorAll('.marks-input').forEach(function(input) {
+        if (input.value) {
+            const value = parseFloat(input.value);
+            const max = parseFloat(input.getAttribute('max'));
+            const min = parseFloat(input.getAttribute('min'));
+            
+            if (value > max || value < min) {
+                hasInvalidMarks = true;
+                input.style.borderColor = '#dc3545';
+            } else {
+                input.style.borderColor = '';
+            }
+        }
+    });
+    
+    if (hasInvalidMarks) {
+        e.preventDefault();
+        alert('Please check the highlighted fields. Some marks are outside the allowed range.');
+        return false;
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 0.75rem 1.25rem;
+    background-color: #9d0101 !important;
+}
+
+.card-title {
+    font-size: 1rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #9d0101;
+}
+
+.profile-picture {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border: 3px solid #f0f0f0;
+}
+
+.profile-picture-placeholder {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 3px solid #f0f0f0;
+}
+
+.table th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.table td {
+    font-size: 0.8rem;
+    vertical-align: middle;
+    padding: 0.5rem;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.marks-input {
+    width: 70px;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.total-marks {
+    width: 70px;
+    background-color: #f8f9fa;
+    font-weight: bold;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.grade-badge {
+    min-width: 35px;
+    font-size: 0.75rem;
+}
+
+.status-badge {
+    min-width: 55px;
+    font-size: 0.75rem;
+}
+
+textarea.form-control {
+    width: 100px;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    height: auto;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.text-primary {
+    color: #9d0101 !important;
+}
+
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.btn-outline-primary {
+    color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-outline-primary:hover {
+    background-color: #9d0101;
+    color: white;
+}
+
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+
+@media (max-width: 768px) {
+    .profile-picture, .profile-picture-placeholder {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+        font-size: 0.8rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.7rem;
+    }
+    
+    .marks-input, .total-marks {
+        width: 60px;
+    }
+}
+
+@media print {
+    .dashboardRightLabel,
+    .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .table {
+        font-size: 0.7rem;
+    }
+}
+</style>
+
+{% endblock %}

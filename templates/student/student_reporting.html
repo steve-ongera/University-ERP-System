@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container onprintContainer">
+    <!-- Header Section -->
+    <div class="row mt-3">
+        <div class="col-md-12 d-flex justify-content-between align-items-center">
+            <h3 class="primary-text">Semester Reporting</h3>
+            {% if not has_reported and current_semester %}
+                <button class="btn primary-btn" data-bs-toggle="modal" data-bs-target="#reportModal">
+                    <i class="ri-add-line"></i> Report for Current Semester
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Current Semester Status -->
+    {% if current_semester %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card {% if has_reported %}bg-light-success{% else %}bg-light-warning{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">
+                                <i class="ri-calendar-line"></i>
+                                Current Semester: {{ current_semester }}
+                            </h5>
+                            <p class="card-text mb-0">
+                                Status: 
+                                <span class="badge bg-{% if has_reported %}success{% else %}warning{% endif %}">
+                                    {% if has_reported %}Reported{% else %}Not Reported{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">
+                                {{ current_semester.start_date|date:"M j, Y" }} - {{ current_semester.end_date|date:"M j, Y" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reporting History -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="ri-history-line"></i>
+                        My Reporting History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if reports %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Semester</th>
+                                    <th>Date Reported</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>{{ report.semester }}</td>
+                                    <td>{{ report.reporting_date|date:"M j, Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if report.reporting_type == 'online' %}info{% else %}primary{% endif %}">
+                                            {{ report.get_reporting_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if report.status == 'approved' %}success{% elif report.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ report.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ report.remarks|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="ri-information-line"></i>
+                        No reporting history found.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reporting Modal -->
+    {% if current_semester and not has_reported %}
+    <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportModalLabel">
+                        Report for {{ current_semester }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Remarks (Optional)</label>
+                            <textarea class="form-control" name="remarks" rows="3" 
+                                      placeholder="Enter any additional remarks..."></textarea>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmReporting" required>
+                            <label class="form-check-label" for="confirmReporting">
+                                I confirm that I am reporting for the correct semester.
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn primary-btn">
+                            <i class="ri-send-plane-line"></i> Submit Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Initialize form validation
+    $('form').submit(function(e) {
+        if (!$('#confirmReporting').is(':checked')) {
+            e.preventDefault();
+            alert('Please confirm that you are reporting for the correct semester.');
+        }
+    });
+});
+</script>
+{% endblock %}

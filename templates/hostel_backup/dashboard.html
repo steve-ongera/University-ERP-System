@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Hostel Booking Dashboard{% endblock %}
+
+{% block content %}
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Hostel Booking Dashboard</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <p class="fw-bold card-stitle text-start d-inline ms-2">Hostel</p>
+                    <a class="fw-bold card-stitle text-end d-inline pull-right mx-2" href="{% url 'booking_history' %}">View History</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row p-2">
+        <!--left-->
+        <div class="col-md-8">
+            <!--welcome message-->
+            <div class="row d-flex flex-column" id="welcomeMessage">
+                <div class="d-flex align-items-stretch">
+                    <div class="card shadow-sm p-2">
+                        <div class="row g-0">
+                            <div class="col-md-9">
+                                <div class="card-body">
+                                    <h3 class="card-title fw-bolder primary-text p-2">
+                                        Welcome back, <span class="card-stitle">{{ student.user.get_full_name }}</span>
+                                    </h3>
+                                    <p class="card-text p-2">
+                                        {% if not eligible %}
+                                        Only first-year, first-semester students can apply for hostel accommodation.
+                                        {% else %}
+                                        You can apply for hostel accommodation or manage your current booking.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-3 p-3 text-center">
+                                <img src="{% static 'user.svg'%}" class="img-fluid rounded-start" alt="..." style="height:65%">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--current booking or eligibility-->
+            <div class="row pt-2 mt-3">
+                <div class="col-md-12">
+                    {% if not eligible %}
+                    <div class="alert alert-warning">
+                        <h3>Not Eligible</h3>
+                        <p>Only first-year, first-semester students can apply for hostel accommodation.</p>
+                    </div>
+                    {% else %}
+                        {% if current_booking %}
+                        <div class="card bg-white shadow-sm">
+                            <div class="card-header">
+                                <h3 class="card-title">Current Booking</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Bed:</strong> {{ current_booking.bed.bed_name }}</p>
+                                        <p><strong>Room:</strong> {{ current_booking.room.room_name }}</p>
+                                        <p><strong>Hostel:</strong> {{ current_booking.hostel.name }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Status:</strong> {{ current_booking.get_status_display }}</p>
+                                        <p><strong>Booking Date:</strong> {{ current_booking.booking_date|date:"M d, Y" }}</p>
+                                        
+                                        {% if current_booking.status == 'approved' %}
+                                            <p><strong>Approved By:</strong> {{ current_booking.approved_by.get_full_name }}</p>
+                                            <p><strong>Approved At:</strong> {{ current_booking.approved_at|date:"M d, Y H:i" }}</p>
+                                        {% endif %}
+                                        
+                                        {% if current_booking.status == 'rejected' %}
+                                            <p><strong>Rejection Reason:</strong> {{ current_booking.rejection_reason }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                {% if current_booking.status in 'pending,approved' %}
+                                <div class="mt-3">
+                                    <form method="post" action="{% url 'cancel_booking' current_booking.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this booking?')">
+                                            Cancel Booking
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="card bg-white shadow-sm">
+                            <div class="card-header">
+                                <h3 class="card-title">Book Hostel Accommodation</h3>
+                            </div>
+                            <div class="card-body">
+                                <p>You are eligible to apply for hostel accommodation.</p>
+                                
+                                <div class="d-flex gap-3 mt-3">
+                                    <a href="{% url 'hostel_list' %}" class="btn primary-btn">View Available Hostels</a>
+                                    <a href="{% url 'quick_bed_booking' %}" class="btn btn-secondary">Quick Bed Booking</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!--available hostels-->
+            <div class="row pt-2 mt-3">
+                <div class="col-md-12">
+                    <div class="card bg-white shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">Available Hostels</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if available_hostels %}
+                            <div class="table-responsive">
+                                <table class="table border">
+                                    <thead class="thead">
+                                        <tr>
+                                            <th>Hostel Name</th>
+                                            <th>Type</th>
+                                            <th>Total Rooms</th>
+                                            <th>Available Beds</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for hostel in available_hostels %}
+                                        <tr>
+                                            <td>{{ hostel.name }}</td>
+                                            <td>{{ hostel.get_hostel_type_display }}</td>
+                                            <td>{{ hostel.total_rooms }}</td>
+                                            <td>{{ hostel.available_beds }}</td>
+                                            <td>
+                                                <a href="{% url 'hostel_detail' hostel.id %}" class="btn btn-sm primary-btn">View Details</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p>No hostels available for your gender.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!--right-->
+        <div class="col">
+            <!--student info card-->
+            <div class="p-1">
+                <div class="card p-1 text-bg-primary sy d-flex justify-content-center align-items-center">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="text-content-center">
+                                <i class="ri-user-fill fa-4x"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card-body mt-3">
+                                <h5 class="card-title fw-bold">Student Information</h5>
+                                <p class="card-text">
+                                    <strong>ID:</strong> {{ student.student_id }}<br>
+                                    <strong>Year:</strong> {{ student.current_year }}<br>
+                                    <strong>Semester:</strong> {{ student.current_semester }}<br>
+                                    <strong>Gender:</strong> {{ student.user.gender|default:"Not specified" }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--hostel info card-->
+            <div class="p-1 m-top">
+                <div class="col card shadow hh p-1 yhigh">
+                    <p class="fw-bold primary-text fs-4 p-2 text-start">Hostel Status</p>
+                    <div class="row ms-2 d-flex flex-row flex-sm-row">
+                        <div class="col-md-3">
+                            <span class="primary-text"><i class="ri-hotel-line fa-4x"></i></span>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="card-body">
+                                {% if current_booking %}
+                                    <span class="fs-6" id="hostelName">{{ current_booking.hostel.name }}</span> <br />
+                                    <span class="" id="hostelTerm">Room {{ current_booking.room.room_name }}</span><br />
+                                    <span class="" id="hostelDate">Bed {{ current_booking.bed.bed_name }}</span>
+                                {% else %}
+                                    <span class="fs-6" id="hostelName">No active booking</span> <br />
+                                    <span class="" id="hostelTerm">Status: Eligible</span><br />
+                                    <span class="" id="hostelDate">Apply now</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--additional links-->
+            <div class="p-1 m-top">
+                <div class="col card shadow hh p-1 yhigh">
+                    <p class="fw-bold primary-text fs-4 p-2 text-start">Quick Links</p>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <a href="{% url 'booking_history' %}" class="text-decoration-none">
+                                    <i class="ri-history-line me-2"></i> Booking History
+                                </a>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="{% url 'hostel_list' %}" class="text-decoration-none">
+                                    <i class="ri-building-line me-2"></i> View All Hostels
+                                </a>
+                            </li>
+                            {% if eligible and not current_booking %}
+                            <li class="list-group-item">
+                                <a href="{% url 'quick_bed_booking' %}" class="text-decoration-none">
+                                    <i class="ri-hotel-bed-line me-2"></i> Quick Booking
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .primary-btn {
+        background-color: #3639A4;
+        color: white;
+    }
+    
+    .primary-btn:hover {
+        background-color: #2a2d8a;
+        color: white;
+    }
+    
+    .thead {
+        background-color: #f8f9fa;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .yhigh {
+        height: 100%;
+    }
+    
+    .m-top {
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}

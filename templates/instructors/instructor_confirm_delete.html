@@ -1,0 +1,362 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Delete Instructor
+                </p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'instructor_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    <a href="{% url 'instructor_detail' instructor.employee_number %}" class="btn btn-outline-info">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Card -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Warning!
+                        </h4>
+                        <p class="mb-0">
+                            This action cannot be undone. Deleting this instructor will permanently remove all associated data.
+                        </p>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Instructor Summary -->
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Instructor Information</h6>
+                            <div class="instructor-summary">
+                                <div class="d-flex align-items-center mb-3">
+                                    {% if instructor.user.profile_picture %}
+                                        <img src="{{ instructor.user.profile_picture.url }}" 
+                                             class="rounded-circle me-3" width="80" height="80" alt="Profile">
+                                    {% else %}
+                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                             style="width: 80px; height: 80px;">
+                                            <i class="bi bi-person-fill text-muted" style="font-size: 2rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <h5 class="mb-1">{{ instructor.user.get_full_name }}</h5>
+                                        <p class="mb-1 text-muted">{{ instructor.employee_number }}</p>
+                                        <p class="mb-0 text-muted">{{ instructor.get_designation_display }}</p>
+                                    </div>
+                                </div>
+                                
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td class="text-muted">School:</td>
+                                        <td>{{ instructor.school.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Email:</td>
+                                        <td>{{ instructor.user.email|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Phone:</td>
+                                        <td>{{ instructor.user.phone|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Joining Date:</td>
+                                        <td>{{ instructor.joining_date|date:"M d, Y" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Experience:</td>
+                                        <td>{{ instructor.experience_years }} years</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Impact Warning -->
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3 text-danger">What will be deleted:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Instructor profile and all personal information
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Associated user account and login credentials
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Teaching assignments and schedules
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Student evaluations and feedback
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Historical attendance records
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    All uploaded documents and certificates
+                                </li>
+                            </ul>
+                            
+                            <div class="alert alert-warning mt-3">
+                                <small>
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>Note:</strong> If you want to temporarily disable the instructor instead of deleting, 
+                                    consider deactivating their account from the edit page.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="post" id="deleteForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                                <label class="form-check-label fw-bold" for="confirmDelete">
+                                    I understand that this action cannot be undone and I want to permanently delete 
+                                    <span class="text-danger">{{ instructor.user.get_full_name }}</span> 
+                                    from the system.
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="confirmText" class="form-label fw-bold">
+                                Type <span class="text-danger">"DELETE"</span> to confirm:
+                            </label>
+                            <input type="text" class="form-control" id="confirmText" placeholder="Type DELETE here" required>
+                            <div class="form-text">This field is case-sensitive.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{% url 'instructor_detail' instructor.employee_number %}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-arrow-left"></i> Cancel
+                                </a>
+                                <a href="{% url 'instructor_update' instructor.employee_number %}" class="btn btn-outline-warning btn-lg ms-2">
+                                    <i class="bi bi-pencil"></i> Edit Instead
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-danger btn-lg" id="deleteButton" disabled>
+                                    <i class="bi bi-trash"></i> Delete Instructor
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const confirmText = document.getElementById('confirmText');
+    const deleteButton = document.getElementById('deleteButton');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    function validateForm() {
+        const isChecked = confirmCheckbox.checked;
+        const isTextCorrect = confirmText.value === 'DELETE';
+        
+        deleteButton.disabled = !(isChecked && isTextCorrect);
+        
+        if (isTextCorrect) {
+            confirmText.classList.remove('is-invalid');
+            confirmText.classList.add('is-valid');
+        } else if (confirmText.value.length > 0) {
+            confirmText.classList.remove('is-valid');
+            confirmText.classList.add('is-invalid');
+        } else {
+            confirmText.classList.remove('is-valid', 'is-invalid');
+        }
+    }
+    
+    confirmCheckbox.addEventListener('change', validateForm);
+    confirmText.addEventListener('input', validateForm);
+    
+    deleteForm.addEventListener('submit', function(e) {
+        if (!confirmCheckbox.checked || confirmText.value !== 'DELETE') {
+            e.preventDefault();
+            alert('Please confirm the deletion by checking the checkbox and typing "DELETE".');
+            return;
+        }
+        
+        // Show final confirmation
+        if (!confirm(`Are you absolutely sure you want to delete ${instructor.user.get_full_name}? This action cannot be undone.`)) {
+            e.preventDefault();
+        }
+    });
+    
+    // Add warning when user tries to leave the page
+    let formSubmitted = false;
+    deleteForm.addEventListener('submit', function() {
+        formSubmitted = true;
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (!formSubmitted && (confirmCheckbox.checked || confirmText.value.length > 0)) {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Your confirmation will be lost.';
+        }
+    });
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1.5rem;
+}
+
+.card.border-danger {
+    border: 2px solid #dc3545 !important;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+}
+
+.instructor-summary {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.alert-heading {
+    font-size: 1.2rem;
+}
+
+.form-check-input:checked {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='m2.3 6.73.94-.94 2.94 2.94L8.08 4.8l-.94-.94L3.24 7.76z'/%3e%3c/svg%3e");
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 4.6 1.4 1.4m0-1.4L5.8 6'/%3e%3c/svg%3e");
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+.table-borderless td {
+    border: none;
+    padding: 0.25rem 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+    
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .d-flex.justify-content-between > div {
+        text-align: center;
+    }
+}
+
+/* Pulse animation for delete button when enabled */
+.btn-danger:not(:disabled) {
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+</style>
+
+{% endblock %}

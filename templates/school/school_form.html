@@ -1,0 +1,142 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-building"></i> 
+                    {% if is_create %}Add New School{% else %}Edit School: {{ school.name }}{% endif %}
+                </p>
+                {% if not is_create %}
+                <p class="text-muted small">
+                    <i class="bi bi-code-square"></i> Code: {{ school.code }}
+                </p>
+                {% endif %}
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'school_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    {% if not is_create %}
+                    <a href="{% url 'school_detail' school.pk %}" class="btn btn-outline-info">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Basic Info -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">{{ form.name.label }}</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">{{ form.name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">{{ form.code.label }}</label>
+                                {{ form.code }}
+                                {% if form.code.errors %}
+                                    <div class="text-danger small">{{ form.code.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Dean and Dates -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ form.dean.label }}</label>
+                                {{ form.dean }}
+                                {% if form.dean.errors %}
+                                    <div class="text-danger small">{{ form.dean.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">{{ form.established_date.label }}</label>
+                                {{ form.established_date }}
+                                {% if form.established_date.errors %}
+                                    <div class="text-danger small">{{ form.established_date.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">{{ form.description.label }}</label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small">{{ form.description.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Status -->
+                            <div class="col-md-12 mb-3">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        {{ form.is_active.label }}
+                                    </label>
+                                </div>
+                                {% if form.is_active.errors %}
+                                    <div class="text-danger small">{{ form.is_active.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'school_list' %}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <button type="reset" class="btn btn-outline-warning btn-lg me-2">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-circle"></i> 
+                                    {% if is_create %}Create School{% else %}Update School{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,313 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Subject Management</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'subject_add' %}" class="btn btn-primary float-end">
+                        <i class="bi bi-plus-circle"></i> Add New Subject
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-3">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="course" class="form-label">Course</label>
+                    <select name="course" id="course" class="form-select">
+                        <option value="">All Courses</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}" {% if course.id|stringformat:"s" == current_course %}selected{% endif %}>
+                                {{ course.name }} ({{ course.code }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="year" class="form-label">Year</label>
+                    <select name="year" id="year" class="form-select">
+                        <option value="">All Years</option>
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year|stringformat:"s" == current_year %}selected{% endif %}>
+                                Year {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="semester" class="form-label">Semester</label>
+                    <select name="semester" id="semester" class="form-select">
+                        <option value="">All Semesters</option>
+                        {% for semester in semesters %}
+                            <option value="{{ semester }}" {% if semester|stringformat:"s" == current_semester %}selected{% endif %}>
+                                Semester {{ semester }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           value="{{ search_query }}" placeholder="Search by name or code">
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">Search</button>
+                    <a href="{% url 'subject_list' %}" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subjects Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Course</th>
+                                    <th>Year/Semester</th>
+                                    <th>Credits</th>
+                                    <th>Hours</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in page_obj %}
+                                <tr>
+                                    <td><strong>{{ subject.code }}</strong></td>
+                                    <td>{{ subject.name }}</td>
+                                    <td>{{ subject.course.name }}</td>
+                                    <td>Year {{ subject.year }}, Sem {{ subject.semester }}</td>
+                                    <td>{{ subject.credits }}</td>
+                                    <td>{{ subject.theory_hours }}T + {{ subject.practical_hours }}P</td>
+                                    <td>
+                                        <span class="badge bg-{% if subject.is_elective %}warning text-dark{% else %}info{% endif %}">
+                                            {% if subject.is_elective %}Elective{% else %}Core{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if subject.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if subject.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'subject_detail' subject.pk %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'subject_update' subject.pk %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'subject_delete' subject.pk %}" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-4">No subjects found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if current_course %}&course={{ current_course }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_semester %}&semester={{ current_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_course %}&course={{ current_course }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_semester %}&semester={{ current_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in page_obj.paginator.page_range %}
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ i }}{% if current_course %}&course={{ current_course }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_semester %}&semester={{ current_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_course %}&course={{ current_course }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_semester %}&semester={{ current_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_course %}&course={{ current_course }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_semester %}&semester={{ current_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center text-muted">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} subjects
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete this subject? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal handling
+    const deleteButtons = document.querySelectorAll('.btn-outline-danger');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('href');
+            deleteForm.setAttribute('action', deleteUrl);
+        });
+    });
+});
+</script>
+
+<style>
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,564 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header Section -->
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-person-circle me-2"></i>Student Enrollment Details
+                </p>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'enrollment_list' %}">Enrollments</a></li>
+                        <li class="breadcrumb-item active">{{ student.student_id }}</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'enrollment_list' %}" class="btn btn-secondary float-end me-2">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    <button class="btn btn-primary float-end" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Information Card -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-badge me-2"></i>Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                {% if student.user.profile_picture %}
+                                    <img src="{{ student.user.profile_picture.url }}" class="student-photo mb-3" alt="Student Photo">
+                                {% else %}
+                                    <div class="student-avatar mb-3">
+                                        {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+                                    </div>
+                                {% endif %}
+                                <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning{% else %}danger{% endif %} fs-6">
+                                    {{ student.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">Student ID:</td>
+                                            <td>{{ student.student_id }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Full Name:</td>
+                                            <td>{{ student.user.get_full_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Course:</td>
+                                            <td>{{ student.course.name }} ({{ student.course.code }})</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Department:</td>
+                                            <td>{{ student.course.department.name }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td class="fw-bold">Current Year:</td>
+                                            <td><span class="badge bg-info">Year {{ student.current_year }}</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Current Semester:</td>
+                                            <td><span class="badge bg-secondary">Semester {{ student.current_semester }}</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Admission Date:</td>
+                                            <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Admission Type:</td>
+                                            <td>{{ student.get_admission_type_display }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white summary-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-journals fs-1 mb-2"></i>
+                    <h3>{{ total_subjects }}</h3>
+                    <p class="mb-0">Total Subjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white summary-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-trophy fs-1 mb-2"></i>
+                    <h3>{{ total_credits }}</h3>
+                    <p class="mb-0">Total Credits</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white summary-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-range fs-1 mb-2"></i>
+                    <h3>{{ total_years }}</h3>
+                    <p class="mb-0">Academic Years</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white summary-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-percent fs-1 mb-2"></i>
+                    <h3>{{ student.current_semester }}</h3>
+                    <p class="mb-0">Current Semester</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Details with Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Enrollment History</h5>
+                </div>
+                <div class="card-body">
+                    {% if enrollment_data %}
+                        <!-- Tab Navigation -->
+                        <ul class="nav nav-tabs enrollment-tabs" id="enrollmentTabs" role="tablist">
+                            {% for year, semesters in enrollment_data.items %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                            id="year-{{ year|slugify }}-tab" 
+                                            data-bs-toggle="tab" 
+                                            data-bs-target="#year-{{ year|slugify }}" 
+                                            type="button" 
+                                            role="tab">
+                                        <i class="bi bi-calendar3 me-1"></i>{{ year }}
+                                        <span class="badge bg-primary ms-2">{{ semesters|length }}</span>
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Tab Content -->
+                        <div class="tab-content mt-4" id="enrollmentTabsContent">
+                            {% for year, semesters in enrollment_data.items %}
+                                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                     id="year-{{ year|slugify }}" 
+                                     role="tabpanel">
+                                    
+                                    <div class="year-header mb-4">
+                                        <h4 class="text-primary">
+                                            <i class="bi bi-calendar-check me-2"></i>Academic Year {{ year }}
+                                        </h4>
+                                        <p class="text-muted">
+                                            Total Semesters: <strong>{{ semesters|length }}</strong> | 
+                                            Total Credits this Year: <strong>
+                                                {% for sem_num, sem_data in semesters.items %}
+                                                    {{ sem_data.total_credits }}{% if not forloop.last %} + {% endif %}
+                                                {% endfor %}
+                                                = 
+                                                {% with year_credits=0 %}
+                                                    {% for sem_num, sem_data in semesters.items %}
+                                                        {% with year_credits=year_credits|add:sem_data.total_credits %}
+                                                        {% endwith %}
+                                                    {% endfor %}
+                                                {% endwith %}
+                                                {% for sem_num, sem_data in semesters.items %}{{ sem_data.total_credits }}{% if not forloop.last %}{% else %}{% endif %}{% endfor %}
+                                            </strong>
+                                        </p>
+                                    </div>
+
+                                    <!-- Semester Accordion -->
+                                    <div class="accordion" id="accordion-{{ year|slugify }}">
+                                        {% for sem_num, sem_data in semesters.items %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="heading-{{ year|slugify }}-{{ sem_num }}">
+                                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" 
+                                                            type="button" 
+                                                            data-bs-toggle="collapse" 
+                                                            data-bs-target="#collapse-{{ year|slugify }}-{{ sem_num }}" 
+                                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}">
+                                                        <div class="d-flex w-100 justify-content-between align-items-center me-3">
+                                                            <div>
+                                                                <i class="bi bi-journal-bookmark me-2"></i>
+                                                                <strong>Semester {{ sem_num }}</strong>
+                                                                <small class="text-muted ms-2">
+                                                                    ({{ sem_data.semester.start_date|date:"M Y" }} - {{ sem_data.semester.end_date|date:"M Y" }})
+                                                                </small>
+                                                            </div>
+                                                            <div class="d-flex gap-2">
+                                                                <span class="badge bg-primary">{{ sem_data.total_subjects }} Subjects</span>
+                                                                <span class="badge bg-success">{{ sem_data.total_credits }} Credits</span>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapse-{{ year|slugify }}-{{ sem_num }}" 
+                                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                                                     data-bs-parent="#accordion-{{ year|slugify }}">
+                                                    <div class="accordion-body">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-hover table-sm">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th width="15%">Subject Code</th>
+                                                                        <th width="40%">Subject Name</th>
+                                                                        <th width="10%">Credits</th>
+                                                                        <th width="15%">Theory Hours</th>
+                                                                        <th width="15%">Practical Hours</th>
+                                                                        <th width="5%">Type</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for enrollment in sem_data.enrollments %}
+                                                                        <tr>
+                                                                            <td>
+                                                                                <span class="badge bg-secondary">{{ enrollment.subject.code }}</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                <strong>{{ enrollment.subject.name }}</strong>
+                                                                                {% if enrollment.subject.prerequisites.exists %}
+                                                                                    <br>
+                                                                                    <small class="text-muted">
+                                                                                        <i class="bi bi-link-45deg"></i>
+                                                                                        Prerequisites: 
+                                                                                        {% for prereq in enrollment.subject.prerequisites.all %}
+                                                                                            {{ prereq.code }}{% if not forloop.last %}, {% endif %}
+                                                                                        {% endfor %}
+                                                                                    </small>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                            <td>
+                                                                                <span class="badge bg-success">{{ enrollment.subject.credits }}</span>
+                                                                            </td>
+                                                                            <td>{{ enrollment.subject.theory_hours }}h</td>
+                                                                            <td>{{ enrollment.subject.practical_hours }}h</td>
+                                                                            <td>
+                                                                                {% if enrollment.subject.is_elective %}
+                                                                                    <span class="badge bg-warning text-dark">Elective</span>
+                                                                                {% else %}
+                                                                                    <span class="badge bg-info">Core</span>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                        </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                                <tfoot class="table-secondary">
+                                                                    <tr>
+                                                                        <td colspan="2" class="fw-bold">Semester Total:</td>
+                                                                        <td><span class="badge bg-success fs-6">{{ sem_data.total_credits }}</span></td>
+                                                                        <td>
+                                                                            {% with theory_total=0 %}
+                                                                                {% for enrollment in sem_data.enrollments %}
+                                                                                    {% with theory_total=theory_total|add:enrollment.subject.theory_hours %}
+                                                                                    {% endwith %}
+                                                                                {% endfor %}
+                                                                                {% for enrollment in sem_data.enrollments %}{{ enrollment.subject.theory_hours }}{% if not forloop.last %}+{% endif %}{% endfor %}h
+                                                                            {% endwith %}
+                                                                        </td>
+                                                                        <td>
+                                                                            {% with practical_total=0 %}
+                                                                                {% for enrollment in sem_data.enrollments %}
+                                                                                    {% with practical_total=practical_total|add:enrollment.subject.practical_hours %}
+                                                                                    {% endwith %}
+                                                                                {% endfor %}
+                                                                                {% for enrollment in sem_data.enrollments %}{{ enrollment.subject.practical_hours }}{% if not forloop.last %}+{% endif %}{% endfor %}h
+                                                                            {% endwith %}
+                                                                        </td>
+                                                                        <td>{{ sem_data.total_subjects }} subjects</td>
+                                                                    </tr>
+                                                                </tfoot>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-journal-x fs-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">No Enrollments Found</h4>
+                            <p class="text-muted">This student has no active enrollments.</p>
+                            <a href="#" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Add Enrollment
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs and accordions
+    const tabTriggerList = document.querySelectorAll('.enrollment-tabs button');
+    tabTriggerList.forEach(tabTrigger => {
+        new bootstrap.Tab(tabTrigger);
+    });
+
+    // Add animation to summary cards
+    const summaryCards = document.querySelectorAll('.summary-card');
+    summaryCards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 100);
+    });
+
+    // Enhance table row animations
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+            this.style.transform = 'scale(1.01)';
+            this.style.transition = 'all 0.2s ease';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+            this.style.transform = 'scale(1)';
+        });
+    });
+
+    // Add print-friendly styles
+    window.addEventListener('beforeprint', function() {
+        document.body.classList.add('printing');
+    });
+
+    window.addEventListener('afterprint', function() {
+        document.body.classList.remove('printing');
+    });
+});
+</script>
+
+<style>
+.card-stitle {
+    font-size: 1.5rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.student-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #dee2e6;
+}
+
+.student-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #6c757d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 2rem;
+    margin: 0 auto;
+    border: 4px solid #dee2e6;
+}
+
+.summary-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.enrollment-tabs .nav-link {
+    border-radius: 10px 10px 0 0;
+    border: 2px solid transparent;
+    margin-right: 5px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.enrollment-tabs .nav-link:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.enrollment-tabs .nav-link.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.year-header {
+    border-left: 4px solid #007bff;
+    padding-left: 20px;
+    margin-bottom: 20px;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e7f3ff;
+    color: #0066cc;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    transform: scale(1.01);
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.breadcrumb-item a {
+    text-decoration: none;
+    color: #007bff;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
+/* Print Styles */
+@media print {
+    .printing .btn,
+    .printing .breadcrumb,
+    .printing .dashboardRightLabel {
+        display: none !important;
+    }
+    
+    .printing .onprintContainer {
+        box-shadow: none;
+        border-radius: 0;
+    }
+    
+    .printing .tab-content > .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    .printing .accordion-collapse {
+        display: block !important;
+    }
+    
+    .printing .nav-tabs {
+        display: none;
+    }
+    
+    .printing .page-break {
+        page-break-before: always;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .summary-card {
+        margin-bottom: 1rem;
+    }
+    
+    .enrollment-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .enrollment-tabs .nav-link {
+        margin-bottom: 5px;
+        font-size: 0.875rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .student-photo,
+    .student-avatar {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .student-avatar {
+        font-size: 1.5rem;
+    }
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.accordion-item {
+    animation: fadeInUp 0.3s ease;
+}
+</style>
+
+{% endblock %}

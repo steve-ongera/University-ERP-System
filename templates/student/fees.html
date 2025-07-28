@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Fee Management - {{ student.user.get_full_name }}</h2>
+    <p class="text-muted">Student ID: {{ student.student_id }} | Course: {{ student.course.name }}</p>
+    
+    <!-- Current Semester Summary -->
+    {% if current_semester_details %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Current Semester - {{ current_academic_year.year }} Semester {{ current_semester.semester_number }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Total Fee</h6>
+                        <h4 class="text-info">ksh{{ current_semester_details.total_fee|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Amount Paid</h6>
+                        <h4 class="text-success">ksh{{ current_semester_details.total_paid|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Balance</h6>
+                        <h4 class="{% if current_semester_details.semester_balance < 0 %}text-success{% else %}text-danger{% endif %}">
+                            ksh{{ current_semester_details.semester_balance|floatformat:2 }}
+                        </h4>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h6>Carry Forward</h6>
+                        <h4 class="{% if current_semester_details.carry_forward < 0 %}text-success{% else %}text-muted{% endif %}">
+                            ksh{{ current_semester_details.carry_forward|floatformat:2 }}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Overall Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Overall Fee Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Total Fees</h6>
+                        <h4 class="text-info">ksh{{ total_fees|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Total Paid</h6>
+                        <h4 class="text-success">ksh{{ total_paid|floatformat:2 }}</h4>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Overall Balance</h6>
+                        <h4 class="{% if overall_balance < 0 %}text-success{% else %}text-danger{% endif %}">
+                            ksh{{ overall_balance|floatformat:2 }}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Semester-wise Fee Details -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Semester-wise Fee Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Academic Year</th>
+                            <th>Semester</th>
+                            <th>Total Fee</th>
+                            <th>Amount Paid</th>
+                            <th>Balance</th>
+                            <th>Carry Forward</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in semester_fee_details %}
+                        <tr {% if detail.is_current %}class="table-primary"{% endif %}>
+                            <td>{{ detail.fee_structure.academic_year.year }}</td>
+                            <td>{{ detail.fee_structure.semester }}</td>
+                            <td>ksh{{ detail.total_fee|floatformat:2 }}</td>
+                            <td>ksh{{ detail.total_paid|floatformat:2 }}</td>
+                            <td>
+                                <span class="{% if detail.semester_balance < 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ksh{{ detail.semester_balance|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if detail.carry_forward < 0 %}
+                                <span class="text-success">ksh{{ detail.carry_forward|floatformat:2 }}</span>
+                                {% else %}
+                                <span class="text-muted">ksh0.00</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if detail.semester_balance <= 0 %}
+                                <span class="badge badge-success">Paid</span>
+                                {% else %}
+                                <span class="badge badge-warning">Pending</span>
+                                {% endif %}
+                                {% if detail.is_current %}
+                                <span class="badge badge-info">Current</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Payment History -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Payment History</h5>
+            <a href="{% url 'fee_payment_history' %}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body">
+            {% if recent_payments %}
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Receipt No.</th>
+                            <th>Date</th>
+                            <th>Academic Year</th>
+                            <th>Semester</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in recent_payments %}
+                        <tr>
+                            <td>{{ payment.receipt_number }}</td>
+                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                            <td>{{ payment.fee_structure.academic_year.year }}</td>
+                            <td>{{ payment.fee_structure.semester }}</td>
+                            <td>ksh{{ payment.amount_paid|floatformat:2 }}</td>
+                            <td>{{ payment.get_payment_method_display }}</td>
+                            <td>
+                                <span class="badge badge-{% if payment.payment_status == 'completed' %}success{% elif payment.payment_status == 'pending' %}warning{% else %}danger{% endif %}">
+                                    {{ payment.get_payment_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No payment history found.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Fee Structure Breakdown -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Fee Structure Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="accordion" id="feeStructureAccordion">
+                {% for detail in semester_fee_details %}
+                <div class="card">
+                    <div class="card-header" id="heading{{ forloop.counter }}">
+                        <h6 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapse{{ forloop.counter }}" aria-expanded="false" aria-controls="collapse{{ forloop.counter }}">
+                                {{ detail.fee_structure.academic_year.year }} - Semester {{ detail.fee_structure.semester }}
+                                <span class="float-right">
+                                    Total: ksh{{ detail.total_fee|floatformat:2 }}
+                                </span>
+                            </button>
+                        </h6>
+                    </div>
+                    <div id="collapse{{ forloop.counter }}" class="collapse" aria-labelledby="heading{{ forloop.counter }}" data-parent="#feeStructureAccordion">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Fee Components</h6>
+                                    <ul class="list-unstyled">
+                                        <li>Tuition Fee: ksh{{ detail.fee_structure.tuition_fee|floatformat:2 }}</li>
+                                        <li>Lab Fee: ksh{{ detail.fee_structure.lab_fee|floatformat:2 }}</li>
+                                        <li>Library Fee: ksh{{ detail.fee_structure.library_fee|floatformat:2 }}</li>
+                                        <li>Exam Fee: ksh{{ detail.fee_structure.exam_fee|floatformat:2 }}</li>
+                                        <li>Development Fee: ksh{{ detail.fee_structure.development_fee|floatformat:2 }}</li>
+                                        <li>Other Fee: ksh{{ detail.fee_structure.other_fee|floatformat:2 }}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Payments Made</h6>
+                                    {% if detail.payments %}
+                                    <ul class="list-unstyled">
+                                        {% for payment in detail.payments %}
+                                        <li>
+                                            {{ payment.payment_date|date:"M d, Y" }} - 
+                                            ksh{{ payment.amount_paid|floatformat:2 }} 
+                                            ({{ payment.get_payment_method_display }})
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <p class="text-muted">No payments made</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-header {
+    background-color: #f8f9fa;
+}
+.badge {
+    font-size: 0.75em;
+}
+.table-primary {
+    background-color: #d1ecf1;
+}
+</style>
+{% endblock %}

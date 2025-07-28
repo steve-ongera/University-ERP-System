@@ -1,0 +1,25 @@
+{% extends 'admin_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Confirm Delete</h5>
+                </div>
+                <div class="card-body">
+                    <p>Are you sure you want to delete the subject <strong>{{ subject.name }} ({{ subject.code }})</strong>?</p>
+                    <p class="text-muted">This action cannot be undone.</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                        <a href="{% url 'subject_detail' subject.pk %}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

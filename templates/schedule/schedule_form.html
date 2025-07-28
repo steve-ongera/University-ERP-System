@@ -1,0 +1,153 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}{% if schedule %}Edit Schedule{% else %}Create Schedule{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        {% if schedule %}Edit Schedule{% else %}Create New Schedule{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="course" class="form-label">Course</label>
+                                    <select name="course" id="course" class="form-select" required>
+                                        <option value="">Select Course</option>
+                                        {% for course in courses %}
+                                            <option value="{{ course.id }}" {% if schedule and schedule.subject.course.id == course.id %}selected{% endif %}>
+                                                {{ course.code }} - {{ course.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="subject" class="form-label">Subject</label>
+                                    <select name="subject" id="subject" class="form-select" required>
+                                        <option value="">Select Subject</option>
+                                        {% if schedule %}
+                                            {% for subject in subjects %}
+                                                <option value="{{ subject.id }}" {% if schedule.subject.id == subject.id %}selected{% endif %}>
+                                                    {{ subject.code }} - {{ subject.name }}
+                                                </option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="faculty" class="form-label">Faculty</label>
+                                    <select name="faculty" id="faculty" class="form-select" required>
+                                        <option value="">Select Faculty</option>
+                                        {% for faculty in faculties %}
+                                            <option value="{{ faculty.id }}" {% if schedule and schedule.faculty.id == faculty.id %}selected{% endif %}>
+                                                {{ faculty.user.get_full_name }} ({{ faculty.employee_id }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="classroom" class="form-label">Classroom</label>
+                                    <select name="classroom" id="classroom" class="form-select" required>
+                                        <option value="">Select Classroom</option>
+                                        {% for classroom in classrooms %}
+                                            <option value="{{ classroom.id }}" {% if schedule and schedule.classroom.id == classroom.id %}selected{% endif %}>
+                                                {{ classroom.name }} ({{ classroom.room_number }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="time_slot" class="form-label">Time Slot</label>
+                                    <select name="time_slot" id="time_slot" class="form-select" required>
+                                        <option value="">Select Time Slot</option>
+                                        {% for time_slot in time_slots %}
+                                            <option value="{{ time_slot.id }}" {% if schedule and schedule.time_slot.id == time_slot.id %}selected{% endif %}>
+                                                {{ time_slot.get_day_of_week_display }} - {{ time_slot.start_time }} to {{ time_slot.end_time }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="semester" class="form-label">Semester</label>
+                                    <select name="semester" id="semester" class="form-select" required>
+                                        <option value="">Select Semester</option>
+                                        {% for semester in semesters %}
+                                            <option value="{{ semester.id }}" {% if schedule and schedule.semester.id == semester.id %}selected{% endif %}>
+                                                {{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'schedule_list' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if schedule %}Update Schedule{% else %}Create Schedule{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courseSelect = document.getElementById('course');
+    const subjectSelect = document.getElementById('subject');
+    
+    courseSelect.addEventListener('change', function() {
+        const courseId = this.value;
+        
+        // Clear subject options
+        subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+        
+        if (courseId) {
+            fetch(`/api/subjects-by-course/?course_id=${courseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.subjects.forEach(subject => {
+                        const option = document.createElement('option');
+                        option.value = subject.id;
+                        option.textContent = subject.name;
+                        subjectSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching subjects:', error);
+                });
+        }
+    });
+});
+</script>
+{% endblock %}

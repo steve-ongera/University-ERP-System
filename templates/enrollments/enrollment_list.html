@@ -1,0 +1,410 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-journal-bookmark me-2"></i>Enrollment Management
+                </p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="#" class="btn btn-success float-end me-2">
+                        <i class="bi bi-download"></i> Export Report
+                    </a>
+                    <a href="#" class="btn btn-primary float-end">
+                        <i class="bi bi-plus-circle"></i> New Enrollment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-4">
+            <h6 class="mb-3"><i class="bi bi-funnel me-2"></i>Search & Filter Enrollments</h6>
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search Students</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="Student ID, Name...">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="course" class="form-label">Course</label>
+                    <select class="form-select" id="course" name="course">
+                        <option value="">All Courses</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}" {% if course.id|stringformat:"s" == course_filter %}selected{% endif %}>
+                                {{ course.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="year" class="form-label">Academic Year</label>
+                    <select class="form-select" id="year" name="year">
+                        <option value="">All Years</option>
+                        {% for year in academic_years %}
+                            <option value="{{ year.id }}" {% if year.id|stringformat:"s" == year_filter %}selected{% endif %}>
+                                {{ year.year }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="semester" class="form-label">Semester</label>
+                    <select class="form-select" id="semester" name="semester">
+                        <option value="">All Semesters</option>
+                        {% for semester in semesters %}
+                            <option value="{{ semester.id }}" {% if semester.id|stringformat:"s" == semester_filter %}selected{% endif %}>
+                                {{ semester.academic_year.year }} - Sem {{ semester.semester_number }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Student Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Status</option>
+                        {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if status_code == status_filter %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                
+                <div class="col-md-12">
+                    <a href="{% url 'enrollment_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Clear Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ students.paginator.count }}</h4>
+                            <p class="mb-0">Enrolled Students</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people-fill fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ courses.count }}</h4>
+                            <p class="mb-0">Active Courses</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-book-fill fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ academic_years.count }}</h4>
+                            <p class="mb-0">Academic Years</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar-fill fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ semesters.count }}</h4>
+                            <p class="mb-0">Total Semesters</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-journals fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Enrollment Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-table me-2"></i>Student Enrollments Overview</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="bi bi-hash me-1"></i>Student ID</th>
+                                    <th><i class="bi bi-person me-1"></i>Student Name</th>
+                                    <th><i class="bi bi-mortarboard me-1"></i>Course</th>
+                                    <th><i class="bi bi-building me-1"></i>Department</th>
+                                    <th><i class="bi bi-calendar2-week me-1"></i>Current Year/Sem</th>
+                                    <th><i class="bi bi-journal-bookmark me-1"></i>Total Enrollments</th>
+                                    <th><i class="bi bi-activity me-1"></i>Status</th>
+                                    <th><i class="bi bi-gear me-1"></i>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr class="student-row">
+                                    <td class="fw-bold text-primary">{{ student.student_id }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-2">
+                                                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ student.user.get_full_name }}</div>
+                                                <small class="text-muted">{{ student.user.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ student.course.code }}</span>
+                                        <br>
+                                        <small>{{ student.course.name }}</small>
+                                    </td>
+                                    <td>{{ student.course.department.name }}</td>
+                                    <td>
+                                        <span class="badge bg-info">Year {{ student.current_year }}</span>
+                                        <span class="badge bg-light text-dark">Sem {{ student.current_semester }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success fs-6">{{ student.total_enrollments }}</span>
+                                        <small class="text-muted d-block">subjects</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning{% else %}danger{% endif %}">
+                                            {{ student.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'student_enrollment_detail' student.student_id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="View Enrollments">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-sm btn-outline-success" title="Add Enrollment">
+                                                <i class="bi bi-plus"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-sm btn-outline-warning" title="Edit Enrollments">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <div class="empty-state">
+                                            <i class="bi bi-journal-x fs-1 text-muted"></i>
+                                            <h5 class="text-muted mt-3">No enrollments found</h5>
+                                            <p class="text-muted">Try adjusting your search criteria or filters.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if students.has_other_pages %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if students.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in students.paginator.page_range %}
+                        {% if students.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > students.number|add:'-3' and i < students.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if students.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if course_filter %}&course={{ course_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center text-muted">
+                Showing {{ students.start_index }} to {{ students.end_index }} of {{ students.paginator.count }} students
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhance table row hover effects
+    const tableRows = document.querySelectorAll('.student-row');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+            this.style.transition = 'background-color 0.2s ease';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Auto-submit form on filter change
+    const filterSelects = document.querySelectorAll('select[name="course"], select[name="year"], select[name="semester"], select[name="status"]');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+
+<style>
+.card-stitle {
+    font-size: 1.5rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.avatar-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #6c757d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.empty-state {
+    padding: 2rem;
+}
+
+.card-header {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.summary-card {
+    transition: transform 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+}
+
+.table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">All Hostel Bookings</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Hostel</label>
+                            <select name="hostel" class="form-select">
+                                <option value="">All Hostels</option>
+                                {% for hostel in hostels %}
+                                    <option value="{{ hostel.id }}" 
+                                        {% if current_filters.hostel == hostel.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ hostel.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Academic Year</label>
+                            <select name="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year in academic_years %}
+                                    <option value="{{ year.id }}" 
+                                        {% if current_filters.year == year.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ year.year }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                {% for status_key, status_label in status_choices %}
+                                    <option value="{{ status_key }}" 
+                                        {% if current_filters.status == status_key %}selected{% endif %}>
+                                        {{ status_label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Filter
+                            </button>
+                            <a href="{% url 'all_bookings' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Bed</th>
+                                    <th>Hostel</th>
+                                    <th>Academic Year</th>
+                                    <th>Status</th>
+                                    <th>Booking Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in bookings %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ booking.student.user.get_full_name }}</div>
+                                        <div class="text-muted small">{{ booking.student.student_id }}</div>
+                                    </td>
+                                    <td>{{ booking.bed.bed_name }}</td>
+                                    <td>{{ booking.bed.room.hostel.name }}</td>
+                                    <td>{{ booking.academic_year.year }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if booking.status == 'approved' %}bg-success
+                                            {% elif booking.status == 'pending' %}bg-warning text-dark
+                                            {% elif booking.status == 'rejected' %}bg-danger
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ booking.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ booking.booking_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if bookings.has_other_pages %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <p class="text-muted">
+                                Showing {{ bookings.start_index }} to {{ bookings.end_index }} of {{ bookings.paginator.count }} results
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <nav aria-label="Page navigation" class="float-end">
+                                <ul class="pagination">
+                                    {% if bookings.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" 
+                                               href="?page={{ bookings.previous_page_number }}{% if current_filters.hostel %}&hostel={{ current_filters.hostel }}{% endif %}{% if current_filters.year %}&year={{ current_filters.year }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}">
+                                                Previous
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ bookings.number }}</span>
+                                    </li>
+                                    
+                                    {% if bookings.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" 
+                                               href="?page={{ bookings.next_page_number }}{% if current_filters.hostel %}&hostel={{ current_filters.hostel }}{% endif %}{% if current_filters.year %}&year={{ current_filters.year }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}">
+                                                Next
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-journal-x text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No bookings found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+.page-item.active .page-link {
+    background-color: #3639A4;
+    border-color: #3639A4;
+}
+
+.page-link {
+    color: #3639A4;
+}
+
+.page-link:hover {
+    color: #2a2c7a;
+}
+</style>
+
+{% endblock %}

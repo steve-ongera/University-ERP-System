@@ -1,0 +1,55 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Timetable{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt"></i> View Timetable
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Select a course and semester to view the timetable.</p>
+                    
+                    <form method="get" action="{% url 'admin_schedule_timetable' %}">
+                        <div class="mb-3">
+                            <label for="course" class="form-label">Course</label>
+                            <select name="course" id="course" class="form-select" required>
+                                <option value="">Select Course</option>
+                                {% for course in courses %}
+                                    <option value="{{ course.id }}">
+                                        {{ course.code }} - {{ course.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="semester" class="form-label">Semester</label>
+                            <select name="semester" id="semester" class="form-select" required>
+                                <option value="">Select Semester</option>
+                                {% for semester in semesters %}
+                                    <option value="{{ semester.id }}">
+                                        {{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'schedule_list' %}" class="btn btn-secondary">Back to Schedule</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> View Timetable
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

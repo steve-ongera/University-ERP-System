@@ -1,0 +1,242 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Course Management</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'add_course' %}" class="btn btn-primary float-end">
+                        <i class="bi bi-plus-circle"></i> Add New Course
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-3">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="Search courses...">
+                </div>
+                
+                <div class="col-md-3">
+                    <select class="form-select" name="department">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == current_department %}selected{% endif %}>
+                                {{ dept.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <select class="form-select" name="course_type">
+                        <option value="">All Types</option>
+                        {% for type_code, type_name in course_types %}
+                            <option value="{{ type_code }}" {% if type_code == current_course_type %}selected{% endif %}>
+                                {{ type_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+                
+                <div class="col-md-12">
+                    <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Courses Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Type</th>
+                                    <th>Duration</th>
+                                    <th>Semesters</th>
+                                    <th>Fees/Sem</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in courses %}
+                                <tr>
+                                    <td>{{ course.code }}</td>
+                                    <td>{{ course.name }}</td>
+                                    <td>{{ course.department.name }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if course.course_type == 'ug' %}primary{% elif course.course_type == 'pg' %}success{% else %}info{% endif %}">
+                                            {{ course.get_course_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ course.duration_years }} Years</td>
+                                    <td>{{ course.total_semesters }}</td>
+                                    <td>ksh{{ course.fees_per_semester|floatformat:0 }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'course_detail' course.id %}" class="btn btn-sm btn-outline-primary" title="View">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'edit_course' course.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'delete_course' course.id %}" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">No courses found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if courses.has_other_pages %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if courses.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_course_type %}&course_type={{ current_course_type }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ courses.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_course_type %}&course_type={{ current_course_type }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in courses.paginator.page_range %}
+                        {% if courses.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > courses.number|add:'-3' and i < courses.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_course_type %}&course_type={{ current_course_type }}{% endif %}">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if courses.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ courses.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_course_type %}&course_type={{ current_course_type }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ courses.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_course_type %}&course_type={{ current_course_type }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center text-muted">
+                Showing {{ courses.start_index }} to {{ courses.end_index }} of {{ courses.paginator.count }} courses
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal fade">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete this course? This will also delete all associated subjects and student enrollments.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal handling
+    const deleteButtons = document.querySelectorAll('.btn-outline-danger');
+    const deleteForm = document.getElementById('deleteForm');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const deleteUrl = this.getAttribute('href');
+            deleteForm.setAttribute('action', deleteUrl);
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        });
+    });
+    
+    // Type badge colors
+    const typeBadges = document.querySelectorAll('.badge');
+    typeBadges.forEach(badge => {
+        const type = badge.textContent.trim().toLowerCase();
+        if (type.includes('undergraduate')) {
+            badge.classList.add('bg-primary');
+        } else if (type.includes('postgraduate')) {
+            badge.classList.add('bg-success');
+        } else {
+            badge.classList.add('bg-info');
+        }
+    });
+});
+</script>
+
+{% endblock %}

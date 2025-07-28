@@ -1,0 +1,237 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Polytechnic management system</title>
+    <link rel="icon" id="portalLogo" href="{% static 'school_logo.png'%}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+    <!-- Fontawesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet" />
+    <link href="{% static 'main.css' %}" rel="stylesheet" />
+    <link href="{% static 'site.css' %}" rel="stylesheet"  />
+    <color theme="#4300FF" tab="#1d2aed" secondary="#9d0101" hidden></color>
+    <script src="{% static 'color.js'%}"> </script>
+    {% comment%}<script src="{% static 'loader.js'%}"> </script>  {% endcomment%}
+
+</head>
+<body>
+    <div class="loader">
+
+<svg version="1.1" 
+	class="svg-loader" 
+	xmlns="http://www.w3.org/2000/svg" 
+	xmlns:xlink="http://www.w3.org/1999/xlink" 
+	x="0px"
+	y="0px" 
+	viewBox="0 0 80 80" 
+	xml:space="preserve"
+>
+	<path 
+		fill="#23366E" 
+		d="M10,40c0,0,0-0.4,0-1.1c0-0.3,0-0.8,0-1.3c0-0.3,0-0.5,0-0.8c0-0.3,0.1-0.6,0.1-0.9c0.1-0.6,0.1-1.4,0.2-2.1
+		c0.2-0.8,0.3-1.6,0.5-2.5c0.2-0.9,0.6-1.8,0.8-2.8c0.3-1,0.8-1.9,1.2-3c0.5-1,1.1-2,1.7-3.1c0.7-1,1.4-2.1,2.2-3.1
+		c1.6-2.1,3.7-3.9,6-5.6c2.3-1.7,5-3,7.9-4.1c0.7-0.2,1.5-0.4,2.2-0.7c0.7-0.3,1.5-0.3,2.3-0.5c0.8-0.2,1.5-0.3,2.3-0.4l1.2-0.1
+		l0.6-0.1l0.3,0l0.1,0l0.1,0l0,0c0.1,0-0.1,0,0.1,0c1.5,0,2.9-0.1,4.5,0.2c0.8,0.1,1.6,0.1,2.4,0.3c0.8,0.2,1.5,0.3,2.3,0.5
+		c3,0.8,5.9,2,8.5,3.6c2.6,1.6,4.9,3.4,6.8,5.4c1,1,1.8,2.1,2.7,3.1c0.8,1.1,1.5,2.1,2.1,3.2c0.6,1.1,1.2,2.1,1.6,3.1
+		c0.4,1,0.9,2,1.2,3c0.3,1,0.6,1.9,0.8,2.7c0.2,0.9,0.3,1.6,0.5,2.4c0.1,0.4,0.1,0.7,0.2,1c0,0.3,0.1,0.6,0.1,0.9
+		c0.1,0.6,0.1,1,0.1,1.4C74,39.6,74,40,74,40c0.2,2.2-1.5,4.1-3.7,4.3s-4.1-1.5-4.3-3.7c0-0.1,0-0.2,0-0.3l0-0.4c0,0,0-0.3,0-0.9
+		c0-0.3,0-0.7,0-1.1c0-0.2,0-0.5,0-0.7c0-0.2-0.1-0.5-0.1-0.8c-0.1-0.6-0.1-1.2-0.2-1.9c-0.1-0.7-0.3-1.4-0.4-2.2
+		c-0.2-0.8-0.5-1.6-0.7-2.4c-0.3-0.8-0.7-1.7-1.1-2.6c-0.5-0.9-0.9-1.8-1.5-2.7c-0.6-0.9-1.2-1.8-1.9-2.7c-1.4-1.8-3.2-3.4-5.2-4.9
+		c-2-1.5-4.4-2.7-6.9-3.6c-0.6-0.2-1.3-0.4-1.9-0.6c-0.7-0.2-1.3-0.3-1.9-0.4c-1.2-0.3-2.8-0.4-4.2-0.5l-2,0c-0.7,0-1.4,0.1-2.1,0.1
+		c-0.7,0.1-1.4,0.1-2,0.3c-0.7,0.1-1.3,0.3-2,0.4c-2.6,0.7-5.2,1.7-7.5,3.1c-2.2,1.4-4.3,2.9-6,4.7c-0.9,0.8-1.6,1.8-2.4,2.7
+		c-0.7,0.9-1.3,1.9-1.9,2.8c-0.5,1-1,1.9-1.4,2.8c-0.4,0.9-0.8,1.8-1,2.6c-0.3,0.9-0.5,1.6-0.7,2.4c-0.2,0.7-0.3,1.4-0.4,2.1
+		c-0.1,0.3-0.1,0.6-0.2,0.9c0,0.3-0.1,0.6-0.1,0.8c0,0.5-0.1,0.9-0.1,1.3C10,39.6,10,40,10,40z"
+	>
+		
+	</path>
+	<path 
+		fill="#ED1E24" 
+		d="M62,40.1c0,0,0,0.2-0.1,0.7c0,0.2,0,0.5-0.1,0.8c0,0.2,0,0.3,0,0.5c0,0.2-0.1,0.4-0.1,0.7
+		c-0.1,0.5-0.2,1-0.3,1.6c-0.2,0.5-0.3,1.1-0.5,1.8c-0.2,0.6-0.5,1.3-0.7,1.9c-0.3,0.7-0.7,1.3-1,2.1c-0.4,0.7-0.9,1.4-1.4,2.1
+		c-0.5,0.7-1.1,1.4-1.7,2c-1.2,1.3-2.7,2.5-4.4,3.6c-1.7,1-3.6,1.8-5.5,2.4c-2,0.5-4,0.7-6.2,0.7c-1.9-0.1-4.1-0.4-6-1.1
+		c-1.9-0.7-3.7-1.5-5.2-2.6c-1.5-1.1-2.9-2.3-4-3.7c-0.6-0.6-1-1.4-1.5-2c-0.4-0.7-0.8-1.4-1.2-2c-0.3-0.7-0.6-1.3-0.8-2
+		c-0.2-0.6-0.4-1.2-0.6-1.8c-0.1-0.6-0.3-1.1-0.4-1.6c-0.1-0.5-0.1-1-0.2-1.4c-0.1-0.9-0.1-1.5-0.1-2c0-0.5,0-0.7,0-0.7
+		s0,0.2,0.1,0.7c0.1,0.5,0,1.1,0.2,2c0.1,0.4,0.2,0.9,0.3,1.4c0.1,0.5,0.3,1,0.5,1.6c0.2,0.6,0.4,1.1,0.7,1.8
+		c0.3,0.6,0.6,1.2,0.9,1.9c0.4,0.6,0.8,1.3,1.2,1.9c0.5,0.6,1,1.3,1.6,1.8c1.1,1.2,2.5,2.3,4,3.2c1.5,0.9,3.2,1.6,5,2.1
+		c1.8,0.5,3.6,0.6,5.6,0.6c1.8-0.1,3.7-0.4,5.4-1c1.7-0.6,3.3-1.4,4.7-2.4c1.4-1,2.6-2.1,3.6-3.3c0.5-0.6,0.9-1.2,1.3-1.8
+		c0.4-0.6,0.7-1.2,1-1.8c0.3-0.6,0.6-1.2,0.8-1.8c0.2-0.6,0.4-1.1,0.5-1.7c0.1-0.5,0.2-1,0.3-1.5c0.1-0.4,0.1-0.8,0.1-1.2
+		c0-0.2,0-0.4,0.1-0.5c0-0.2,0-0.4,0-0.5c0-0.3,0-0.6,0-0.8c0-0.5,0-0.7,0-0.7c0-1.1,0.9-2,2-2s2,0.9,2,2C62,40,62,40.1,62,40.1z"
+	>
+	</path>
+</svg>
+</div>
+
+<div class="row row-gutter">
+    <div class="card bg-light text-white col-md-6">
+        <img src="{% static 'complex.jpeg'%}" class="card-imgh" alt="...">
+        <div class="card-img-overlay">
+            <h1 class="card-title fw-bold text-center htagline text-wrap">Complete Your Student Registration</h1>
+        </div>
+    </div>
+    <div class="col-md-6 card-imgw d-flex flex-column justify-content-center">
+        <div class="row d-flex flex-column row-gutter d-flex justify-content-center flex-column">
+            <div class="col-md-12 text-center">
+                <img src="{% static 'school_logo.png'%}" class="rlogo" alt="">
+                <h1 class="fw-bold primary-text ms-5">Complete Your Profile</h1>
+                <p class="text-center fw-semibold">Please fill in your details to complete registration</p>
+            </div>
+        </div>
+        <div class="card shadow reg-card">
+            <div class="card-body dw-th">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <h5 class="fw-bold mb-3">Account Information</h5>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Student ID</label>
+                        {{ student_form.student_id }}
+                        <small class="text-muted">This must match the ID provided by the school</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        {{ user_form.email }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">New Password (optional)</label>
+                        {{ user_form.password1 }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Confirm Password</label>
+                        {{ user_form.password2 }}
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="fw-bold mb-3">Personal Information</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">First Name</label>
+                            {{ user_form.first_name }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Last Name</label>
+                            {{ user_form.last_name }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Course</label>
+                        {{ student_form.course }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Current Semester</label>
+                            {{ student_form.current_semester }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Admission Date</label>
+                            {{ student_form.admission_date }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Admission Type</label>
+                        {{ student_form.admission_type }}
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="fw-bold mb-3">Guardian Information</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Guardian Name</label>
+                            {{ student_form.guardian_name }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Guardian Phone</label>
+                            {{ student_form.guardian_phone }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Guardian Relation</label>
+                        {{ student_form.guardian_relation }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Emergency Contact</label>
+                        {{ student_form.emergency_contact }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Blood Group</label>
+                        {{ student_form.blood_group }}
+                    </div>
+                    
+                    <button class="btn btn-color btn-md primary-btn w-100" type="submit">Complete Registration</button>
+                </form>
+            </div>
+        </div>
+        <p class="mt-4 text-center text-decoration-none smaller fw-semibold">
+            Already have an account? <a class="text-decoration-none" href="{% url 'student_login' %}">
+                <span class="primary-text fw-bold">Sign In</span>
+            </a>
+            <span class="primary-text">
+                <br /><br /> Copyright &copy 2024 
+                <script type="text/javascript">document.write(new Date().getFullYear());</script>-InnovationHub Softwares
+            </span>
+        </p>
+    </div>
+</div>
+
+<script>
+    // Password toggle functionality
+    document.querySelectorAll('.togglePassword').forEach(function(element) {
+        element.addEventListener('click', function() {
+            const passwordInput = this.previousElementSibling;
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('ri-eye-off-line');
+                icon.classList.add('ri-eye-line');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('ri-eye-line');
+                icon.classList.add('ri-eye-off-line');
+            }
+        });
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const password1 = document.getElementById('id_password1').value;
+        const password2 = document.getElementById('id_password2').value;
+        
+        if (password1 && password1 !== password2) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+        }
+    });
+</script>
+ <!-- Option 1: Bootstrap Bundle with Popper -->
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+  
+    <script src="{% static 'main.js'%}"></script>
+    <script src="{% static 'site.js'%}"></script>
+    <script src="{% static 'Tour.js'%}"></script>
+    <script src="{% static 'chat-script.js'%}"></script>
+    <script src="{% static 'settings.js'%}"></script>
+    <script src="{% static 'customtepper.js'%}"></script>
+    <script src="{% static 'loader.js'%}"></script>
+    
+
+    
+</body>
+</html>

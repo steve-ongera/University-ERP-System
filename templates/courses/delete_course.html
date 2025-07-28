@@ -1,0 +1,134 @@
+<!-- templates/courses/delete_course.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Course - {{ course.name }} - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container {
+        background: #fff;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .delete-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+        margin: -2rem -2rem 2rem -2rem;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .course-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .impact-item {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .impact-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .students-impact {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .subjects-impact {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    .btn-secondary {
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+    }
+    
+    .confirmation-checkbox {
+        background: #fff;
+        border: 2px solid #dc3545;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="delete-container">
+                <div class="delete-header">
+                    <h2 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Delete Course
+                    </h2>
+                    <p class="mb-0 mt-2 opacity-75">
+                        This action cannot be undone. Please review the impact before proceeding.
+                    </p>
+                </div>
+
+                <!-- Warning Box -->
+                <div class="warning-box">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                        <div>
+                            <h5 class="mb-1 text-warning">Warning: Permanent Deletion</h5>
+                            <p class="mb-0 text-dark">
+                                You are about to permanently delete this course. This action will remove all associated data and cannot be reversed.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course Information -->
+                <div class="course-info">
+                    <h5 class="mb-3">Course Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Course Name:</strong> {{ course.name }}</p>
+                            <p><strong>Course Code:</strong> {{ course.code }}</p>
+                            <p><strong>Department:</strong> {{ course.department.name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Course Type:</strong> {{ course.get_course_type_display }}</p>
+                            <p><strong>Duration

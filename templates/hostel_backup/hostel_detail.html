@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ hostel.name }} - Details{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">{{ hostel.name }} Details</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="d-flex justify-content-end">
+                    <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'hostel_list' %}">
+                        <i class="ri-arrow-left-line me-1"></i> Back to Hostels
+                    </a>
+                    <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'hostel_booking_dashboard' %}">
+                        <i class="ri-dashboard-line me-1"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-2">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Hostel Header Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="card-title fw-bold">{{ hostel.name }} <span class="text-muted">({{ hostel.initials }})</span></h1>
+                            <span class="badge bg-primary">{{ hostel.get_hostel_type_display }}</span>
+                        </div>
+                        {% if hostel.warden %}
+                        <div class="text-end">
+                            <p class="mb-0"><small class="text-muted">Warden</small></p>
+                            <p class="fw-bold mb-0">{{ hostel.warden.get_full_name }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hostel Info Cards -->
+            <div class="row">
+                <!-- Basic Info Card -->
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h3 class="card-title mb-0"><i class="ri-information-line me-2"></i>Basic Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="mb-2"><strong>Total Rooms:</strong></p>
+                                    <p class="mb-2"><strong>Available Rooms:</strong></p>
+                                    <p class="mb-2"><strong>Occupied Rooms:</strong></p>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <p class="mb-2">{{ hostel.total_rooms }}</p>
+                                    <p class="mb-2 text-success">{{ hostel.available_rooms }}</p>
+                                    <p class="mb-2 text-danger">{{ hostel.occupied_rooms }}</p>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="mb-2"><strong>Total Beds:</strong></p>
+                                    <p class="mb-2"><strong>Available Beds:</strong></p>
+                                    <p class="mb-2"><strong>Occupied Beds:</strong></p>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <p class="mb-2">{{ hostel.total_beds }}</p>
+                                    <p class="mb-2 text-success">{{ hostel.available_beds }}</p>
+                                    <p class="mb-2 text-danger">{{ hostel.occupied_beds }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Card -->
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h3 class="card-title mb-0"><i class="ri-file-text-line me-2"></i>Description</h3>
+                        </div>
+                        <div class="card-body">
+                            {% if hostel.description %}
+                                <p>{{ hostel.description }}</p>
+                            {% else %}
+                                <p class="text-muted">No description available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Facilities Card -->
+                {% if hostel.facilities %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h3 class="card-title mb-0"><i class="ri-home-gear-line me-2"></i>Facilities</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for facility in hostel.facilities.splitlines %}
+                                    <li class="mb-1"><i class="ri-checkbox-circle-fill text-success me-2"></i>{{ facility }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Rules Card -->
+                {% if hostel.rules %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h3 class="card-title mb-0"><i class="ri-alert-line me-2"></i>Rules & Regulations</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for rule in hostel.rules.splitlines %}
+                                    <li class="mb-1"><i class="ri-arrow-right-s-line text-primary me-2"></i>{{ rule }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Fee Structure Card -->
+            {% if fee_structure %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="ri-money-dollar-circle-line me-2"></i>Fee Structure</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr>
+                                    <td>Accommodation Fee:</td>
+                                    <td class="text-end">₹{{ fee_structure.accommodation_fee }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Mess Fee:</td>
+                                    <td class="text-end">₹{{ fee_structure.mess_fee }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Security Deposit:</td>
+                                    <td class="text-end">₹{{ fee_structure.security_deposit }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Maintenance Fee:</td>
+                                    <td class="text-end">₹{{ fee_structure.maintenance_fee }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Other Charges:</td>
+                                    <td class="text-end">₹{{ fee_structure.other_charges }}</td>
+                                </tr>
+                                <tr class="border-top">
+                                    <td><strong>Total Fee:</strong></td>
+                                    <td class="text-end"><strong>₹{{ fee_structure.total_fee }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Quick Stats Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="ri-bar-chart-line me-2"></i>Quick Stats</h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div>
+                            <p class="mb-0 text-muted small">Occupancy Rate</p>
+                            <h4 class="mb-0 fw-bold">{{ hostel.occupancy_rate|floatformat:0 }}%</h4>
+                        </div>
+                        <div class="text-end">
+                            <p class="mb-0 text-muted small">Available Beds</p>
+                            <h4 class="mb-0 fw-bold text-success">{{ hostel.available_beds }}</h4>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ hostel.availability_rate }}%" 
+                             aria-valuenow="{{ hostel.availability_rate }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Rooms Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="card-title mb-0"><i class="ri-door-line me-2"></i>Available Rooms</h3>
+                </div>
+                <div class="card-body">
+                    <div id="rooms-container">
+                        <div class="list-group" id="rooms-list">
+                            <!-- Rooms will be populated by JavaScript -->
+                        </div>
+                        
+                        <!-- Pagination Controls -->
+                        <div class="pagination-controls d-flex justify-content-between align-items-center mt-3">
+                            <div class="page-info">
+                                Showing <span id="showing-start">1</span> to <span id="showing-end">6</span> of <span id="total-rooms">0</span> rooms
+                            </div>
+                            <nav aria-label="Room pagination">
+                                <ul class="pagination mb-0">
+                                    <li class="page-item" id="prev-page">
+                                        <a class="page-link" href="#" onclick="changePage(currentPage - 1)">
+                                            <i class="ri-arrow-left-line"></i> Previous
+                                        </a>
+                                    </li>
+                                    <li class="page-item active" id="current-page-item">
+                                        <span class="page-link" id="current-page-number">1</span>
+                                    </li>
+                                    <li class="page-item" id="next-page">
+                                        <a class="page-link" href="#" onclick="changePage(currentPage + 1)">
+                                            Next <i class="ri-arrow-right-line"></i>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    
+                    <!-- No rooms message -->
+                    <div id="no-rooms-message" class="text-center text-muted" style="display: none;">
+                        <i class="ri-door-line fs-1 mb-3"></i>
+                        <p>No rooms available in this hostel.</p>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .room-item {
+                    transition: all 0.3s ease;
+                }
+                .room-item.fade-in {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                .room-item.fade-out {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+            </style>
+
+            <script>
+                // Convert Django template data to JavaScript
+                const roomData = [
+                    {% for room_info in room_availability %}
+                    {
+                        id: {{ room_info.room.id }},
+                        room_name: "{{ room_info.room.room_name }}",
+                        floor: {{ room_info.room.floor }},
+                        available_beds: {{ room_info.available_beds }},
+                        room_detail_url: "{% url 'room_detail' room_info.room.id %}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+
+                let currentPage = 1;
+                const roomsPerPage = 6;
+                let totalRooms = roomData.length;
+                let totalPages = Math.ceil(totalRooms / roomsPerPage);
+
+                function renderRooms() {
+                    const roomsList = document.getElementById('rooms-list');
+                    const startIndex = (currentPage - 1) * roomsPerPage;
+                    const endIndex = startIndex + roomsPerPage;
+                    const currentRooms = roomData.slice(startIndex, endIndex);
+
+                    // Clear current rooms
+                    roomsList.innerHTML = '';
+
+                    if (currentRooms.length === 0) {
+                        document.getElementById('rooms-container').style.display = 'none';
+                        document.getElementById('no-rooms-message').style.display = 'block';
+                        return;
+                    }
+
+                    // Show rooms container
+                    document.getElementById('rooms-container').style.display = 'block';
+                    document.getElementById('no-rooms-message').style.display = 'none';
+
+                    // Create room items
+                    currentRooms.forEach(room => {
+                        const roomItem = document.createElement('div');
+                        roomItem.className = 'list-group-item border-0 px-0 py-2 room-item fade-in';
+                        roomItem.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">${room.room_name}</h6>
+                                    <small class="text-muted">Floor ${room.floor} • ${room.available_beds} available</small>
+                                </div>
+                                <a href="${room.room_detail_url}" class="btn btn-sm primary-btn">
+                                    View Beds <i class="ri-arrow-right-line ms-1"></i>
+                                </a>
+                            </div>
+                        `;
+                        roomsList.appendChild(roomItem);
+                    });
+
+                    updatePaginationControls();
+                }
+
+                function updatePaginationControls() {
+                    const startItem = (currentPage - 1) * roomsPerPage + 1;
+                    const endItem = Math.min(currentPage * roomsPerPage, totalRooms);
+
+                    // Update showing info
+                    document.getElementById('showing-start').textContent = startItem;
+                    document.getElementById('showing-end').textContent = endItem;
+                    document.getElementById('total-rooms').textContent = totalRooms;
+
+                    // Update page number
+                    document.getElementById('current-page-number').textContent = currentPage;
+
+                    // Update previous button
+                    const prevButton = document.getElementById('prev-page');
+                    if (currentPage === 1) {
+                        prevButton.classList.add('disabled');
+                    } else {
+                        prevButton.classList.remove('disabled');
+                    }
+
+                    // Update next button
+                    const nextButton = document.getElementById('next-page');
+                    if (currentPage === totalPages) {
+                        nextButton.classList.add('disabled');
+                    } else {
+                        nextButton.classList.remove('disabled');
+                    }
+
+                    // Hide pagination if only one page
+                    const paginationControls = document.querySelector('.pagination-controls');
+                    if (totalPages <= 1) {
+                        paginationControls.style.display = 'none';
+                    } else {
+                        paginationControls.style.display = 'flex';
+                    }
+                }
+
+                function changePage(page) {
+                    if (page < 1 || page > totalPages) return;
+                    
+                    // Add fade out effect
+                    const roomItems = document.querySelectorAll('.room-item');
+                    roomItems.forEach(item => {
+                        item.classList.remove('fade-in');
+                        item.classList.add('fade-out');
+                    });
+
+                    // Wait for animation then change page
+                    setTimeout(() => {
+                        currentPage = page;
+                        renderRooms();
+                    }, 150);
+                }
+
+                // Initialize pagination
+                document.addEventListener('DOMContentLoaded', function() {
+                    renderRooms();
+                });
+            </script>
+        </div>
+    </div>
+</div>
+
+<style>
+    .primary-btn {
+        background-color: #3639A4;
+        color: white;
+        border: none;
+    }
+    
+    .primary-btn:hover {
+        background-color: #2a2d8a;
+        color: white;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.35em 0.65em;
+    }
+    
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+    }
+    
+    .list-group-item:first-child {
+        border-top: none;
+    }
+    
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}

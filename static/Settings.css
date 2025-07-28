@@ -1,0 +1,204 @@
+
+
+.profile-tab {
+    text-align: left;
+    width:100%;
+
+/* 
+    background: transparent url('img/Rectangle 2047.png') 0% 0% no-repeat padding-box;
+    box-shadow: 0px 3px 6px #00000029;
+    border: 1px solid #D6D6D6;
+    opacity: 1;
+    align-content:center;
+    margin-bottom:4px;
+*/       
+}
+.profpic {
+    border-radius: 50%;
+    width: 30px;
+    height: 10px;
+    align-items: center;
+    
+    
+}
+.icon-symbol {
+    border-radius: 50%;
+    width: 30px;
+    height: 10px;
+    align-items: center;
+}
+
+
+/*    .profile-pic {
+    height: 6rem;
+    aspect-ratio: 1/1;
+    border-radius: 3rem;
+    overflow: hidden
+}
+*/        .profile-pic img {
+        /*        width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+        */
+        width: 6rem;
+        aspect-ratio: 1/1;
+        border-radius: 1rem;
+        object-fit: cover;
+    }
+.setting-pic {
+    width:120px;
+    aspect-ratio: 1/1;
+    align-items: center;
+}
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:weight@100;200;300;400;500;600;700;800&display=swap");
+    
+
+.card-div-2 {
+    padding: 20px;
+}
+.box {
+    border: 1px solid #eee;
+    padding: 15px;
+    cursor: pointer;
+    border-radius: 5px;
+    background-color: white;
+}
+.prof.nav-tabs .settings-nav-link {
+    background: white;
+    color: black;
+    width:100%;
+    
+   
+}
+.prof.nav-tabs .nav-item.show .settings-nav-link, .nav-tabs .settings-nav-link.active {
+color: #fcfefc;
+background-color: var(--color-primary);
+border-color: var(--bs-nav-tabs-link-active-border-color);
+}
+.prof.nav-tabs .settings-nav-link:hover {
+box-shadow: var(--box-shadow-btn);
+background: var(--color-primary);
+color: white;
+opacity: 0.9
+}
+
+.sett.nav-tabs .nav-item.show .settings-nav-link, .nav-tabs .settings-nav-link.active {
+color: #fcfefc;
+background-color: var(--color-primary); 
+border-color: var(--bs-nav-tabs-link-active-border-color);
+}
+
+.sett.nav-tabs .settings-nav-link:hover {
+box-shadow: var(--box-shadow-btn);
+background: var(--color-primary);
+color: white;
+
+opacity: 0.9;
+}
+
+.sett.nav-tabs .settings-nav-link {
+background: white;
+color: var(--color-black);
+margin: 10px;
+}
+.card-plan {
+
+background-color: var(--color-primary);
+color: white;
+min-height: 190px;
+max-height:200px;
+border-radius: 10px; /* 5px rounded corners */
+margin: 4px;
+/*   max-width: 800px;*/
+width: 100%;
+/*  height: calc(100vh);*/
+object-fit: cover;
+}
+.card-dtails {
+width: 75%;
+height: auto;
+
+
+min-height: 150px;
+border-radius: 10px; /* 5px rounded corners */
+}
+.form-custom-check-input {
+width: 3.0rem !important;
+height: 1.5rem !important;
+margin-right: .5em !important;
+float: right !important;
+}
+
+
+.cert-pic {
+    display: block;
+    position: absolute;
+    width: 300px;
+    height:150px
+}
+.cert-img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+}
+.othersettingsswitch{
+    width:3.0rem !important;
+    height:1.5rem;
+}
+.uploadIcon {
+    color: #408EEF !important;
+}
+.elementinput {
+    display: inline-flex;
+    align-items: center;
+}
+
+.inputFile {
+    display: none;
+}
+.profileInputFile {
+display: none;
+}
+/* Custom style */
+.accordion-button::after {
+background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23333' xmlns='http://www.w3.org/2000/svg'%3e%3cpath fill-rule='evenodd' d='M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z' clip-rule='evenodd'/%3e%3c/svg%3e");
+transform: scale(.7) !important;
+}
+
+.accordion-button:not(.collapsed)::after {
+background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23333' xmlns='http://www.w3.org/2000/svg'%3e%3cpath fill-rule='evenodd' d='M0 8a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 0 1-1-1z' clip-rule='evenodd'/%3e%3c/svg%3e");
+}
+.signature img {
+width: 100px;
+
+aspect-ratio: 1/1;
+object-fit: cover;
+}
+.signature {
+display: block;
+position: relative;
+left:100px;
+}
+.form-check-input:checked {
+background-color: var(--color-primary);
+border-color: var(--color-primary);
+}
+.setting.col-md-9 {
+flex: 0 0 auto;
+border-left: solid 1px;
+
+} 
+.profile.col-md-9{
+border-left:solid 1px;
+}
+.rounded-circle {
+border-radius: 50% !important;
+aspect-ratio: 1/1;
+}
+.alert.card-block {
+border-radius: 5px;
+width: 1180px;
+border:solid 1px;
+
+} 

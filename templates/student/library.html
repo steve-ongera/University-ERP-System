@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Library{% endblock %}
+
+{% block content %}
+<h2>Library</h2>
+<h3>Currently Issued Books</h3>
+<ul>
+    {% for issue in issued_books %}
+    <li>
+        {{ issue.book.title }} (Due: {{ issue.due_date }})
+    </li>
+    {% empty %}
+    <li>No books currently issued</li>
+    {% endfor %}
+</ul>
+
+<h3>Available Books</h3>
+<ul>
+    {% for book in available_books %}
+    <li>{{ book.title }} by {{ book.author }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

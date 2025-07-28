@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}Timetable - {{ course.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Timetable</h2>
+                    <p class="text-muted mb-0">
+                        {{ course.code }} - {{ course.name }} | 
+                        {{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                    </p>
+                </div>
+                <div>
+                    <a href="{% url 'admin_schedule_timetable' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Filter
+                    </a>
+                    <a href="{% url 'schedule_list' %}" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Schedule List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if schedules %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="12%" class="text-center">Time</th>
+                                        <th width="14%" class="text-center">Monday</th>
+                                        <th width="14%" class="text-center">Tuesday</th>
+                                        <th width="14%" class="text-center">Wednesday</th>
+                                        <th width="14%" class="text-center">Thursday</th>
+                                        <th width="14%" class="text-center">Friday</th>
+                                        <th width="14%" class="text-center">Saturday</th>
+                                        <th width="14%" class="text-center">Sunday</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for time_slot in time_slots %}
+                                    <tr>
+                                        <td class="text-center fw-bold bg-light">
+                                            {{ time_slot.start_time }} - {{ time_slot.end_time }}
+                                        </td>
+                                        
+                                        <!-- Monday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.monday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-primary text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Tuesday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.tuesday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-success text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Wednesday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.wednesday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-warning text-dark p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Thursday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.thursday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-info text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Friday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.friday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-danger text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Saturday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.saturday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-secondary text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        
+                                        <!-- Sunday -->
+                                        <td class="text-center">
+                                            {% for schedule in timetable.sunday %}
+                                                {% if schedule.time_slot.id == time_slot.id %}
+                                                    <div class="schedule-item bg-dark text-white p-2 rounded mb-1">
+                                                        <strong>{{ schedule.subject.code }}</strong><br>
+                                                        <small>{{ schedule.faculty.user.get_full_name }}</small><br>
+                                                        <small>{{ schedule.classroom.name }}</small>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No schedules found</h5>
+                            <p class="text-muted">There are no schedules for this course and semester.</p>
+                            <a href="{% url 'schedule_create' %}" class="btn btn-primary">Create Schedule</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Schedule Summary -->
+            {% if schedules %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Schedule Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Subject</th>
+                                            <th>Faculty</th>
+                                            <th>Classroom</th>
+                                            <th>Day</th>
+                                            <th>Time</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for schedule in schedules %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ schedule.subject.code }}</strong><br>
+                                                <small class="text-muted">{{ schedule.subject.name }}</small>
+                                            </td>
+                                            <td>{{ schedule.faculty.user.get_full_name }}</td>
+                                            <td>{{ schedule.classroom.name }}</td>
+                                            <td>{{ schedule.time_slot.get_day_of_week_display }}</td>
+                                            <td>{{ schedule.time_slot.start_time }} - {{ schedule.time_slot.end_time }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'schedule_detail' schedule.id %}" class="btn btn-sm btn-outline-info">View</a>
+                                                    <a href="{% url 'schedule_update' schedule.id %}" class="btn btn-sm btn-outline-warning">Edit</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.schedule-item {
+    font-size: 0.85rem;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.table td {
+    vertical-align: middle;
+    height: 80px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .schedule-item {
+        font-size: 0.75rem;
+        min-height: 50px;
+    }
+    
+    .table td {
+        height: 60px;
+    }
+}
+</style>
+{% endblock %}

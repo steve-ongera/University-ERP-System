@@ -1,0 +1,199 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Schedule Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Schedule Management</h2>
+                <div>
+                    <a href="{% url 'admin_schedule_timetable' %}" class="btn btn-info">View Timetable</a>
+                    <a href="{% url 'schedule_create' %}" class="btn btn-success">Add New Schedule</a>
+                </div>
+            </div>
+            
+            <!-- Filter Form -->
+            <form method="GET" class="mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Filters</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="search">Search</label>
+                                <input type="text" name="search" id="search" class="form-control" 
+                                       placeholder="Subject, Faculty, Classroom..." value="{{ search_query }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="department">Department</label>
+                                <select name="department" id="department" class="form-control">
+                                    <option value="">All Departments</option>
+                                    {% for department in departments %}
+                                        <option value="{{ department.id }}" 
+                                                {% if department_filter == department.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ department.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="course">Course</label>
+                                <select name="course" id="course" class="form-control">
+                                    <option value="">All Courses</option>
+                                    {% for course in courses %}
+                                        <option value="{{ course.id }}" 
+                                                {% if course_filter == course.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ course.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="faculty">Faculty</label>
+                                <select name="faculty" id="faculty" class="form-control">
+                                    <option value="">All Faculty</option>
+                                    {% for faculty in faculties %}
+                                        <option value="{{ faculty.id }}" 
+                                                {% if faculty_filter == faculty.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ faculty.user.get_full_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-3">
+                                <label for="semester">Semester</label>
+                                <select name="semester" id="semester" class="form-control">
+                                    <option value="">All Semesters</option>
+                                    {% for semester in semesters %}
+                                        <option value="{{ semester.id }}" 
+                                                {% if semester_filter == semester.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ semester.academic_year.year }} - Sem {{ semester.semester_number }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="day">Day</label>
+                                <select name="day" id="day" class="form-control">
+                                    <option value="">All Days</option>
+                                    {% for day in days %}
+                                        <option value="{{ day.0 }}" 
+                                                {% if day_filter == day.0 %}selected{% endif %}>
+                                            {{ day.1 }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="classroom">Classroom</label>
+                                <select name="classroom" id="classroom" class="form-control">
+                                    <option value="">All Classrooms</option>
+                                    {% for classroom in classrooms %}
+                                        <option value="{{ classroom.id }}" 
+                                                {% if classroom_filter == classroom.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ classroom.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label>&nbsp;</label>
+                                <div>
+                                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                    <a href="{% url 'schedule_list' %}" class="btn btn-secondary">Clear</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Results Summary -->
+            <div class="mb-3">
+                <p class="text-muted">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} schedules
+                </p>
+            </div>
+            
+            <!-- Schedule Table -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Course</th>
+                            <th>Faculty</th>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Classroom</th>
+                            <th>Semester</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in page_obj %}
+                        <tr>
+                            <td>
+                                <strong>{{ schedule.subject.code }}</strong><br>
+                                <small>{{ schedule.subject.name }}</small>
+                            </td>
+                            <td>{{ schedule.subject.course.name }}</td>
+                            <td>{{ schedule.faculty.user.get_full_name }}</td>
+                            <td>{{ schedule.time_slot.get_day_of_week_display }}</td>
+                            <td>{{ schedule.time_slot.start_time }} - {{ schedule.time_slot.end_time }}</td>
+                            <td>{{ schedule.classroom.name }}</td>
+                            <td>{{ schedule.semester.academic_year.year }} - Sem {{ schedule.semester.semester_number }}</td>
+                            <td>
+                                <a href="{% url 'schedule_detail' schedule.id %}" class="btn btn-info btn-sm">View</a>
+                                <a href="{% url 'schedule_update' schedule.id %}" class="btn btn-warning btn-sm">Edit</a>
+                                <a href="{% url 'schedule_delete' schedule.id %}" class="btn btn-danger btn-sm">Delete</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No schedules found matching your criteria.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&department={{ department_filter }}&course={{ course_filter }}&faculty={{ faculty_filter }}&semester={{ semester_filter }}&day={{ day_filter }}&classroom={{ classroom_filter }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&search={{ search_query }}&department={{ department_filter }}&course={{ course_filter }}&faculty={{ faculty_filter }}&semester={{ semester_filter }}&day={{ day_filter }}&classroom={{ classroom_filter }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&department={{ department_filter }}&course={{ course_filter }}&faculty={{ faculty_filter }}&semester={{ semester_filter }}&day={{ day_filter }}&classroom={{ classroom_filter }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Timetable{% endblock %}
+
+{% block content %}
+
+<div class="container onprintContainer">
+    <!-- System Messages -->
+    <div class="row mt-3">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <h4 class="primary-text"><i class="bi bi-calendar-week me-2"></i>My Timetable</h4>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row shadow-lg mt-4 p-3 card">
+        <div class="col-md-12">
+            
+
+            <!-- Timetable Grid -->
+            <div class="row">
+                <div class="col-md-12">
+                    {% if timetable_grid.cells %}
+                    <div class="card border-0 shadow-sm">
+                        <div class="table-responsive">
+                            <table class="table timetable-table">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th class="time-header"><i class="bi bi-clock me-2"></i>Time</th>
+                                        {% for day in timetable_grid.days %}
+                                        <th class="day-header" id="day-{{ day|lower }}">
+                                            <i class="bi bi-calendar-day me-2"></i>{{ day }}
+                                        </th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in timetable_grid.cells %}
+                                    <tr>
+                                        <td class="time-slot bg-light fw-bold">{{ row.time_display }}</td>
+                                        {% for cell_data in row.days_data %}
+                                        {% if cell_data %}
+                                        <td class="class-cell" title="{{ cell_data.subject.name }} - {{ cell_data.faculty.user.get_full_name }}">
+                                            <div class="subject-name">{{ cell_data.subject.name }}</div>
+                                            <div class="subject-code">{{ cell_data.subject.code }}</div>
+                                            <div class="faculty-name">
+                                                <i class="bi bi-person-video2 me-1"></i>
+                                                <span>{{ cell_data.faculty.user.get_full_name|truncatechars:15 }}</span>
+                                            </div>
+                                            <div class="venue-info">
+                                                <i class="bi bi-geo-alt me-1"></i>
+                                                <span>{{ cell_data.classroom.name }}</span>
+                                            </div>
+                                        </td>
+                                        {% else %}
+                                        <td class="empty-cell bg-light text-muted">-</td>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="card border-0 shadow-sm text-center py-5">
+                        <i class="bi bi-calendar-x text-muted" style="font-size: 4rem;"></i>
+                        <h3 class="text-muted mt-3">No Classes Scheduled</h3>
+                        <p class="text-muted">Your timetable is currently empty. Please contact the administration if this seems incorrect.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --primary: #4300FF;
+        --secondary: #6C63FF;
+        --light: #F0EBFF;
+        --dark: #2A0080;
+    }
+
+    .primary-text {
+        color: var(--primary);
+    }
+
+    .bg-primary {
+        background-color: var(--primary) !important;
+    }
+
+    .btn-primary {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+
+    .btn-primary:hover {
+        background-color: var(--dark) !important;
+        border-color: var(--dark) !important;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+    }
+
+    .timetable-table {
+        font-size: 0.9em;
+    }
+
+    .timetable-table th {
+        text-align: center;
+        vertical-align: middle;
+        padding: 15px 10px;
+    }
+
+    .time-header {
+        width: 120px;
+        min-width: 120px;
+    }
+
+    .timetable-table td {
+        border: 1px solid #e0e0e0;
+        padding: 8px;
+        text-align: center;
+        vertical-align: middle;
+        height: 80px;
+        min-height: 80px;
+    }
+
+    .time-slot {
+        background-color: var(--light) !important;
+        font-weight: 600;
+        color: var(--dark);
+        width: 120px;
+        min-width: 120px;
+    }
+
+    .class-cell {
+        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+        border-left: 4px solid #27ae60;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .class-cell:hover {
+        background: linear-gradient(135deg, #d4edda 0%, #e8f5e8 100%);
+        transform: scale(1.02);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .subject-name {
+        font-weight: 700;
+        color: #2c3e50;
+        font-size: 0.9em;
+        margin-bottom: 4px;
+        line-height: 1.2;
+    }
+
+    .subject-code {
+        background: #34495e;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 0.7em;
+        font-weight: 600;
+        display: inline-block;
+        margin-bottom: 4px;
+    }
+
+    .faculty-name {
+        color: #666;
+        font-size: 0.75em;
+        margin-bottom: 3px;
+    }
+
+    .venue-info {
+        color: #27ae60;
+        font-size: 0.75em;
+        font-weight: 600;
+    }
+
+    .day-today {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+        position: relative;
+    }
+
+    @media (max-width: 768px) {
+        .timetable-table {
+            font-size: 0.8em;
+        }
+
+        .timetable-table th,
+        .timetable-table td {
+            padding: 6px 4px;
+        }
+
+        .time-slot {
+            width: 80px;
+            min-width: 80px;
+        }
+    }
+
+    @media print {
+        body {
+            background: white;
+            padding: 0;
+        }
+
+        .container {
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        .btn-primary {
+            display: none;
+        }
+
+        .timetable-table {
+            border: 2px solid #000;
+        }
+
+        .timetable-table th,
+        .timetable-table td {
+            border: 1px solid #000;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight current day
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const dayHeader = document.getElementById('day-' + today);
+    
+    if (dayHeader) {
+        dayHeader.classList.add('day-today');
+    }
+
+    // Add click handlers for class cells
+    const classCells = document.querySelectorAll('.class-cell');
+    classCells.forEach(cell => {
+        cell.addEventListener('click', function() {
+            const title = this.getAttribute('title');
+            if (title) {
+                alert(title);
+            }
+        });
+    });
+
+    // Add animation on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animation = 'fadeInUp 0.6s ease forwards';
+            }
+        });
+    });
+
+    document.querySelectorAll('.timetable-table').forEach(section => {
+        observer.observe(section);
+    });
+});
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,572 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">{{ action }} Student</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <a href="{% url 'student_list' %}" class="btn btn-outline-secondary float-end">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-4" id="studentFormTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                            <i class="bi bi-person-vcard me-1"></i> Personal
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button" role="tab">
+                            <i class="bi bi-book me-1"></i> Academic
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="guardian-tab" data-bs-toggle="tab" data-bs-target="#guardian" type="button" role="tab">
+                            <i class="bi bi-people me-1"></i> Guardian
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- Tab Content -->
+                <div class="tab-content" id="studentFormTabsContent">
+                    <!-- Personal Information Tab -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.username.id_for_label }}" class="form-label">Username *</label>
+                                        {{ user_form.username }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.username.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.email.id_for_label }}" class="form-label">Email *</label>
+                                        {{ user_form.email }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.email.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                        {{ user_form.first_name }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.first_name.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                        {{ user_form.last_name }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.last_name.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if action == 'Create' %}
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.password.id_for_label }}" class="form-label">Password *</label>
+                                        {{ user_form.password }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.password.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.confirm_password.id_for_label }}" class="form-label">Confirm Password *</label>
+                                        {{ user_form.confirm_password }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.confirm_password.errors|first }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.phone.id_for_label }}" class="form-label">Phone</label>
+                                        {{ user_form.phone }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.phone.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.gender.id_for_label }}" class="form-label">Gender</label>
+                                        {{ user_form.gender }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.gender.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.date_of_birth.id_for_label }}" class="form-label">Date of Birth</label>
+                                        {{ user_form.date_of_birth }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.date_of_birth.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.national_id.id_for_label }}" class="form-label">National ID</label>
+                                        {{ user_form.national_id }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.national_id.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ user_form.profile_picture.id_for_label }}" class="form-label">Profile Picture</label>
+                                        {{ user_form.profile_picture }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.profile_picture.errors|first }}
+                                        </div>
+                                        {% if student and student.user.profile_picture %}
+                                        <img id="profilePicturePreview" src="{{ student.user.profile_picture.url }}" alt="Current Profile Picture" class="mt-2" style="max-width: 150px; max-height: 150px; border-radius: 50%;">
+                                        {% else %}
+                                        <img id="profilePicturePreview" src="#" alt="Profile Picture Preview" style="display: none;">
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label for="{{ user_form.address.id_for_label }}" class="form-label">Address</label>
+                                        {{ user_form.address }}
+                                        <div class="invalid-feedback">
+                                            {{ user_form.address.errors|first }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Academic Information Tab -->
+                    <div class="tab-pane fade" id="academic" role="tabpanel">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.registration_number.id_for_label }}" class="form-label">Registration Number *</label>
+                                        {{ student_form.registration_number }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.registration_number.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.programme.id_for_label }}" class="form-label">Programme *</label>
+                                        {{ student_form.programme }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.programme.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label for="{{ student_form.current_year.id_for_label }}" class="form-label">Current Year *</label>
+                                        {{ student_form.current_year }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.current_year.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label for="{{ student_form.current_semester.id_for_label }}" class="form-label">Current Semester *</label>
+                                        {{ student_form.current_semester }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.current_semester.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label for="{{ student_form.admission_date.id_for_label }}" class="form-label">Admission Date *</label>
+                                        {{ student_form.admission_date }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.admission_date.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.admission_type.id_for_label }}" class="form-label">Admission Type</label>
+                                        {{ student_form.admission_type }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.admission_type.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.sponsor_type.id_for_label }}" class="form-label">Sponsor Type</label>
+                                        {{ student_form.sponsor_type }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.sponsor_type.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.status.id_for_label }}" class="form-label">Status</label>
+                                        {{ student_form.status }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.status.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.blood_group.id_for_label }}" class="form-label">Blood Group</label>
+                                        {{ student_form.blood_group }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.blood_group.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.expected_graduation_date.id_for_label }}" class="form-label">Expected Graduation Date</label>
+                                        {{ student_form.expected_graduation_date }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.expected_graduation_date.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.gpa.id_for_label }}" class="form-label">GPA</label>
+                                        {{ student_form.gpa }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.gpa.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label for="{{ student_form.medical_conditions.id_for_label }}" class="form-label">Medical Conditions</label>
+                                        {{ student_form.medical_conditions }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.medical_conditions.errors|first }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Guardian Information Tab -->
+                    <div class="tab-pane fade" id="guardian" role="tabpanel">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.guardian_name.id_for_label }}" class="form-label">Guardian Name *</label>
+                                        {{ student_form.guardian_name }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.guardian_name.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.guardian_phone.id_for_label }}" class="form-label">Guardian Phone *</label>
+                                        {{ student_form.guardian_phone }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.guardian_phone.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.guardian_relationship.id_for_label }}" class="form-label">Guardian Relationship *</label>
+                                        {{ student_form.guardian_relationship }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.guardian_relationship.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="{{ student_form.emergency_contact.id_for_label }}" class="form-label">Emergency Contact *</label>
+                                        {{ student_form.emergency_contact }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.emergency_contact.errors|first }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label for="{{ student_form.guardian_address.id_for_label }}" class="form-label">Guardian Address</label>
+                                        {{ student_form.guardian_address }}
+                                        <div class="invalid-feedback">
+                                            {{ student_form.guardian_address.errors|first }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Errors -->
+                {% if user_form.non_field_errors or student_form.non_field_errors %}
+                <div class="alert alert-danger mb-4">
+                    <ul class="mb-0">
+                        {% if user_form.non_field_errors %}
+                            {% for error in user_form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% if student_form.non_field_errors %}
+                            {% for error in student_form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Form Actions -->
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-save"></i> {{ action }} Student
+                    </button>
+                    <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation')
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+                
+                // Find the first invalid tab and show it
+                const invalidFields = form.querySelectorAll(':invalid');
+                if (invalidFields.length > 0) {
+                    const firstInvalid = invalidFields[0];
+                    const tabPane = firstInvalid.closest('.tab-pane');
+                    if (tabPane) {
+                        const tabId = tabPane.id;
+                        const tabButton = document.querySelector(`[data-bs-target="#${tabId}"]`);
+                        if (tabButton) {
+                            new bootstrap.Tab(tabButton).show();
+                        }
+                    }
+                }
+            }
+            
+            form.classList.add('was-validated')
+        }, false)
+    })
+    
+    // Profile picture preview
+    const profilePictureInput = document.getElementById('{{ user_form.profile_picture.id_for_label }}');
+    if (profilePictureInput) {
+        profilePictureInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('profilePicturePreview');
+                    if (preview) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Auto-generate registration number if empty
+    const regNumberInput = document.getElementById('{{ student_form.registration_number.id_for_label }}');
+    const programmeSelect = document.getElementById('{{ student_form.programme.id_for_label }}');
+    
+    if (regNumberInput && programmeSelect && !regNumberInput.value) {
+        programmeSelect.addEventListener('change', function() {
+            if (this.value && !regNumberInput.value) {
+                const year = new Date().getFullYear().toString().slice(-2);
+                const sequence = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                const programmeCode = this.options[this.selectedIndex].text.substring(0, 3).toUpperCase();
+                regNumberInput.value = `${programmeCode}${year}${sequence}`;
+            }
+        });
+    }
+    
+    // Initialize date pickers
+    if (typeof flatpickr !== "undefined") {
+        flatpickr("[data-date]", {
+            dateFormat: "Y-m-d",
+            allowInput: true
+        });
+    }
+    
+    // Save tab state when form is submitted with errors
+    const form = document.querySelector('form.needs-validation');
+    if (form) {
+        form.addEventListener('invalid', function(e) {
+            localStorage.setItem('activeTab', document.querySelector('.nav-link.active').id);
+        }, true);
+        
+        // Restore tab state if there were validation errors
+        const activeTab = localStorage.getItem('activeTab');
+        if (activeTab) {
+            const tabButton = document.getElementById(activeTab);
+            if (tabButton) {
+                new bootstrap.Tab(tabButton).show();
+            }
+            localStorage.removeItem('activeTab');
+        }
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #9d0101;
+}
+
+.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    border-radius: 0;
+    margin-right: 0.5rem;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #9d0101;
+    border-bottom: 2px solid #9d0101;
+}
+
+.nav-tabs .nav-link.active {
+    color: #9d0101;
+    background-color: transparent;
+    border-bottom: 2px solid #9d0101;
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #9d0101;
+    box-shadow: 0 0 0 0.25rem rgba(157, 1, 1, 0.25);
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.was-validated .form-control:invalid,
+.was-validated .form-select:invalid,
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: #dc3545;
+}
+
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.was-validated .form-select:invalid ~ .invalid-feedback,
+.form-control.is-invalid ~ .invalid-feedback,
+.form-select.is-invalid ~ .invalid-feedback {
+    display: block;
+}
+
+#profilePicturePreview {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 50%;
+    margin-top: 10px;
+    border: 2px solid #dee2e6;
+}
+
+.btn-primary {
+    background-color: #9d0101;
+    border-color: #9d0101;
+}
+
+.btn-primary:hover {
+    background-color: #7a0101;
+    border-color: #7a0101;
+}
+
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #9d0101;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .nav-tabs .nav-link {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+}
+</style>
+
+{% endblock %}

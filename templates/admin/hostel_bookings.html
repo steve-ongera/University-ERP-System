@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Hostel Bookings Management</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="">All</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Hostel</label>
+                        <select name="hostel" class="form-control">
+                            <option value="">All</option>
+                            {% for hostel in hostels %}
+                            <option value="{{ hostel.id }}" {% if hostel_filter == hostel.id|stringformat:"s" %}selected{% endif %}>{{ hostel.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label>Search</label>
+                        <input type="text" name="search" class="form-control" value="{{ search|default:'' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary form-control">Filter</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if bookings %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Hostel</th>
+                        <th>Room</th>
+                        <th>Bed</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                    <tr>
+                        <td>{{ booking.student.student_id }}</td>
+                        <td>{{ booking.room.hostel.name }}</td>
+                        <td>{{ booking.room.room_name }}</td>
+                        <td>{{ booking.bed_number }}</td>
+                        <td>{{ booking.get_status_display }}</td>
+                        <td>{{ booking.booking_date|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-info">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% include 'partials/pagination.html' with page_obj=bookings %}
+            {% else %}
+            <p>No bookings found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

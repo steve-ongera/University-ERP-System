@@ -1,0 +1,209 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+{% load hostel_extras %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Hostel Management System</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'all_bookings' %}" class="btn btn-primary float-end">
+                        <i class="bi bi-list-ul"></i> View All Bookings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title">Academic Years</h2>
+                    <ul class="list-group list-group-flush">
+                        {% for year in academic_years %}
+                        <li class="list-group-item">
+                            <a href="{% url 'year_view' year.id %}">
+                                {{ year.year }}
+                                {% if year.is_current %}<span class="badge bg-success">Current</span>{% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title">Quick Actions</h2>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a href="{% url 'all_bookings' %}"><i class="bi bi-list-check"></i> View All Bookings</a></li>
+                        <!-- Add more quick actions as needed -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostel Summary Table -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title">Hostel Summary</h2>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Hostel Name</th>
+                                    <th>Type</th>
+                                    <th>Total Rooms</th>
+                                    <th>Available Rooms</th>
+                                    <th>Occupied Rooms</th>
+                                    <th>Total Beds</th>
+                                    <th>Available Beds</th>
+                                    <th>Occupied Beds</th>
+                                    <th>Warden</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for hostel in hostels %}
+                                <tr>
+                                    <td>{{ hostel.name }}</td>
+                                    <td>{{ hostel.get_hostel_type_display }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",total_rooms"|default:hostel.total_rooms }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",available_rooms"|default:hostel.available_rooms }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",occupied_rooms"|default:hostel.occupied_rooms }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",total_beds"|default:hostel.total_beds }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",available_beds"|default:hostel.available_beds }}</td>
+                                    <td>{{ hostel_stats|get_hostel_stat:hostel.id|add:",occupied_beds"|default:hostel.occupied_beds }}</td>
+                                    <td>{{ hostel.warden|default:"Not Assigned" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title">Hostels by Academic Year</h2>
+                    <p class="card-text">Click on an academic year above to view hostel bookings for that year.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #3639A4;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+.card-title {
+    color: #3639A4;
+    margin-bottom: 1rem;
+}
+
+.list-group-item a {
+    text-decoration: none;
+    color: #3639A4;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.list-group-item a:hover {
+    color: #2a2c7a;
+}
+</style>
+
+{% endblock %}

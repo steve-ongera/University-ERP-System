@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Book Bed - {{ bed.bed_number }}{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Confirm Hostel Booking</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'bed_list' bed.room.id %}">
+                    <i class="ri-arrow-left-line me-1"></i> Back to Beds
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show mx-3">
+        <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+
+    <div class="row p-2">
+        <div class="col-lg-8 mx-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'hostel_list' %}">Hostels</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'room_list' bed.room.hostel.id %}">{{ bed.room.hostel.name }}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'bed_list' bed.room.id %}">Room {{ bed.room.room_number }}</a></li>
+                    <li class="breadcrumb-item active">Book Bed</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0"><i class="ri-file-list-line me-2"></i>Booking Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card shadow-sm mb-4 h-100">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0"><i class="ri-user-line me-2"></i>Student Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-user-2-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Name</p>
+                                            <p class="mb-0 fw-semibold">{{ student.user.get_full_name }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-id-card-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Registration No</p>
+                                            <p class="mb-0 fw-semibold">{{ student.registration_number }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-book-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Programme</p>
+                                            <p class="mb-0 fw-semibold">{{ student.programme.name }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-calendar-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Year</p>
+                                            <p class="mb-0 fw-semibold">{{ student.current_year }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card shadow-sm mb-4 h-100">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0"><i class="ri-home-4-line me-2"></i>Accommodation Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-building-2-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Hostel</p>
+                                            <p class="mb-0 fw-semibold">{{ bed.room.hostel.name }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-door-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Room</p>
+                                            <p class="mb-0 fw-semibold">{{ bed.room.room_number }} (Floor {{ bed.room.floor }})</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="ri-bed-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Bed</p>
+                                            <p class="mb-0 fw-semibold">{{ bed.bed_number }} ({{ bed.get_bed_position_display }})</p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-calendar-2-line me-2 text-primary"></i>
+                                        <div>
+                                            <p class="mb-0 small text-muted">Academic Year</p>
+                                            <p class="mb-0 fw-semibold">{{ academic_year.year }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white">
+                            <h6 class="mb-0"><i class="ri-wallet-3-line me-2"></i>Payment Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <p class="mb-0 small text-muted">Booking Fee</p>
+                                    <h5 class="mb-0 fw-bold">KSh {{ booking_fee|floatformat:2 }}</h5>
+                                </div>
+                                <i class="ri-money-dollar-circle-line display-6 text-success"></i>
+                            </div>
+                            <p class="small text-muted">Payment is required to confirm your booking. You'll be redirected to payment after confirmation.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="termsCheck" required>
+                            <label class="form-check-label" for="termsCheck">
+                                I agree to the hostel rules and regulations
+                            </label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn primary-btn">
+                                <i class="ri-check-line me-1"></i> Confirm Booking
+                            </button>
+                            <a href="{% url 'bed_list' bed.room.id %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .primary-btn {
+        background-color: #9d0101;
+        color: white;
+        border: none;
+    }
+    
+    .primary-btn:hover {
+        background-color: #7a0101;
+        color: white;
+    }
+    
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 8px;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+        border-top-left-radius: 8px !important;
+        border-top-right-radius: 8px !important;
+    }
+    
+    .card-stitle {
+        color: #9d0101;
+        font-size: 1.5rem;
+    }
+    
+    .alert {
+        border-left: 4px solid #9d0101;
+    }
+    
+    .breadcrumb {
+        background-color: #f8f9fa;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+    }
+    
+    .breadcrumb-item.active {
+        color: #9d0101;
+        font-weight: 500;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const termsCheck = document.getElementById('termsCheck');
+    
+    form.addEventListener('submit', function(e) {
+        if (!termsCheck.checked) {
+            e.preventDefault();
+            alert('Please agree to the hostel rules and regulations to proceed.');
+        }
+    });
+});
+</script>
+{% endblock %}

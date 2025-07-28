@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance{% endblock %}
+
+{% block content %}
+<h2>Attendance Summary</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Subject</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Late</th>
+            <th>Percentage</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for attendance in attendance_summary %}
+        <tr>
+            <td>{{ attendance.subject.name }}</td>
+            <td>{{ attendance.present_classes }}</td>
+            <td>{{ attendance.absent_classes }}</td>
+            <td>{{ attendance.late_classes }}</td>
+            <td>{{ attendance.attendance_percentage|floatformat:2 }}%</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Recent Attendance</h3>
+<ul>
+    {% for record in recent_attendance %}
+    <li>
+        {{ record.date }} - {{ record.subject.name }}: {{ record.status|title }}
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

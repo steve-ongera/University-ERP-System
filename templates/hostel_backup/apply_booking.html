@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Apply for Hostel Booking{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Apply for Hostel Booking</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'hostel_detail' room.hostel.id %}">
+                    <i class="ri-arrow-left-line me-1"></i> Back to Room
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-2">
+        <div class="col-lg-8 mx-auto">
+            <!-- Booking Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <div class="d-flex align-items-center">
+                        <i class="ri-hotel-line fs-4 me-3 text-primary"></i>
+                        <div>
+                            <h4 class="card-title mb-0">{{ room.hostel.name }}</h4>
+                            <p class="text-muted mb-0">{{ room.room_name }} • Bed {{ bed.bed_name }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        Please review your booking details before submission
+                    </div>
+
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5 class="fw-semibold mb-3">Booking Details</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Hostel</label>
+                                    <input type="text" class="form-control" value="{{ room.hostel.name }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Room</label>
+                                    <input type="text" class="form-control" value="{{ room.room_name }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Bed</label>
+                                    <input type="text" class="form-control" value="{{ bed.bed_name }} ({{ bed.get_bed_type_display }})" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5 class="fw-semibold mb-3">Your Information</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Student Name</label>
+                                    <input type="text" class="form-control" value="{{ request.user.get_full_name }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Student ID</label>
+                                    <input type="text" class="form-control" value="{{ student.student_id }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Current Semester</label>
+                                    <input type="text" class="form-control" value="Year {{ student.current_year }}, Semester {{ student.current_semester }}" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Form Fields -->
+                        <h5 class="fw-semibold mb-3">Booking Information</h5>
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'hostel_detail' room.hostel.id %}" class="btn btn-lg btn-outline-secondary">
+                                <i class="ri-close-line me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-lg primary-btn">
+                                <i class="ri-send-plane-line me-1"></i> Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .primary-btn {
+        background-color: #3639A4;
+        color: white;
+        border: none;
+    }
+    
+    .primary-btn:hover {
+        background-color: #2a2d8a;
+        color: white;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .form-control:read-only {
+        background-color: #f8f9fa;
+        border-color: #e0e0e0;
+    }
+    
+    .needs-validation .form-control:invalid,
+    .needs-validation .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .invalid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875em;
+        color: #dc3545;
+    }
+    
+    .was-validated .form-control:invalid ~ .invalid-feedback,
+    .was-validated .form-control.is-invalid ~ .invalid-feedback {
+        display: block;
+    }
+</style>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+{% endblock %}
