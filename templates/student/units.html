@@ -272,13 +272,13 @@
                                                                     <tbody>
                                                                         {% for enrollment in enrollments %}
                                                                         <tr>
-                                                                            <td><strong>{{ enrollment.unit.code }}</strong></td>
-                                                                            <td>{{ enrollment.unit.name }}</td>
+                                                                            <td><strong>{{ enrollment.course.code }}</strong></td>
+                                                                            <td>{{ enrollment.course.name }}</td>
                                                                             <td>
-                                                                                <span class="badge bg-info">{{ enrollment.unit.get_unit_type_display }}</span>
+                                                                                <span class="badge bg-info">{{ enrollment.course.get_course_type_display }}</span>
                                                                             </td>
                                                                             <td>
-                                                                                <span class="badge bg-secondary">{{ enrollment.unit.credit_hours }}</span>
+                                                                                <span class="badge bg-secondary">{{ enrollment.course.credit_hours }}</span>
                                                                             </td>
                                                                             <td>
                                                                                 {% if enrollment.is_active %}
