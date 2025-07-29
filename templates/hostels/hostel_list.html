@@ -11,7 +11,7 @@
                 <p class="fw-bold card-stitle text-start">Available Hostels for {{ academic_year.year }}</p>
             </div>
             <div class="col-md-4 dashboardRightLabel">
-                <a class="fw-bold card-stitle text-end d-inline mx-2" href="#">
+                <a class="fw-bold card-stitle text-end d-inline mx-2" href="{% url 'student_dashboard'%}">
                     <i class="ri-arrow-left-line me-1"></i> Back to Dashboard
                 </a>
             </div>
@@ -105,7 +105,7 @@
     }
     
     .primary-btn:hover {
-        background-color: #7a0101;
+        background-color: #1d2aed;
         color: white;
     }
     

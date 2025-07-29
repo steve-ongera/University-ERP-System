@@ -51,7 +51,7 @@
     }
     
     .list-group-item-action:hover {
-        background-color: rgba(157, 1, 1, 0.1);
+        background-color: var(--primary-color);
     }
     
     a {
@@ -230,10 +230,10 @@
                 <div class="col card shadow hh p-1 yhigh">
                     <p class="fw-bold primary-text fs-4 p-2 text-start">Quick Links</p>
                     <div class="list-group list-group-flush">
-                        <a href="#" class="list-group-item list-group-item-action">
+                        <a href="{% url 'student_units'%}" class="list-group-item list-group-item-action">
                             Available Units for Enrollment
                         </a>
-                        <a href="#" class="list-group-item list-group-item-action">
+                        <a href="{% url 'student_profile'%}" class="list-group-item list-group-item-action">
                             My Profile
                         </a>
                         <a href="#" class="list-group-item list-group-item-action">
@@ -278,7 +278,7 @@
 }
 
 #dashboardQuickLinks .list-group-item:hover {
-    background-color: rgba(157, 1, 1, 0.08);
+    background-color: rgba(60, 51, 237, 0.08);
 }
 
 #dashboardFees .card {
