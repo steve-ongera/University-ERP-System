@@ -1168,3 +1168,80 @@ def register_event(request, event_id):
         return redirect('student_events')
 
 
+
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+import logging
+
+logger = logging.getLogger(__name__)
+
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def admin_login_view(request):
+    """
+    Admin login view with enhanced security and validation
+    """
+    # Redirect if already authenticated and is staff/admin
+    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+        return redirect('admin_dashboard')  # Replace with your admin dashboard URL
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        remember_me = request.POST.get('RememberMe') == 'on'
+        
+        # Basic validation
+        if not username or not password:
+            messages.error(request, 'Please provide both username and password.')
+            return render(request, 'admin/admin_login.html')
+        
+        # Authenticate user
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            # Check if user is admin/staff
+            if user.is_staff or user.is_superuser:
+                if user.is_active:
+                    login(request, user)
+                    
+                    # Handle remember me functionality
+                    if remember_me:
+                        request.session.set_expiry(1209600)  # 2 weeks
+                    else:
+                        request.session.set_expiry(0)  # Browser close
+                    
+                    # Log successful login
+                    logger.info(f"Admin login successful for user: {username}")
+                    
+                    messages.success(request, f'Welcome back, {user.first_name or user.username}!')
+                    
+                    # Redirect to next page or dashboard
+                    next_url = request.GET.get('next', 'admin_dashboard')
+                    return redirect(next_url)
+                else:
+                    messages.error(request, 'Your account has been deactivated. Please contact support.')
+            else:
+                messages.error(request, 'Access denied. Admin privileges required.')
+                logger.warning(f"Non-admin user attempted admin login: {username}")
+        else:
+            messages.error(request, 'Invalid username or password.')
+            logger.warning(f"Failed admin login attempt for username: {username}")
+    
+    return render(request, 'admin/admin_login.html')
+
+@login_required
+def admin_logout_view(request):
+    """
+    Admin logout view
+    """
+    username = request.user.username
+    logout(request)
+    messages.success(request, 'You have been successfully logged out.')
+    logger.info(f"Admin logout for user: {username}")
+    return redirect('admin_login')
