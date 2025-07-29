@@ -579,6 +579,94 @@ reject_bookings.short_description = "Reject selected hostel bookings"
 NotificationAdmin.actions = [mark_as_read]
 HostelBookingAdmin.actions = [approve_bookings, reject_bookings]
 
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import (
+    NewsArticle, StudentComment, CommonQuestion, QuickLink,
+    StudentClub, ClubMembership, ClubEvent, Event, EventRegistration
+)
+
+
+# ----------------- NEWS ARTICLE -----------------
+@admin.register(NewsArticle)
+class NewsArticleAdmin(admin.ModelAdmin):
+    list_display = ('title', 'category', 'author', 'publish_date', 'is_published')
+    list_filter = ('category', 'is_published', 'publish_date')
+    search_fields = ('title', 'summary', 'content', 'author__username')
+    date_hierarchy = 'publish_date'
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-publish_date',)
+
+
+# ----------------- STUDENT COMMENT -----------------
+@admin.register(StudentComment)
+class StudentCommentAdmin(admin.ModelAdmin):
+    list_display = ('student', 'comment_snippet', 'is_resolved', 'created_at', 'responded_by')
+    list_filter = ('is_resolved', 'created_at')
+    search_fields = ('student__student_id', 'comment', 'admin_response')
+    readonly_fields = ('created_at', 'updated_at')
+
+    def comment_snippet(self, obj):
+        return obj.comment[:50] + "..." if len(obj.comment) > 50 else obj.comment
+    comment_snippet.short_description = "Comment"
+
+
+# ----------------- COMMON QUESTIONS -----------------
+class CommonQuestionAdmin(admin.ModelAdmin):
+    list_display = ('order', 'question', 'is_active')
+    list_display_links = ('question',)
+    list_editable = ('order',)
+
+
+# ----------------- QUICK LINKS -----------------
+class QuickLinkAdmin(admin.ModelAdmin):
+    list_display = ('order', 'title', 'url')
+    list_display_links = ('title',)
+    list_editable = ('order',)
+
+
+# ----------------- CLUB MEMBERSHIP INLINE -----------------
+class ClubMembershipInline(admin.TabularInline):
+    model = ClubMembership
+    extra = 1
+
+
+# ----------------- STUDENT CLUB -----------------
+@admin.register(StudentClub)
+class StudentClubAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category', 'chairperson', 'contact_phone', 'email', 'is_active')
+    list_filter = ('category', 'is_active')
+    search_fields = ('name', 'chairperson__username', 'email')
+    inlines = [ClubMembershipInline]
+
+
+# ----------------- CLUB EVENTS -----------------
+@admin.register(ClubEvent)
+class ClubEventAdmin(admin.ModelAdmin):
+    list_display = ('title', 'club', 'start_datetime', 'end_datetime', 'status')
+    list_filter = ('status', 'club', 'start_datetime')
+    search_fields = ('title', 'description', 'club__name')
+    date_hierarchy = 'start_datetime'
+    readonly_fields = ('created_at', 'updated_at')
+
+
+# ----------------- EVENTS -----------------
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ('title', 'event_type', 'start_date', 'end_date', 'venue', 'is_public')
+    list_filter = ('event_type', 'is_public', 'start_date')
+    search_fields = ('title', 'description', 'venue')
+    date_hierarchy = 'start_date'
+
+
+# ----------------- EVENT REGISTRATIONS -----------------
+@admin.register(EventRegistration)
+class EventRegistrationAdmin(admin.ModelAdmin):
+    list_display = ('event', 'user', 'registration_date', 'is_attended')
+    list_filter = ('is_attended', 'registration_date')
+    search_fields = ('event__title', 'user__username')
+    date_hierarchy = 'registration_date'
+
 # Update admin site header for additional models
 admin.site.site_header = "University Management System - Complete"
 admin.site.site_title = "UMS Admin Portal"
