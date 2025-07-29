@@ -10,10 +10,8 @@ urlpatterns = [
     # Student dashboard and main views
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
     path('profile/', views.student_profile, name='student_profile'),
-    #unit enrollment 
     path('units/', views.student_units_view, name='student_units'),
-    
-    # Optional AJAX endpoints
     path('check-prerequisites/', views.check_prerequisites_ajax, name='check_prerequisites'),
     path('course-details/<int:course_id>/', views.course_details_ajax, name='course_details'),
+    path('reporting/', views.student_reporting, name='student_reporting'),
 ]

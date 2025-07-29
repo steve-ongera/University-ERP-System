@@ -531,3 +531,58 @@ def course_details_ajax(request, course_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import Student, Semester, StudentReporting
+
+@login_required
+def student_reporting(request):
+    student = get_object_or_404(Student, user=request.user)
+    current_semester = Semester.objects.filter(is_current=True).first()
+    reports = StudentReporting.objects.filter(student=student).order_by('-reporting_date')
+    
+    # Check if student has already reported for current semester
+    has_reported = False
+    if current_semester:
+        has_reported = StudentReporting.objects.filter(
+            student=student,
+            semester=current_semester
+        ).exists()
+    
+    if request.method == 'POST':
+        if not current_semester:
+            messages.error(request, "No active semester found for reporting.")
+            return redirect('student_dashboard')
+        
+        if has_reported:
+            messages.error(request, f"You have already reported for {current_semester}.")
+            return redirect('student_reporting')
+        
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            # Create new reporting record
+            StudentReporting.objects.create(
+                student=student,
+                semester=current_semester,
+                reporting_type='online',
+                remarks=remarks,
+                status='approved'  # Auto-approve online reporting
+            )
+            
+            messages.success(request, f"Successfully reported for {current_semester}!")
+            return redirect('student_reporting')
+            
+        except Exception as e:
+            messages.error(request, f"Error submitting report: {str(e)}")
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'reports': reports,
+        'has_reported': has_reported,
+    }
+    return render(request, 'student/student_reporting.html', context)
+
