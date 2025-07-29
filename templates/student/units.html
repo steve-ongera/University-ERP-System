@@ -67,7 +67,7 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <p class="card-text"><strong>Name:</strong> {{ student.user.get_full_name }}</p>
-                                            <p class="card-text"><strong>Registration Number:</strong> {{ student.registration_number }}</p>
+                                            <p class="card-text"><strong>Registration Number:</strong> {{ student.student_id }}</p>
                                             <p class="card-text"><strong>Programme:</strong> {{ student.programme.name }}</p>
                                         </div>
                                         <div class="col-md-6">
@@ -266,6 +266,7 @@
                                                                             <th>Credits</th>
                                                                             <th>Status</th>
                                                                             <th>Enrollment Date</th>
+                                                                            <th>Lecturer</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -283,6 +284,8 @@
                                                                                 {% if enrollment.is_active %}
                                                                                     {% if enrollment.is_repeat %}
                                                                                         <span class="badge bg-warning">Repeat</span>
+                                                                                    {% elif enrollment.is_audit %}
+                                                                                        <span class="badge bg-info">Audit</span>
                                                                                     {% else %}
                                                                                         <span class="badge bg-success">Enrolled</span>
                                                                                     {% endif %}
@@ -292,6 +295,13 @@
                                                                             </td>
                                                                             <td>
                                                                                 <small>{{ enrollment.enrollment_date|date:"M d, Y" }}</small>
+                                                                            </td>
+                                                                            <td>
+                                                                                {% if enrollment.lecturer %}
+                                                                                    <small>{{ enrollment.lecturer.user.get_full_name }}</small>
+                                                                                {% else %}
+                                                                                    <small class="text-muted">Not assigned</small>
+                                                                                {% endif %}
                                                                             </td>
                                                                         </tr>
                                                                         {% endfor %}
@@ -386,7 +396,7 @@
                                                                                 {% endif %}
                                                                             </td>
                                                                             <td>
-                                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
+                                                                                <span class="badge bg-info">{{ unit.get_course_type_display }}</span>
                                                                             </td>
                                                                             <td>
                                                                                 <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
