@@ -880,7 +880,7 @@ class HostelBooking(models.Model):
         ordering = ['-booking_date']
     
     def __str__(self):
-        return f"{self.student.registration_number} - {self.bed} ({self.academic_year})"
+        return f"{self.student.student_id} - {self.bed} ({self.academic_year})"
     
     def save(self, *args, **kwargs):
         # Update bed availability based on booking status

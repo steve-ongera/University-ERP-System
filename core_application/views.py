@@ -586,3 +586,387 @@ def student_reporting(request):
     }
     return render(request, 'student/student_reporting.html', context)
 
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from .models import (
+    Hostel, Room, Bed, HostelBooking, AcademicYear, 
+    Semester, Student
+)
+import json
+
+
+@login_required
+def hostel_booking_eligibility(request):
+    """Check if student is eligible for hostel booking"""
+    try:
+        student = request.user.student_profile
+        
+        # Check if student is in year 1
+        if student.current_year != 1:
+            messages.error(request, "Only first-year students are eligible for hostel booking.")
+            return redirect('student_dashboard')
+        
+        # Check if student is active
+        if student.status != 'active':
+            messages.error(request, "Only active students can book hostels.")
+            return redirect('student_dashboard')
+        
+        # Get current academic year
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        if not current_academic_year:
+            messages.error(request, "No current academic year found.")
+            return redirect('student_dashboard')
+        
+        # Check if student already has a booking for current academic year
+        existing_booking = HostelBooking.objects.filter(
+            student=student,
+            academic_year=current_academic_year
+        ).first()
+        
+        if existing_booking:
+            messages.info(request, f"You already have a hostel booking for {current_academic_year.year}.")
+            return redirect('hostel_booking_detail', booking_id=existing_booking.id)
+        
+        return redirect('hostel_list')
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+@login_required
+def hostel_list(request):
+    """Display available hostels based on student's gender"""
+    try:
+        student = request.user.student_profile
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        if not current_academic_year:
+            messages.error(request, "No current academic year found.")
+            return redirect('dashboard')
+        
+        # Determine hostel type based on student's gender
+        if student.user.gender == 'male':
+            hostel_type = 'boys'
+        elif student.user.gender == 'female':
+            hostel_type = 'girls'
+        else:
+            messages.error(request, "Please update your gender in profile to book hostel.")
+            return redirect('student_profile')
+        
+        # Get active hostels for the student's school and gender
+        hostels = Hostel.objects.filter(
+            hostel_type=hostel_type,
+            #school=student.programme.school,
+            is_active=True
+        )
+        
+        # Add availability information to each hostel
+        hostel_data = []
+        for hostel in hostels:
+            total_beds = hostel.get_total_beds_count(current_academic_year)
+            occupied_beds = hostel.get_occupied_beds_count(current_academic_year)
+            available_beds = total_beds - occupied_beds
+            
+            hostel_data.append({
+                'hostel': hostel,
+                'total_beds': total_beds,
+                'occupied_beds': occupied_beds,
+                'available_beds': available_beds,
+                'occupancy_rate': (occupied_beds / total_beds * 100) if total_beds > 0 else 0
+            })
+        
+        context = {
+            'hostel_data': hostel_data,
+            'student': student,
+            'academic_year': current_academic_year,
+        }
+        
+        return render(request, 'hostels/hostel_list.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+@login_required
+def room_list(request, hostel_id):
+    """Display available rooms in selected hostel"""
+    try:
+        student = request.user.student_profile
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        hostel = get_object_or_404(Hostel, id=hostel_id, is_active=True)
+        
+        # Verify hostel matches student's gender and school
+        hostel_type = 'boys' if student.user.gender == 'male' else 'girls'
+        if hostel.hostel_type != hostel_type :
+            messages.error(request, "You are not eligible for this hostel.")
+            return redirect('hostel_list')
+        
+        # Get rooms with available beds
+        rooms = Room.objects.filter(
+            hostel=hostel,
+            is_active=True
+        ).order_by('floor', 'room_number')
+        
+        room_data = []
+        for room in rooms:
+            available_beds = room.get_available_beds_count(current_academic_year)
+            occupied_beds = room.get_occupied_beds_count(current_academic_year)
+            
+            if available_beds > 0:  # Only show rooms with available beds
+                room_data.append({
+                    'room': room,
+                    'available_beds': available_beds,
+                    'occupied_beds': occupied_beds,
+                    'total_capacity': room.capacity
+                })
+        
+        context = {
+            'hostel': hostel,
+            'room_data': room_data,
+            'student': student,
+            'academic_year': current_academic_year,
+        }
+        
+        return render(request, 'hostels/room_list.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+@login_required
+def bed_list(request, room_id):
+    """Display available beds in selected room"""
+    try:
+        student = request.user.student_profile
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        room = get_object_or_404(Room, id=room_id, is_active=True)
+        
+        # Verify room's hostel matches student's eligibility
+        hostel_type = 'boys' if student.user.gender == 'male' else 'girls'
+        if (room.hostel.hostel_type != hostel_type ):
+            messages.error(request, "You are not eligible for this room.")
+            return redirect('hostel_list')
+        
+        # Get available beds
+        available_beds = Bed.objects.filter(
+            room=room,
+            academic_year=current_academic_year,
+            is_available=True,
+            maintenance_status='good'
+        ).order_by('bed_position')
+        
+        # Get occupied beds for display
+        occupied_beds = Bed.objects.filter(
+            room=room,
+            academic_year=current_academic_year,
+            is_available=False
+        ).order_by('bed_position')
+        
+        context = {
+            'room': room,
+            'available_beds': available_beds,
+            'occupied_beds': occupied_beds,
+            'student': student,
+            'academic_year': current_academic_year,
+        }
+        
+        return render(request, 'hostels/bed_list.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+@login_required
+def book_bed(request, bed_id):
+    """Book a specific bed"""
+    try:
+        student = request.user.student_profile
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        bed = get_object_or_404(Bed, id=bed_id)
+        
+        # Verify bed eligibility
+        hostel_type = 'boys' if student.user.gender == 'male' else 'girls'
+        if (bed.room.hostel.hostel_type != hostel_type ):
+            messages.error(request, "You are not eligible for this bed.")
+            return redirect('hostel_list')
+        
+        # Check if bed is available
+        if not bed.is_available or bed.maintenance_status != 'good':
+            messages.error(request, "This bed is not available for booking.")
+            return redirect('bed_list', room_id=bed.room.id)
+        
+        # Check if student already has a booking
+        existing_booking = HostelBooking.objects.filter(
+            student=student,
+            academic_year=current_academic_year
+        ).first()
+        
+        if existing_booking:
+            messages.error(request, "You already have a hostel booking for this academic year.")
+            return redirect('hostel_booking_detail', booking_id=existing_booking.id)
+        
+        if request.method == 'POST':
+            try:
+                with transaction.atomic():
+                    # Create the booking
+                    booking = HostelBooking.objects.create(
+                        student=student,
+                        bed=bed,
+                        academic_year=current_academic_year,
+                        booking_fee=5000.00,  # Default booking fee - you can make this configurable
+                        booking_status='pending',
+                        payment_status='pending'
+                    )
+                    
+                    messages.success(request, f"Your hostel booking has been submitted successfully! Booking reference: {booking.id}")
+                    return redirect('hostel_booking_detail', booking_id=booking.id)
+                    
+            except ValidationError as e:
+                messages.error(request, f"Booking failed: {e}")
+            except Exception as e:
+                messages.error(request, f"An error occurred: {e}")
+        
+        context = {
+            'bed': bed,
+            'student': student,
+            'academic_year': current_academic_year,
+            'booking_fee': 5000.00,  # Make this configurable
+        }
+        
+        return render(request, 'hostels/book_bed.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('dashboard')
+
+
+@login_required
+def hostel_booking_detail(request, booking_id):
+    """Display booking details"""
+    try:
+        student = request.user.student_profile
+        booking = get_object_or_404(
+            HostelBooking, 
+            id=booking_id, 
+            student=student
+        )
+        
+        context = {
+            'booking': booking,
+            'student': student,
+        }
+        
+        return render(request, 'hostels/booking_detail.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+@login_required
+def cancel_booking(request, booking_id):
+    """Cancel a hostel booking"""
+    try:
+        student = request.user.student_profile
+        booking = get_object_or_404(
+            HostelBooking, 
+            id=booking_id, 
+            student=student
+        )
+        
+        # Only allow cancellation if booking is pending
+        if booking.booking_status not in ['pending', 'approved']:
+            messages.error(request, "This booking cannot be cancelled.")
+            return redirect('hostel_booking_detail', booking_id=booking_id)
+        
+        if request.method == 'POST':
+            booking.booking_status = 'cancelled'
+            booking.save()
+            messages.success(request, "Your hostel booking has been cancelled.")
+            return redirect('hostel_list')
+        
+        context = {
+            'booking': booking,
+        }
+        
+        return render(request, 'hostels/cancel_booking.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+
+# AJAX Views
+@login_required
+def get_rooms_ajax(request):
+    """AJAX endpoint to get rooms for a hostel"""
+    hostel_id = request.GET.get('hostel_id')
+    if not hostel_id:
+        return JsonResponse({'error': 'Hostel ID required'}, status=400)
+    
+    try:
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        rooms = Room.objects.filter(
+            hostel_id=hostel_id,
+            is_active=True
+        ).order_by('floor', 'room_number')
+        
+        room_data = []
+        for room in rooms:
+            available_beds = room.get_available_beds_count(current_academic_year)
+            if available_beds > 0:
+                room_data.append({
+                    'id': room.id,
+                    'room_number': room.room_number,
+                    'floor': room.floor,
+                    'available_beds': available_beds,
+                    'capacity': room.capacity
+                })
+        
+        return JsonResponse({'rooms': room_data})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_beds_ajax(request):
+    """AJAX endpoint to get beds for a room"""
+    room_id = request.GET.get('room_id')
+    if not room_id:
+        return JsonResponse({'error': 'Room ID required'}, status=400)
+    
+    try:
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        beds = Bed.objects.filter(
+            room_id=room_id,
+            academic_year=current_academic_year,
+            is_available=True,
+            maintenance_status='good'
+        ).order_by('bed_position')
+        
+        bed_data = []
+        for bed in beds:
+            bed_data.append({
+                'id': bed.id,
+                'bed_number': bed.bed_number,
+                'bed_position': bed.get_bed_position_display(),
+                'maintenance_status': bed.get_maintenance_status_display()
+            })
+        
+        return JsonResponse({'beds': bed_data})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+
