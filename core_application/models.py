@@ -1177,3 +1177,88 @@ class NewsArticle(models.Model):
         ordering = ['-publish_date']
         verbose_name = 'News Article'
         verbose_name_plural = 'News Articles'
+
+
+
+
+class StudentClub(models.Model):
+    CATEGORY_CHOICES = [
+        ('academic', 'Academic'),
+        ('cultural', 'Cultural'),
+        ('sports', 'Sports'),
+        ('religious', 'Religious'),
+        ('social', 'Social'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    description = models.TextField()
+    chairperson = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='chaired_clubs')
+    contact_phone = models.CharField(max_length=15)
+    email = models.EmailField()
+    meeting_schedule = models.TextField()
+    membership_fee = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    logo = models.ImageField(upload_to='club_logos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return self.name
+
+class ClubMembership(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='club_memberships')
+    club = models.ForeignKey(StudentClub, on_delete=models.CASCADE, related_name='members')
+    date_joined = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    is_executive = models.BooleanField(default=False)
+    position = models.CharField(max_length=50, blank=True, null=True)
+    
+    class Meta:
+        unique_together = ('student', 'club')
+    
+    def __str__(self):
+        return f"{self.student.username} in {self.club.name}"
+
+
+
+
+
+class ClubEvent(models.Model):
+    EVENT_STATUS_CHOICES = [
+        ('upcoming', 'Upcoming'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    club = models.ForeignKey(StudentClub, on_delete=models.CASCADE, related_name='events')
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+    location = models.CharField(max_length=100)
+    organizer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='club_organized_events')
+    status = models.CharField(max_length=20, choices=EVENT_STATUS_CHOICES, default='upcoming')
+    image = models.ImageField(upload_to='event_images/', blank=True, null=True)
+    registration_required = models.BooleanField(default=False)
+    max_participants = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['start_datetime']
+        
+    def __str__(self):
+        return f"{self.title} - {self.club.name}"
+    
+    def save(self, *args, **kwargs):
+        # Automatically update status based on current time
+        now = timezone.now()
+        if self.start_datetime > now:
+            self.status = 'upcoming'
+        elif self.start_datetime <= now <= self.end_datetime:
+            self.status = 'ongoing'
+        elif self.end_datetime < now:
+            self.status = 'completed'
+        super().save(*args, **kwargs)
+
