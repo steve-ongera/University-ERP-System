@@ -39,7 +39,7 @@
                                 </div>
                                 <div>
                                     <h6 class="mb-2">{{ request.user.get_full_name }}</h6>
-                                    <p class="text-muted small">{{ student.registration_number }}</p>
+                                    <p class="text-muted small">{{ student.student_id }}</p>
                                 </div>
                             </div>
                         </div>
@@ -85,7 +85,7 @@
                             <div class="col-md-4">
                                 <div class="md-form mb-3">
                                     <label>Registration Number</label>
-                                    <input type="text" class="form-control" disabled value="{{ student.registration_number }}">
+                                    <input type="text" class="form-control" disabled value="{{ student.student_id }}">
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -215,7 +215,7 @@
                         <div class="col-md-6">
                             <div class="md-form mb-3">
                                 <label>Registration Number</label>
-                                <input type="text" class="form-control" disabled value="{{ student.registration_number }}">
+                                <input type="text" class="form-control" disabled value="{{ student.student_id }}">
                             </div>
                         </div>
                         <div class="col-md-6">
