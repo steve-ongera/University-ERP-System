@@ -5,8 +5,8 @@
 
 <style>
     :root {
-        --primary-color: #9d0101;
-        --primary-hover: #7a0000;
+        --primary-color: #1a73e8;
+        --primary-hover: #0d5bba;
         --secondary-color: #363636;
         --light-color: #f8f9fa;
         --dark-color: #212529;
@@ -154,10 +154,10 @@
                         <tbody>
                             {% for enrollment in current_enrollments %}
                             <tr>
-                                <td>{{ enrollment.unit.code }}</td>
-                                <td>{{ enrollment.unit.name }}</td>
-                                <td>{{ enrollment.unit.credit_hours }}</td>
-                                <td>{{ enrollment.unit.get_unit_type_display }}</td>
+                                <td>{{ enrollment.course.code }}</td>
+                                <td>{{ enrollment.course.name }}</td>
+                                <td>{{ enrollment.course.credit_hours }}</td>
+                                <td>{{ enrollment.course.get_course_type_display }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -230,10 +230,10 @@
                 <div class="col card shadow hh p-1 yhigh">
                     <p class="fw-bold primary-text fs-4 p-2 text-start">Quick Links</p>
                     <div class="list-group list-group-flush">
-                        <a href="{% url 'student_units'%}" class="list-group-item list-group-item-action">
+                        <a href="#" class="list-group-item list-group-item-action">
                             Available Units for Enrollment
                         </a>
-                        <a href="{% url 'student_profile'%}" class="list-group-item list-group-item-action">
+                        <a href="#" class="list-group-item list-group-item-action">
                             My Profile
                         </a>
                         <a href="#" class="list-group-item list-group-item-action">
