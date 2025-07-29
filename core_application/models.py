@@ -1178,6 +1178,50 @@ class NewsArticle(models.Model):
         verbose_name = 'News Article'
         verbose_name_plural = 'News Articles'
 
+class StudentComment(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='comments')
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_resolved = models.BooleanField(default=False)
+    admin_response = models.TextField(blank=True, null=True)
+    responded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='responded_comments')
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Student Comment'
+        verbose_name_plural = 'Student Comments'
+    
+    def __str__(self):
+        return f"Comment by {self.student.student_id} on {self.created_at.date()}"
+    
+
+
+class CommonQuestion(models.Model):
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order', 'question']
+    
+    def __str__(self):
+        return self.question
+
+class QuickLink(models.Model):
+    title = models.CharField(max_length=100)
+    url = models.URLField()
+    icon = models.CharField(max_length=50)
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order', 'title']
+    
+    def __str__(self):
+        return self.title
+    
+
+
 
 
 
@@ -1262,3 +1306,37 @@ class ClubEvent(models.Model):
             self.status = 'completed'
         super().save(*args, **kwargs)
 
+
+class Event(models.Model):
+    EVENT_TYPES = (
+        ('academic', 'Academic'),
+        ('cultural', 'Cultural'),
+        ('sports', 'Sports'),
+        ('workshop', 'Workshop'),
+        ('seminar', 'Seminar'),
+        ('conference', 'Conference'),
+        ('holiday', 'Holiday'),
+    )
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    venue = models.CharField(max_length=200)
+    organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='organized_events')
+    is_public = models.BooleanField(default=True)
+    max_participants = models.IntegerField(null=True, blank=True)
+    registration_required = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return self.title
+    
+class EventRegistration(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_registrations')
+    registration_date = models.DateTimeField(auto_now_add=True)
+    is_attended = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = ['event', 'user']

@@ -982,4 +982,189 @@ def student_news(request):
     }
     return render(request, 'news/student_news.html', context)
 
+from .models import Student, StudentComment
+from .forms import StudentCommentForm
+
+@login_required
+def student_comments(request):
+    student = get_object_or_404(Student, user=request.user)
+    
+    if request.method == 'POST':
+        form = StudentCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.student = student
+            comment.save()
+            messages.success(request, 'Your comment has been submitted successfully!')
+            return redirect('student_comments')
+    else:
+        form = StudentCommentForm()
+    
+    comments = StudentComment.objects.filter(student=student).order_by('-created_at')
+    
+    context = {
+        'student': student,
+        'form': form,
+        'comments': comments,
+    }
+    return render(request, 'comments/comments.html', context)
+
+@login_required
+def faqs(request): 
+    return render(request, 'settings/faqs.html')
+
+
+from django.views.decorators.http import require_POST
+import json
+from .models import CommonQuestion, QuickLink
+
+@login_required
+def virtual_assistant(request):
+    # Get the current user
+    user = request.user
+    
+    # Fetch data from database models
+    common_questions = CommonQuestion.objects.all()
+    quick_links = QuickLink.objects.all()
+    
+    # Prepare context
+    context = {
+        'user': user,
+        'common_questions': common_questions,
+        'quick_links': quick_links,
+    }
+    
+    return render(request, 'assistant/virtual_assistant.html', context)
+
+@login_required
+@require_POST
+def process_assistant_query(request):
+    try:
+        data = json.loads(request.body)
+        query = data.get('query', '').lower()
+        
+        # Simple response logic - would normally integrate with NLP/AI
+        responses = {
+            'results': 'Exam results are available on the student portal under "Academic Records".',
+            'lecture': 'Lecture materials can be found on the LMS or by contacting your lecturer.',
+            'hostel': 'Hostel applications open twice a year. Check the accommodation office for dates.',
+            'fee': 'Fee payment can be made via MPesa or bank deposit. See the finance office for details.',
+            'library': 'The library is open from 8am to 9pm weekdays, 9am to 4pm weekends.',
+            'default': "I'm sorry, I didn't understand that. Could you rephrase your question?"
+        }
+        
+        response_text = responses['default']
+        for keyword in responses:
+            if keyword in query and keyword != 'default':
+                response_text = responses[keyword]
+                break
+        
+        return JsonResponse({'response': response_text})
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    
+
+
+@login_required
+def student_clubs(request):
+    clubs = StudentClub.objects.filter(is_active=True).order_by('name')
+    user_memberships = ClubMembership.objects.filter(student=request.user, is_active=True)
+    
+    # Create a dictionary to hold executive members for each club
+    club_executives = {}
+    for club in clubs:
+        club_executives[club.id] = club.members.filter(is_executive=True)
+    
+    context = {
+        'clubs': clubs,
+        'user_memberships': user_memberships,
+        'categories': dict(StudentClub.CATEGORY_CHOICES),
+        'club_executives': club_executives
+    }
+    return render(request, 'clubs/student_clubs.html', context)
+
+
+@login_required
+def join_club(request, club_id):
+    club = StudentClub.objects.get(id=club_id)
+    if not ClubMembership.objects.filter(student=request.user, club=club).exists():
+        ClubMembership.objects.create(student=request.user, club=club)
+    return redirect('student_clubs')
+
+@login_required
+def leave_club(request, club_id):
+    membership = ClubMembership.objects.filter(student=request.user, club_id=club_id).first()
+    if membership:
+        membership.delete()
+    return redirect('student_clubs')
+
+
+@login_required
+def club_events(request, club_id=None):
+    now = timezone.now()
+    
+    # Get events based on club_id or all clubs
+    if club_id:
+        club = StudentClub.objects.get(id=club_id)
+        events = ClubEvent.objects.filter(club=club)
+    else:
+        club = None
+        events = ClubEvent.objects.all()
+    
+    # Categorize events
+    upcoming_events = events.filter(start_datetime__gt=now).order_by('start_datetime')
+    latest_events = events.filter(start_datetime__lte=now, end_datetime__gte=now).order_by('start_datetime')
+    past_events = events.filter(end_datetime__lt=now).order_by('-start_datetime')[:10]  # Last 10 past events
+    
+    context = {
+        'club': club,
+        'upcoming_events': upcoming_events,
+        'latest_events': latest_events,
+        'past_events': past_events,
+    }
+    
+    return render(request, 'events/club_events.html', context)
+
+
+
+@login_required
+def student_events(request):
+    student = get_object_or_404(Student, user=request.user)
+    
+    # Get upcoming events
+    upcoming_events = Event.objects.filter(
+        start_date__gte=timezone.now(),
+        is_public=True
+    ).order_by('start_date')
+    
+    # Get registered events
+    registered_events = EventRegistration.objects.filter(
+        user=request.user
+    ).select_related('event')
+    
+    context = {
+        'student': student,
+        'upcoming_events': upcoming_events,
+        'registered_events': registered_events,
+    }
+    return render(request, 'student/events.html', context)
+
+@login_required
+def register_event(request, event_id):
+    if request.method == 'POST':
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Check if already registered
+        if EventRegistration.objects.filter(user=request.user, event=event).exists():
+            messages.error(request, 'You are already registered for this event')
+        else:
+            EventRegistration.objects.create(
+                user=request.user,
+                event=event
+            )
+            messages.success(request, 'Successfully registered for the event')
+        
+        return redirect('student_events')
+
 
