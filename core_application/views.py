@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db.models import Count, Avg
 from .models import Student, Enrollment,  Semester, Grade
 from decimal import Decimal
-
+from .models import *
 def student_login(request):
     """Custom login view for students"""
     if request.method == 'POST':
@@ -969,4 +969,17 @@ def get_beds_ajax(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
+@login_required
+def student_news(request):
+    # Get all news articles, ordered by most recent first
+    news_articles = NewsArticle.objects.filter(is_published=True).order_by('-publish_date')
+    
+    context = {
+        'news_articles': news_articles,
+        'featured_article': news_articles.first() if news_articles.exists() else None,
+        'regular_articles': news_articles[1:4] if news_articles.count() > 1 else [],
+        'older_articles': news_articles[4:] if news_articles.count() > 4 else []
+    }
+    return render(request, 'news/student_news.html', context)
+
 

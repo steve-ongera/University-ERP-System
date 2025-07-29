@@ -14,6 +14,7 @@ urlpatterns = [
     path('check-prerequisites/', views.check_prerequisites_ajax, name='check_prerequisites'),
     path('course-details/<int:course_id>/', views.course_details_ajax, name='course_details'),
     path('reporting/', views.student_reporting, name='student_reporting'),
+    path('news/', views.student_news, name='student_news'),
 
     # Main hostel booking flow
     path('hostel/check-eligibility/', views.hostel_booking_eligibility, name='hostel_booking_eligibility'),
