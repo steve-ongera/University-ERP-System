@@ -166,7 +166,7 @@ class Course(models.Model):
     def __str__(self):
         return f"{self.name} ({self.code})"
 
-#
+#allocated units to programmes 
 class ProgrammeCourse(models.Model):
     """Junction table for Programme-Course relationship with semester and year info"""
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='programme_courses')
