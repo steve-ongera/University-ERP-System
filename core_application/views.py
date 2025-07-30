@@ -2245,3 +2245,359 @@ def get_programmes_by_school(request):
     ).values('id', 'name', 'code').order_by('name')
     
     return JsonResponse(list(programmes), safe=False)
+
+
+# marks_entry_view.py
+from django.http import JsonResponse, HttpResponseForbidden
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from .models import Student, Course, Enrollment, Grade, Semester, AcademicYear
+from datetime import datetime
+import json
+
+def calculate_grade_and_points(total_marks):
+    """
+    Calculate grade, grade points, and pass status based on total marks
+    Based on your Grade model's save method logic
+    """
+    if total_marks is None or total_marks == 0:
+        return '', 0.0, False
+    
+    if total_marks >= 90:
+        return 'A+', 4.0, True
+    elif total_marks >= 80:
+        return 'A', 4.0, True
+    elif total_marks >= 75:
+        return 'A-', 3.7, True
+    elif total_marks >= 70:
+        return 'B+', 3.3, True
+    elif total_marks >= 65:
+        return 'B', 3.0, True
+    elif total_marks >= 60:
+        return 'B-', 2.7, True
+    elif total_marks >= 55:
+        return 'C+', 2.3, True
+    elif total_marks >= 50:
+        return 'C', 2.0, True
+    elif total_marks >= 45:
+        return 'C-', 1.7, True
+    elif total_marks >= 40:
+        return 'D+', 1.3, False
+    elif total_marks >= 35:
+        return 'D', 1.0, False
+    else:
+        return 'F', 0.0, False
+
+def calculate_total_marks(continuous_assessment, final_exam, practical_marks, project_marks):
+    """
+    Calculate total marks based on your Grade model logic
+    CA (40%) + Final Exam (60%) + optional practical/project components
+    """
+    ca = continuous_assessment if continuous_assessment is not None else 0
+    final_exam = final_exam if final_exam is not None else 0
+    practical = practical_marks if practical_marks is not None else 0
+    project = project_marks if project_marks is not None else 0
+    
+    # Base calculation: CA (40%) + Final Exam (60%)
+    total = (ca * 0.4) + (final_exam * 0.6)
+    
+    # Add practical and project marks if applicable (10% each as per your model)
+    if practical > 0:
+        total += practical * 0.1
+    if project > 0:
+        total += project * 0.1
+    
+    return round(total, 2) if total > 0 else 0
+
+@login_required
+def admin_marks_entry(request, student_id=None):
+    # Check if user is admin, lecturer, or registrar
+    if request.user.user_type not in ['admin', 'lecturer', 'registrar']:
+        return HttpResponseForbidden("Access denied. Authorized personnel only.")
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if not current_academic_year or not current_semester:
+        messages.error(request, "Please set current academic year and semester first.")
+        return render(request, 'admin/admin_marks_entry.html', {'error': 'No current academic year/semester set'})
+    
+    student = None
+    enrollments = []
+    grades_data = {}
+    
+    # Handle student search - check both GET parameter and URL parameter
+    search_student_id = student_id or request.GET.get('student_id')
+    
+    if search_student_id:
+        try:
+            student = Student.objects.get(student_id=search_student_id, status='active')
+            
+            # Get enrollments for current semester
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=current_semester,
+                is_active=True
+            ).select_related('course', 'lecturer').order_by('course__code')
+            
+            # Get existing grades
+            for enrollment in enrollments:
+                try:
+                    grade = Grade.objects.get(enrollment=enrollment)
+                    grades_data[enrollment.id] = {
+                        'continuous_assessment': float(grade.continuous_assessment) if grade.continuous_assessment else None,
+                        'final_exam': float(grade.final_exam) if grade.final_exam else None,
+                        'practical_marks': float(grade.practical_marks) if grade.practical_marks else None,
+                        'project_marks': float(grade.project_marks) if grade.project_marks else None,
+                        'total_marks': float(grade.total_marks) if grade.total_marks else None,
+                        'grade': grade.grade,
+                        'grade_points': float(grade.grade_points) if grade.grade_points else None,
+                        'quality_points': float(grade.quality_points) if grade.quality_points else None,
+                        'is_passed': grade.is_passed,
+                        'exam_date': grade.exam_date.strftime('%Y-%m-%d') if grade.exam_date else '',
+                        'remarks': grade.remarks or ''
+                    }
+                except Grade.DoesNotExist:
+                    grades_data[enrollment.id] = {
+                        'continuous_assessment': None,
+                        'final_exam': None,
+                        'practical_marks': None,
+                        'project_marks': None,
+                        'total_marks': None,
+                        'grade': '',
+                        'grade_points': None,
+                        'quality_points': None,
+                        'is_passed': False,
+                        'exam_date': '',
+                        'remarks': ''
+                    }
+            
+        except Student.DoesNotExist:
+            messages.error(request, f"Student with ID '{search_student_id}' not found or not active.")
+    
+    # Handle marks submission
+    if request.method == 'POST' and 'save_marks' in request.POST:
+        student_id_post = request.POST.get('student_id')
+        if not student_id_post:
+            messages.error(request, "Student ID is required.")
+            return render(request, 'admin/admin_marks_entry.html', {})
+        
+        try:
+            student = Student.objects.get(student_id=student_id_post, status='active')
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=current_semester,
+                is_active=True
+            ).select_related('course')
+            
+            saved_count = 0
+            
+            with transaction.atomic():
+                for enrollment in enrollments:
+                    enrollment_id = str(enrollment.id)
+                    
+                    # Get form data
+                    continuous_assessment = request.POST.get(f'continuous_assessment_{enrollment_id}')
+                    final_exam = request.POST.get(f'final_exam_{enrollment_id}')
+                    practical_marks = request.POST.get(f'practical_marks_{enrollment_id}')
+                    project_marks = request.POST.get(f'project_marks_{enrollment_id}')
+                    exam_date = request.POST.get(f'exam_date_{enrollment_id}')
+                    remarks = request.POST.get(f'remarks_{enrollment_id}')
+                    
+                    # Convert to appropriate types with proper validation
+                    def safe_float(value):
+                        if value and value.strip():
+                            try:
+                                return float(value)
+                            except ValueError:
+                                return None
+                        return None
+                    
+                    continuous_assessment = safe_float(continuous_assessment)
+                    final_exam = safe_float(final_exam)
+                    practical_marks = safe_float(practical_marks)
+                    project_marks = safe_float(project_marks)
+                    
+                    # Validate mark ranges
+                    def validate_mark_range(mark, max_value, field_name):
+                        if mark is not None and (mark < 0 or mark > max_value):
+                            raise ValidationError(f"{field_name} must be between 0 and {max_value}")
+                    
+                    try:
+                        validate_mark_range(continuous_assessment, 100, "Continuous Assessment")
+                        validate_mark_range(final_exam, 100, "Final exam marks")
+                        validate_mark_range(practical_marks, 100, "Practical marks")
+                        validate_mark_range(project_marks, 100, "Project marks")
+                    except ValidationError as e:
+                        messages.error(request, f"Validation error for course {enrollment.course.code}: {str(e)}")
+                        continue
+                    
+                    # Handle exam date
+                    exam_date_obj = None
+                    if exam_date and exam_date.strip():
+                        try:
+                            exam_date_obj = datetime.strptime(exam_date, '%Y-%m-%d').date()
+                        except ValueError:
+                            pass  # Invalid date format, keep as None
+                    
+                    remarks = remarks.strip() if remarks else ''
+                    
+                    # Check if at least one mark is provided
+                    has_marks = any([
+                        continuous_assessment is not None,
+                        final_exam is not None,
+                        practical_marks is not None,
+                        project_marks is not None
+                    ])
+                    
+                    if has_marks:
+                        # Create or update grade - let the model's save method handle calculations
+                        grade_obj, created = Grade.objects.get_or_create(
+                            enrollment=enrollment,
+                            defaults={
+                                'continuous_assessment': continuous_assessment,
+                                'final_exam': final_exam,
+                                'practical_marks': practical_marks,
+                                'project_marks': project_marks,
+                                'exam_date': exam_date_obj,
+                                'remarks': remarks
+                            }
+                        )
+                        
+                        if not created:
+                            # Update existing grade
+                            grade_obj.continuous_assessment = continuous_assessment
+                            grade_obj.final_exam = final_exam
+                            grade_obj.practical_marks = practical_marks
+                            grade_obj.project_marks = project_marks
+                            grade_obj.exam_date = exam_date_obj
+                            grade_obj.remarks = remarks
+                            grade_obj.save()  # This will trigger the automatic calculations
+                        
+                        saved_count += 1
+                
+                if saved_count > 0:
+                    messages.success(request, f"Marks saved successfully for {saved_count} courses for student {student.student_id}")
+                    # Redirect to prevent re-submission
+                    return redirect('admin_marks_entry', student_id=student.student_id)
+                else:
+                    messages.warning(request, "No marks were provided to save.")
+                
+        except Student.DoesNotExist:
+            messages.error(request, f"Student with ID '{student_id_post}' not found.")
+        except Exception as e:
+            messages.error(request, f"Error saving marks: {str(e)}")
+            # For debugging - remove in production
+            import traceback
+            print(traceback.format_exc())
+    
+    # Get all active students for dropdown
+    all_students = Student.objects.filter(status='active').select_related('user', 'programme').order_by('student_id')
+    
+    context = {
+        'student': student,
+        'enrollments': enrollments,
+        'grades_data': grades_data,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'all_students': all_students,
+    }
+    
+    return render(request, 'admin/admin_marks_entry.html', context)
+
+@login_required
+def get_student_info(request):
+    """AJAX endpoint to get student information"""
+    if request.user.user_type not in ['admin', 'lecturer', 'registrar']:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    student_id = request.GET.get('student_id')
+    if not student_id:
+        return JsonResponse({'error': 'Student ID required'}, status=400)
+    
+    try:
+        student = Student.objects.get(student_id=student_id, status='active')
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course', 'lecturer')
+        
+        data = {
+            'student': {
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'programme_code': student.programme.code,
+                'current_year': student.current_year,
+                'current_semester': student.current_semester,
+                'department': student.programme.department.name,
+                'faculty': student.programme.faculty.name,
+            },
+            'enrollments': [
+                {
+                    'id': enrollment.id,
+                    'course_code': enrollment.course.code,
+                    'course_name': enrollment.course.name,
+                    'credit_hours': enrollment.course.credit_hours,
+                    'lecture_hours': enrollment.course.lecture_hours,
+                    'tutorial_hours': enrollment.course.tutorial_hours,
+                    'practical_hours': enrollment.course.practical_hours,
+                    'field_work_hours': enrollment.course.field_work_hours,
+                    'course_type': enrollment.course.get_course_type_display(),
+                    'level': enrollment.course.get_level_display(),
+                    'lecturer': enrollment.lecturer.user.get_full_name() if enrollment.lecturer else 'Not Assigned',
+                }
+                for enrollment in enrollments
+            ]
+        }
+        
+        return JsonResponse(data)
+        
+    except Student.DoesNotExist:
+        return JsonResponse({'error': 'Student not found'}, status=404)
+
+# Additional helper view for calculating GPA
+@login_required
+def calculate_student_gpa(request, student_id):
+    """Calculate and update student's cumulative GPA"""
+    if request.user.user_type not in ['admin', 'registrar']:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        student = Student.objects.get(student_id=student_id, status='active')
+        
+        # Get all grades for the student
+        grades = Grade.objects.filter(
+            enrollment__student=student,
+            enrollment__is_active=True,
+            is_passed=True
+        ).select_related('enrollment__course')
+        
+        total_quality_points = sum(grade.quality_points for grade in grades if grade.quality_points)
+        total_credit_hours = sum(grade.enrollment.course.credit_hours for grade in grades)
+        
+        if total_credit_hours > 0:
+            cumulative_gpa = total_quality_points / total_credit_hours
+            student.cumulative_gpa = round(cumulative_gpa, 2)
+            student.total_credit_hours = total_credit_hours
+            student.save()
+            
+            return JsonResponse({
+                'success': True,
+                'cumulative_gpa': student.cumulative_gpa,
+                'total_credit_hours': student.total_credit_hours
+            })
+        else:
+            return JsonResponse({'error': 'No completed courses found'}, status=400)
+            
+    except Student.DoesNotExist:
+        return JsonResponse({'error': 'Student not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
