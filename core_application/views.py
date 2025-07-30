@@ -2151,11 +2151,11 @@ def student_performance(request, student_id):
         if hasattr(enrollment, 'grade'):
             grade = enrollment.grade
             grade_info.update({
-                'theory_marks': grade.theory_marks,
+                'theory_marks': grade.final_exam,
                 'practical_marks': grade.practical_marks,
-                'clinical_marks': grade.clinical_marks,
+                'clinical_marks': grade.project_marks,
                 'continuous_assessment': grade.continuous_assessment,
-                'final_exam_marks': grade.final_exam_marks,
+                'final_exam_marks': grade.final_exam,
                 'total_marks': grade.total_marks,
                 'grade': grade.grade,
                 'grade_points': grade.grade_points,
@@ -2482,8 +2482,8 @@ def admin_marks_entry(request, student_id=None):
                 
                 if saved_count > 0:
                     messages.success(request, f"Marks saved successfully for {saved_count} courses for student {student.student_id}")
-                    # Redirect to prevent re-submission
-                    return redirect('admin_marks_entry', student_id=student.student_id)
+                    # Redirect to prevent re-submission  return redirect('student_performance', registration_number=registration_number)
+                    return redirect('student_performance', student_id=student.student_id)
                 else:
                     messages.warning(request, "No marks were provided to save.")
                 
