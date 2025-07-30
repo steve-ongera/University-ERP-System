@@ -50,4 +50,5 @@ urlpatterns = [
     # Admin authentication URLs
     path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
+    path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
 ]

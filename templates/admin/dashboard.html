@@ -3,12 +3,10 @@
 
 {% block title %}Admin Dashboard - KMTC{% endblock %}
 
-
 {% block content %}
 
 <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-
 
 <div class="row mt-3">
     <div class="col-md-12">
@@ -26,7 +24,7 @@
     <div class="row p-3">
         <div class="row d-flex flex-row">
             <div class="col-md-8">
-                <h1 class="fw-bold card-title text-start">KMTC Admin Dashboard</h1>
+                <h1 class="fw-bold card-title text-start">University Admin Dashboard</h1>
                 <p class="text-muted">Academic Year: {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %} | Current Semester: {% if current_semester %}{{ current_semester.semester_number }}{% else %}Not Set{% endif %}</p>
             </div>
             <div class="col-md-4 dashboardRightLabel">
@@ -71,7 +69,7 @@
                                 Students</div>
                             <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_students }}</div>
                             <div class="mt-2 text-muted small">
-                                <span class="text-success">{{ active_students }} active</span> | 
+                                <span class="text-success">xx active</span> | 
                                 <span class="text-info">{{ new_students_today }} new today</span>
                             </div>
                         </div>
@@ -90,10 +88,10 @@
                     <div class="row align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Faculty</div>
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_faculty }}</div>
+                                Lecturers</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_lecturers }}</div>
                             <div class="mt-2 text-muted small">
-                                <span class="text-success">{{ active_faculty }} active</span>
+                                <span class="text-success">{{ active_lecturers }} active</span>
                             </div>
                         </div>
                         <div class="col-auto">
@@ -434,35 +432,16 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Debug: Check if Chart.js is loaded
-    console.log('Chart.js loaded:', typeof Chart !== 'undefined');
-    console.log('Chart version:', Chart?.version);
-    
-    // Chart.js default configuration
-    Chart.defaults.font.size = 12;
-    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+<!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-    // Get chart data with validation
-    const genderData = {{ gender_chart_data|safe }};
-    const admissionData = {{ admission_trend_data|safe }};
-    const programmeData = {{ programme_chart_data|safe }};
-    const reportingData = {{ reporting_chart_data|safe }};
-    const collectionData = {{ collection_chart_data|safe }};
-    const performanceData = {{ performance_chart_data|safe }};
-    
-    console.log('Chart data loaded:', {
-        genderData,
-        admissionData,
-        programmeData,
-        reportingData,
-        collectionData,
-        performanceData
-    });
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.plugins.legend.position = 'bottom';
 
-    // Gender Distribution Donut Chart
-    if (genderData && genderData.labels && genderData.labels.length > 0) {
+        // Gender Distribution Donut Chart
+        const genderData = {{ gender_chart_data|safe }};
         const genderCtx = document.getElementById('genderChart').getContext('2d');
         new Chart(genderCtx, {
             type: 'doughnut',
@@ -470,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: genderData.labels,
                 datasets: [{
                     data: genderData.data,
-                    backgroundColor: genderData.colors || ['#1a73e8', '#ff6b6b', '#ffa3a3'],
+                    backgroundColor: genderData.colors,
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -485,27 +464,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             padding: 20,
                             usePointStyle: true
                         }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
                     }
-                }
+                },
+                cutout: '60%'
             }
         });
-    } else {
-        document.getElementById('genderChart').parentElement.innerHTML = '<p class="text-center text-muted">No gender data available</p>';
-    }
 
-    // Student Admissions Trend Bar Chart
-    if (admissionData && admissionData.labels && admissionData.labels.length > 0) {
+        // Admission Trend Bar Chart
+        const admissionData = {{ admission_trend_data|safe }};
         const admissionCtx = document.getElementById('admissionTrendChart').getContext('2d');
         new Chart(admissionCtx, {
             type: 'bar',
@@ -514,74 +480,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'New Admissions',
                     data: admissionData.data,
-                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
-                    borderColor: 'rgba(157, 1, 1, 1)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Programme Enrollment Chart
+        const programmeData = {{ programme_chart_data|safe }};
+        const programmeCtx = document.getElementById('programmeChart').getContext('2d');
+        new Chart(programmeCtx, {
+            type: 'horizontalBar',
+            data: {
+                labels: programmeData.labels,
+                datasets: [{
+                    label: 'Students Enrolled',
+                    data: programmeData.data,
+                    backgroundColor: 'rgba(39, 174, 96, 0.8)',
+                    borderColor: 'rgba(39, 174, 96, 1)',
                     borderWidth: 1
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            title: function(context) {
-                                return `Year: ${context[0].label}`;
-                            },
-                            label: function(context) {
-                                return `New Students: ${context.raw}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    } else {
-        document.getElementById('admissionTrendChart').parentElement.innerHTML = '<p class="text-center text-muted">No admission data available</p>';
-    }
-
-    // Programme Enrollment Line Chart
-    if (programmeData && programmeData.labels && programmeData.labels.length > 0) {
-        const programmeCtx = document.getElementById('programmeChart').getContext('2d');
-        new Chart(programmeCtx, {
-            type: 'line',
-            data: {
-                labels: programmeData.labels,
-                datasets: [{
-                    label: 'Enrolled Students',
-                    data: programmeData.data,
-                    borderColor: 'rgba(157, 1, 1, 1)',
-                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    },
                     x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: false
                         }
                     }
                 },
@@ -592,29 +549,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    } else {
-        document.getElementById('programmeChart').parentElement.innerHTML = '<p class="text-center text-muted">No programme data available</p>';
-    }
 
-    // Student Reporting Chart (Last 6 Semesters)
-    if (reportingData && reportingData.labels && reportingData.labels.length > 0) {
+        // Student Reporting Chart
+        const reportingData = {{ reporting_chart_data|safe }};
         const reportingCtx = document.getElementById('reportingChart').getContext('2d');
         new Chart(reportingCtx, {
-            type: 'bar',
+            type: 'line',
             data: {
                 labels: reportingData.labels,
                 datasets: [{
                     label: 'Reported',
                     data: reportingData.reported,
-                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                    borderColor: 'rgba(40, 167, 69, 1)',
-                    borderWidth: 1
+                    borderColor: 'rgba(39, 174, 96, 1)',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }, {
                     label: 'Expected',
                     data: reportingData.expected,
-                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
-                    borderColor: 'rgba(157, 1, 1, 1)',
-                    borderWidth: 1
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.4,
+                    fill: false,
+                    borderDash: [5, 5]
                 }]
             },
             options: {
@@ -623,209 +580,118 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            precision: 0
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
                         }
                     },
                     x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            afterBody: function(context) {
-                                const index = context[0].dataIndex;
-                                const percentage = reportingData.percentages[index];
-                                return `Reporting Rate: ${percentage}%`;
-                            }
+                        grid: {
+                            display: false
                         }
                     }
                 }
             }
         });
-    } else {
-        document.getElementById('reportingChart').parentElement.innerHTML = '<p class="text-center text-muted">No reporting data available</p>';
-    }
 
-    // Fee Collection Trends Chart
-    if (collectionData && collectionData.labels && collectionData.labels.length > 0) {
-        const collectionCtx = document.getElementById('collectionChart').getContext('2d');
-        new Chart(collectionCtx, {
+        // Course Enrollment Trends
+        const enrollmentData = {{ enrollment_trend_data|safe }};
+        const enrollmentCtx = document.getElementById('enrollmentTrendChart').getContext('2d');
+        new Chart(enrollmentCtx, {
             type: 'line',
             data: {
-                labels: collectionData.labels,
+                labels: enrollmentData.labels,
                 datasets: [{
-                    label: 'Collection Amount (KES)',
-                    data: collectionData.amounts,
-                    borderColor: 'rgba(157, 1, 1, 1)',
-                    backgroundColor: 'rgba(157, 1, 1, 0.2)',
-                    borderWidth: 2,
-                    yAxisID: 'y',
-                    tension: 0.4
-                }, {
-                    label: 'Number of Payments',
-                    data: collectionData.counts,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderWidth: 2,
-                    yAxisID: 'y1',
-                    tension: 0.4
+                    label: 'Course Enrollments',
+                    data: enrollmentData.data,
+                    borderColor: 'rgba(155, 89, 182, 1)',
+                    backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: 'rgba(155, 89, 182, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
                 scales: {
-                    x: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Month'
-                        }
-                    },
                     y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Amount (KES)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return 'KES ' + value.toLocaleString();
-                            }
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
                         }
                     },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Number of Payments'
-                        },
+                    x: {
                         grid: {
-                            drawOnChartArea: false,
-                        },
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                }
-            }
-        });
-    } else {
-        document.getElementById('collectionChart').parentElement.innerHTML = '<p class="text-center text-muted">No collection data available</p>';
-    }
-
-    // Programme Performance Chart - FIXED for Chart.js 3.9.1
-    if (performanceData && performanceData.labels && performanceData.labels.length > 0) {
-        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
-        new Chart(performanceCtx, {
-            type: 'bar', // ✅ Changed from 'horizontalBar' which doesn't exist in v3+
-            data: {
-                labels: performanceData.labels,
-                datasets: [{
-                    label: 'Average GPA',
-                    data: performanceData.data,
-                    backgroundColor: 'rgba(157, 1, 1, 0.8)',
-                    borderColor: 'rgba(157, 1, 1, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y', // ✅ This makes it horizontal in Chart.js v3+
-                scales: {
-                    x: { // ✅ Fixed axis configuration for v3+
-                        beginAtZero: true,
-                        max: 4.0,
-                        title: {
-                            display: true,
-                            text: 'GPA'
+                            display: false
                         }
                     }
                 },
                 plugins: {
                     legend: {
                         display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `Average GPA: ${context.raw}`;
-                            }
-                        }
                     }
                 }
             }
         });
-    } else {
-        document.getElementById('performanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No performance data available</p>';
-    }
 
-    // Attendance Chart
-    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
-    
-    // Build attendance data array
-    const attendanceData = [];
-    const attendanceCounts = {
-        present: 0,
-        absent: 0,
-        late: 0,
-        excused: 0
-    };
-    
-    // Parse attendance summary from Django template
-    {% for status in attendance_summary %}
-        attendanceCounts['{{ status.status }}'] = {{ status.count }};
-    {% endfor %}
-    
-    attendanceData.push(attendanceCounts.present);
-    attendanceData.push(attendanceCounts.absent);
-    attendanceData.push(attendanceCounts.late);
-    attendanceData.push(attendanceCounts.excused);
+        // Programme Performance Chart
+        const performanceData = {{ performance_chart_data|safe }};
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'bar',
+            data: {
+                labels: performanceData.labels,
+                datasets: [{
+                    label: 'Average GPA',
+                    data: performanceData.data,
+                    backgroundColor: 'rgba(243, 156, 18, 0.8)',
+                    borderColor: 'rgba(243, 156, 18, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 4.0,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
 
-    // Only create chart if there's data
-    const totalAttendance = attendanceData.reduce((a, b) => a + b, 0);
-    if (totalAttendance > 0) {
-        new Chart(attendanceCtx, {
+        // Department Distribution Chart
+        const departmentData = {{ department_chart_data|safe }};
+        const departmentCtx = document.getElementById('departmentChart').getContext('2d');
+        new Chart(departmentCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Present', 'Absent', 'Late', 'Excused'],
+                labels: departmentData.labels,
                 datasets: [{
-                    data: attendanceData,
+                    data: departmentData.data,
                     backgroundColor: [
-                        'rgba(40, 167, 69, 0.8)',
-                        'rgba(157, 1, 1, 0.8)',
-                        'rgba(255, 193, 7, 0.8)',
-                        'rgba(23, 162, 184, 0.8)'
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
                     ],
-                    borderColor: [
-                        'rgba(40, 167, 69, 1)',
-                        'rgba(157, 1, 1, 1)',
-                        'rgba(255, 193, 7, 1)',
-                        'rgba(23, 162, 184, 1)'
-                    ],
-                    borderWidth: 2
+                    borderWidth: 2,
+                    borderColor: '#fff'
                 }]
             },
             options: {
@@ -836,175 +702,117 @@ document.addEventListener('DOMContentLoaded', function() {
                         position: 'bottom',
                         labels: {
                             padding: 15,
-                            usePointStyle: true
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                return `${label}: ${value} (${percentage}%)`;
+                            usePointStyle: true,
+                            font: {
+                                size: 10
                             }
+                        }
+                    }
+                },
+                cutout: '50%'
+            }
+        });
+
+        // Programme Type Distribution
+        const programmeTypeData = {{ programme_type_chart_data|safe }};
+        const programmeTypeCtx = document.getElementById('programmeTypeChart').getContext('2d');
+        new Chart(programmeTypeCtx, {
+            type: 'pie',
+            data: {
+                labels: programmeTypeData.labels,
+                datasets: [{
+                    data: programmeTypeData.data,
+                    backgroundColor: programmeTypeData.colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
                         }
                     }
                 }
             }
         });
-    } else {
-        document.getElementById('attendanceChart').parentElement.innerHTML = '<p class="text-center text-muted">No attendance data available</p>';
-    }
-    
-    console.log('All charts initialized successfully!');
-});
-</script>
 
-<style>
-/* Custom styles for admin dashboard */
-.card {
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
-    border: none;
-}
+        // Grade Distribution Chart
+        const gradeData = {{ grade_chart_data|safe }};
+        const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+        new Chart(gradeCtx, {
+            type: 'bar',
+            data: {
+                labels: gradeData.labels,
+                datasets: [{
+                    label: 'Number of Students',
+                    data: gradeData.data,
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
 
-.card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-
-.card-header {
-    padding: 1rem 1.25rem;
-    background-color: #fff !important;
-    border-bottom: 1px solid #e3e6f0;
-}
-
-.border-left-primary {
-    border-left: 0.25rem solid #1a73e8 !important;
-}
-
-.border-left-success {
-    border-left: 0.25rem solid #28a745 !important;
-}
-
-.border-left-info {
-    border-left: 0.25rem solid #17a2b8 !important;
-}
-
-.border-left-warning {
-    border-left: 0.25rem solid #ffc107 !important;
-}
-
-.list-group-item {
-    transition: background-color 0.2s;
-    border: none !important;
-}
-
-.list-group-item:hover {
-    background-color: #f8f9fa;
-}
-
-.badge {
-    font-weight: 500;
-    padding: 0.35em 0.65em;
-}
-
-.text-gray-800 {
-    color: #5a5c69 !important;
-}
-
-.text-gray-300 {
-    color: #dddfeb !important;
-}
-
-.primary-text {
-    color: #1a73e8 !important;
-}
-
-.font-weight-bold {
-    font-weight: 700 !important;
-}
-
-.text-xs {
-    font-size: 0.7rem;
-}
-
-/* Chart containers */
-canvas {
-    max-height: 400px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .col-xl-3 {
-        margin-bottom: 1rem;
-    }
-    
-    .card-body {
-        padding: 1rem;
-    }
-    
-    .h4 {
-        font-size: 1.2rem;
-    }
-}
-
-/* Print styles */
-@media print {
-    .onprintContainer {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    .card {
-        break-inside: avoid;
-        margin-bottom: 1rem;
-    }
-    
-    .btn, .alert {
-        display: none !important;
-    }
-}
-
-/* Loading animation for charts */
-.chart-loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 200px;
-    color: #6c757d;
-}
-
-.chart-loading::after {
-    content: "Loading chart...";
-}
-
-/* Error message styling */
-.text-center.text-muted {
-    padding: 2rem;
-    font-style: italic;
-}
-
-/* Button colors */
-.btn-primary {
-    background-color: #1a73e8;
-    border-color: #1a73e8;
-}
-
-.btn-primary:hover {
-    background-color: #1d2aed;
-    border-color: #1d2aed;
-}
-
-.text-primary {
-    color: #1a73e8 !important;
-}
-
-/* Alert colors */
-.alert-primary {
-    background-color: rgba(157, 1, 1, 0.1);
-    border-color: rgba(157, 1, 1, 0.2);
-    color: #1a73e8;
-}
-</style>
+        // User Type Distribution Chart
+        const userTypeData = {{ user_type_chart_data|safe }};
+        const userTypeCtx = document.getElementById('userTypeChart').getContext('2d');
+        new Chart(userTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: userTypeData.labels,
+                datasets: [{
+                    data: userTypeData.data,
+                    backgroundColor: userTypeData.colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    </script>
 {% endblock %}

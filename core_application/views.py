@@ -1245,3 +1245,428 @@ def admin_logout_view(request):
     messages.success(request, 'You have been successfully logged out.')
     logger.info(f"Admin logout for user: {username}")
     return redirect('admin_login')
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils import timezone
+from django.db.models import Count, Avg, Sum, Q
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+import json
+from django.utils import timezone
+from .models import (
+    User, Student, Lecturer, Staff, Faculty, Department, Programme, 
+    Course, ProgrammeCourse, AcademicYear, Semester, Enrollment, 
+    Grade, StudentReporting
+)
+from django.utils import timezone
+from django.db.models import Avg
+
+
+def is_admin(user):
+    """Check if user is admin"""
+    return user.is_authenticated and user.user_type == 'admin'
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_dashboard(request):
+    """
+    Admin dashboard with comprehensive statistics and charts
+    """
+    # Helper function to normalize datetime timezone awareness
+    def normalize_datetime(dt):
+        """Ensure datetime is timezone-aware"""
+        if dt is None:
+            return timezone.now()
+        if timezone.is_naive(dt):
+            return timezone.make_aware(dt)
+        return dt
+    
+    def date_to_aware_datetime(date_obj):
+        """Convert date to timezone-aware datetime"""
+        if date_obj is None:
+            return timezone.now()
+        if isinstance(date_obj, datetime):
+            return normalize_datetime(date_obj)
+        # Convert date to datetime at start of day, then make timezone-aware
+        dt = datetime.combine(date_obj, datetime.min.time())
+        return timezone.make_aware(dt)
+    
+    # Get current date and academic year
+    current_date = timezone.now().date()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Basic User Statistics
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    new_users_today = User.objects.filter(created_at__date=current_date).count()
+    
+    # Student Statistics
+    total_students = Student.objects.count()
+    active_students = Student.objects.filter(status='active').count()
+    new_students_today = Student.objects.filter(
+        user__created_at__date=current_date
+    ).count()
+    
+    # Faculty Statistics
+    total_lecturers = Lecturer.objects.count()
+    active_lecturers = Lecturer.objects.filter(is_active=True).count()
+    
+    # Staff Statistics
+    total_staff = Staff.objects.count()
+    active_staff = Staff.objects.filter(is_active=True).count()
+    
+    # Academic Overview
+    total_faculties = Faculty.objects.filter(is_active=True).count()
+    total_departments = Department.objects.filter(is_active=True).count()
+    total_programmes = Programme.objects.filter(is_active=True).count()
+    total_courses = Course.objects.filter(is_active=True).count()
+    
+    # Enrollment Statistics
+    if current_semester:
+        current_enrollments = Enrollment.objects.filter(
+            semester=current_semester,
+            is_active=True
+        ).count()
+        
+        today_enrollments = Enrollment.objects.filter(
+            enrollment_date=current_date,
+            is_active=True
+        ).count()
+    else:
+        current_enrollments = 0
+        today_enrollments = 0
+    
+    # Gender Distribution Data for Donut Chart
+    gender_data = Student.objects.filter(status='active').values(
+        'user__gender'
+    ).annotate(count=Count('id'))
+    
+    gender_chart_data = {
+        'labels': [],
+        'data': [],
+        'colors': ['#FF6384', '#36A2EB', '#FFCE56']
+    }
+    
+    for item in gender_data:
+        gender = item['user__gender']
+        if gender == 'male':
+            gender_chart_data['labels'].append('Male')
+            gender_chart_data['data'].append(item['count'])
+        elif gender == 'female':
+            gender_chart_data['labels'].append('Female')
+            gender_chart_data['data'].append(item['count'])
+        elif gender == 'other':
+            gender_chart_data['labels'].append('Other')
+            gender_chart_data['data'].append(item['count'])
+    
+    # Student Admission Trends (Bar Chart) - Last 5 years
+    current_year = current_date.year
+    admission_years = []
+    admission_counts = []
+    
+    for year in range(current_year - 4, current_year + 1):
+        year_start = datetime(year, 1, 1).date()
+        year_end = datetime(year, 12, 31).date()
+        count = Student.objects.filter(
+            admission_date__range=[year_start, year_end]
+        ).count()
+        admission_years.append(str(year))
+        admission_counts.append(count)
+    
+    admission_trend_data = {
+        'labels': admission_years,
+        'data': admission_counts
+    }
+    
+    # Student Enrollment by Programme (Bar Chart)
+    programme_enrollment = Programme.objects.filter(
+        is_active=True
+    ).annotate(
+        student_count=Count('students', filter=Q(students__status='active'))
+    ).order_by('-student_count')[:10]
+    
+    programme_chart_data = {
+        'labels': [p.name[:25] + '...' if len(p.name) > 25 else p.name 
+                  for p in programme_enrollment],
+        'data': [p.student_count for p in programme_enrollment]
+    }
+    
+    # Student Reporting in Last 6 Semesters
+    try:
+        last_6_semesters = Semester.objects.order_by('-academic_year__start_date', '-semester_number')[:6]
+        reporting_data = []
+        
+        for semester in last_6_semesters:
+            total_expected = Student.objects.filter(status='active').count()
+            reported = StudentReporting.objects.filter(
+                semester=semester,
+                status='approved'
+            ).count()
+            
+            reporting_data.append({
+                'semester': f"{semester.academic_year.year} S{semester.semester_number}",
+                'reported': reported,
+                'expected': total_expected,
+                'percentage': round((reported/total_expected * 100) if total_expected > 0 else 0, 1)
+            })
+        
+        reporting_chart_data = {
+            'labels': [item['semester'] for item in reversed(reporting_data)],
+            'reported': [item['reported'] for item in reversed(reporting_data)],
+            'expected': [item['expected'] for item in reversed(reporting_data)],
+            'percentages': [item['percentage'] for item in reversed(reporting_data)]
+        }
+    except Exception as e:
+        # Fallback to empty data if there's an error
+        reporting_data = []
+        reporting_chart_data = {
+            'labels': [],
+            'reported': [],
+            'expected': [],
+            'percentages': []
+        }
+    
+    # Course Enrollment Trends (Last 12 months)
+    twelve_months_ago = current_date - timedelta(days=365)
+    try:
+        monthly_enrollments = Enrollment.objects.filter(
+            enrollment_date__gte=twelve_months_ago,
+            is_active=True
+        ).extra(
+            select={'month': "strftime('%%Y-%%m', enrollment_date)"}
+        ).values('month').annotate(
+            enrollment_count=Count('id')
+        ).order_by('month')
+        
+        enrollment_labels = []
+        enrollment_counts = []
+        
+        for enrollment in monthly_enrollments:
+            if enrollment['month']:  # Check if month is not None
+                try:
+                    month_year = datetime.strptime(enrollment['month'], '%Y-%m')
+                    enrollment_labels.append(month_year.strftime('%b %Y'))
+                    enrollment_counts.append(enrollment['enrollment_count'])
+                except ValueError:
+                    continue  # Skip invalid date formats
+        
+        enrollment_trend_data = {
+            'labels': enrollment_labels,
+            'data': enrollment_counts
+        }
+    except Exception as e:
+        # Fallback to empty data if there's an error
+        enrollment_trend_data = {
+            'labels': [],
+            'data': []
+        }
+    
+    # Programme Performance (Average GPA by Programme)
+    programme_performance = []
+    for programme in Programme.objects.filter(is_active=True)[:10]:
+        avg_gpa = Grade.objects.filter(
+            enrollment__student__programme=programme,
+            is_passed=True
+        ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa']
+        
+        if avg_gpa:
+            programme_performance.append({
+                'programme': programme.name[:25] + '...' if len(programme.name) > 25 else programme.name,
+                'avg_gpa': float(avg_gpa)
+            })
+    
+    programme_performance.sort(key=lambda x: x['avg_gpa'], reverse=True)
+    
+    performance_chart_data = {
+        'labels': [item['programme'] for item in programme_performance],
+        'data': [item['avg_gpa'] for item in programme_performance]
+    }
+    
+    # Department wise student distribution
+    department_data = Department.objects.filter(is_active=True).annotate(
+        student_count=Count('programmes__students', filter=Q(programmes__students__status='active'))
+    ).order_by('-student_count')[:8]
+    
+    department_chart_data = {
+        'labels': [dept.name[:20] + '...' if len(dept.name) > 20 else dept.name 
+                  for dept in department_data],
+        'data': [dept.student_count for dept in department_data]
+    }
+    
+    # Programme type distribution
+    programme_type_data = Programme.objects.filter(is_active=True).values(
+        'programme_type'
+    ).annotate(count=Count('id'))
+    
+    programme_type_chart_data = {
+        'labels': [item['programme_type'].replace('_', ' ').title() for item in programme_type_data],
+        'data': [item['count'] for item in programme_type_data],
+        'colors': ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+    }
+    
+    # Recent Activities (Student Registrations, Enrollments, etc.) - ALL TIMEZONE-AWARE
+    recent_activities = []
+    
+    # Recent student registrations
+    recent_students = Student.objects.select_related('user', 'programme').order_by('-user__created_at')[:5]
+    for student in recent_students:
+        created_at = normalize_datetime(student.user.created_at)
+        activity_date = created_at.date()
+        
+        recent_activities.append({
+            'type': 'student_registration',
+            'message': f"New student {student.user.get_full_name()} registered for {student.programme.name}",
+            'date': activity_date,
+            'datetime': created_at,  # timezone-aware
+            'icon': 'fa-user-plus',
+            'color': 'success'
+        })
+    
+    # Recent enrollments
+    recent_enrollments = Enrollment.objects.select_related(
+        'student__user', 'course'
+    ).order_by('-enrollment_date')[:5]
+    for enrollment in recent_enrollments:
+        # Convert enrollment date to timezone-aware datetime
+        activity_datetime = date_to_aware_datetime(enrollment.enrollment_date)
+        
+        recent_activities.append({
+            'type': 'course_enrollment',
+            'message': f"{enrollment.student.user.get_full_name()} enrolled in {enrollment.course.name}",
+            'date': enrollment.enrollment_date,
+            'datetime': activity_datetime,  # timezone-aware
+            'icon': 'fa-book',
+            'color': 'info'
+        })
+    
+    # Recent grade entries
+    recent_grades = Grade.objects.select_related(
+        'enrollment__student__user', 'enrollment__course'
+    ).order_by('-id')[:5]
+    current_datetime = timezone.now()  # already timezone-aware
+    for grade in recent_grades:
+        if grade.grade:
+            recent_activities.append({
+                'type': 'grade_entry',
+                'message': f"Grade {grade.grade} recorded for {grade.enrollment.student.user.get_full_name()} in {grade.enrollment.course.code}",
+                'date': current_datetime.date(),
+                'datetime': current_datetime,  # timezone-aware
+                'icon': 'fa-star',
+                'color': 'warning'
+            })
+    
+    # Sort activities by datetime (now all are consistently timezone-aware)
+    try:
+        recent_activities.sort(key=lambda x: x['datetime'], reverse=True)
+        recent_activities = recent_activities[:10]
+    except Exception as e:
+        # If sorting still fails, just take first 10 without sorting
+        recent_activities = recent_activities[:10]
+
+    # Top Performing Students (by GPA)
+    top_students = []
+    try:
+        active_students = Student.objects.filter(status='active').select_related('user')[:50]
+
+        for student in active_students:
+            avg_gpa = Grade.objects.filter(
+                enrollment__student=student,
+                is_passed=True
+            ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa']
+            
+            if avg_gpa and avg_gpa > 0:
+                top_students.append({
+                    'student': student,
+                    'gpa': round(float(avg_gpa), 2)  # Round to 2 decimal places
+                })
+
+        # Sort top students by GPA
+        top_students.sort(key=lambda x: x['gpa'], reverse=True)
+        top_students = top_students[:10]  # Limit to top 10
+    except Exception as e:
+        top_students = []
+    
+    # Grade distribution
+    try:
+        grade_distribution = Grade.objects.filter(
+            grade__isnull=False
+        ).exclude(grade__in=['I', 'W']).values('grade').annotate(
+            count=Count('id')
+        ).order_by('grade')
+        
+        grade_chart_data = {
+            'labels': [item['grade'] for item in grade_distribution],
+            'data': [item['count'] for item in grade_distribution]
+        }
+    except Exception as e:
+        grade_chart_data = {
+            'labels': [],
+            'data': []
+        }
+    
+    # User type distribution
+    try:
+        user_type_data = User.objects.filter(is_active=True).values(
+            'user_type'
+        ).annotate(count=Count('id'))
+        
+        user_type_chart_data = {
+            'labels': [item['user_type'].replace('_', ' ').title() for item in user_type_data],
+            'data': [item['count'] for item in user_type_data],
+            'colors': ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#36A2EB']
+        }
+    except Exception as e:
+        user_type_chart_data = {
+            'labels': [],
+            'data': [],
+            'colors': []
+        }
+    
+    context = {
+        'current_date': current_date,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Basic Statistics
+        'total_users': total_users,
+        'active_users': active_users,
+        'new_users_today': new_users_today,
+        'total_students': total_students,
+        'active_students': active_students,
+        'new_students_today': new_students_today,
+        'total_lecturers': total_lecturers,
+        'active_lecturers': active_lecturers,
+        'total_staff': total_staff,
+        'active_staff': active_staff,
+        
+        # Academic Overview
+        'total_faculties': total_faculties,
+        'total_departments': total_departments,
+        'total_programmes': total_programmes,
+        'total_courses': total_courses,
+        'current_enrollments': current_enrollments,
+        'today_enrollments': today_enrollments,
+        
+        # Chart Data (JSON)
+        'gender_chart_data': json.dumps(gender_chart_data),
+        'admission_trend_data': json.dumps(admission_trend_data),
+        'programme_chart_data': json.dumps(programme_chart_data),
+        'reporting_chart_data': json.dumps(reporting_chart_data),
+        'enrollment_trend_data': json.dumps(enrollment_trend_data),
+        'performance_chart_data': json.dumps(performance_chart_data),
+        'department_chart_data': json.dumps(department_chart_data),
+        'programme_type_chart_data': json.dumps(programme_type_chart_data),
+        'grade_chart_data': json.dumps(grade_chart_data),
+        'user_type_chart_data': json.dumps(user_type_chart_data),
+        
+        # Additional Data
+        'recent_activities': recent_activities,
+        'top_students': top_students,
+        'programme_performance': programme_performance,
+        'reporting_data': reporting_data,
+    }
+    
+    return render(request, 'admin/dashboard.html', context)
