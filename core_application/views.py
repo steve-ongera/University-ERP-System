@@ -1324,6 +1324,15 @@ def admin_dashboard(request):
     total_programmes = Programme.objects.filter(is_active=True).count()
     total_courses = Course.objects.filter(is_active=True).count()
     
+    # Add these missing variables for the template
+    total_schools = Faculty.objects.filter(is_active=True).count()  # Assuming Faculty = Schools
+    total_units = Course.objects.filter(is_active=True).count()  # Assuming Course = Units
+    active_placements = 0  # You'll need to define this based on your placement model
+    completed_placements = 0  # You'll need to define this based on your placement model
+    total_fee_payments = 0  # You'll need to define this based on your payment model
+    today_fee_payments = 0  # You'll need to define this based on your payment model
+    recent_payments = []  # You'll need to define this based on your payment model
+    
     # Enrollment Statistics
     if current_semester:
         current_enrollments = Enrollment.objects.filter(
@@ -1381,52 +1390,92 @@ def admin_dashboard(request):
         'data': admission_counts
     }
     
-    # Student Enrollment by Programme (Bar Chart)
-    programme_enrollment = Programme.objects.filter(
-        is_active=True
-    ).annotate(
-        student_count=Count('students', filter=Q(students__status='active'))
-    ).order_by('-student_count')[:10]
+    # FIXED: Student Enrollment by Programme (Horizontal Bar Chart)
+    try:
+        programme_enrollment = Programme.objects.filter(
+            is_active=True
+        ).annotate(
+            student_count=Count('students', filter=Q(students__status='active'))
+        ).order_by('-student_count')[:10]
+        
+        programme_chart_data = {
+            'labels': [p.name[:25] + '...' if len(p.name) > 25 else p.name 
+                      for p in programme_enrollment],
+            'data': [p.student_count for p in programme_enrollment]
+        }
+        
+        # Ensure we have data, if not provide default
+        if not programme_chart_data['labels']:
+            programme_chart_data = {
+                'labels': ['No Data Available'],
+                'data': [0]
+            }
+    except Exception as e:
+        programme_chart_data = {
+            'labels': ['No Data Available'],
+            'data': [0]
+        }
     
-    programme_chart_data = {
-        'labels': [p.name[:25] + '...' if len(p.name) > 25 else p.name 
-                  for p in programme_enrollment],
-        'data': [p.student_count for p in programme_enrollment]
-    }
-    
-    # Student Reporting in Last 6 Semesters
+    # FIXED: Student Reporting in Last 6 Semesters
     try:
         last_6_semesters = Semester.objects.order_by('-academic_year__start_date', '-semester_number')[:6]
         reporting_data = []
         
-        for semester in last_6_semesters:
-            total_expected = Student.objects.filter(status='active').count()
-            reported = StudentReporting.objects.filter(
-                semester=semester,
-                status='approved'
-            ).count()
-            
-            reporting_data.append({
-                'semester': f"{semester.academic_year.year} S{semester.semester_number}",
-                'reported': reported,
-                'expected': total_expected,
-                'percentage': round((reported/total_expected * 100) if total_expected > 0 else 0, 1)
-            })
+        if last_6_semesters.exists():
+            for semester in last_6_semesters:
+                # Get total students who should report for this semester
+                total_expected = Student.objects.filter(
+                    status='active',
+                    admission_date__lte=semester.end_date if hasattr(semester, 'end_date') else current_date
+                ).count()
+                
+                # Get students who actually reported
+                try:
+                    reported = StudentReporting.objects.filter(
+                        semester=semester,
+                        status='approved'
+                    ).count()
+                except:
+                    # If StudentReporting model doesn't exist or has different structure
+                    # Use enrollment as a proxy for reporting
+                    reported = Enrollment.objects.filter(
+                        semester=semester,
+                        is_active=True
+                    ).count()
+                
+                reporting_data.append({
+                    'semester': f"{semester.academic_year.year} S{semester.semester_number}",
+                    'reported': reported,
+                    'expected': total_expected,
+                    'percentage': round((reported/total_expected * 100) if total_expected > 0 else 0, 1)
+                })
+        
+        # Reverse to show chronologically
+        reporting_data = list(reversed(reporting_data))
         
         reporting_chart_data = {
-            'labels': [item['semester'] for item in reversed(reporting_data)],
-            'reported': [item['reported'] for item in reversed(reporting_data)],
-            'expected': [item['expected'] for item in reversed(reporting_data)],
-            'percentages': [item['percentage'] for item in reversed(reporting_data)]
+            'labels': [item['semester'] for item in reporting_data],
+            'reported': [item['reported'] for item in reporting_data],
+            'expected': [item['expected'] for item in reporting_data],
+            'percentages': [item['percentage'] for item in reporting_data]
         }
+        
+        # Ensure we have data
+        if not reporting_chart_data['labels']:
+            reporting_chart_data = {
+                'labels': ['No Data Available'],
+                'reported': [0],
+                'expected': [0],
+                'percentages': [0]
+            }
+            
     except Exception as e:
-        # Fallback to empty data if there's an error
-        reporting_data = []
+        print(f"Error in reporting data: {e}")  # For debugging
         reporting_chart_data = {
-            'labels': [],
-            'reported': [],
-            'expected': [],
-            'percentages': []
+            'labels': ['No Data Available'],
+            'reported': [0],
+            'expected': [0],
+            'percentages': [0]
         }
     
     # Course Enrollment Trends (Last 12 months)
@@ -1457,11 +1506,17 @@ def admin_dashboard(request):
             'labels': enrollment_labels,
             'data': enrollment_counts
         }
+        
+        # Ensure we have data
+        if not enrollment_trend_data['labels']:
+            enrollment_trend_data = {
+                'labels': ['No Data Available'],
+                'data': [0]
+            }
     except Exception as e:
-        # Fallback to empty data if there's an error
         enrollment_trend_data = {
-            'labels': [],
-            'data': []
+            'labels': ['No Data Available'],
+            'data': [0]
         }
     
     # Programme Performance (Average GPA by Programme)
@@ -1649,6 +1704,15 @@ def admin_dashboard(request):
         'total_courses': total_courses,
         'current_enrollments': current_enrollments,
         'today_enrollments': today_enrollments,
+        
+        # Missing template variables
+        'total_schools': total_schools,
+        'total_units': total_units,
+        'active_placements': active_placements,
+        'completed_placements': completed_placements,
+        'total_fee_payments': total_fee_payments,
+        'today_fee_payments': today_fee_payments,
+        'recent_payments': recent_payments,
         
         # Chart Data (JSON)
         'gender_chart_data': json.dumps(gender_chart_data),

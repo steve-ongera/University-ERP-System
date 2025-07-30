@@ -515,10 +515,11 @@
         });
 
         // Programme Enrollment Chart
+        // FIXED: Programme Enrollment Chart (Horizontal Bar Chart)
         const programmeData = {{ programme_chart_data|safe }};
         const programmeCtx = document.getElementById('programmeChart').getContext('2d');
         new Chart(programmeCtx, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: {
                 labels: programmeData.labels,
                 datasets: [{
@@ -526,11 +527,12 @@
                     data: programmeData.data,
                     backgroundColor: 'rgba(39, 174, 96, 0.8)',
                     borderColor: 'rgba(39, 174, 96, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 5
                 }]
             },
             options: {
-                indexAxis: 'y',
+                indexAxis: 'y', // This makes it horizontal
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
@@ -543,18 +545,33 @@
                     y: {
                         grid: {
                             display: false
+                        },
+                        ticks: {
+                            maxTicksLimit: 10 // Limit number of labels shown
                         }
                     }
                 },
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label;
+                            },
+                            label: function(context) {
+                                return 'Students: ' + context.parsed.x;
+                            }
+                        }
                     }
                 }
             }
         });
 
+
         // Student Reporting Chart
+        // FIXED: Student Reporting Chart (Line Chart with multiple datasets)
         const reportingData = {{ reporting_chart_data|safe }};
         const reportingCtx = document.getElementById('reportingChart').getContext('2d');
         new Chart(reportingCtx, {
@@ -562,20 +579,28 @@
             data: {
                 labels: reportingData.labels,
                 datasets: [{
-                    label: 'Reported',
+                    label: 'Students Reported',
                     data: reportingData.reported,
                     borderColor: 'rgba(39, 174, 96, 1)',
                     backgroundColor: 'rgba(39, 174, 96, 0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointBackgroundColor: 'rgba(39, 174, 96, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
                 }, {
-                    label: 'Expected',
+                    label: 'Expected Students',
                     data: reportingData.expected,
                     borderColor: 'rgba(231, 76, 60, 1)',
                     backgroundColor: 'rgba(231, 76, 60, 0.1)',
                     tension: 0.4,
                     fill: false,
-                    borderDash: [5, 5]
+                    borderDash: [5, 5],
+                    pointBackgroundColor: 'rgba(231, 76, 60, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
                 }]
             },
             options: {
@@ -586,6 +611,11 @@
                         beginAtZero: true,
                         grid: {
                             color: 'rgba(0,0,0,0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return Math.floor(value); // Show only integer values
+                            }
                         }
                     },
                     x: {
@@ -593,6 +623,28 @@
                             display: false
                         }
                     }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            afterBody: function(context) {
+                                const dataIndex = context[0].dataIndex;
+                                const percentage = reportingData.percentages[dataIndex];
+                                return 'Reporting Rate: ' + percentage + '%';
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 }
             }
         });
