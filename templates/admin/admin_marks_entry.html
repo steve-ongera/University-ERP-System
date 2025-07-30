@@ -1,6 +1,5 @@
 {% extends 'admin_base.html' %}
 {% load transcript_filters %}
-{% load static %}
 
 {% block title %}Student Marks Entry{% endblock %}
 
@@ -86,23 +85,23 @@
                     <form method="get" id="studentSearchForm">
                         <div class="row g-3">
                             <div class="col-md-5">
-                                <label for="registration_number" class="form-label small text-muted">Registration Number</label>
+                                <label for="student_id" class="form-label small text-muted">Student ID</label>
                                 <input type="text" 
-                                       name="registration_number" 
-                                       id="registration_number"
+                                       name="student_id" 
+                                       id="student_id"
                                        class="form-control form-control-sm" 
-                                       value="{{ request.GET.registration_number|default:'' }}"
-                                       placeholder="Enter student registration number"
+                                       value="{{ request.GET.student_id|default:'' }}"
+                                       placeholder="Enter student ID number"
                                        required>
                             </div>
                             <div class="col-md-5">
                                 <label for="student_select" class="form-label small text-muted">Or Select Student</label>
-                                <select name="registration_number_select" id="student_select" class="form-select form-select-sm">
+                                <select name="student_id_select" id="student_select" class="form-select form-select-sm">
                                     <option value="">Choose a student...</option>
                                     {% for std in all_students %}
-                                    <option value="{{ std.registration_number }}" 
-                                            {% if std.registration_number == request.GET.registration_number %}selected{% endif %}>
-                                        {{ std.registration_number }} - {{ std.user.get_full_name }} ({{ std.programme.code }})
+                                    <option value="{{ std.student_id }}" 
+                                            {% if std.student_id == request.GET.student_id %}selected{% endif %}>
+                                        {{ std.student_id }} - {{ std.user.get_full_name }} ({{ std.programme.code }})
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -147,14 +146,14 @@
                                 <div class="col-md-4 mb-2">
                                     <label class="small text-muted">Name</label>
                                     <p class="fw-bold">{{ student.user.get_full_name }}</p>
-                                    <label class="small text-muted">Registration Number</label>
-                                    <p class="fw-bold">{{ student.registration_number }}</p>
+                                    <label class="small text-muted">Student ID</label>
+                                    <p class="fw-bold">{{ student.student_id }}</p>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <label class="small text-muted">Programme</label>
                                     <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
-                                    <label class="small text-muted">School</label>
-                                    <p class="fw-bold">{{ student.programme.school.name }}</p>
+                                    <label class="small text-muted">Department</label>
+                                    <p class="fw-bold">{{ student.programme.department.name }}</p>
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <label class="small text-muted">Current Year/Semester</label>
@@ -187,23 +186,25 @@
                 <div class="card-body">
                     <form method="post" id="marksForm">
                         {% csrf_token %}
-                        <input type="hidden" name="registration_number" value="{{ student.registration_number }}">
+                        <input type="hidden" name="student_id" value="{{ student.student_id }}">
                         
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered table-hover">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Code</th>
-                                        <th>Unit Name</th>
+                                        <th>Course Name</th>
                                         <th>Type</th>
                                         <th>Credits</th>
-                                        <th>Theory<br><small class="text-muted">({{ enrollments.0.unit.theory_hours }}hrs)</small></th>
-                                        <th>Practical<br><small class="text-muted">({{ enrollments.0.unit.practical_hours }}hrs)</small></th>
-                                        <th>Clinical<br><small class="text-muted">({{ enrollments.0.unit.clinical_hours }}hrs)</small></th>
-                                        <th>C.A.<br><small class="text-muted">(30%)</small></th>
-                                        <th>Final<br><small class="text-muted">(0-100)</small></th>
+                                        <th>Lecturer</th>
+                                        <th>C.A.<br><small class="text-muted">(0-100)</small></th>
+                                        <th>Final Exam<br><small class="text-muted">(0-100)</small></th>
+                                        <th>Practical<br><small class="text-muted">(0-100)</small></th>
+                                        <th>Project<br><small class="text-muted">(0-100)</small></th>
                                         <th>Total</th>
                                         <th>Grade</th>
+                                        <th>G.P.</th>
+                                        <th>Q.P.</th>
                                         <th>Status</th>
                                         <th>Exam Date</th>
                                         <th>Remarks</th>
@@ -212,64 +213,16 @@
                                 <tbody>
                                     {% for enrollment in enrollments %}
                                     <tr>
-                                        <td><strong>{{ enrollment.unit.code }}</strong></td>
-                                        <td>{{ enrollment.unit.name }}</td>
+                                        <td><strong>{{ enrollment.course.code }}</strong></td>
+                                        <td>{{ enrollment.course.name }}</td>
                                         <td>
-                                            <span class="badge bg-info">{{ enrollment.unit.get_unit_type_display }}</span>
+                                            <span class="badge bg-info">{{ enrollment.course.get_course_type_display }}</span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-secondary">{{ enrollment.unit.credit_hours }}</span>
+                                            <span class="badge bg-secondary">{{ enrollment.course.credit_hours }}</span>
                                         </td>
-                                        <!-- Theory Marks -->
                                         <td>
-                                            {% if enrollment.unit.theory_hours > 0 %}
-                                            <input type="number" 
-                                                   name="theory_marks_{{ enrollment.id }}"
-                                                   class="form-control form-control-sm marks-input"
-                                                   data-enrollment="{{ enrollment.id }}"
-                                                   data-type="theory"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'theory_marks'|default:'' }}"
-                                                   min="0" 
-                                                   max="100" 
-                                                   step="0.01"
-                                                   placeholder="0-100">
-                                            {% else %}
-                                            <span class="text-muted">N/A</span>
-                                            {% endif %}
-                                        </td>
-                                        <!-- Practical Marks -->
-                                        <td>
-                                            {% if enrollment.unit.practical_hours > 0 %}
-                                            <input type="number" 
-                                                   name="practical_marks_{{ enrollment.id }}"
-                                                   class="form-control form-control-sm marks-input"
-                                                   data-enrollment="{{ enrollment.id }}"
-                                                   data-type="practical"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'practical_marks'|default:'' }}"
-                                                   min="0" 
-                                                   max="100" 
-                                                   step="0.01"
-                                                   placeholder="0-100">
-                                            {% else %}
-                                            <span class="text-muted">N/A</span>
-                                            {% endif %}
-                                        </td>
-                                        <!-- Clinical Marks -->
-                                        <td>
-                                            {% if enrollment.unit.clinical_hours > 0 %}
-                                            <input type="number" 
-                                                   name="clinical_marks_{{ enrollment.id }}"
-                                                   class="form-control form-control-sm marks-input"
-                                                   data-enrollment="{{ enrollment.id }}"
-                                                   data-type="clinical"
-                                                  value="{{ grades_data|get_nested:enrollment.id|get_item:'clinical_marks'|default:'' }}"
-                                                   min="0" 
-                                                   max="100" 
-                                                   step="0.01"
-                                                   placeholder="0-100">
-                                            {% else %}
-                                            <span class="text-muted">N/A</span>
-                                            {% endif %}
+                                            <small>{{ enrollment.lecturer.user.get_full_name|default:"Not Assigned" }}</small>
                                         </td>
                                         <!-- Continuous Assessment -->
                                         <td>
@@ -278,20 +231,54 @@
                                                    class="form-control form-control-sm marks-input"
                                                    data-enrollment="{{ enrollment.id }}"
                                                    data-type="ca"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'continuous_assessment'|default:'' }}"
+                                                   data-weight="0.4"
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.continuous_assessment|default:'' }}{% endwith %}"
                                                    min="0" 
-                                                   max="30" 
+                                                   max="100" 
                                                    step="0.01"
-                                                   placeholder="0-30">
+                                                   placeholder="0-100">
                                         </td>
                                         <!-- Final Exam -->
                                         <td>
                                             <input type="number" 
-                                                   name="final_exam_marks_{{ enrollment.id }}"
+                                                   name="final_exam_{{ enrollment.id }}"
                                                    class="form-control form-control-sm marks-input"
                                                    data-enrollment="{{ enrollment.id }}"
                                                    data-type="final"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'final_exam_marks'|default:'' }}"
+                                                   data-weight="0.6"
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.final_exam|default:'' }}{% endwith %}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                        </td>
+                                        <!-- Practical Marks -->
+                                        <td>
+                                            {% if enrollment.course.practical_hours > 0 %}
+                                            <input type="number" 
+                                                   name="practical_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="practical"
+                                                   data-weight="0.1"
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.practical_marks|default:'' }}{% endwith %}"
+                                                   min="0" 
+                                                   max="100" 
+                                                   step="0.01"
+                                                   placeholder="0-100">
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <!-- Project Marks -->
+                                        <td>
+                                            <input type="number" 
+                                                   name="project_marks_{{ enrollment.id }}"
+                                                   class="form-control form-control-sm marks-input"
+                                                   data-enrollment="{{ enrollment.id }}"
+                                                   data-type="project"
+                                                   data-weight="0.1"
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.project_marks|default:'' }}{% endwith %}"
                                                    min="0" 
                                                    max="100" 
                                                    step="0.01"
@@ -302,7 +289,7 @@
                                             <input type="text" 
                                                    class="form-control form-control-sm total-marks"
                                                    data-enrollment="{{ enrollment.id }}"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'total_marks'|default:'' }}"
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.total_marks|default:'' }}{% endwith %}"
                                                    readonly>
                                         </td>
                                         <!-- Grade -->
@@ -311,6 +298,22 @@
                                                   data-enrollment="{{ enrollment.id }}">
                                                 {% with grade_data=grades_data|get_item:enrollment.id %}
                                                     {{ grade_data.grade|default:'-' }}
+                                                {% endwith %}
+                                            </span>
+                                        </td>
+                                        <!-- Grade Points -->
+                                        <td>
+                                            <span class="grade-points" data-enrollment="{{ enrollment.id }}">
+                                                {% with grade_data=grades_data|get_item:enrollment.id %}
+                                                    {{ grade_data.grade_points|default:'-' }}
+                                                {% endwith %}
+                                            </span>
+                                        </td>
+                                        <!-- Quality Points -->
+                                        <td>
+                                            <span class="quality-points" data-enrollment="{{ enrollment.id }}">
+                                                {% with grade_data=grades_data|get_item:enrollment.id %}
+                                                    {{ grade_data.quality_points|default:'-' }}
                                                 {% endwith %}
                                             </span>
                                         </td>
@@ -334,14 +337,14 @@
                                             <input type="date" 
                                                    name="exam_date_{{ enrollment.id }}"
                                                    class="form-control form-control-sm"
-                                                   value="{{ grades_data|get_nested:enrollment.id|get_item:'exam_date'|default:'' }}">
+                                                   value="{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.exam_date|default:'' }}{% endwith %}">
                                         </td>
                                         <!-- Remarks -->
                                         <td>
                                             <textarea name="remarks_{{ enrollment.id }}"
                                                       class="form-control form-control-sm"
                                                       rows="1"
-                                                      placeholder="Remarks">{{ grades_data|get_nested:enrollment.id|get_item:'remarks'|default:'' }}</textarea>
+                                                      placeholder="Remarks">{% with grade_data=grades_data|get_item:enrollment.id %}{{ grade_data.remarks|default:'' }}{% endwith %}</textarea>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -356,6 +359,9 @@
                             <div>
                                 <button type="button" class="btn btn-outline-info btn-sm me-2" onclick="calculateAllTotals()">
                                     <i class="bi bi-calculator"></i> Calculate All
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm me-2" onclick="calculateGPA()">
+                                    <i class="bi bi-calculator"></i> Update GPA
                                 </button>
                                 <button type="submit" name="save_marks" class="btn btn-success btn-sm">
                                     <i class="bi bi-save"></i> Save All Marks
@@ -373,7 +379,7 @@
         <div class="col-md-12">
             <div class="alert alert-warning">
                 <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> No Enrollments Found</h5>
-                <p class="mb-0">The student is not enrolled in any units for the current semester, or no current semester is set.</p>
+                <p class="mb-0">The student is not enrolled in any courses for the current semester, or no current semester is set.</p>
             </div>
         </div>
     </div>
@@ -386,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Student select dropdown functionality
     document.getElementById('student_select').addEventListener('change', function() {
         if (this.value) {
-            document.getElementById('registration_number').value = this.value;
+            document.getElementById('student_id').value = this.value;
         }
     });
     
@@ -406,33 +412,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function calculateTotal(enrollmentId) {
-    const theoryInput = document.querySelector(`input[name="theory_marks_${enrollmentId}"]`);
-    const practicalInput = document.querySelector(`input[name="practical_marks_${enrollmentId}"]`);
-    const clinicalInput = document.querySelector(`input[name="clinical_marks_${enrollmentId}"]`);
     const caInput = document.querySelector(`input[name="continuous_assessment_${enrollmentId}"]`);
-    const finalInput = document.querySelector(`input[name="final_exam_marks_${enrollmentId}"]`);
+    const finalInput = document.querySelector(`input[name="final_exam_${enrollmentId}"]`);
+    const practicalInput = document.querySelector(`input[name="practical_marks_${enrollmentId}"]`);
+    const projectInput = document.querySelector(`input[name="project_marks_${enrollmentId}"]`);
     const totalInput = document.querySelector(`input[data-enrollment="${enrollmentId}"].total-marks`);
     const gradeSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].grade-badge`);
+    const gradePointsSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].grade-points`);
+    const qualityPointsSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].quality-points`);
     const statusSpan = document.querySelector(`span[data-enrollment="${enrollmentId}"].status-badge`);
     
-    let componentMarks = [];
     let ca = 0;
     let finalExam = 0;
+    let practical = 0;
+    let project = 0;
     
-    // Collect all component marks (theory, practical, clinical) that exist and have values
-    if (theoryInput && theoryInput.value && !isNaN(parseFloat(theoryInput.value))) {
-        componentMarks.push(parseFloat(theoryInput.value));
-    }
-    
-    if (practicalInput && practicalInput.value && !isNaN(parseFloat(practicalInput.value))) {
-        componentMarks.push(parseFloat(practicalInput.value));
-    }
-    
-    if (clinicalInput && clinicalInput.value && !isNaN(parseFloat(clinicalInput.value))) {
-        componentMarks.push(parseFloat(clinicalInput.value));
-    }
-    
-    // Get CA and Final exam marks
+    // Get values
     if (caInput && caInput.value && !isNaN(parseFloat(caInput.value))) {
         ca = parseFloat(caInput.value);
     }
@@ -441,21 +436,23 @@ function calculateTotal(enrollmentId) {
         finalExam = parseFloat(finalInput.value);
     }
     
-    // Calculate total
-    let total = 0;
-    
-    // If we have component marks, calculate their average and add CA
-    if (componentMarks.length > 0) {
-        const componentAverage = componentMarks.reduce((sum, mark) => sum + mark, 0) / componentMarks.length;
-        total = componentAverage + ca;
-    } else {
-        // If no component marks, just use CA
-        total = ca;
+    if (practicalInput && practicalInput.value && !isNaN(parseFloat(practicalInput.value))) {
+        practical = parseFloat(practicalInput.value);
     }
     
-    // Final exam mark is the same as total (not added to it)
-    if (finalExam > 0) {
-        total = finalExam;
+    if (projectInput && projectInput.value && !isNaN(parseFloat(projectInput.value))) {
+        project = parseFloat(projectInput.value);
+    }
+    
+    // Calculate total based on your Grade model logic
+    // CA (40%) + Final Exam (60%) + optional practical/project components (10% each)
+    let total = (ca * 0.4) + (finalExam * 0.6);
+    
+    if (practical > 0) {
+        total += practical * 0.1;
+    }
+    if (project > 0) {
+        total += project * 0.1;
     }
     
     // Update total input
@@ -471,6 +468,18 @@ function calculateTotal(enrollmentId) {
         gradeSpan.className = `badge grade-badge ${gradeData.badgeClass}`;
     }
     
+    if (gradePointsSpan) {
+        gradePointsSpan.textContent = gradeData.gradePoints;
+    }
+    
+    if (qualityPointsSpan) {
+        // Get credit hours from the table
+        const creditBadge = document.querySelector(`tr:has(input[data-enrollment="${enrollmentId}"]) .badge.bg-secondary`);
+        const creditHours = creditBadge ? parseFloat(creditBadge.textContent) : 0;
+        const qualityPoints = gradeData.gradePoints * creditHours;
+        qualityPointsSpan.textContent = qualityPoints > 0 ? qualityPoints.toFixed(2) : '-';
+    }
+    
     if (statusSpan) {
         statusSpan.textContent = gradeData.status;
         statusSpan.className = `badge status-badge ${gradeData.statusClass}`;
@@ -481,57 +490,90 @@ function calculateGrade(total) {
     if (total === 0 || isNaN(total)) {
         return {
             grade: '-',
+            gradePoints: '-',
             status: 'Pending',
             badgeClass: 'bg-secondary',
             statusClass: 'bg-secondary'
         };
     }
     
-    let grade, status, badgeClass, statusClass;
+    let grade, gradePoints, status, badgeClass, statusClass, isPassed;
     
+    // Based on your Grade model's save method logic
     if (total >= 90) {
         grade = 'A+';
-        status = 'Passed';
-        badgeClass = 'bg-success';
-        statusClass = 'bg-success';
+        gradePoints = 4.0;
+        isPassed = true;
     } else if (total >= 80) {
         grade = 'A';
-        status = 'Passed';
-        badgeClass = 'bg-success';
-        statusClass = 'bg-success';
+        gradePoints = 4.0;
+        isPassed = true;
+    } else if (total >= 75) {
+        grade = 'A-';
+        gradePoints = 3.7;
+        isPassed = true;
     } else if (total >= 70) {
         grade = 'B+';
-        status = 'Passed';
-        badgeClass = 'bg-primary';
-        statusClass = 'bg-success';
-    } else if (total >= 60) {
+        gradePoints = 3.3;
+        isPassed = true;
+    } else if (total >= 65) {
         grade = 'B';
-        status = 'Passed';
-        badgeClass = 'bg-primary';
-        statusClass = 'bg-success';
-    } else if (total >= 50) {
+        gradePoints = 3.0;
+        isPassed = true;
+    } else if (total >= 60) {
+        grade = 'B-';
+        gradePoints = 2.7;
+        isPassed = true;
+    } else if (total >= 55) {
         grade = 'C+';
-        status = 'Passed';
-        badgeClass = 'bg-info';
-        statusClass = 'bg-success';
-    } else if (total >= 40) {
+        gradePoints = 2.3;
+        isPassed = true;
+    } else if (total >= 50) {
         grade = 'C';
-        status = 'Passed';
-        badgeClass = 'bg-info';
-        statusClass = 'bg-success';
-    } else if (total >= 30) {
+        gradePoints = 2.0;
+        isPassed = true;
+    } else if (total >= 45) {
+        grade = 'C-';
+        gradePoints = 1.7;
+        isPassed = true;
+    } else if (total >= 40) {
+        grade = 'D+';
+        gradePoints = 1.3;
+        isPassed = false;
+    } else if (total >= 35) {
         grade = 'D';
-        status = 'Failed';
-        badgeClass = 'bg-warning';
-        statusClass = 'bg-danger';
+        gradePoints = 1.0;
+        isPassed = false;
     } else {
         grade = 'F';
+        gradePoints = 0.0;
+        isPassed = false;
+    }
+    
+    // Set badge classes based on grade
+    if (isPassed) {
+        if (grade.startsWith('A')) {
+            badgeClass = 'bg-success';
+        } else if (grade.startsWith('B')) {
+            badgeClass = 'bg-primary';
+        } else {
+            badgeClass = 'bg-info';
+        }
+        status = 'Passed';
+        statusClass = 'bg-success';
+    } else {
+        badgeClass = grade === 'F' ? 'bg-danger' : 'bg-warning';
         status = 'Failed';
-        badgeClass = 'bg-danger';
         statusClass = 'bg-danger';
     }
     
-    return { grade, status, badgeClass, statusClass };
+    return { 
+        grade, 
+        gradePoints: gradePoints.toFixed(1), 
+        status, 
+        badgeClass, 
+        statusClass 
+    };
 }
 
 function calculateAllTotals() {
@@ -565,7 +607,7 @@ function clearAllMarks() {
             textarea.value = '';
         });
         
-        // Reset badges
+        // Reset badges and spans
         document.querySelectorAll('.grade-badge').forEach(function(span) {
             span.textContent = '-';
             span.className = 'badge grade-badge bg-secondary';
@@ -573,6 +615,42 @@ function clearAllMarks() {
         document.querySelectorAll('.status-badge').forEach(function(span) {
             span.textContent = 'Pending';
             span.className = 'badge status-badge bg-secondary';
+        });
+        document.querySelectorAll('.grade-points').forEach(function(span) {
+            span.textContent = '-';
+        });
+        document.querySelectorAll('.quality-points').forEach(function(span) {
+            span.textContent = '-';
+        });
+    }
+}
+
+function calculateGPA() {
+    const studentId = document.querySelector('input[name="student_id"]').value;
+    if (!studentId) {
+        alert('No student selected');
+        return;
+    }
+    
+    if (confirm('This will recalculate the student\'s cumulative GPA based on all completed courses. Continue?')) {
+        fetch(`/admin/calculate-gpa/${studentId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`GPA updated successfully!\nCumulative GPA: ${data.cumulative_gpa}\nTotal Credit Hours: ${data.total_credit_hours}`);
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while calculating GPA');
         });
     }
 }

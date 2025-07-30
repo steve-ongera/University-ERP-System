@@ -59,4 +59,13 @@ urlpatterns = [
     path('students/<str:student_id>/delete/', views.student_delete, name='student_delete'),
     path('students/<str:student_id>/performance/', views.student_performance, name='student_performance'),
     path('api/programmes-by-school/', views.get_programmes_by_school, name='get_programmes_by_school'),
+    # Marks entry URLs
+    path('admin-marks-entry/', views.admin_marks_entry, name='admin_marks_entry'),
+    path('admin-marks-entry/<str:student_id>/', views.admin_marks_entry, name='admin_marks_entry_student'),
+    
+    
+    # AJAX endpoints
+    path('admin-get-student-info/', views.get_student_info, name='get_student_info'),
+    path('admin-calculate-gpa/<str:student_id>/', views.calculate_student_gpa, name='calculate_student_gpa'),
+
 ]
