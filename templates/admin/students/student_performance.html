@@ -28,7 +28,7 @@
                     <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
-                    <a href="{% url 'student_detail' student.registration_number %}" class="btn btn-outline-primary">
+                    <a href="{% url 'student_detail' student.student_id %}" class="btn btn-outline-primary">
                         <i class="bi bi-person"></i> Profile
                     </a>
                     <button class="btn btn-outline-success" onclick="window.print()">
@@ -67,7 +67,7 @@
                                     <label class="small text-muted">Name</label>
                                     <p class="fw-bold">{{ student.user.get_full_name }}</p>
                                     <label class="small text-muted">Registration Number</label>
-                                    <p class="fw-bold">{{ student.registration_number }}</p>
+                                    <p class="fw-bold">{{ student.student_id }}</p>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="small text-muted">Current Year/Semester</label>
@@ -82,8 +82,8 @@
                                 <div class="col-md-4 mb-3">
                                     <label class="small text-muted">Programme</label>
                                     <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
-                                    <label class="small text-muted">School</label>
-                                    <p class="fw-bold">{{ student.programme.school.name }}</p>
+                                    <label class="small text-muted">Department</label>
+                                    <p class="fw-bold">{{ student.programme.department.name }}</p>
                                 </div>
                             </div>
                             <div class="row">

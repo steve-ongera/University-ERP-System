@@ -1734,3 +1734,514 @@ def admin_dashboard(request):
     }
     
     return render(request, 'admin/dashboard.html', context)
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.db.models import Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import Student, Programme, Department, User
+from django.urls import reverse
+
+
+@login_required
+def student_list(request):
+    """
+    Display a paginated list of students with search and filter functionality
+    """
+    # Get all students with related data to avoid N+1 queries
+    students = Student.objects.select_related(
+        'user', 'programme', 'programme__department'
+    ).all()
+    
+    # Get filter parameters from request
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '')
+    programme_filter = request.GET.get('programme', '')
+    school_filter = request.GET.get('department', '')
+    year_filter = request.GET.get('year', '')
+    semester_filter = request.GET.get('semester', '')
+    admission_type_filter = request.GET.get('admission_type', '')
+    sponsor_type_filter = request.GET.get('sponsor_type', '')
+    
+    # Apply search filter
+    if search_query:
+        students = students.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(student_id__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(programme__name__icontains=search_query) |
+            Q(programme__code__icontains=search_query)
+        )
+    
+    # Apply status filter
+    if status_filter:
+        students = students.filter(status=status_filter)
+    
+    # Apply programme filter
+    if programme_filter:
+        students = students.filter(programme_id=programme_filter)
+    
+    # Apply school filter
+    if school_filter:
+        students = students.filter(programme__school_id=school_filter)
+    
+    # Apply year filter
+    if year_filter:
+        students = students.filter(current_year=year_filter)
+    
+    # Apply semester filter
+    if semester_filter:
+        students = students.filter(current_semester=semester_filter)
+    
+    # Apply admission type filter
+    if admission_type_filter:
+        students = students.filter(admission_type=admission_type_filter)
+    
+    # Apply sponsor type filter
+    if sponsor_type_filter:
+        students = students.filter(sponsor_type=sponsor_type_filter)
+    
+    # Order students by registration number
+    students = students.order_by('-admission_date', 'student_id')
+    
+    # Pagination
+    paginator = Paginator(students, 20)  # Show 20 students per page
+    page = request.GET.get('page', 1)
+    
+    try:
+        students_page = paginator.page(page)
+    except PageNotAnInteger:
+        students_page = paginator.page(1)
+    except EmptyPage:
+        students_page = paginator.page(paginator.num_pages)
+    
+    # Get data for filter dropdowns
+    status_choices = Student.STATUS_CHOICES
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = Department.objects.filter(is_active=True).order_by('name')
+    admission_type_choices = Student.ADMISSION_TYPES
+    sponsor_type_choices = Student.SPONSOR_TYPES
+    
+    # Year and semester choices (based on your model validators)
+    year_choices = [(i, f'Year {i}') for i in range(1, 5)]  # 1-4 years
+    semester_choices = [(i, f'Semester {i}') for i in range(1, 4)]  # 1-3 semesters
+    
+    context = {
+        'students': students_page,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'programme_filter': programme_filter,
+        'school_filter': school_filter,
+        'year_filter': year_filter,
+        'semester_filter': semester_filter,
+        'admission_type_filter': admission_type_filter,
+        'sponsor_type_filter': sponsor_type_filter,
+        
+        # Filter options
+        'status_choices': status_choices,
+        'programmes': programmes,
+        'schools': schools,
+        'year_choices': year_choices,
+        'semester_choices': semester_choices,
+        'admission_type_choices': admission_type_choices,
+        'sponsor_type_choices': sponsor_type_choices,
+        
+        # Statistics
+        'total_students': students.count(),
+        'active_students': Student.objects.filter(status='active').count(),
+        'graduated_students': Student.objects.filter(status='graduated').count(),
+    }
+    
+    return render(request, 'admin/students/student_list.html', context)
+
+
+@login_required
+def student_detail(request, student_id):
+    """
+    Display detailed information for a specific student
+    """
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'user', 'programme', 'programme__department'
+        ),
+        student_id=student_id
+    )
+    
+    context = {
+        'student': student,
+    }
+    
+    return render(request, 'admin/students/student_detail.html', context)
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.hashers import make_password
+from django.db import transaction
+from .models import User, Student, Programme, Department
+from .forms import UserForm, StudentForm
+
+
+@login_required
+def student_create(request):
+    """
+    Create a new student record
+    """
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES)
+        student_form = StudentForm(request.POST)
+        
+        if user_form.is_valid() and student_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Create user
+                    user = user_form.save(commit=False)
+                    user.user_type = 'student'
+                    
+                    # Set password
+                    password = user_form.cleaned_data.get('password')
+                    if password:
+                        user.password = make_password(password)
+                    
+                    user.save()
+                    
+                    # Create student profile
+                    student = student_form.save(commit=False)
+                    student.user = user
+                    student.save()
+                    
+                    messages.success(request, f'Student {user.get_full_name()} created successfully!')
+                    return redirect('student_list')
+                    
+            except Exception as e:
+                messages.error(request, f'Error creating student: {str(e)}')
+        else:
+            # Add form errors to messages
+            for field, errors in user_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+            for field, errors in student_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        user_form = UserForm()
+        student_form = StudentForm()
+    
+    # Get data for form dropdowns
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = Department.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'user_form': user_form,
+        'student_form': student_form,
+        'action': 'Create',
+        'programmes': programmes,
+        'schools': schools,
+        'status_choices': Student.STATUS_CHOICES,
+        'admission_type_choices': Student.ADMISSION_TYPES,
+        'sponsor_type_choices': Student.SPONSOR_TYPES,
+        'gender_choices': User.GENDER_CHOICES,
+    }
+    
+    return render(request, 'admin/students/student_form.html', context)
+
+
+@login_required
+def student_update(request, student_id):
+    """
+    Update an existing student record
+    """
+    student = get_object_or_404(Student, student_id=student_id)
+    user = student.user
+    
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES, instance=user, is_update=True)
+        student_form = StudentForm(request.POST, instance=student)
+        
+        if user_form.is_valid() and student_form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Update user
+                    user = user_form.save(commit=False)
+                    
+                    # Update password if provided
+                    password = user_form.cleaned_data.get('password')
+                    if password:
+                        user.password = make_password(password)
+                    
+                    user.save()
+                    
+                    # Update student profile
+                    student = student_form.save()
+                    
+                    messages.success(request, f'Student {user.get_full_name()} updated successfully!')
+                    return redirect('student_detail', student_id=student_id)
+                    
+            except Exception as e:
+                messages.error(request, f'Error updating student: {str(e)}')
+        else:
+            # Add form errors to messages
+            for field, errors in user_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+            for field, errors in student_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        user_form = UserForm(instance=user, is_update=True)
+        student_form = StudentForm(instance=student)
+    
+    # Get data for form dropdowns
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = Department.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'user_form': user_form,
+        'student_form': student_form,
+        'student': student,
+        'action': 'Update',
+        'programmes': programmes,
+        'schools': schools,
+        'status_choices': Student.STATUS_CHOICES,
+        'admission_type_choices': Student.ADMISSION_TYPES,
+        'sponsor_type_choices': Student.SPONSOR_TYPES,
+        'gender_choices': User.GENDER_CHOICES,
+    }
+    
+    return render(request, 'admin/students/student_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def student_delete(request, student_id):
+    """
+    Delete a student record
+    """
+    student = get_object_or_404(Student, student_id=student_id)
+    
+    try:
+        student_name = student.user.get_full_name()
+        student_reg_number = student.student_id
+        
+        # Delete the user account (this will cascade to delete student record)
+        with transaction.atomic():
+            student.user.delete()
+        
+        messages.success(request, f'Student {student_name} ({student_reg_number}) has been deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting student: {str(e)}')
+    
+    return redirect('student_list')
+
+
+@login_required
+def student_performance(request, student_id):
+    """View specific student performance with all academic records"""
+    
+    # Get the student
+    student = get_object_or_404(Student, student_id=student_id)
+    
+    # Get all enrollments for this student
+    enrollments = Enrollment.objects.filter(
+        student=student
+    ).select_related(
+        'course', 'semester', 'semester__academic_year'
+    ).prefetch_related('grade').order_by(
+        'semester__academic_year__start_date', 'semester__semester_number'
+    )
+    
+    # Organize data by academic year and semester
+    academic_data = []
+    
+    current_year = None
+    current_semester = None
+    year_data = None
+    semester_data = None
+    
+    overall_stats = {
+        'total_subjects': 0,
+        'passed_subjects': 0,
+        'failed_subjects': 0,
+        'total_credits': 0,
+        'earned_credits': 0,
+        'overall_gpa': 0,
+        'total_grade_points': 0
+    }
+    
+    for enrollment in enrollments:
+        academic_year = enrollment.semester.academic_year
+        semester = enrollment.semester
+        
+        # Create new year data if needed
+        if current_year != academic_year:
+            if year_data:
+                academic_data.append(year_data)
+            year_data = {
+                'academic_year': academic_year,
+                'semesters': []
+            }
+            current_year = academic_year
+            current_semester = None
+        
+        # Create new semester data if needed
+        if current_semester != semester:
+            if semester_data:
+                # Calculate semester statistics
+                total_subjects = len(semester_data['subjects'])
+                passed_subjects = sum(1 for s in semester_data['subjects'] if s['is_passed'])
+                failed_subjects = total_subjects - passed_subjects
+                
+                total_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'])
+                earned_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'] if s['is_passed'])
+                
+                # Calculate GPA for semester
+                total_grade_points = sum(
+                    (s['grade_points'] or 0) * s['subject'].credit_hours 
+                    for s in semester_data['subjects'] if s['grade_points'] is not None
+                )
+                semester_gpa = total_grade_points / total_credits if total_credits > 0 else 0
+                
+                semester_data['stats'] = {
+                    'total_subjects': total_subjects,
+                    'passed_subjects': passed_subjects,
+                    'failed_subjects': failed_subjects,
+                    'total_credits': total_credits,
+                    'earned_credits': earned_credits,
+                    'semester_gpa': round(semester_gpa, 2),
+                    'total_grade_points': total_grade_points
+                }
+                
+                year_data['semesters'].append(semester_data)
+            
+            semester_data = {
+                'semester': semester,
+                'subjects': [],
+                'stats': {}
+            }
+            current_semester = semester
+        
+        # Get grade information
+        grade_info = {
+            'enrollment': enrollment,
+            'subject': enrollment.course,
+            'theory_marks': None,
+            'practical_marks': None,
+            'clinical_marks': None,
+            'continuous_assessment': None,
+            'final_exam_marks': None,
+            'total_marks': None,
+            'grade': None,
+            'grade_points': None,
+            'is_passed': False,
+            'exam_date': None,
+            'remarks': None
+        }
+        
+        # Check if grade exists
+        if hasattr(enrollment, 'grade'):
+            grade = enrollment.grade
+            grade_info.update({
+                'theory_marks': grade.theory_marks,
+                'practical_marks': grade.practical_marks,
+                'clinical_marks': grade.clinical_marks,
+                'continuous_assessment': grade.continuous_assessment,
+                'final_exam_marks': grade.final_exam_marks,
+                'total_marks': grade.total_marks,
+                'grade': grade.grade,
+                'grade_points': grade.grade_points,
+                'is_passed': grade.is_passed,
+                'exam_date': grade.exam_date,
+                'remarks': grade.remarks
+            })
+        
+        semester_data['subjects'].append(grade_info)
+        
+        # Add to overall statistics
+        overall_stats['total_subjects'] += 1
+        if grade_info['is_passed']:
+            overall_stats['passed_subjects'] += 1
+        else:
+            overall_stats['failed_subjects'] += 1
+        
+        overall_stats['total_credits'] += enrollment.course.credit_hours
+        if grade_info['is_passed']:
+            overall_stats['earned_credits'] += enrollment.course.credit_hours
+        
+        if grade_info['grade_points'] is not None:
+            overall_stats['total_grade_points'] += grade_info['grade_points'] * enrollment.course.credit_hours
+    
+    # Don't forget the last semester and year
+    if semester_data:
+        # Calculate final semester statistics
+        total_subjects = len(semester_data['subjects'])
+        passed_subjects = sum(1 for s in semester_data['subjects'] if s['is_passed'])
+        failed_subjects = total_subjects - passed_subjects
+        
+        total_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'])
+        earned_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'] if s['is_passed'])
+        
+        total_grade_points = sum(
+            (s['grade_points'] or 0) * s['subject'].credit_hours 
+            for s in semester_data['subjects'] if s['grade_points'] is not None
+        )
+        semester_gpa = total_grade_points / total_credits if total_credits > 0 else 0
+        
+        semester_data['stats'] = {
+            'total_subjects': total_subjects,
+            'passed_subjects': passed_subjects,
+            'failed_subjects': failed_subjects,
+            'total_credits': total_credits,
+            'earned_credits': earned_credits,
+            'semester_gpa': round(semester_gpa, 2),
+            'total_grade_points': total_grade_points
+        }
+        
+        year_data['semesters'].append(semester_data)
+    
+    if year_data:
+        academic_data.append(year_data)
+    
+    # Calculate overall GPA
+    if overall_stats['total_credits'] > 0:
+        overall_stats['overall_gpa'] = round(
+            overall_stats['total_grade_points'] / overall_stats['total_credits'], 2
+        )
+    
+    # Calculate completion percentage
+    overall_stats['completion_percentage'] = round(
+        (overall_stats['earned_credits'] / overall_stats['total_credits']) * 100, 2
+    ) if overall_stats['total_credits'] > 0 else 0
+    
+    context = {
+        'student': student,
+        'academic_data': academic_data,
+        'overall_stats': overall_stats,
+        'programme': student.programme,
+        'school': student.programme.department,
+    }
+    
+    return render(request, 'admin/students/student_performance.html', context)
+
+
+# AJAX view for dynamic filtering (optional)
+@login_required
+def get_programmes_by_school(request):
+    """
+    AJAX view to get programmes filtered by school
+    """
+    school_id = request.GET.get('school_id')
+    programmes = Programme.objects.filter(
+        school_id=school_id, is_active=True
+    ).values('id', 'name', 'code').order_by('name')
+    
+    return JsonResponse(list(programmes), safe=False)

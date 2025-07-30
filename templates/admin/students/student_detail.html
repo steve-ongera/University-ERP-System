@@ -26,10 +26,10 @@
                     <a href="{% url 'student_list' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
-                    <a href="{% url 'student_update' student.registration_number %}" class="btn btn-outline-primary">
+                    <a href="{% url 'student_update' student.student_id %}" class="btn btn-outline-primary">
                         <i class="bi bi-pencil"></i> Edit
                     </a>
-                    <a href="{% url 'student_delete' student.registration_number %}" class="btn btn-outline-danger">
+                    <a href="{% url 'student_delete' student.student_id %}" class="btn btn-outline-danger">
                         <i class="bi bi-trash"></i> Delete
                     </a>
                     <a href="#" class="btn btn-outline-info">
@@ -63,7 +63,7 @@
                     </div>
                     
                     <h4 class="mb-2">{{ student.user.get_full_name }}</h4>
-                    <p class="text-muted mb-3">{{ student.registration_number }}</p>
+                    <p class="text-muted mb-3">{{ student.student_id }}</p>
                     
                     <div class="student-status mb-3">
                         <span class="badge status-badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning text-dark{% else %}danger{% endif %}">
@@ -89,7 +89,7 @@
                     </div>
                     
                     <div class="mt-4">
-                        <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-primary btn-sm w-100">
+                        <a href="{% url 'student_performance' student.student_id %}" class="btn btn-primary btn-sm w-100">
                             <i class="bi bi-graph-up me-1"></i> View Performance
                         </a>
                     </div>

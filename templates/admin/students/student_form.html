@@ -173,10 +173,10 @@
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label for="{{ student_form.registration_number.id_for_label }}" class="form-label">Registration Number *</label>
-                                        {{ student_form.registration_number }}
+                                        <label for="{{ student_form.student_id.id_for_label }}" class="form-label">Registration Number *</label>
+                                        {{ student_form.student_id }}
                                         <div class="invalid-feedback">
-                                            {{ student_form.registration_number.errors|first }}
+                                            {{ student_form.student_id.errors|first }}
                                         </div>
                                     </div>
                                     
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-generate registration number if empty
-    const regNumberInput = document.getElementById('{{ student_form.registration_number.id_for_label }}');
+    const regNumberInput = document.getElementById('{{ student_form.student_id.id_for_label }}');
     const programmeSelect = document.getElementById('{{ student_form.programme.id_for_label }}');
     
     if (regNumberInput && programmeSelect && !regNumberInput.value) {

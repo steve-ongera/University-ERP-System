@@ -51,4 +51,12 @@ urlpatterns = [
     path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+
+    path('students/', views.student_list, name='student_list'),
+    path('students/create/', views.student_create, name='student_create'),
+    path('students/<str:student_id>/', views.student_detail, name='student_detail'),
+    path('students/<str:student_id>/update/', views.student_update, name='student_update'),
+    path('students/<str:student_id>/delete/', views.student_delete, name='student_delete'),
+    path('students/<str:student_id>/performance/', views.student_performance, name='student_performance'),
+    path('api/programmes-by-school/', views.get_programmes_by_school, name='get_programmes_by_school'),
 ]

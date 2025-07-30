@@ -168,7 +168,7 @@
                                     <th>Registration No.</th>
                                     <th>Name</th>
                                     <th>Programme</th>
-                                    <th>School</th>
+                                    <th>Department</th>
                                     <th>Year/Semester</th>
                                     <th>Status</th>
                                     <th>Admission Date</th>
@@ -190,7 +190,7 @@
                                             </div>
                                         {% endif %}
                                     </td>
-                                    <td class="fw-bold">{{ student.registration_number }}</td>
+                                    <td class="fw-bold">{{ student.student_id }}</td>
                                     <td>
                                         <div>
                                             <strong>{{ student.user.get_full_name }}</strong>
@@ -205,7 +205,7 @@
                                             <small class="text-muted">{{ student.programme.code }}</small>
                                         </div>
                                     </td>
-                                    <td>{{ student.programme.school.name }}</td>
+                                    <td>{{ student.programme.department.name }}</td>
                                     <td class="text-center">
                                         <span class="badge bg-info">Y{{ student.current_year }}</span>
                                         <span class="badge bg-secondary">S{{ student.current_semester }}</span>
@@ -218,20 +218,20 @@
                                     <td>{{ student.admission_date|date:"M d, Y" }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{% url 'student_detail' student.registration_number %}" 
+                                            <a href="{% url 'student_detail' student.student_id %}" 
                                                class="btn btn-sm btn-outline-primary" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="{% url 'student_update' student.registration_number %}" 
+                                            <a href="{% url 'student_update' student.student_id %}" 
                                                class="btn btn-sm btn-outline-secondary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <a href="{% url 'student_performance' student.registration_number %}" 
+                                            <a href="{% url 'student_performance' student.student_id %}" 
                                                class="btn btn-sm btn-outline-info" title="Performance">
                                                 <i class="bi bi-graph-up"></i>
                                             </a>
                                             <button class="btn btn-sm btn-outline-danger delete-student" 
-                                                    data-url="{% url 'student_delete' student.registration_number %}"
+                                                    data-url="{% url 'student_delete' student.student_id %}"
                                                     data-name="{{ student.user.get_full_name }}" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
