@@ -101,4 +101,9 @@ urlpatterns = [
     path('grades/course/<int:course_id>/', views.course_grades, name='course_grades'),
     path('grades/analytics/', views.grades_analytics, name='grades_analytics'),
 
+    # Fee Structure URLs
+    path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
+    path('programme/<int:programme_id>/fees/', views.programme_fee_detail, name='programme_fee_detail'),
+    path('fee-structures/comparison/', views.fee_structure_comparison, name='fee_structure_comparison'),
+
 ]

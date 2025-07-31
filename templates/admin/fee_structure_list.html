@@ -1,0 +1,339 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-currency-dollar me-2"></i>Programme Fee Structures
+                        </h2>
+                        <p class="text-muted mb-0">
+                            Manage and view fee structures for all academic programmes
+                            {% if current_academic_year %}
+                                | Current Academic Year: <span class="badge bg-primary">{{ current_academic_year.year }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'fee_structure_comparison' %}" class="btn btn-outline-info">
+                                <i class="bi bi-bar-chart"></i> Compare Fees
+                            </a>
+                            <a href="#" class="btn btn-primary">
+                                <i class="bi bi-plus"></i> Add Fee Structure
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Year Filter -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="academic_year" class="form-label">Academic Year</label>
+                            <select name="academic_year" id="academic_year" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Academic Years</option>
+                                {% for year in academic_years %}
+                                    <option value="{{ year.id }}" {% if year == current_academic_year %}selected{% endif %}>
+                                        {{ year.year }} {% if year.is_current %}(Current){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="faculty_filter" class="form-label">Faculty</label>
+                            <select name="faculty" id="faculty_filter" class="form-select">
+                                <option value="">All Faculties</option>
+                                <!-- Add faculty options dynamically -->
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="bi bi-x-circle"></i> Clear Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Fee Cards -->
+    <div class="row p-3">
+        {% for programme_info in programme_data %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm h-100 programme-card" data-programme-id="{{ programme_info.programme.id }}">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="fw-bold mb-1">{{ programme_info.programme.name }}</h6>
+                            <small class="text-muted">{{ programme_info.programme.code }}</small>
+                        </div>
+                        <span class="badge bg-{% if programme_info.programme.programme_type == 'bachelor' %}info{% elif programme_info.programme.programme_type == 'master' %}success{% elif programme_info.programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                            {{ programme_info.programme.get_programme_type_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <h5 class="text-primary mb-0">{{ programme_info.active_students }}</h5>
+                            <small class="text-muted">Active Students</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-success mb-0">{{ programme_info.programme.duration_years }}</h5>
+                            <small class="text-muted">Years</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Faculty:</small>
+                            <small class="fw-bold">{{ programme_info.programme.faculty.code }}</small>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Department:</small>
+                            <small class="fw-bold">{{ programme_info.programme.department.code }}</small>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Study Mode:</small>
+                            <small class="fw-bold">{{ programme_info.programme.get_study_mode_display }}</small>
+                        </div>
+                    </div>
+                    
+                    {% if programme_info.has_fee_structure %}
+                        <div class="border-top pt-3">
+                            <div class="row text-center">
+                                <div class="col-12 mb-2">
+                                    <h4 class="text-success mb-0">KSh {{ programme_info.avg_semester_fee|floatformat:0|default:"0" }}</h4>
+                                    <small class="text-muted">Avg. Semester Fee</small>
+                                </div>
+                            </div>
+                            
+                            {% if programme_info.min_semester_fee != programme_info.max_semester_fee %}
+                            <div class="row text-center mt-2">
+                                <div class="col-6">
+                                    <small class="text-muted">Min: KSh {{ programme_info.min_semester_fee|floatformat:0 }}</small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Max: KSh {{ programme_info.max_semester_fee|floatformat:0 }}</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="border-top pt-3 text-center">
+                            <span class="badge bg-warning">No Fee Structure</span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'programme_fee_detail' programme_info.programme.id %}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="bi bi-eye"></i> View Details
+                        </a>
+                        {% if programme_info.has_fee_structure %}
+                            <span class="badge bg-success">{{ programme_info.fee_structures_count }} Fee Structure{{ programme_info.fee_structures_count|pluralize }}</span>
+                        {% else %}
+                            <a href="#" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-plus"></i> Add Fees
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h5 class="mt-3">No Programmes Found</h5>
+                    <p class="text-muted">No programmes are available or match your current filters.</p>
+                    <a href="#" class="btn btn-primary">
+                        <i class="bi bi-plus"></i> Add Programme
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Statistics -->
+    {% if programme_data %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Summary Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-primary">{{ programme_data|length }}</h4>
+                            <p class="small text-muted mb-0">Total Programmes</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">{{ programme_data|length|add:"0" }}</h4>
+                            <p class="small text-muted mb-0">With Fee Structures</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-info">
+                                {% widthratio programme_data|length 1 1 %}
+                            </h4>
+                            <p class="small text-muted mb-0">Total Students</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">KSh 0</h4>
+                            <p class="small text-muted mb-0">Avg Programme Cost</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to programme cards
+    const programmeCards = document.querySelectorAll('.programme-card');
+    
+    programmeCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Clear filters function
+    window.clearFilters = function() {
+        const form = document.querySelector('form');
+        const selects = form.querySelectorAll('select');
+        selects.forEach(select => {
+            select.selectedIndex = 0;
+        });
+        form.submit();
+    };
+    
+    // Search functionality
+    function addSearchFunctionality() {
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'form-control';
+        searchInput.placeholder = 'Search programmes...';
+        searchInput.id = 'programme-search';
+        
+        const searchContainer = document.createElement('div');
+        searchContainer.className = 'col-md-4';
+        searchContainer.innerHTML = '<label for="programme-search" class="form-label">Search</label>';
+        searchContainer.appendChild(searchInput);
+        
+        const filterRow = document.querySelector('.row.g-3');
+        if (filterRow) {
+            filterRow.appendChild(searchContainer);
+        }
+        
+        // Search functionality
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.programme-card');
+            
+            cards.forEach(card => {
+                const programmeName = card.querySelector('h6').textContent.toLowerCase();
+                const programmeCode = card.querySelector('.text-muted').textContent.toLowerCase();
+                const cardContainer = card.closest('.col-md-6');
+                
+                if (programmeName.includes(searchTerm) || programmeCode.includes(searchTerm)) {
+                    cardContainer.style.display = 'block';
+                } else {
+                    cardContainer.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Add search functionality
+    addSearchFunctionality();
+});
+</script>
+
+<style>
+.programme-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.programme-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 25px rgba(0,0,0,0.15) !important;
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+@media print {
+    .btn, .card-footer, .btn-group {
+        display: none !important;
+    }
+    
+    .programme-card {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+}
+
+.text-primary { color: #0d6efd !important; }
+.text-success { color: #198754 !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-warning { color: #ffc107 !important; }
+</style>
+
+{% endblock %}

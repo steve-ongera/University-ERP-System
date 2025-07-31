@@ -3927,3 +3927,218 @@ def grades_analytics(request):
     }
     
     return render(request, 'grades/analytics.html', context)
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Sum, Avg, Count, Q
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .models import Programme, FeeStructure, AcademicYear, Student
+
+@login_required
+def fee_structure_list(request):
+    """Display all programmes with their fee information"""
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all active programmes with their fee statistics
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'faculty', 'department'
+    ).prefetch_related('fee_structures')
+    
+    programme_data = []
+    
+    for programme in programmes:
+        # Get fee structures for current academic year
+        fee_structures = FeeStructure.objects.filter(
+            programme=programme,
+            academic_year=current_academic_year
+        ) if current_academic_year else FeeStructure.objects.filter(programme=programme)
+        
+        # Calculate total fees for all years/semesters
+        total_programme_fee = fee_structures.aggregate(
+            total=Sum('tuition_fee')
+        )['total'] or 0
+        
+        # Get average semester fee
+        avg_semester_fee = fee_structures.aggregate(
+            avg=Avg('tuition_fee')
+        )['avg'] or 0
+        
+        # Count active students
+        active_students = Student.objects.filter(
+            programme=programme,
+            status='active'
+        ).count()
+        
+        # Get fee range (min and max)
+        fee_range = fee_structures.aggregate(
+            min_fee=Sum('tuition_fee'),
+            max_fee=Sum('tuition_fee')
+        )
+        
+        programme_info = {
+            'programme': programme,
+            'total_programme_fee': total_programme_fee,
+            'avg_semester_fee': avg_semester_fee,
+            'active_students': active_students,
+            'fee_structures_count': fee_structures.count(),
+            'has_fee_structure': fee_structures.exists(),
+            'min_semester_fee': fee_structures.aggregate(min_fee=Sum('tuition_fee'))['min_fee'] or 0,
+            'max_semester_fee': fee_structures.aggregate(max_fee=Sum('tuition_fee'))['max_fee'] or 0,
+        }
+        programme_data.append(programme_info)
+    
+    context = {
+        'programme_data': programme_data,
+        'current_academic_year': current_academic_year,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+    }
+    
+    return render(request, 'admin/fee_structure_list.html', context)
+
+@login_required
+def programme_fee_detail(request, programme_id):
+    """Display detailed fee structure for a specific programme"""
+    
+    programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+    
+    # Get selected academic year from GET parameter, default to current
+    selected_year_id = request.GET.get('academic_year')
+    if selected_year_id:
+        selected_academic_year = get_object_or_404(AcademicYear, id=selected_year_id)
+    else:
+        selected_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        if not selected_academic_year:
+            selected_academic_year = AcademicYear.objects.first()
+    
+    # Get all academic years for the dropdown
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Get fee structures for the selected academic year
+    fee_structures = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=selected_academic_year
+    ).order_by('year', 'semester')
+    
+    # Organize fee structures by year and semester - Fixed structure
+    fees_by_year = {}
+    total_programme_cost = 0
+    programme_years = list(range(1, programme.duration_years + 1))
+    semesters_range = list(range(1, programme.semesters_per_year + 1))
+    
+    for year in programme_years:
+        fees_by_year[year] = {}
+        year_total = 0
+        
+        for semester in semesters_range:
+            fee_structure = fee_structures.filter(year=year, semester=semester).first()
+            
+            if fee_structure:
+                semester_total = fee_structure.total_fee()
+                semester_net = fee_structure.net_fee()
+                year_total += semester_net
+                
+                # Ensure the data structure is consistent
+                fees_by_year[year][semester] = {
+                    'fee_structure': fee_structure,
+                    'total_fee': float(semester_total) if semester_total else 0,
+                    'net_fee': float(semester_net) if semester_net else 0,
+                    'government_subsidy': float(fee_structure.government_subsidy) if fee_structure.government_subsidy else 0,
+                    'scholarship_amount': float(fee_structure.scholarship_amount) if fee_structure.scholarship_amount else 0,
+                    'exists': True
+                }
+            else:
+                # Provide a consistent structure even when no fee structure exists
+                fees_by_year[year][semester] = {
+                    'fee_structure': None,
+                    'total_fee': 0,
+                    'net_fee': 0,
+                    'government_subsidy': 0,
+                    'scholarship_amount': 0,
+                    'exists': False
+                }
+        
+        total_programme_cost += year_total
+    
+    # Calculate programme statistics
+    programme_stats = {
+        'total_fee_structures': fee_structures.count(),
+        'total_programme_cost': total_programme_cost,
+        'average_semester_fee': total_programme_cost / (programme.total_semesters) if programme.total_semesters > 0 else 0,
+        'active_students': Student.objects.filter(programme=programme, status='active').count(),
+        'total_students': Student.objects.filter(programme=programme).count(),
+    }
+    
+    # Get student enrollment statistics by year
+    student_stats_by_year = {}
+    for year in programme_years:
+        student_count = Student.objects.filter(
+            programme=programme,
+            current_year=year,
+            status='active'
+        ).count()
+        student_stats_by_year[year] = student_count
+    
+    context = {
+        'programme': programme,
+        'selected_academic_year': selected_academic_year,
+        'academic_years': academic_years,
+        'fees_by_year': fees_by_year,
+        'programme_years': programme_years,
+        'programme_stats': programme_stats,
+        'student_stats_by_year': student_stats_by_year,
+        'semesters_range': semesters_range,
+    }
+    
+    return render(request, 'admin/programme_fee_detail.html', context)
+
+
+@login_required
+def fee_structure_comparison(request):
+    """Compare fee structures across programmes"""
+    
+    selected_programmes = request.GET.getlist('programmes')
+    selected_year_id = request.GET.get('academic_year')
+    
+    # Get academic year
+    if selected_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=selected_year_id)
+    else:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    comparison_data = []
+    
+    if selected_programmes:
+        for programme_id in selected_programmes:
+            programme = get_object_or_404(Programme, id=programme_id)
+            
+            # Get fee structures for this programme
+            fee_structures = FeeStructure.objects.filter(
+                programme=programme,
+                academic_year=academic_year
+            )
+            
+            total_cost = sum(fs.net_fee() for fs in fee_structures)
+            avg_semester_fee = total_cost / programme.total_semesters if programme.total_semesters > 0 else 0
+            
+            comparison_data.append({
+                'programme': programme,
+                'total_cost': total_cost,
+                'avg_semester_fee': avg_semester_fee,
+                'fee_structures': fee_structures.order_by('year', 'semester'),
+                'student_count': Student.objects.filter(programme=programme, status='active').count(),
+            })
+    
+    context = {
+        'programmes': programmes,
+        'selected_programmes': [int(p) for p in selected_programmes] if selected_programmes else [],
+        'academic_year': academic_year,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+        'comparison_data': comparison_data,
+    }
+    
+    return render(request, 'admin/fee_structure_comparison.html', context)
