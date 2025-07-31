@@ -1,5 +1,5 @@
 from django import forms
-from .models import StudentComment
+from .models import *
 
 
 class StudentCommentForm(forms.ModelForm):
@@ -346,3 +346,82 @@ class StudentForm(forms.ModelForm):
         return cleaned_data
     
 
+
+
+# Forms
+class UserForm(forms.ModelForm):
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+        help_text="Leave blank to keep current password"
+    )
+    password_confirm = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+        label="Confirm Password"
+    )
+    
+    class Meta:
+        model = User
+        fields = [
+            'username', 'email', 'first_name', 'last_name', 
+            'phone', 'address', 'gender', 'date_of_birth', 
+            'profile_picture', 'national_id'
+        ]
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+            'national_id': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_confirm = cleaned_data.get('password_confirm')
+        
+        if password and password != password_confirm:
+            raise forms.ValidationError("Passwords don't match")
+        
+        return cleaned_data
+
+class LecturerForm(forms.ModelForm):
+    class Meta:
+        model = Lecturer
+        fields = [
+            'employee_number', 'department', 'academic_rank', 'employment_type',
+            'highest_qualification', 'university_graduated', 'graduation_year',
+            'research_interests', 'publications', 'professional_registration',
+            'teaching_experience_years', 'research_experience_years', 
+            'industry_experience_years', 'salary', 'joining_date',
+            'contract_end_date', 'office_location', 'office_phone',
+            'consultation_hours', 'is_active'
+        ]
+        widgets = {
+            'employee_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'department': forms.Select(attrs={'class': 'form-select'}),
+            'academic_rank': forms.Select(attrs={'class': 'form-select'}),
+            'employment_type': forms.Select(attrs={'class': 'form-select'}),
+            'highest_qualification': forms.TextInput(attrs={'class': 'form-control'}),
+            'university_graduated': forms.TextInput(attrs={'class': 'form-control'}),
+            'graduation_year': forms.NumberInput(attrs={'class': 'form-control'}),
+            'research_interests': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'publications': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'professional_registration': forms.TextInput(attrs={'class': 'form-control'}),
+            'teaching_experience_years': forms.NumberInput(attrs={'class': 'form-control'}),
+            'research_experience_years': forms.NumberInput(attrs={'class': 'form-control'}),
+            'industry_experience_years': forms.NumberInput(attrs={'class': 'form-control'}),
+            'salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'joining_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'contract_end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'office_location': forms.TextInput(attrs={'class': 'form-control'}),
+            'office_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'consultation_hours': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }

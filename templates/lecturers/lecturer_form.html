@@ -1,0 +1,610 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold text-primary">
+                    <i class="bi bi-mortarboard"></i> {{ title }}
+                </h4>
+                <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="lecturerForm">
+        {% csrf_token %}
+        
+        <!-- Personal Information -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-person"></i> Personal Information
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                {{ user_form.first_name }}
+                                {% if user_form.first_name.errors %}
+                                    <div class="text-danger small">{{ user_form.first_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                {{ user_form.last_name }}
+                                {% if user_form.last_name.errors %}
+                                    <div class="text-danger small">{{ user_form.last_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Username <span class="text-danger">*</span></label>
+                                {{ user_form.username }}
+                                {% if user_form.username.errors %}
+                                    <div class="text-danger small">{{ user_form.username.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                {{ user_form.email }}
+                                {% if user_form.email.errors %}
+                                    <div class="text-danger small">{{ user_form.email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number</label>
+                                {{ user_form.phone }}
+                                {% if user_form.phone.errors %}
+                                    <div class="text-danger small">{{ user_form.phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">National ID</label>
+                                {{ user_form.national_id }}
+                                {% if user_form.national_id.errors %}
+                                    <div class="text-danger small">{{ user_form.national_id.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Gender</label>
+                                {{ user_form.gender }}
+                                {% if user_form.gender.errors %}
+                                    <div class="text-danger small">{{ user_form.gender.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Date of Birth</label>
+                                {{ user_form.date_of_birth }}
+                                {% if user_form.date_of_birth.errors %}
+                                    <div class="text-danger small">{{ user_form.date_of_birth.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Address</label>
+                                {{ user_form.address }}
+                                {% if user_form.address.errors %}
+                                    <div class="text-danger small">{{ user_form.address.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Profile Picture</label>
+                                {{ user_form.profile_picture }}
+                                {% if user_form.profile_picture.errors %}
+                                    <div class="text-danger small">{{ user_form.profile_picture.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authentication -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-lock"></i> Authentication
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Password {% if not lecturer %}(Required){% else %}(Leave blank to keep current){% endif %}
+                                </label>
+                                {{ user_form.password }}
+                                {% if user_form.password.errors %}
+                                    <div class="text-danger small">{{ user_form.password.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Confirm Password</label>
+                                {{ user_form.password_confirm }}
+                                {% if user_form.password_confirm.errors %}
+                                    <div class="text-danger small">{{ user_form.password_confirm.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Information -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-mortarboard"></i> Academic Information
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                                {{ lecturer_form.employee_number }}
+                                {% if lecturer_form.employee_number.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.employee_number.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                {{ lecturer_form.department }}
+                                {% if lecturer_form.department.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.department.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Academic Rank <span class="text-danger">*</span></label>
+                                {{ lecturer_form.academic_rank }}
+                                {% if lecturer_form.academic_rank.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.academic_rank.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Employment Type</label>
+                                {{ lecturer_form.employment_type }}
+                                {% if lecturer_form.employment_type.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.employment_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Highest Qualification</label>
+                                {{ lecturer_form.highest_qualification }}
+                                {% if lecturer_form.highest_qualification.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.highest_qualification.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">University Graduated From</label>
+                                {{ lecturer_form.university_graduated }}
+                                {% if lecturer_form.university_graduated.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.university_graduated.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Graduation Year</label>
+                                {{ lecturer_form.graduation_year }}
+                                {% if lecturer_form.graduation_year.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.graduation_year.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Professional Registration</label>
+                                {{ lecturer_form.professional_registration }}
+                                {% if lecturer_form.professional_registration.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.professional_registration.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Research Interests</label>
+                                {{ lecturer_form.research_interests }}
+                                {% if lecturer_form.research_interests.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.research_interests.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Publications</label>
+                                {{ lecturer_form.publications }}
+                                {% if lecturer_form.publications.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.publications.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Experience & Employment -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="card-title mb-0">
+                            <i class="bi bi-briefcase"></i> Experience & Employment Details
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Teaching Experience (Years)</label>
+                                {{ lecturer_form.teaching_experience_years }}
+                                {% if lecturer_form.teaching_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.teaching_experience_years.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Research Experience (Years)</label>
+                                {{ lecturer_form.research_experience_years }}
+                                {% if lecturer_form.research_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.research_experience_years.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Industry Experience (Years)</label>
+                                {{ lecturer_form.industry_experience_years }}
+                                {% if lecturer_form.industry_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.industry_experience_years.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Joining Date <span class="text-danger">*</span></label>
+                                {{ lecturer_form.joining_date }}
+                                {% if lecturer_form.joining_date.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.joining_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Contract End Date (if applicable)</label>
+                                {{ lecturer_form.contract_end_date }}
+                                {% if lecturer_form.contract_end_date.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.contract_end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Salary</label>
+                                {{ lecturer_form.salary }}
+                                {% if lecturer_form.salary.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.salary.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Office Location</label>
+                                {{ lecturer_form.office_location }}
+                                {% if lecturer_form.office_location.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.office_location.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Office Phone</label>
+                                {{ lecturer_form.office_phone }}
+                                {% if lecturer_form.office_phone.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.office_phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    {{ lecturer_form.is_active }}
+                                    <label class="form-check-label" for="{{ lecturer_form.is_active.id_for_label }}">
+                                        Active Status
+                                    </label>
+                                </div>
+                                {% if lecturer_form.is_active.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.is_active.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Consultation Hours</label>
+                                {{ lecturer_form.consultation_hours }}
+                                {% if lecturer_form.consultation_hours.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.consultation_hours.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">e.g., Monday-Friday 2:00-4:00 PM</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <button type="submit" class="btn btn-primary btn-lg me-3" style="background-color: #1a73e8; border-color: #1a73e8;">
+                            <i class="bi bi-check-circle"></i> 
+                            {% if lecturer %}Update Lecturer{% else %}Create Lecturer{% endif %}
+                        </button>
+                        <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.getElementById('lecturerForm');
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        let firstInvalidField = null;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        // Password confirmation validation
+        const password = document.querySelector('input[name="password"]');
+        const passwordConfirm = document.querySelector('input[name="password_confirm"]');
+        
+        if (password && passwordConfirm) {
+            if (password.value && password.value !== passwordConfirm.value) {
+                isValid = false;
+                passwordConfirm.classList.add('is-invalid');
+                if (!firstInvalidField) {
+                    firstInvalidField = passwordConfirm;
+                }
+            } else {
+                passwordConfirm.classList.remove('is-invalid');
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            if (firstInvalidField) {
+                firstInvalidField.focus();
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Show error message
+            showAlert('error', 'Please fill in all required fields correctly.');
+        }
+    });
+    
+    // Real-time validation
+    requiredFields.forEach(field => {
+        field.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+        
+        field.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid') && this.value.trim()) {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+    
+    // Password confirmation validation
+    const passwordConfirm = document.querySelector('input[name="password_confirm"]');
+    if (passwordConfirm) {
+        passwordConfirm.addEventListener('input', function() {
+            const password = document.querySelector('input[name="password"]');
+            if (password && password.value !== this.value) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+    }
+    
+    // Profile picture preview
+    const profilePictureInput = document.querySelector('input[name="profile_picture"]');
+    if (profilePictureInput) {
+        profilePictureInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Create or update preview
+                    let preview = document.getElementById('profilePreview');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.id = 'profilePreview';
+                        preview.className = 'img-thumbnail mt-2';
+                        preview.style.maxWidth = '150px';
+                        preview.style.maxHeight = '150px';
+                        profilePictureInput.parentNode.appendChild(preview);
+                    }
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Auto-generate employee number if empty
+    const employeeNumberField = document.querySelector('input[name="employee_number"]');
+    const firstNameField = document.querySelector('input[name="first_name"]');
+    const lastNameField = document.querySelector('input[name="last_name"]');
+    
+    if (employeeNumberField && firstNameField && lastNameField) {
+        function generateEmployeeNumber() {
+            if (!employeeNumberField.value && firstNameField.value && lastNameField.value) {
+                const currentYear = new Date().getFullYear();
+                const initials = (firstNameField.value.charAt(0) + lastNameField.value.charAt(0)).toUpperCase();
+                const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                employeeNumberField.value = `LEC${currentYear}${initials}${randomNum}`;
+            }
+        }
+        
+        firstNameField.addEventListener('blur', generateEmployeeNumber);
+        lastNameField.addEventListener('blur', generateEmployeeNumber);
+    }
+    
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        document.querySelector('.row.mt-3 .col-md-12').insertAdjacentHTML('beforeend', alertHtml);
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1rem;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
+}
+
+.form-control.is-invalid, .form-select.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.text-danger {
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #155db3;
+    border-color: #155db3;
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.form-check-input:checked {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.text-primary {
+    color: #1a73e8 !important;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-lg {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Loading animation for form submission */
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary.loading::after {
+    content: "";
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+    border: 2px solid transparent;
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+{% endblock %}

@@ -71,4 +71,17 @@ urlpatterns = [
     path('student/transcript/', views.student_transcript, name='student_transcript'),
     path('student-download-transcript', views.student_transcript_pdf , name='student_transcript_pdf'),
 
+    # Lecturer management URLs
+    path('lecturers/', views.lecturer_list, name='lecturer_list'),
+    path('lecturers/create/', views.lecturer_create, name='lecturer_create'),
+    path('lecturers/<str:employee_number>/', views.lecturer_detail, name='lecturer_detail'),
+    path('lecturers/<str:employee_number>/edit/', views.lecturer_update, name='lecturer_update'),
+    path('lecturers/<str:employee_number>/delete/', views.lecturer_delete, name='lecturer_delete'),
+    
+    # Bulk operations
+    path('lecturers/bulk/action/', views.lecturer_bulk_action, name='lecturer_bulk_action'),
+    
+    # Export functionality
+    path('lecturers/export/csv/', views.lecturer_export, name='lecturer_export')
+
 ]

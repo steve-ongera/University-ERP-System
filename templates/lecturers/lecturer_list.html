@@ -20,16 +20,16 @@
         <div class="row d-flex flex-row">
             <div class="col-md-8">
                 <p class="fw-bold card-stitle text-start">
-                    <i class="bi bi-people"></i> Instructors Management
-                    <span class="badge bg-secondary ms-2">{{ total_instructors }} Total</span>
+                    <i class="bi bi-mortarboard"></i> Lecturers Management
+                    <span class="badge bg-secondary ms-2">{{ total_lecturers }} Total</span>
                 </p>
             </div>
             <div class="col-md-4 dashboardRightLabel">
                 <div class="btn-group float-end">
-                    <a href="{% url 'instructor_create' %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
-                        <i class="bi bi-plus-circle"></i> Add Instructor
+                    <a href="{% url 'lecturer_create' %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
+                        <i class="bi bi-plus-circle"></i> Add Lecturer
                     </a>
-                    <a href="{% url 'instructor_export' %}" class="btn btn-outline-success">
+                    <a href="{% url 'lecturer_export' %}" class="btn btn-outline-success">
                         <i class="bi bi-download"></i> Export
                     </a>
                     <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#bulkActionModal">
@@ -54,31 +54,41 @@
                 </div>
                 <div class="card-body collapse show" id="searchFilters">
                     <form method="get" class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <input type="text" class="form-control" name="search" value="{{ search_query }}" 
                                    placeholder="Search by name, employee number, email...">
                         </div>
                         <div class="col-md-2">
-                            <select name="school" class="form-select">
-                                <option value="">All Schools</option>
-                                {% for school in schools %}
-                                <option value="{{ school.id }}" {% if school_filter == school.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ school.name }}
+                            <select name="faculty" class="form-select" id="facultyFilter">
+                                <option value="">All Faculties</option>
+                                {% for faculty in faculties %}
+                                <option value="{{ faculty.id }}" {% if faculty_filter == faculty.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ faculty.name }}
                                 </option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <select name="designation" class="form-select">
-                                <option value="">All Designations</option>
-                                {% for value, label in designation_choices %}
-                                <option value="{{ value }}" {% if designation_filter == value %}selected{% endif %}>
+                            <select name="department" class="form-select" id="departmentFilter">
+                                <option value="">All Departments</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if department_filter == department.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="academic_rank" class="form-select">
+                                <option value="">All Ranks</option>
+                                {% for value, label in rank_choices %}
+                                <option value="{{ value }}" {% if rank_filter == value %}selected{% endif %}>
                                     {{ label }}
                                 </option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <select name="status" class="form-select">
                                 <option value="">All Status</option>
                                 <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
@@ -90,7 +100,7 @@
                                 <button type="submit" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
                                     <i class="bi bi-search"></i> Search
                                 </button>
-                                <a href="{% url 'instructor_list' %}" class="btn btn-outline-secondary">
+                                <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
                                     <i class="bi bi-x-circle"></i> Clear
                                 </a>
                             </div>
@@ -101,14 +111,14 @@
         </div>
     </div>
 
-    <!-- Instructors Table -->
+    <!-- Lecturers Table -->
     <div class="row p-3">
         <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    {% if instructors %}
+                    {% if lecturers %}
                     <div class="table-responsive">
-                        <table class="table table-hover" id="instructorsTable">
+                        <table class="table table-hover" id="lecturersTable">
                             <thead class="table-light">
                                 <tr>
                                     <th width="40">
@@ -129,15 +139,15 @@
                                     </th>
                                     <th>Contact</th>
                                     <th>
-                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=school__name" class="text-decoration-none">
-                                            School
-                                            {% if order_by == 'school__name' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=department__name" class="text-decoration-none">
+                                            Department
+                                            {% if order_by == 'department__name' %}<i class="bi bi-sort-down"></i>{% endif %}
                                         </a>
                                     </th>
                                     <th>
-                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=designation" class="text-decoration-none">
-                                            Designation
-                                            {% if order_by == 'designation' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=academic_rank" class="text-decoration-none">
+                                            Academic Rank
+                                            {% if order_by == 'academic_rank' %}<i class="bi bi-sort-down"></i>{% endif %}
                                         </a>
                                     </th>
                                     <th>
@@ -151,75 +161,77 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for instructor in instructors %}
+                                {% for lecturer in lecturers %}
                                 <tr>
                                     <td>
-                                        <input type="checkbox" class="form-check-input instructor-checkbox" 
-                                               value="{{ instructor.employee_number }}">
+                                        <input type="checkbox" class="form-check-input lecturer-checkbox" 
+                                               value="{{ lecturer.employee_number }}">
                                     </td>
                                     <td>
-                                        {% if instructor.user.profile_picture %}
-                                            <img src="{{ instructor.user.profile_picture.url }}" 
-                                                 class="instructor-thumb rounded-circle" alt="Profile">
+                                        {% if lecturer.user.profile_picture %}
+                                            <img src="{{ lecturer.user.profile_picture.url }}" 
+                                                 class="lecturer-thumb rounded-circle" alt="Profile">
                                         {% else %}
-                                            <div class="instructor-thumb-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                            <div class="lecturer-thumb-placeholder rounded-circle d-flex align-items-center justify-content-center">
                                                 <i class="bi bi-person-fill"></i>
                                             </div>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <strong>{{ instructor.employee_number }}</strong>
+                                        <strong>{{ lecturer.employee_number }}</strong>
                                     </td>
                                     <td>
                                         <div>
-                                            <strong>{{ instructor.user.get_full_name }}</strong>
+                                            <strong>{{ lecturer.user.get_full_name }}</strong>
                                             <br>
-                                            <small class="text-muted">{{ instructor.user.username }}</small>
+                                            <small class="text-muted">{{ lecturer.user.username }}</small>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
-                                            {% if instructor.user.email %}
-                                                <i class="bi bi-envelope text-muted"></i> {{ instructor.user.email }}
+                                            {% if lecturer.user.email %}
+                                                <i class="bi bi-envelope text-muted"></i> {{ lecturer.user.email }}
                                                 <br>
                                             {% endif %}
-                                            {% if instructor.user.phone %}
-                                                <i class="bi bi-telephone text-muted"></i> {{ instructor.user.phone }}
+                                            {% if lecturer.user.phone %}
+                                                <i class="bi bi-telephone text-muted"></i> {{ lecturer.user.phone }}
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="badge" style="background-color: #1a73e8;">{{ instructor.school.name }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ instructor.get_designation_display }}</span>
+                                        <span class="badge" style="background-color: #1a73e8;">{{ lecturer.department.name }}</span>
                                         <br>
-                                        <small class="text-muted">{{ instructor.get_employment_type_display }}</small>
+                                        <small class="text-muted">{{ lecturer.department.faculty.name }}</small>
                                     </td>
                                     <td>
-                                        {{ instructor.joining_date|date:"M d, Y" }}
+                                        <span class="badge bg-primary">{{ lecturer.get_academic_rank_display }}</span>
                                         <br>
-                                        <small class="text-muted">{{ instructor.experience_years }} years exp.</small>
+                                        <small class="text-muted">{{ lecturer.get_employment_type_display }}</small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-{% if instructor.is_active %}success{% else %}danger{% endif %} status-badge" 
-                                              data-employee-number="{{ instructor.employee_number }}">
-                                            {{ instructor.is_active|yesno:"Active,Inactive" }}
+                                        {{ lecturer.joining_date|date:"M d, Y" }}
+                                        <br>
+                                        <small class="text-muted">{{ lecturer.teaching_experience_years }} years exp.</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if lecturer.is_active %}success{% else %}danger{% endif %} status-badge" 
+                                              data-employee-number="{{ lecturer.employee_number }}">
+                                            {{ lecturer.is_active|yesno:"Active,Inactive" }}
                                         </span>
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="{% url 'instructor_detail' instructor.employee_number %}" 
+                                            <a href="{% url 'lecturer_detail' lecturer.employee_number %}" 
                                                class="btn btn-outline-info btn-sm" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="{% url 'instructor_update' instructor.employee_number %}" 
+                                            <a href="{% url 'lecturer_update' lecturer.employee_number %}" 
                                                class="btn btn-outline-primary btn-sm" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                             <button type="button" class="btn btn-outline-danger btn-sm delete-btn" 
-                                                    data-employee-number="{{ instructor.employee_number }}"
-                                                    data-name="{{ instructor.user.get_full_name }}" title="Delete">
+                                                    data-employee-number="{{ lecturer.employee_number }}"
+                                                    data-name="{{ lecturer.user.get_full_name }}" title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
@@ -232,7 +244,7 @@
 
                     <!-- Pagination -->
                     {% if page_obj.has_other_pages %}
-                    <nav aria-label="Instructors pagination" class="mt-4">
+                    <nav aria-label="Lecturers pagination" class="mt-4">
                         <ul class="pagination justify-content-center">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
@@ -269,17 +281,17 @@
 
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
-                        <h4 class="text-muted mt-3">No Instructors Found</h4>
+                        <i class="bi bi-mortarboard" style="font-size: 3rem; color: #ccc;"></i>
+                        <h4 class="text-muted mt-3">No Lecturers Found</h4>
                         <p class="text-muted">
                             {% if search_query %}
-                                No instructors match your search criteria.
+                                No lecturers match your search criteria.
                             {% else %}
-                                No instructors have been added yet.
+                                No lecturers have been added yet.
                             {% endif %}
                         </p>
-                        <a href="{% url 'instructor_create' %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
-                            <i class="bi bi-plus-circle"></i> Add First Instructor
+                        <a href="{% url 'lecturer_create' %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
+                            <i class="bi bi-plus-circle"></i> Add First Lecturer
                         </a>
                     </div>
                     {% endif %}
@@ -297,7 +309,7 @@
                 <h5 class="modal-title">Bulk Actions</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'instructor_bulk_action' %}" id="bulkActionForm">
+            <form method="post" action="{% url 'lecturer_bulk_action' %}" id="bulkActionForm">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
@@ -311,9 +323,9 @@
                     </div>
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        <span id="selectedCount">0</span> instructor(s) selected.
+                        <span id="selectedCount">0</span> lecturer(s) selected.
                     </div>
-                    <input type="hidden" name="instructor_ids" id="selectedInstructors">
+                    <input type="hidden" name="lecturer_ids" id="selectedLecturers">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -335,7 +347,7 @@
                 <h4 class="modal-title fw-bold">Are you sure?</h4>
             </div>
             <div class="modal-body text-center">
-                <p>Do you really want to delete instructor <strong id="instructorName"></strong>? This process cannot be undone.</p>
+                <p>Do you really want to delete lecturer <strong id="lecturerName"></strong>? This process cannot be undone.</p>
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -352,30 +364,30 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Select all checkbox functionality
     const selectAllCheckbox = document.getElementById('selectAll');
-    const instructorCheckboxes = document.querySelectorAll('.instructor-checkbox');
+    const lecturerCheckboxes = document.querySelectorAll('.lecturer-checkbox');
     
     selectAllCheckbox.addEventListener('change', function() {
-        instructorCheckboxes.forEach(checkbox => {
+        lecturerCheckboxes.forEach(checkbox => {
             checkbox.checked = this.checked;
         });
         updateSelectedCount();
     });
     
-    instructorCheckboxes.forEach(checkbox => {
+    lecturerCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateSelectedCount);
     });
     
     function updateSelectedCount() {
-        const selected = document.querySelectorAll('.instructor-checkbox:checked');
+        const selected = document.querySelectorAll('.lecturer-checkbox:checked');
         document.getElementById('selectedCount').textContent = selected.length;
         
         // Update hidden input with selected IDs
         const selectedIds = Array.from(selected).map(cb => cb.value);
-        document.getElementById('selectedInstructors').value = selectedIds.join(',');
+        document.getElementById('selectedLecturers').value = selectedIds.join(',');
         
         // Update select all checkbox state
-        selectAllCheckbox.indeterminate = selected.length > 0 && selected.length < instructorCheckboxes.length;
-        selectAllCheckbox.checked = selected.length === instructorCheckboxes.length;
+        selectAllCheckbox.indeterminate = selected.length > 0 && selected.length < lecturerCheckboxes.length;
+        selectAllCheckbox.checked = selected.length === lecturerCheckboxes.length;
     }
     
     // Delete confirmation modal
@@ -386,10 +398,10 @@ document.addEventListener('DOMContentLoaded', function() {
     deleteButtons.forEach(button => {
         button.addEventListener('click', function() {
             const employeeNumber = this.dataset.employeeNumber;
-            const instructorName = this.dataset.name;
+            const lecturerName = this.dataset.name;
             
-            document.getElementById('instructorName').textContent = instructorName;
-            deleteForm.action = `/instructors/${employeeNumber}/delete/`;
+            document.getElementById('lecturerName').textContent = lecturerName;
+            deleteForm.action = `/lecturers/${employeeNumber}/delete/`;
             
             deleteModal.show();
         });
@@ -401,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
         badge.addEventListener('click', function() {
             const employeeNumber = this.dataset.employeeNumber;
             
-            fetch(`/api/instructors/toggle-status/${employeeNumber}/`, {
+            fetch(`/api/lecturers/toggle-status/${employeeNumber}/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
@@ -425,6 +437,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert('error', 'An error occurred while updating status.');
             });
         });
+    });
+    
+    // Faculty-Department filter dependency
+    const facultyFilter = document.getElementById('facultyFilter');
+    const departmentFilter = document.getElementById('departmentFilter');
+    
+    facultyFilter.addEventListener('change', function() {
+        const facultyId = this.value;
+        
+        if (facultyId) {
+            fetch(`/api/departments/by-faculty/?faculty_id=${facultyId}`)
+            .then(response => response.json())
+            .then(data => {
+                departmentFilter.innerHTML = '<option value="">All Departments</option>';
+                data.departments.forEach(dept => {
+                    departmentFilter.innerHTML += `<option value="${dept.id}">${dept.name}</option>`;
+                });
+            });
+        } else {
+            // Reset to show all departments
+            location.reload();
+        }
     });
     
     function showAlert(type, message) {
@@ -466,13 +500,13 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #1a73e8;
 }
 
-.instructor-thumb {
+.lecturer-thumb {
     width: 40px;
     height: 40px;
     object-fit: cover;
 }
 
-.instructor-thumb-placeholder {
+.lecturer-thumb-placeholder {
     width: 40px;
     height: 40px;
     background-color: #f8f9fa;
@@ -536,8 +570,8 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .btn-primary:hover {
-    background-color: #7d0101;
-    border-color: #7d0101;
+    background-color: #155db3;
+    border-color: #155db3;
 }
 
 .page-item.active .page-link {

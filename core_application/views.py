@@ -2841,3 +2841,340 @@ def student_transcript_pdf(request, student_id=None):
     response.write(pdf)
     
     return response
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.utils import timezone
+from django.urls import reverse
+from django.forms import ModelForm
+from django import forms
+import csv
+from .forms import *
+from .models import Lecturer, Department, Faculty, User
+
+User = get_user_model()
+
+
+
+# Views
+@login_required
+def lecturer_list(request):
+    """List all lecturers with search, filter, and pagination"""
+    lecturers = Lecturer.objects.select_related(
+        'user', 'department', 'department__faculty'
+    ).all()
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        lecturers = lecturers.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(employee_number__icontains=search_query) |
+            Q(user__username__icontains=search_query)
+        )
+    
+    # Filter by faculty
+    faculty_filter = request.GET.get('faculty', '')
+    if faculty_filter:
+        lecturers = lecturers.filter(department__faculty_id=faculty_filter)
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        lecturers = lecturers.filter(department_id=department_filter)
+    
+    # Filter by academic rank
+    rank_filter = request.GET.get('academic_rank', '')
+    if rank_filter:
+        lecturers = lecturers.filter(academic_rank=rank_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_active = status_filter == 'active'
+        lecturers = lecturers.filter(is_active=is_active)
+    
+    # Sorting
+    order_by = request.GET.get('order_by', 'employee_number')
+    if order_by:
+        lecturers = lecturers.order_by(order_by)
+    
+    # Pagination
+    paginator = Paginator(lecturers, 20)  # 20 lecturers per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    faculties = Faculty.objects.filter(is_active=True)
+    departments = Department.objects.filter(is_active=True)
+    
+    context = {
+        'lecturers': page_obj,
+        'page_obj': page_obj,
+        'total_lecturers': lecturers.count(),
+        'search_query': search_query,
+        'faculty_filter': faculty_filter,
+        'department_filter': department_filter,
+        'rank_filter': rank_filter,
+        'status_filter': status_filter,
+        'order_by': order_by,
+        'faculties': faculties,
+        'departments': departments,
+        'rank_choices': Lecturer.ACADEMIC_RANKS,
+    }
+    
+    return render(request, 'lecturers/lecturer_list.html', context)
+
+@login_required
+def lecturer_create(request):
+    """Create a new lecturer"""
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES)
+        lecturer_form = LecturerForm(request.POST)
+        
+        if user_form.is_valid() and lecturer_form.is_valid():
+            try:
+                # Create user
+                user = user_form.save(commit=False)
+                user.user_type = 'lecturer'
+                
+                # Set password if provided
+                password = user_form.cleaned_data.get('password')
+                if password:
+                    user.set_password(password)
+                else:
+                    user.set_password('defaultpassword123')  # Set a default password
+                
+                user.save()
+                
+                # Create lecturer
+                lecturer = lecturer_form.save(commit=False)
+                lecturer.user = user
+                lecturer.save()
+                
+                messages.success(request, f'Lecturer {user.get_full_name()} created successfully!')
+                return redirect('lecturer_detail', employee_number=lecturer.employee_number)
+                
+            except Exception as e:
+                messages.error(request, f'Error creating lecturer: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        user_form = UserForm()
+        lecturer_form = LecturerForm()
+    
+    context = {
+        'user_form': user_form,
+        'lecturer_form': lecturer_form,
+        'title': 'Add New Lecturer',
+        'departments': Department.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'lecturers/lecturer_form.html', context)
+
+@login_required
+def lecturer_detail(request, employee_number):
+    """View lecturer details"""
+    lecturer = get_object_or_404(
+        Lecturer.objects.select_related('user', 'department', 'department__faculty'),
+        employee_number=employee_number
+    )
+    
+    # Get lecturer's courses and enrollments
+    enrollments = lecturer.enrollment_set.select_related(
+        'course', 'semester', 'student'
+    ).filter(is_active=True)[:10]  # Recent enrollments
+    
+    context = {
+        'lecturer': lecturer,
+        'enrollments': enrollments,
+    }
+    
+    return render(request, 'lecturers/lecturer_detail.html', context)
+
+@login_required
+def lecturer_update(request, employee_number):
+    """Update lecturer information"""
+    lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+    
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, request.FILES, instance=lecturer.user)
+        lecturer_form = LecturerForm(request.POST, instance=lecturer)
+        
+        if user_form.is_valid() and lecturer_form.is_valid():
+            try:
+                # Update user
+                user = user_form.save(commit=False)
+                
+                # Update password if provided
+                password = user_form.cleaned_data.get('password')
+                if password:
+                    user.set_password(password)
+                
+                user.save()
+                
+                # Update lecturer
+                lecturer_form.save()
+                
+                messages.success(request, f'Lecturer {user.get_full_name()} updated successfully!')
+                return redirect('lecturer_detail', employee_number=lecturer.employee_number)
+                
+            except Exception as e:
+                messages.error(request, f'Error updating lecturer: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        user_form = UserForm(instance=lecturer.user)
+        lecturer_form = LecturerForm(instance=lecturer)
+    
+    context = {
+        'user_form': user_form,
+        'lecturer_form': lecturer_form,
+        'lecturer': lecturer,
+        'title': f'Edit Lecturer - {lecturer.user.get_full_name()}',
+        'departments': Department.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'lecturers/lecturer_form.html', context)
+
+@login_required
+def lecturer_delete(request, employee_number):
+    """Delete a lecturer"""
+    lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+    
+    if request.method == 'POST':
+        lecturer_name = lecturer.user.get_full_name()
+        
+        try:
+            # Delete the user (cascade will delete lecturer)
+            lecturer.user.delete()
+            messages.success(request, f'Lecturer {lecturer_name} deleted successfully!')
+        except Exception as e:
+            messages.error(request, f'Error deleting lecturer: {str(e)}')
+    
+    return redirect('lecturer_list')
+
+@login_required
+@require_POST
+def lecturer_bulk_action(request):
+    """Handle bulk actions for lecturers"""
+    action = request.POST.get('action')
+    lecturer_ids = request.POST.get('lecturer_ids', '').split(',')
+    lecturer_ids = [id.strip() for id in lecturer_ids if id.strip()]
+    
+    if not action or not lecturer_ids:
+        messages.error(request, 'Invalid action or no lecturers selected.')
+        return redirect('lecturer_list')
+    
+    lecturers = Lecturer.objects.filter(employee_number__in=lecturer_ids)
+    count = lecturers.count()
+    
+    try:
+        if action == 'activate':
+            lecturers.update(is_active=True)
+            messages.success(request, f'{count} lecturer(s) activated successfully!')
+            
+        elif action == 'deactivate':
+            lecturers.update(is_active=False)
+            messages.success(request, f'{count} lecturer(s) deactivated successfully!')
+            
+        elif action == 'delete':
+            # Delete users (cascade will delete lecturers)
+            user_ids = lecturers.values_list('user_id', flat=True)
+            User.objects.filter(id__in=user_ids).delete()
+            messages.success(request, f'{count} lecturer(s) deleted successfully!')
+            
+        else:
+            messages.error(request, 'Invalid action selected.')
+            
+    except Exception as e:
+        messages.error(request, f'Error performing bulk action: {str(e)}')
+    
+    return redirect('lecturer_list')
+
+@login_required
+def lecturer_export(request):
+    """Export lecturers to CSV"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="lecturers.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Employee Number', 'First Name', 'Last Name', 'Email', 'Phone',
+        'Department', 'Faculty', 'Academic Rank', 'Employment Type',
+        'Joining Date', 'Highest Qualification', 'University Graduated',
+        'Teaching Experience (Years)', 'Research Experience (Years)',
+        'Office Location', 'Status'
+    ])
+    
+    # Write data
+    lecturers = Lecturer.objects.select_related(
+        'user', 'department', 'department__faculty'
+    ).all()
+    
+    for lecturer in lecturers:
+        writer.writerow([
+            lecturer.employee_number,
+            lecturer.user.first_name,
+            lecturer.user.last_name,
+            lecturer.user.email,
+            lecturer.user.phone,
+            lecturer.department.name,
+            lecturer.department.faculty.name,
+            lecturer.get_academic_rank_display(),
+            lecturer.get_employment_type_display(),
+            lecturer.joining_date.strftime('%Y-%m-%d') if lecturer.joining_date else '',
+            lecturer.highest_qualification,
+            lecturer.university_graduated,
+            lecturer.teaching_experience_years,
+            lecturer.research_experience_years,
+            lecturer.office_location,
+            'Active' if lecturer.is_active else 'Inactive'
+        ])
+    
+    return response
+
+@login_required
+@csrf_exempt
+def lecturer_toggle_status(request, employee_number):
+    """Toggle lecturer active status via AJAX"""
+    if request.method == 'POST':
+        try:
+            lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+            lecturer.is_active = not lecturer.is_active
+            lecturer.save()
+            
+            return JsonResponse({
+                'status': 'success',
+                'is_active': lecturer.is_active,
+                'message': f'Lecturer status updated to {"Active" if lecturer.is_active else "Inactive"}'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            })
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
+@login_required
+def get_departments_by_faculty(request):
+    """Get departments filtered by faculty (AJAX endpoint)"""
+    faculty_id = request.GET.get('faculty_id')
+    departments = Department.objects.filter(
+        faculty_id=faculty_id, is_active=True
+    ).values('id', 'name', 'code')
+    
+    return JsonResponse({'departments': list(departments)})

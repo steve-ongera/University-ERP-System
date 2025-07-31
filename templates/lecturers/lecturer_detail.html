@@ -1,0 +1,527 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    {% if lecturer.user.profile_picture %}
+                        <img src="{{ lecturer.user.profile_picture.url }}" 
+                             class="profile-image rounded-circle me-3" alt="Profile">
+                    {% else %}
+                        <div class="profile-placeholder rounded-circle me-3 d-flex align-items-center justify-content-center">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h4 class="fw-bold text-primary mb-1">{{ lecturer.user.get_full_name }}</h4>
+                        <p class="text-muted mb-1">{{ lecturer.get_academic_rank_display }}</p>
+                        <p class="text-muted mb-0">Employee ID: <strong>{{ lecturer.employee_number }}</strong></p>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    <a href="{% url 'lecturer_update' lecturer.employee_number %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-outline-danger delete-btn" 
+                            data-employee-number="{{ lecturer.employee_number }}"
+                            data-name="{{ lecturer.user.get_full_name }}">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status and Quick Info -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <span class="badge bg-{% if lecturer.is_active %}success{% else %}danger{% endif %} fs-6 p-2">
+                                    {{ lecturer.is_active|yesno:"Active,Inactive" }}
+                                </span>
+                                <p class="text-muted mt-2 mb-0">Status</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 class="text-primary mb-1">{{ lecturer.teaching_experience_years }}</h5>
+                                <p class="text-muted mb-0">Years Teaching</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 class="text-primary mb-1">{{ lecturer.research_experience_years }}</h5>
+                                <p class="text-muted mb-0">Years Research</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5 class="text-primary mb-1">{{ enrollments.count }}</h5>
+                                <p class="text-muted mb-0">Current Courses</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Information -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-person"></i> Personal Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <strong>Full Name:</strong>
+                            <p class="mb-2">{{ lecturer.user.get_full_name }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Username:</strong>
+                            <p class="mb-2">{{ lecturer.user.username }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Email:</strong>
+                            <p class="mb-2">
+                                {% if lecturer.user.email %}
+                                    <a href="mailto:{{ lecturer.user.email }}">{{ lecturer.user.email }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Phone:</strong>
+                            <p class="mb-2">
+                                {% if lecturer.user.phone %}
+                                    <a href="tel:{{ lecturer.user.phone }}">{{ lecturer.user.phone }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Gender:</strong>
+                            <p class="mb-2">{{ lecturer.user.get_gender_display|default:"Not specified" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Date of Birth:</strong>
+                            <p class="mb-2">{{ lecturer.user.date_of_birth|date:"F d, Y"|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>National ID:</strong>
+                            <p class="mb-2">{{ lecturer.user.national_id|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Address:</strong>
+                            <p class="mb-0">{{ lecturer.user.address|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-mortarboard"></i> Academic Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <strong>Department:</strong>
+                            <p class="mb-2">{{ lecturer.department.name }} ({{ lecturer.department.code }})</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Faculty:</strong>
+                            <p class="mb-2">{{ lecturer.department.faculty.name }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Academic Rank:</strong>
+                            <p class="mb-2">{{ lecturer.get_academic_rank_display }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Employment Type:</strong>
+                            <p class="mb-2">{{ lecturer.get_employment_type_display }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Highest Qualification:</strong>
+                            <p class="mb-2">{{ lecturer.highest_qualification|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>University Graduated:</strong>
+                            <p class="mb-2">{{ lecturer.university_graduated|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Graduation Year:</strong>
+                            <p class="mb-2">{{ lecturer.graduation_year|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Professional Registration:</strong>
+                            <p class="mb-0">{{ lecturer.professional_registration|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employment Details -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-briefcase"></i> Employment Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <strong>Joining Date:</strong>
+                            <p class="mb-2">{{ lecturer.joining_date|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Contract End Date:</strong>
+                            <p class="mb-2">
+                                {% if lecturer.contract_end_date %}
+                                    {{ lecturer.contract_end_date|date:"F d, Y" }}
+                                {% else %}
+                                    <span class="text-muted">Permanent</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Office Location:</strong>
+                            <p class="mb-2">{{ lecturer.office_location|default:"Not assigned" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Office Phone:</strong>
+                            <p class="mb-2">
+                                {% if lecturer.office_phone %}
+                                    <a href="tel:{{ lecturer.office_phone }}">{{ lecturer.office_phone }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Consultation Hours:</strong>
+                            <p class="mb-0">{{ lecturer.consultation_hours|default:"Not specified"|linebreaks }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-graph-up"></i> Experience Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <strong>Teaching Experience:</strong>
+                            <p class="mb-2">{{ lecturer.teaching_experience_years }} years</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Research Experience:</strong>
+                            <p class="mb-2">{{ lecturer.research_experience_years }} years</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Industry Experience:</strong>
+                            <p class="mb-2">{{ lecturer.industry_experience_years }} years</p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Total Experience:</strong>
+                            <p class="mb-2">
+                                {% widthratio lecturer.teaching_experience_years 1 1 %}{{ lecturer.research_experience_years|add:lecturer.industry_experience_years|add:lecturer.teaching_experience_years }} years
+                            </p>
+                        </div>
+                        <div class="col-12">
+                            <strong>Account Created:</strong>
+                            <p class="mb-0">{{ lecturer.user.date_joined|date:"F d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Research & Publications -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-journal-text"></i> Research & Publications
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Research Interests:</strong>
+                            <div class="mt-2">
+                                {% if lecturer.research_interests %}
+                                    {{ lecturer.research_interests|linebreaks }}
+                                {% else %}
+                                    <p class="text-muted">No research interests specified.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Publications:</strong>
+                            <div class="mt-2">
+                                {% if lecturer.publications %}
+                                    {{ lecturer.publications|linebreaks }}
+                                {% else %}
+                                    <p class="text-muted">No publications listed.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Courses -->
+    {% if enrollments %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-book"></i> Current Courses Teaching
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course Code</th>
+                                    <th>Course Name</th>
+                                    <th>Credit Hours</th>
+                                    <th>Semester</th>
+                                    <th>Students Enrolled</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td><strong>{{ enrollment.course.code }}</strong></td>
+                                    <td>{{ enrollment.course.name }}</td>
+                                    <td>{{ enrollment.course.credit_hours }}</td>
+                                    <td>{{ enrollment.semester }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ enrollment.course.enrollments.count }} students
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete lecturer <strong id="lecturerName"></strong>? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation modal
+    const deleteButton = document.querySelector('.delete-btn');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    
+    if (deleteButton) {
+        deleteButton.addEventListener('click', function() {
+            const employeeNumber = this.dataset.employeeNumber;
+            const lecturerName = this.dataset.name;
+            
+            document.getElementById('lecturerName').textContent = lecturerName;
+            deleteForm.action = `/lecturers/${employeeNumber}/delete/`;
+            
+            deleteModal.show();
+        });
+    }
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.profile-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+.profile-placeholder {
+    width: 80px;
+    height: 80px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    font-size: 2rem;
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1rem;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: 600;
+}
+
+.text-primary {
+    color: #1a73e8 !important;
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #155db3;
+    border-color: #155db3;
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(26, 115, 232, 0.05);
+}
+
+@media (max-width: 768px) {
+    .profile-image, .profile-placeholder {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .btn-group {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+@media print {
+    .btn, .modal {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}
+</style>
+
+{% endblock %}
