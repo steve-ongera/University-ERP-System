@@ -16,30 +16,17 @@
 </div>
 
 <div class="container onprintContainer">
-    <!-- Header Section -->
     <div class="row p-3">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
-                    {% if lecturer.user.profile_picture %}
-                        <img src="{{ lecturer.user.profile_picture.url }}" 
-                             class="profile-image rounded-circle me-3" alt="Profile">
-                    {% else %}
-                        <div class="profile-placeholder rounded-circle me-3 d-flex align-items-center justify-content-center">
-                            <i class="bi bi-person-fill"></i>
-                        </div>
-                    {% endif %}
-                    <div>
-                        <h4 class="fw-bold text-primary mb-1">{{ lecturer.user.get_full_name }}</h4>
-                        <p class="text-muted mb-1">{{ lecturer.get_academic_rank_display }}</p>
-                        <p class="text-muted mb-0">Employee ID: <strong>{{ lecturer.employee_number }}</strong></p>
-                    </div>
-                </div>
-                <div class="btn-group">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Lecturer Profile</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
                     <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to List
+                        <i class="bi bi-arrow-left"></i> Back
                     </a>
-                    <a href="{% url 'lecturer_update' lecturer.employee_number %}" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
+                    <a href="{% url 'lecturer_update' lecturer.employee_number %}" class="btn btn-outline-primary">
                         <i class="bi bi-pencil"></i> Edit
                     </a>
                     <button type="button" class="btn btn-outline-danger delete-btn" 
@@ -52,282 +39,296 @@
         </div>
     </div>
 
-    <!-- Status and Quick Info -->
     <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <span class="badge bg-{% if lecturer.is_active %}success{% else %}danger{% endif %} fs-6 p-2">
-                                    {{ lecturer.is_active|yesno:"Active,Inactive" }}
-                                </span>
-                                <p class="text-muted mt-2 mb-0">Status</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <h5 class="text-primary mb-1">{{ lecturer.teaching_experience_years }}</h5>
-                                <p class="text-muted mb-0">Years Teaching</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <h5 class="text-primary mb-1">{{ lecturer.research_experience_years }}</h5>
-                                <p class="text-muted mb-0">Years Research</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <h5 class="text-primary mb-1">{{ enrollments.count }}</h5>
-                                <p class="text-muted mb-0">Current Courses</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Personal Information -->
-    <div class="row p-3">
-        <div class="col-md-6">
+        <!-- Profile Card -->
+        <div class="col-md-4 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-primary text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-person"></i> Personal Information
-                    </h6>
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-badge"></i> Lecturer Profile
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="profile-picture-container mb-3">
+                        {% if lecturer.user.profile_picture %}
+                            <img src="{{ lecturer.user.profile_picture.url }}" 
+                                 class="profile-picture img-thumbnail rounded-circle" 
+                                 alt="Profile Picture">
+                        {% else %}
+                            <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <h4 class="mb-2">{{ lecturer.user.get_full_name }}</h4>
+                    <p class="text-muted mb-3">{{ lecturer.employee_number }}</p>
+                    
+                    <div class="faculty-status mb-3">
+                        <span class="badge bg-{% if lecturer.is_active %}success{% else %}danger{% endif %}">
+                            {{ lecturer.is_active|yesno:"Active,Inactive" }}
+                        </span>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="quick-info text-start">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold">{{ lecturer.department.name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Academic Rank:</span>
+                            <span class="fw-bold">{{ lecturer.get_academic_rank_display }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Joining Date:</span>
+                            <span class="fw-bold">{{ lecturer.joining_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="#" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-calendar-check me-1"></i> View Schedule
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Information Card -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person-vcard"></i> Personal Information
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <strong>Full Name:</strong>
-                            <p class="mb-2">{{ lecturer.user.get_full_name }}</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Full Name</label>
+                            <p class="fw-bold">{{ lecturer.user.get_full_name }}</p>
                         </div>
-                        <div class="col-12">
-                            <strong>Username:</strong>
-                            <p class="mb-2">{{ lecturer.user.username }}</p>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Username</label>
+                            <p class="fw-bold">{{ lecturer.user.username }}</p>
                         </div>
-                        <div class="col-12">
-                            <strong>Email:</strong>
-                            <p class="mb-2">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Email</label>
+                            <p class="fw-bold">
                                 {% if lecturer.user.email %}
-                                    <a href="mailto:{{ lecturer.user.email }}">{{ lecturer.user.email }}</a>
+                                    <a href="mailto:{{ lecturer.user.email }}" class="text-decoration-none">
+                                        {{ lecturer.user.email }}
+                                    </a>
                                 {% else %}
-                                    <span class="text-muted">Not provided</span>
+                                    Not provided
                                 {% endif %}
                             </p>
                         </div>
-                        <div class="col-12">
-                            <strong>Phone:</strong>
-                            <p class="mb-2">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Phone</label>
+                            <p class="fw-bold">
                                 {% if lecturer.user.phone %}
-                                    <a href="tel:{{ lecturer.user.phone }}">{{ lecturer.user.phone }}</a>
+                                    <a href="tel:{{ lecturer.user.phone }}" class="text-decoration-none">
+                                        {{ lecturer.user.phone }}
+                                    </a>
                                 {% else %}
-                                    <span class="text-muted">Not provided</span>
+                                    Not provided
                                 {% endif %}
                             </p>
                         </div>
-                        <div class="col-12">
-                            <strong>Gender:</strong>
-                            <p class="mb-2">{{ lecturer.user.get_gender_display|default:"Not specified" }}</p>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Gender</label>
+                            <p class="fw-bold">{{ lecturer.user.get_gender_display|default:"Not specified" }}</p>
                         </div>
-                        <div class="col-12">
-                            <strong>Date of Birth:</strong>
-                            <p class="mb-2">{{ lecturer.user.date_of_birth|date:"F d, Y"|default:"Not provided" }}</p>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Date of Birth</label>
+                            <p class="fw-bold">{{ lecturer.user.date_of_birth|date:"M d, Y"|default:"Not provided" }}</p>
                         </div>
-                        <div class="col-12">
-                            <strong>National ID:</strong>
-                            <p class="mb-2">{{ lecturer.user.national_id|default:"Not provided" }}</p>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">National ID</label>
+                            <p class="fw-bold">{{ lecturer.user.national_id|default:"Not provided" }}</p>
                         </div>
-                        <div class="col-12">
-                            <strong>Address:</strong>
-                            <p class="mb-0">{{ lecturer.user.address|default:"Not provided" }}</p>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Employee Number</label>
+                            <p class="fw-bold">{{ lecturer.employee_number }}</p>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="small text-muted">Address</label>
+                            <p class="fw-bold">{{ lecturer.user.address|default:"Not provided" }}</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6">
+        <!-- Academic Information Card -->
+        <div class="col-md-6 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-success text-white">
-                    <h6 class="card-title mb-0">
+                    <h5 class="card-title mb-0">
                         <i class="bi bi-mortarboard"></i> Academic Information
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <strong>Department:</strong>
-                            <p class="mb-2">{{ lecturer.department.name }} ({{ lecturer.department.code }})</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Faculty:</strong>
-                            <p class="mb-2">{{ lecturer.department.faculty.name }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Academic Rank:</strong>
-                            <p class="mb-2">{{ lecturer.get_academic_rank_display }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Employment Type:</strong>
-                            <p class="mb-2">{{ lecturer.get_employment_type_display }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Highest Qualification:</strong>
-                            <p class="mb-2">{{ lecturer.highest_qualification|default:"Not provided" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>University Graduated:</strong>
-                            <p class="mb-2">{{ lecturer.university_graduated|default:"Not provided" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Graduation Year:</strong>
-                            <p class="mb-2">{{ lecturer.graduation_year|default:"Not provided" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Professional Registration:</strong>
-                            <p class="mb-0">{{ lecturer.professional_registration|default:"Not provided" }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Employment Details -->
-    <div class="row p-3">
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-briefcase"></i> Employment Details
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <strong>Joining Date:</strong>
-                            <p class="mb-2">{{ lecturer.joining_date|date:"F d, Y" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Contract End Date:</strong>
-                            <p class="mb-2">
-                                {% if lecturer.contract_end_date %}
-                                    {{ lecturer.contract_end_date|date:"F d, Y" }}
-                                {% else %}
-                                    <span class="text-muted">Permanent</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Office Location:</strong>
-                            <p class="mb-2">{{ lecturer.office_location|default:"Not assigned" }}</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Office Phone:</strong>
-                            <p class="mb-2">
-                                {% if lecturer.office_phone %}
-                                    <a href="tel:{{ lecturer.office_phone }}">{{ lecturer.office_phone }}</a>
-                                {% else %}
-                                    <span class="text-muted">Not provided</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Consultation Hours:</strong>
-                            <p class="mb-0">{{ lecturer.consultation_hours|default:"Not specified"|linebreaks }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-info text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-graph-up"></i> Experience Summary
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <strong>Teaching Experience:</strong>
-                            <p class="mb-2">{{ lecturer.teaching_experience_years }} years</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Research Experience:</strong>
-                            <p class="mb-2">{{ lecturer.research_experience_years }} years</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Industry Experience:</strong>
-                            <p class="mb-2">{{ lecturer.industry_experience_years }} years</p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Total Experience:</strong>
-                            <p class="mb-2">
-                                {% widthratio lecturer.teaching_experience_years 1 1 %}{{ lecturer.research_experience_years|add:lecturer.industry_experience_years|add:lecturer.teaching_experience_years }} years
-                            </p>
-                        </div>
-                        <div class="col-12">
-                            <strong>Account Created:</strong>
-                            <p class="mb-0">{{ lecturer.user.date_joined|date:"F d, Y" }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Research & Publications -->
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-secondary text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="bi bi-journal-text"></i> Research & Publications
-                    </h6>
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
-                            <strong>Research Interests:</strong>
-                            <div class="mt-2">
-                                {% if lecturer.research_interests %}
-                                    {{ lecturer.research_interests|linebreaks }}
-                                {% else %}
-                                    <p class="text-muted">No research interests specified.</p>
-                                {% endif %}
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Department</label>
+                            <p class="fw-bold">{{ lecturer.department.name }}</p>
+                            <small class="text-muted">{{ lecturer.department.code }}</small>
                         </div>
-                        <div class="col-md-6">
-                            <strong>Publications:</strong>
-                            <div class="mt-2">
-                                {% if lecturer.publications %}
-                                    {{ lecturer.publications|linebreaks }}
-                                {% else %}
-                                    <p class="text-muted">No publications listed.</p>
-                                {% endif %}
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Faculty</label>
+                            <p class="fw-bold">{{ lecturer.department.faculty.name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Academic Rank</label>
+                            <p class="fw-bold">{{ lecturer.get_academic_rank_display }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Employment Type</label>
+                            <p class="fw-bold">{{ lecturer.get_employment_type_display }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Highest Qualification</label>
+                            <p class="fw-bold">{{ lecturer.highest_qualification|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">University Graduated</label>
+                            <p class="fw-bold">{{ lecturer.university_graduated|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Graduation Year</label>
+                            <p class="fw-bold">{{ lecturer.graduation_year|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Professional Registration</label>
+                            <p class="fw-bold">{{ lecturer.professional_registration|default:"Not provided" }}</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Current Courses -->
-    {% if enrollments %}
-    <div class="row p-3">
-        <div class="col-md-12">
+        <!-- Employment Details Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-briefcase"></i> Employment Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Joining Date</label>
+                            <p class="fw-bold">{{ lecturer.joining_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Contract End Date</label>
+                            <p class="fw-bold">
+                                {% if lecturer.contract_end_date %}
+                                    {{ lecturer.contract_end_date|date:"M d, Y" }}
+                                {% else %}
+                                    Permanent
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Office Location</label>
+                            <p class="fw-bold">{{ lecturer.office_location|default:"Not assigned" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Office Phone</label>
+                            <p class="fw-bold">
+                                {% if lecturer.office_phone %}
+                                    <a href="tel:{{ lecturer.office_phone }}" class="text-decoration-none">
+                                        {{ lecturer.office_phone }}
+                                    </a>
+                                {% else %}
+                                    Not provided
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="small text-muted">Consultation Hours</label>
+                            <p class="fw-bold">{{ lecturer.consultation_hours|default:"Not specified"|linebreaks }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Experience Summary Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-graph-up"></i> Experience Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Teaching Experience</label>
+                            <p class="fw-bold">{{ lecturer.teaching_experience_years }} years</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Research Experience</label>
+                            <p class="fw-bold">{{ lecturer.research_experience_years }} years</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Industry Experience</label>
+                            <p class="fw-bold">{{ lecturer.industry_experience_years }} years</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small text-muted">Total Experience</label>
+                            <p class="fw-bold">
+                                {% with total=lecturer.teaching_experience_years|add:lecturer.research_experience_years|add:lecturer.industry_experience_years %}
+                                    {{ total }} years
+                                {% endwith %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Research & Publications Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-journal-text"></i> Research & Publications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="small text-muted">Research Interests</label>
+                        <div class="research-text">
+                            {{ lecturer.research_interests|linebreaks|default:"Not provided" }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted">Publications</label>
+                        <div class="publications-text">
+                            {{ lecturer.publications|linebreaks|default:"Not provided" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Courses Card -->
+        {% if enrollments %}
+        <div class="col-md-12 mb-4">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h6 class="card-title mb-0">
+                    <h5 class="card-title mb-0">
                         <i class="bi bi-book"></i> Current Courses Teaching
-                    </h6>
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -361,12 +362,47 @@
                 </div>
             </div>
         </div>
+        {% endif %}
+
+        <!-- System Information Card -->
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> System Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Created</label>
+                            <p class="fw-bold">{{ lecturer.user.date_joined|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Updated</label>
+                            <p class="fw-bold">{{ lecturer.user.updated_at|date:"M d, Y H:i"|default:"Not available" }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Account Status</label>
+                            <p class="fw-bold">
+                                <span class="badge bg-{% if lecturer.user.is_active %}success{% else %}danger{% endif %}">
+                                    {{ lecturer.user.is_active|yesno:"Active,Inactive" }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="small text-muted">Last Login</label>
+                            <p class="fw-bold">{{ lecturer.user.last_login|date:"M d, Y H:i"|default:"Never logged in" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    {% endif %}
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
+<div id="deleteModal" class="modal fade">
     <div class="modal-dialog modal-confirm modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header flex-column">
@@ -417,24 +453,9 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
 }
 
-.profile-image {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-}
-
-.profile-placeholder {
-    width: 80px;
-    height: 80px;
-    background-color: #f8f9fa;
-    color: #6c757d;
-    font-size: 2rem;
-}
-
 .card {
     border: none;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    margin-bottom: 1rem;
 }
 
 .card:hover {
@@ -447,26 +468,48 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 600;
 }
 
-.text-primary {
-    color: #1a73e8 !important;
+.profile-picture-container {
+    position: relative;
+    margin: 0 auto;
+    width: fit-content;
 }
 
-.btn-primary {
-    background-color: #1a73e8;
-    border-color: #1a73e8;
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+    transition: all 0.3s ease;
 }
 
-.btn-primary:hover {
-    background-color: #155db3;
-    border-color: #155db3;
+.profile-picture:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-.modal-confirm .modal-content {
-    border: none;
-    border-radius: 10px;
+.profile-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 4px solid #f0f0f0;
+    margin: 0 auto;
 }
 
-.modal-confirm .icon-box {
+.quick-info {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.research-text, .publications-text {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.75rem;
+    border-left: 4px solid #1a73e8;
+}
+
+.icon-box {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -475,6 +518,11 @@ document.addEventListener('DOMContentLoaded', function() {
     justify-content: center;
     margin: 0 auto 20px;
     font-size: 24px;
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
 }
 
 .modal-confirm .modal-header {
@@ -492,34 +540,40 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: rgba(26, 115, 232, 0.05);
 }
 
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
 @media (max-width: 768px) {
-    .profile-image, .profile-placeholder {
-        width: 60px;
-        height: 60px;
+    .profile-picture, .profile-picture-placeholder {
+        width: 120px;
+        height: 120px;
     }
     
-    .btn-group {
+    .dashboardRightLabel .btn-group {
         width: 100%;
-        flex-direction: column;
+        flex-wrap: wrap;
     }
     
-    .btn-group .btn {
-        margin-bottom: 0.5rem;
-    }
-    
-    .card-body {
-        padding: 1rem;
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
     }
 }
 
 @media print {
-    .btn, .modal {
+    .btn-group, .modal, .alert {
         display: none !important;
     }
     
     .card {
-        box-shadow: none;
-        border: 1px solid #ddd;
+        box-shadow: none !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    .onprintContainer {
+        box-shadow: none !important;
     }
 }
 </style>
