@@ -76,7 +76,7 @@ class ProgrammeCourseInline(admin.TabularInline):
 @admin.register(Programme)
 class ProgrammeAdmin(admin.ModelAdmin):
     list_display = ('name', 'code', 'programme_type', 'study_mode', 'department', 
-                   'duration_years', 'total_semesters', 'student_count', 'is_active')
+                   'duration_years','semesters_per_year' , 'total_semesters', 'student_count', 'is_active')
     list_filter = ('programme_type', 'study_mode', 'department__faculty', 'department', 'is_active')
     search_fields = ('name', 'code', 'description')
     inlines = [ProgrammeCourseInline]
