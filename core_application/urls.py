@@ -91,4 +91,14 @@ urlpatterns = [
     path('students/<int:student_id>/courses/<int:course_id>/enrollment/', 
          views.student_enrollment_detail, name='student_enrollment_detail'),
 
+     #Grades URLs
+    path('grades/', views.grades_list, name='grades_list'),
+    path('grades/download-pdf/', views.download_grades_pdf, name='download_grades_pdf'),
+    path('api/semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
+    
+    # Additional grade-related URLs you might need
+    #path('grades/student/<str:student_id>/', views.student_transcript, name='student_transcript'),
+    path('grades/course/<int:course_id>/', views.course_grades, name='course_grades'),
+    path('grades/analytics/', views.grades_analytics, name='grades_analytics'),
+
 ]

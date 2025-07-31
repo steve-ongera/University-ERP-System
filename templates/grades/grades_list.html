@@ -1,0 +1,637 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-clipboard-data me-2 text-primary"></i>
+                                Grades Management
+                            </h2>
+                            <p class="text-muted mb-0">View and manage student grades across all programmes</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success" onclick="downloadPDF()">
+                                <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="exportToExcel()">
+                                <i class="bi bi-file-earmark-excel"></i> Export Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-1">{{ total_students }}</h4>
+                            <p class="mb-0">Total Students</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-1">{{ total_grades }}</h4>
+                            <p class="mb-0">Total Grades</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clipboard-check fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-1">{{ average_gpa }}</h4>
+                            <p class="mb-0">Average GPA</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-graph-up fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-1">{{ grade_distribution.A|default:0 }}</h4>
+                            <p class="mb-0">A Grades</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-trophy fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filters
+                        <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </button>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" id="filterForm">
+                        <div class="row g-3">
+                            <!-- Academic Year -->
+                            <div class="col-md-3">
+                                <label class="form-label">Academic Year</label>
+                                <select name="academic_year" class="form-select" id="academicYearSelect">
+                                    <option value="">All Years</option>
+                                    {% for year in academic_years %}
+                                        <option value="{{ year.id }}" 
+                                                {% if filters.academic_year_id == year.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ year.year }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Semester -->
+                            <div class="col-md-3">
+                                <label class="form-label">Semester</label>
+                                <select name="semester" class="form-select" id="semesterSelect">
+                                    <option value="">All Semesters</option>
+                                    {% for semester in semesters %}
+                                        <option value="{{ semester.id }}" 
+                                                data-year="{{ semester.academic_year.id }}"
+                                                {% if filters.semester_id == semester.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Programme -->
+                            <div class="col-md-3">
+                                <label class="form-label">Programme</label>
+                                <select name="programme" class="form-select">
+                                    <option value="">All Programmes</option>
+                                    {% for programme in programmes %}
+                                        <option value="{{ programme.id }}" 
+                                                {% if filters.programme_id == programme.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ programme.name }} ({{ programme.code }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Department -->
+                            <div class="col-md-3">
+                                <label class="form-label">Department</label>
+                                <select name="department" class="form-select">
+                                    <option value="">All Departments</option>
+                                    {% for department in departments %}
+                                        <option value="{{ department.id }}" 
+                                                {% if filters.department_id == department.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ department.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Student Search -->
+                            <div class="col-md-4">
+                                <label class="form-label">Student Search</label>
+                                <input type="text" name="student_search" class="form-control" 
+                                       placeholder="Search by name or student ID" 
+                                       value="{{ filters.student_search }}">
+                            </div>
+
+                            <!-- Course Search -->
+                            <div class="col-md-4">
+                                <label class="form-label">Course Search</label>
+                                <input type="text" name="course_search" class="form-control" 
+                                       placeholder="Search by course name or code" 
+                                       value="{{ filters.course_search }}">
+                            </div>
+
+                            <!-- Grade Filter -->
+                            <div class="col-md-4">
+                                <label class="form-label">Grade</label>
+                                <select name="grade_filter" class="form-select">
+                                    <option value="">All Grades</option>
+                                    {% for grade_code, grade_display in grade_choices %}
+                                        <option value="{{ grade_code }}" 
+                                                {% if filters.grade_filter == grade_code %}selected{% endif %}>
+                                            {{ grade_display }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Apply Filters
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearFilters()">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grades List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Student Grades</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="toggleView('expanded')">
+                            <i class="bi bi-arrows-expand"></i> Expanded
+                        </button>
+                        <button class="btn btn-outline-primary active" onclick="toggleView('compact')">
+                            <i class="bi bi-list"></i> Compact
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="gradesContainer">
+                        {% for student_data in students_grades %}
+                            <div class="student-card mb-4 border rounded p-3">
+                                <!-- Student Header -->
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1 text-primary">
+                                            <i class="bi bi-person-circle me-2"></i>
+                                            {{ student_data.student.user.get_full_name }}
+                                        </h5>
+                                        <div class="d-flex flex-wrap gap-3 text-muted">
+                                            <span><strong>ID:</strong> {{ student_data.student.student_id }}</span>
+                                            <span><strong>Programme:</strong> {{ student_data.student.programme.code }}</span>
+                                            <span><strong>Year:</strong> {{ student_data.student.current_year }}</span>
+                                            <span><strong>Semester:</strong> {{ student_data.student.current_semester }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="d-flex justify-content-end gap-3">
+                                            <div class="text-center">
+                                                <h4 class="mb-0 text-success">{{ student_data.gpa }}</h4>
+                                                <small class="text-muted">GPA</small>
+                                            </div>
+                                            <div class="text-center">
+                                                <h4 class="mb-0 text-info">{{ student_data.total_credits }}</h4>
+                                                <small class="text-muted">Credits</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Grades Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Course Code</th>
+                                                <th>Course Name</th>
+                                                <th>Credits</th>
+                                                <th>CAT</th>
+                                                <th>Exam</th>
+                                                <th>Total</th>
+                                                <th>Grade</th>
+                                                <th>Points</th>
+                                                <th>Semester</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for grade in student_data.grades %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-secondary">{{ grade.enrollment.course.code }}</span>
+                                                    </td>
+                                                    <td>{{ grade.enrollment.course.name }}</td>
+                                                    <td>{{ grade.enrollment.course.credit_hours }}</td>
+                                                    <td>{{ grade.continuous_assessment|default:"-" }}</td>
+                                                    <td>{{ grade.final_exam|default:"-" }}</td>
+                                                    <td>
+                                                        {% if grade.total_marks %}
+                                                            <strong>{{ grade.total_marks|floatformat:1 }}%</strong>
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if grade.grade %}
+                                                            <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %}">
+                                                                {{ grade.grade }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ grade.grade_points|default:"-" }}</td>
+                                                    <td>
+                                                        <small class="text-muted">
+                                                            {{ grade.enrollment.semester.academic_year.year }}<br>
+                                                            Sem {{ grade.enrollment.semester.semester_number }}
+                                                        </small>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox display-1 text-muted"></i>
+                                <h4 class="text-muted mt-3">No grades found</h4>
+                                <p class="text-muted">Try adjusting your filters to see results.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if students_grades.has_other_pages %}
+                        <nav aria-label="Grades pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if students_grades.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ students_grades.previous_page_number }}">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in students_grades.paginator.page_range %}
+                                    {% if students_grades.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if students_grades.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ students_grades.next_page_number }}">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Academic Year and Semester filtering
+    const academicYearSelect = document.getElementById('academicYearSelect');
+    const semesterSelect = document.getElementById('semesterSelect');
+    
+    function filterSemesters() {
+        const selectedYear = academicYearSelect.value;
+        const semesterOptions = semesterSelect.querySelectorAll('option[data-year]');
+        
+        semesterOptions.forEach(option => {
+            if (!selectedYear || option.dataset.year === selectedYear) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+                if (option.selected) {
+                    option.selected = false;
+                }
+            }
+        });
+        
+        // Reset semester selection if no valid option is visible
+        if (selectedYear && semesterSelect.value) {
+            const selectedOption = semesterSelect.querySelector(`option[value="${semesterSelect.value}"]`);
+            if (selectedOption && selectedOption.style.display === 'none') {
+                semesterSelect.value = '';
+            }
+        }
+    }
+    
+    academicYearSelect.addEventListener('change', filterSemesters);
+    
+    // Initial filter on page load
+    filterSemesters();
+    
+    // Auto-submit form on filter change
+    const filterInputs = document.querySelectorAll('#filterForm select, #filterForm input');
+    filterInputs.forEach(input => {
+        if (input.type === 'text') {
+            let timeout;
+            input.addEventListener('input', function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    document.getElementById('filterForm').submit();
+                }, 500);
+            });
+        } else {
+            input.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        }
+    });
+});
+
+function clearFilters() {
+    const form = document.getElementById('filterForm');
+    const inputs = form.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (input.type === 'text') {
+            input.value = '';
+        } else {
+            input.selectedIndex = 0;
+        }
+    });
+    form.submit();
+}
+
+function toggleView(viewType) {
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    if (viewType === 'expanded') {
+        document.querySelector('[onclick="toggleView(\'expanded\')"]').classList.add('active');
+        document.querySelectorAll('.student-card').forEach(card => {
+            card.classList.add('border-primary');
+        });
+    } else {
+        document.querySelector('[onclick="toggleView(\'compact\')"]').classList.add('active');
+        document.querySelectorAll('.student-card').forEach(card => {
+            card.classList.remove('border-primary');
+        });
+    }
+}
+
+function downloadPDF() {
+    const currentURL = new URL(window.location);
+    currentURL.pathname = currentURL.pathname.replace('/list/', '/download-pdf/');
+    window.open(currentURL.toString(), '_blank');
+}
+
+function exportToExcel() {
+    // This would need to be implemented based on your backend requirements
+    alert('Excel export functionality to be implemented');
+}
+</script>
+
+<style>
+.student-card {
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+
+.student-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.student-card .table-responsive {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.pagination .page-link {
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-group .btn {
+    border-radius: 0.375rem;
+}
+
+.btn-group .btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.btn-group .btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+@media print {
+    .btn, .card-header .btn-group, .pagination {
+        display: none !important;
+    }
+    
+    .student-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    .table {
+        font-size: 0.75rem;
+    }
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.form-select, .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.text-primary {
+    color: #0d6efd !important;
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.text-info {
+    color: #0dcaf0 !important;
+}
+
+.text-warning {
+    color: #ffc107 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.bg-success {
+    background-color: #198754 !important;
+}
+
+.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.loading-spinner.show {
+    display: block;
+}
+
+.filter-badge {
+    display: inline-block;
+    margin: 0.25rem;
+    padding: 0.5rem 1rem;
+    background-color: #e9ecef;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+}
+
+.filter-badge .btn-close {
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+</style>
+
+{% endblock %}

@@ -3483,3 +3483,447 @@ def student_enrollment_detail(request, student_id, course_id):
     }
     
     return render(request, 'programmes/student_enrollment_detail.html', context)
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Q, Avg, Count, Sum
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.contrib import messages
+from django.template.loader import render_to_string
+from .models import (
+    Grade, Student, AcademicYear, Semester, Programme, 
+    Department, Faculty, Course, Enrollment
+)
+import json
+from decimal import Decimal
+
+@login_required
+def grades_list(request):
+    """
+    Display grades list with filtering options
+    """
+    # Get filter parameters
+    academic_year_id = request.GET.get('academic_year')
+    semester_id = request.GET.get('semester')
+    programme_id = request.GET.get('programme')
+    department_id = request.GET.get('department')
+    student_search = request.GET.get('student_search', '').strip()
+    course_search = request.GET.get('course_search', '').strip()
+    grade_filter = request.GET.get('grade_filter')
+    
+    # Base queryset
+    grades = Grade.objects.select_related(
+        'enrollment__student__user',
+        'enrollment__student__programme',
+        'enrollment__course',
+        'enrollment__semester__academic_year',
+        'enrollment__lecturer__user'
+    ).order_by(
+        'enrollment__semester__academic_year__year',
+        'enrollment__semester__semester_number',
+        'enrollment__student__user__last_name',
+        'enrollment__student__user__first_name',
+        'enrollment__course__code'
+    )
+    
+    # Apply filters
+    if academic_year_id:
+        grades = grades.filter(enrollment__semester__academic_year_id=academic_year_id)
+    
+    if semester_id:
+        grades = grades.filter(enrollment__semester_id=semester_id)
+    
+    if programme_id:
+        grades = grades.filter(enrollment__student__programme_id=programme_id)
+    
+    if department_id:
+        grades = grades.filter(enrollment__course__department_id=department_id)
+    
+    if student_search:
+        grades = grades.filter(
+            Q(enrollment__student__user__first_name__icontains=student_search) |
+            Q(enrollment__student__user__last_name__icontains=student_search) |
+            Q(enrollment__student__student_id__icontains=student_search)
+        )
+    
+    if course_search:
+        grades = grades.filter(
+            Q(enrollment__course__name__icontains=course_search) |
+            Q(enrollment__course__code__icontains=course_search)
+        )
+    
+    if grade_filter:
+        grades = grades.filter(grade=grade_filter)
+    
+    # Group grades by student for better organization
+    students_grades = {}
+    for grade in grades:
+        student = grade.enrollment.student
+        student_key = student.student_id
+        
+        if student_key not in students_grades:
+            students_grades[student_key] = {
+                'student': student,
+                'grades': [],
+                'total_credits': 0,
+                'total_quality_points': Decimal('0.00'),
+                'gpa': Decimal('0.00')
+            }
+        
+        students_grades[student_key]['grades'].append(grade)
+        students_grades[student_key]['total_credits'] += grade.enrollment.course.credit_hours
+        if grade.quality_points:
+            students_grades[student_key]['total_quality_points'] += grade.quality_points
+    
+    # Calculate GPA for each student
+    for student_data in students_grades.values():
+        if student_data['total_credits'] > 0:
+            student_data['gpa'] = student_data['total_quality_points'] / student_data['total_credits']
+        student_data['gpa'] = round(student_data['gpa'], 2)
+    
+    # Pagination
+    paginator = Paginator(list(students_grades.values()), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    semesters = Semester.objects.all().order_by('-academic_year__year', '-semester_number')
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    # Statistics
+    total_students = len(students_grades)
+    total_grades = grades.count()
+    average_gpa = sum([s['gpa'] for s in students_grades.values()]) / total_students if total_students > 0 else 0
+    
+    # Grade distribution
+    grade_distribution = {}
+    for grade in grades:
+        if grade.grade:
+            grade_distribution[grade.grade] = grade_distribution.get(grade.grade, 0) + 1
+    
+    context = {
+        'students_grades': page_obj,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'programmes': programmes,
+        'departments': departments,
+        'total_students': total_students,
+        'total_grades': total_grades,
+        'average_gpa': round(average_gpa, 2),
+        'grade_distribution': grade_distribution,
+        'filters': {
+            'academic_year_id': academic_year_id,
+            'semester_id': semester_id,
+            'programme_id': programme_id,
+            'department_id': department_id,
+            'student_search': student_search,
+            'course_search': course_search,
+            'grade_filter': grade_filter,
+        },
+        'grade_choices': Grade.GRADE_CHOICES,
+    }
+    
+    return render(request, 'grades/grades_list.html', context)
+
+@login_required
+def get_semesters_by_year(request):
+    """
+    AJAX view to get semesters for a specific academic year
+    """
+    academic_year_id = request.GET.get('academic_year_id')
+    semesters = []
+    
+    if academic_year_id:
+        semesters = list(
+            Semester.objects.filter(academic_year_id=academic_year_id)
+            .values('id', 'semester_number', 'start_date', 'end_date')
+            .order_by('semester_number')
+        )
+    
+    return JsonResponse({'semesters': semesters})
+
+@login_required
+def download_grades_pdf(request):
+    """
+    Generate and download PDF report of grades
+    """
+    # Get the same filters as the main view
+    academic_year_id = request.GET.get('academic_year')
+    semester_id = request.GET.get('semester')
+    programme_id = request.GET.get('programme')
+    department_id = request.GET.get('department')
+    
+    # Get filtered data
+    grades = Grade.objects.select_related(
+        'enrollment__student__user',
+        'enrollment__student__programme',
+        'enrollment__course',
+        'enrollment__semester__academic_year',
+        'enrollment__lecturer__user'
+    ).order_by(
+        'enrollment__student__user__last_name',
+        'enrollment__student__user__first_name',
+        'enrollment__course__code'
+    )
+    
+    # Apply filters
+    if academic_year_id:
+        grades = grades.filter(enrollment__semester__academic_year_id=academic_year_id)
+    if semester_id:
+        grades = grades.filter(enrollment__semester_id=semester_id)
+    if programme_id:
+        grades = grades.filter(enrollment__student__programme_id=programme_id)
+    if department_id:
+        grades = grades.filter(enrollment__course__department_id=department_id)
+    
+    # Group grades by student
+    students_grades = {}
+    for grade in grades:
+        student = grade.enrollment.student
+        student_key = student.student_id
+        
+        if student_key not in students_grades:
+            students_grades[student_key] = {
+                'student': student,
+                'grades': [],
+                'total_credits': 0,
+                'total_quality_points': Decimal('0.00'),
+                'gpa': Decimal('0.00')
+            }
+        
+        students_grades[student_key]['grades'].append(grade)
+        students_grades[student_key]['total_credits'] += grade.enrollment.course.credit_hours
+        if grade.quality_points:
+            students_grades[student_key]['total_quality_points'] += grade.quality_points
+    
+    # Calculate GPA for each student
+    for student_data in students_grades.values():
+        if student_data['total_credits'] > 0:
+            student_data['gpa'] = student_data['total_quality_points'] / student_data['total_credits']
+        student_data['gpa'] = round(student_data['gpa'], 2)
+    
+    # Get filter context for the PDF
+    academic_year = None
+    semester = None
+    programme = None
+    department = None
+    
+    if academic_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    if programme_id:
+        programme = get_object_or_404(Programme, id=programme_id)
+    if department_id:
+        department = get_object_or_404(Department, id=department_id)
+    
+    context = {
+        'students_grades': list(students_grades.values()),
+        'academic_year': academic_year,
+        'semester': semester,
+        'programme': programme,
+        'department': department,
+        'total_students': len(students_grades),
+        'total_grades': grades.count(),
+    }
+    
+    return render(request, 'grades/grades_pdf.html', context)
+
+
+@login_required
+def course_grades(request, course_id):
+    """
+    View grades for a specific course across all students
+    """
+    course = get_object_or_404(Course, id=course_id)
+    semester_id = request.GET.get('semester')
+    
+    # Base queryset
+    grades = Grade.objects.filter(
+        enrollment__course=course
+    ).select_related(
+        'enrollment__student__user',
+        'enrollment__student__programme',
+        'enrollment__semester__academic_year',
+        'enrollment__lecturer__user'
+    )
+    
+    if semester_id:
+        grades = grades.filter(enrollment__semester_id=semester_id)
+    
+    grades = grades.order_by('enrollment__student__user__last_name')
+    
+    # Statistics
+    total_students = grades.count()
+    passed_students = grades.filter(is_passed=True).count()
+    failed_students = total_students - passed_students
+    
+    # Grade distribution
+    grade_distribution = {}
+    total_marks_sum = 0
+    marks_count = 0
+    
+    for grade in grades:
+        if grade.grade:
+            grade_distribution[grade.grade] = grade_distribution.get(grade.grade, 0) + 1
+        
+        if grade.total_marks:
+            total_marks_sum += float(grade.total_marks)
+            marks_count += 1
+    
+    average_marks = total_marks_sum / marks_count if marks_count > 0 else 0
+    pass_rate = (passed_students / total_students * 100) if total_students > 0 else 0
+    
+    # Get semesters for filtering
+    semesters = Semester.objects.filter(
+        enrollments__course=course
+    ).distinct().order_by('-academic_year__year', '-semester_number')
+    
+    context = {
+        'course': course,
+        'grades': grades,
+        'semesters': semesters,
+        'selected_semester': semester_id,
+        'statistics': {
+            'total_students': total_students,
+            'passed_students': passed_students,
+            'failed_students': failed_students,
+            'pass_rate': round(pass_rate, 1),
+            'average_marks': round(average_marks, 1),
+            'grade_distribution': grade_distribution,
+        }
+    }
+    
+    return render(request, 'grades/course_grades.html', context)
+
+@login_required
+def grades_analytics(request):
+    """
+    Analytics dashboard for grades
+    """
+    # Get filter parameters
+    academic_year_id = request.GET.get('academic_year')
+    programme_id = request.GET.get('programme')
+    department_id = request.GET.get('department')
+    
+    # Base queryset
+    grades = Grade.objects.select_related(
+        'enrollment__student__programme',
+        'enrollment__course__department',
+        'enrollment__semester__academic_year'
+    )
+    
+    # Apply filters
+    if academic_year_id:
+        grades = grades.filter(enrollment__semester__academic_year_id=academic_year_id)
+    if programme_id:
+        grades = grades.filter(enrollment__student__programme_id=programme_id)
+    if department_id:
+        grades = grades.filter(enrollment__course__department_id=department_id)
+    
+    # Overall statistics
+    total_grades = grades.count()
+    total_students = grades.values('enrollment__student').distinct().count()
+    
+    # Grade distribution
+    grade_distribution = {}
+    for grade_choice in Grade.GRADE_CHOICES:
+        grade_code = grade_choice[0]
+        count = grades.filter(grade=grade_code).count()
+        if count > 0:
+            grade_distribution[grade_code] = {
+                'count': count,
+                'percentage': round((count / total_grades * 100), 1) if total_grades > 0 else 0
+            }
+    
+    # Performance by programme
+    programme_performance = {}
+    for programme in Programme.objects.filter(is_active=True):
+        programme_grades = grades.filter(enrollment__student__programme=programme)
+        if programme_grades.exists():
+            passed = programme_grades.filter(is_passed=True).count()
+            total = programme_grades.count()
+            pass_rate = (passed / total * 100) if total > 0 else 0
+            
+            programme_performance[programme.name] = {
+                'total_grades': total,
+                'passed': passed,
+                'pass_rate': round(pass_rate, 1)
+            }
+    
+    # Performance by department
+    department_performance = {}
+    for department in Department.objects.filter(is_active=True):
+        dept_grades = grades.filter(enrollment__course__department=department)
+        if dept_grades.exists():
+            passed = dept_grades.filter(is_passed=True).count()
+            total = dept_grades.count()
+            pass_rate = (passed / total * 100) if total > 0 else 0
+            
+            department_performance[department.name] = {
+                'total_grades': total,
+                'passed': passed,
+                'pass_rate': round(pass_rate, 1)
+            }
+    
+    # GPA distribution
+    gpa_ranges = {
+        '3.5-4.0': 0, '3.0-3.49': 0, '2.5-2.99': 0,
+        '2.0-2.49': 0, '1.5-1.99': 0, 'Below 1.5': 0
+    }
+    
+    # Calculate student GPAs (simplified)
+    student_gpas = {}
+    for grade in grades:
+        student_id = grade.enrollment.student.id
+        if student_id not in student_gpas:
+            student_gpas[student_id] = {'quality_points': 0, 'credits': 0}
+        
+        if grade.quality_points and grade.enrollment.course.credit_hours:
+            student_gpas[student_id]['quality_points'] += float(grade.quality_points)
+            student_gpas[student_id]['credits'] += grade.enrollment.course.credit_hours
+    
+    for student_data in student_gpas.values():
+        if student_data['credits'] > 0:
+            gpa = student_data['quality_points'] / student_data['credits']
+            if gpa >= 3.5:
+                gpa_ranges['3.5-4.0'] += 1
+            elif gpa >= 3.0:
+                gpa_ranges['3.0-3.49'] += 1
+            elif gpa >= 2.5:
+                gpa_ranges['2.5-2.99'] += 1
+            elif gpa >= 2.0:
+                gpa_ranges['2.0-2.49'] += 1
+            elif gpa >= 1.5:
+                gpa_ranges['1.5-1.99'] += 1
+            else:
+                gpa_ranges['Below 1.5'] += 1
+    
+    # Get filter options
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'total_grades': total_grades,
+        'total_students': total_students,
+        'grade_distribution': grade_distribution,
+        'programme_performance': programme_performance,
+        'department_performance': department_performance,
+        'gpa_ranges': gpa_ranges,
+        'academic_years': academic_years,
+        'programmes': programmes,
+        'departments': departments,
+        'filters': {
+            'academic_year_id': academic_year_id,
+            'programme_id': programme_id,
+            'department_id': department_id,
+        }
+    }
+    
+    return render(request, 'grades/analytics.html', context)

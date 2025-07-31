@@ -1,0 +1,606 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Course Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold text-primary mb-2">
+                                <i class="bi bi-book me-2"></i>
+                                {{ course.name }}
+                            </h2>
+                            <div class="d-flex flex-wrap gap-3 mb-3">
+                                <span class="badge bg-primary fs-6">{{ course.code }}</span>
+                                <span class="badge bg-info fs-6">{{ course.get_course_type_display }}</span>
+                                <span class="badge bg-secondary fs-6">{{ course.get_level_display }}</span>
+                                <span class="badge bg-success fs-6">{{ course.credit_hours }} Credits</span>
+                            </div>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-building me-1"></i>
+                                {{ course.department.name }} - {{ course.department.faculty.name }}
+                            </p>
+                            <div class="d-flex gap-4 text-sm">
+                                <span><i class="bi bi-clock me-1"></i>Lecture: {{ course.lecture_hours }}h</span>
+                                <span><i class="bi bi-laptop me-1"></i>Practical: {{ course.practical_hours }}h</span>
+                                <span><i class="bi bi-person-workspace me-1"></i>Tutorial: {{ course.tutorial_hours }}h</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-success" onclick="downloadCourseReport()">
+                                    <i class="bi bi-file-earmark-pdf"></i> Course Report
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="exportGrades()">
+                                    <i class="bi bi-file-earmark-excel"></i> Export
+                                </button>
+                                <a href="{% url 'grades_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-1">{{ statistics.total_students }}</h3>
+                            <p class="mb-0">Total Students</p>
+                        </div>
+                        <i class="bi bi-people fs-1 opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-1">{{ statistics.passed_students }}</h3>
+                            <p class="mb-0">Passed ({{ statistics.pass_rate }}%)</p>
+                        </div>
+                        <i class="bi bi-check-circle fs-1 opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-1">{{ statistics.failed_students }}</h3>
+                            <p class="mb-0">Failed ({{ statistics.pass_rate|add:"-100"|abs }}%)</p>
+                        </div>
+                        <i class="bi bi-x-circle fs-1 opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-1">{{ statistics.average_marks }}%</h3>
+                            <p class="mb-0">Average Score</p>
+                        </div>
+                        <i class="bi bi-graph-up fs-1 opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Grade Distribution -->
+    <div class="row mb-4">
+        <!-- Semester Filter -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filter by Semester
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="d-flex gap-3 align-items-end">
+                        <div class="flex-grow-1">
+                            <label class="form-label">Select Semester</label>
+                            <select name="semester" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Semesters</option>
+                                {% for semester in semesters %}
+                                    <option value="{{ semester.id }}" 
+                                            {% if selected_semester == semester.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                                        ({{ semester.start_date|date:"M Y" }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Filter
+                        </button>
+                        {% if selected_semester %}
+                            <a href="?" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grade Distribution Chart -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart me-2"></i>Grade Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="grade-distribution">
+                        {% for grade, count in statistics.grade_distribution.items %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-{% if grade == 'A+' or grade == 'A' %}success{% elif grade == 'B+' or grade == 'B' %}primary{% elif grade == 'C+' or grade == 'C' %}warning{% else %}danger{% endif %} me-2">
+                                    {{ grade }}
+                                </span>
+                                <div class="flex-grow-1 mx-2">
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-{% if grade == 'A+' or grade == 'A' %}success{% elif grade == 'B+' or grade == 'B' %}primary{% elif grade == 'C+' or grade == 'C' %}warning{% else %}danger{% endif %}" 
+                                             style="width: {% widthratio count statistics.total_students 100 %}%"></div>
+                                    </div>
+                                </div>
+                                <span class="small text-muted">{{ count }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Description -->
+    {% if course.description %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text me-2"></i>Course Description
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ course.description }}</p>
+                    {% if course.learning_outcomes %}
+                        <hr>
+                        <h6 class="text-primary">Learning Outcomes:</h6>
+                        <p class="mb-0">{{ course.learning_outcomes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Student Grades Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table me-2"></i>Student Grades
+                        {% if selected_semester %}
+                            <span class="badge bg-info ms-2">
+                                Filtered by {{ semesters|first.academic_year.year }} - Semester {{ semesters|first.semester_number }}
+                            </span>
+                        {% endif %}
+                    </h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="toggleGradeDetails()" id="toggleBtn">
+                            <i class="bi bi-eye"></i> Show Details
+                        </button>
+                        <button class="btn btn-outline-success" onclick="bulkGradeUpdate()">
+                            <i class="bi bi-pencil-square"></i> Bulk Update
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="gradesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Programme</th>
+                                    <th>Year/Semester</th>
+                                    <th>CAT Marks</th>
+                                    <th>Final Exam</th>
+                                    <th>Total Score</th>
+                                    <th>Grade</th>
+                                    <th>Grade Points</th>
+                                    <th class="grade-details" style="display: none;">Practical</th>
+                                    <th class="grade-details" style="display: none;">Project</th>
+                                    <th class="grade-details" style="display: none;">Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in grades %}
+                                <tr class="{% if not grade.is_passed %}table-danger{% elif grade.grade == 'A+' or grade.grade == 'A' %}table-success{% endif %}">
+                                    <td>
+                                        <input type="checkbox" class="student-checkbox" value="{{ grade.id }}">
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ grade.enrollment.student.student_id }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-2">
+                                                {{ grade.enrollment.student.user.first_name|first }}{{ grade.enrollment.student.user.last_name|first }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ grade.enrollment.student.user.get_full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ grade.enrollment.student.user.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ grade.enrollment.student.programme.code }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ grade.enrollment.student.programme.name|truncatechars:30 }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="small">
+                                            <strong>Y{{ grade.enrollment.student.current_year }}</strong>
+                                            <br>
+                                            <span class="text-muted">S{{ grade.enrollment.student.current_semester }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if grade.continuous_assessment %}
+                                            <span class="badge bg-{% if grade.continuous_assessment >= 32 %}success{% elif grade.continuous_assessment >= 24 %}warning{% else %}danger{% endif %}">
+                                                {{ grade.continuous_assessment|floatformat:1 }}/40
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if grade.final_exam %}
+                                            <span class="badge bg-{% if grade.final_exam >= 42 %}success{% elif grade.final_exam >= 30 %}warning{% else %}danger{% endif %}">
+                                                {{ grade.final_exam|floatformat:1 }}/60
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if grade.total_marks %}
+                                            <strong class="{% if grade.total_marks >= 70 %}text-success{% elif grade.total_marks >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ grade.total_marks|floatformat:1 }}%
+                                            </strong>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if grade.grade %}
+                                            <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %} fs-6">
+                                                {{ grade.grade }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if grade.grade_points %}
+                                            <strong>{{ grade.grade_points|floatformat:2 }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="grade-details text-center" style="display: none;">
+                                        {% if grade.practical_marks %}
+                                            {{ grade.practical_marks|floatformat:1 }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="grade-details text-center" style="display: none;">
+                                        {% if grade.project_marks %}
+                                            {{ grade.project_marks|floatformat:1 }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="grade-details" style="display: none;">
+                                        <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %}">
+                                            {% if grade.is_passed %}Passed{% else %}Failed{% endif %}
+                                        </span>
+                                        {% if grade.enrollment.is_repeat %}
+                                            <br><span class="badge bg-warning mt-1">Repeat</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="editGrade({{ grade.id }})" title="Edit Grade">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" onclick="viewGradeHistory({{ grade.id }})" title="View History">
+                                                <i class="bi bi-clock-history"></i>
+                                            </button>
+                                            <a href="{% url 'student_transcript' grade.enrollment.student.student_id %}" 
+                                               class="btn btn-outline-success" title="View Transcript">
+                                                <i class="bi bi-file-earmark-text"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="14" class="text-center py-5">
+                                        <i class="bi bi-inbox display-1 text-muted"></i>
+                                        <h5 class="text-muted mt-3">No grades found</h5>
+                                        <p class="text-muted">No students have been graded for this course yet.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grade Edit Modal -->
+<div class="modal fade" id="gradeEditModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Grade</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="gradeEditForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Continuous Assessment (40%)</label>
+                                <input type="number" class="form-control" name="continuous_assessment" min="0" max="40" step="0.1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Final Exam (60%)</label>
+                                <input type="number" class="form-control" name="final_exam" min="0" max="60" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Practical Marks (Optional)</label>
+                                <input type="number" class="form-control" name="practical_marks" min="0" max="100" step="0.1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project Marks (Optional)</label>
+                                <input type="number" class="form-control" name="project_marks" min="0" max="100" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Remarks</label>
+                        <textarea class="form-control" name="remarks" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveGrade()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Grade management functionality
+let selectedGradeId = null;
+
+function toggleGradeDetails() {
+    const detailColumns = document.querySelectorAll('.grade-details');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const isHidden = detailColumns[0].style.display === 'none';
+    
+    detailColumns.forEach(col => {
+        col.style.display = isHidden ? 'table-cell' : 'none';
+    });
+    
+    toggleBtn.innerHTML = isHidden ? 
+        '<i class="bi bi-eye-slash"></i> Hide Details' : 
+        '<i class="bi bi-eye"></i> Show Details';
+}
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function editGrade(gradeId) {
+    selectedGradeId = gradeId;
+    // Here you would typically fetch the grade data via AJAX
+    // For now, we'll just show the modal
+    const modal = new bootstrap.Modal(document.getElementById('gradeEditModal'));
+    modal.show();
+}
+
+function saveGrade() {
+    if (!selectedGradeId) return;
+    
+    const formData = new FormData(document.getElementById('gradeEditForm'));
+    
+    // Here you would send the data via AJAX to update the grade
+    fetch(`/grades/update/${selectedGradeId}/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // or update the UI dynamically
+        } else {
+            alert('Error updating grade: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating the grade.');
+    });
+}
+
+function bulkGradeUpdate() {
+    const selectedGrades = Array.from(document.querySelectorAll('.student-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedGrades.length === 0) {
+        alert('Please select at least one student.');
+        return;
+    }
+    
+    // Implement bulk update functionality
+    alert(`Selected ${selectedGrades.length} students for bulk update.`);
+}
+
+function viewGradeHistory(gradeId) {
+    // Implement grade history view
+    alert('Grade history feature to be implemented.');
+}
+
+function downloadCourseReport() {
+    const currentURL = new URL(window.location);
+    currentURL.pathname = currentURL.pathname.replace('/grades/', '/course-report/');
+    window.open(currentURL.toString(), '_blank');
+}
+
+function exportGrades() {
+    const currentURL = new URL(window.location);
+    currentURL.pathname = currentURL.pathname.replace('/grades/', '/export/');
+    window.location.href = currentURL.toString();
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
+<style>
+.avatar-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.grade-distribution .progress {
+    background-color: #e9ecef;
+}
+
+.table th {
+    background-color: #495057 !important;
+    color: white !important;
+    font-weight: 600;
+    border-color: #495057 !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,.075);
+}
+
+.btn-group-sm .btn {
+    border-radius: 0.25rem;
+    margin: 0 1px;
+}
+
+@media print {
+    .btn, .modal, .card-header .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+}
+
+/* Custom styling for grade badges */
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+    padding: 0.5em 0.75em;
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+    }
+}
+</style>
+
+{% endblock %}
