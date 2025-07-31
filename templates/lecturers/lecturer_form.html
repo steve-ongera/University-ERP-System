@@ -17,14 +17,30 @@
 
 <div class="container onprintContainer">
     <div class="row p-3">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold text-primary">
-                    <i class="bi bi-mortarboard"></i> {{ title }}
-                </h4>
-                <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to List
-                </a>
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-mortarboard"></i> 
+                    {% if lecturer %}Edit Lecturer: {{ lecturer.user.get_full_name }}{% else %}Add New Lecturer{% endif %}
+                </p>
+                {% if lecturer %}
+                <p class="text-muted small">
+                    <i class="bi bi-person-badge"></i> Employee #: {{ lecturer.employee_number }}
+                    {% if lecturer.department %} | <i class="bi bi-building"></i> {{ lecturer.department.name }}{% endif %}
+                </p>
+                {% endif %}
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    {% if lecturer %}
+                    <a href="{% url 'lecturer_detail' lecturer.employee_number %}" class="btn btn-outline-info">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -32,298 +48,339 @@
     <form method="post" enctype="multipart/form-data" id="lecturerForm">
         {% csrf_token %}
         
-        <!-- Personal Information -->
+        <!-- Tab Navigation -->
         <div class="row p-3">
             <div class="col-md-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white">
-                        <h6 class="card-title mb-0">
-                            <i class="bi bi-person"></i> Personal Information
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">First Name <span class="text-danger">*</span></label>
-                                {{ user_form.first_name }}
-                                {% if user_form.first_name.errors %}
-                                    <div class="text-danger small">{{ user_form.first_name.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                                {{ user_form.last_name }}
-                                {% if user_form.last_name.errors %}
-                                    <div class="text-danger small">{{ user_form.last_name.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Username <span class="text-danger">*</span></label>
-                                {{ user_form.username }}
-                                {% if user_form.username.errors %}
-                                    <div class="text-danger small">{{ user_form.username.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Email <span class="text-danger">*</span></label>
-                                {{ user_form.email }}
-                                {% if user_form.email.errors %}
-                                    <div class="text-danger small">{{ user_form.email.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Phone Number</label>
-                                {{ user_form.phone }}
-                                {% if user_form.phone.errors %}
-                                    <div class="text-danger small">{{ user_form.phone.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">National ID</label>
-                                {{ user_form.national_id }}
-                                {% if user_form.national_id.errors %}
-                                    <div class="text-danger small">{{ user_form.national_id.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Gender</label>
-                                {{ user_form.gender }}
-                                {% if user_form.gender.errors %}
-                                    <div class="text-danger small">{{ user_form.gender.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Date of Birth</label>
-                                {{ user_form.date_of_birth }}
-                                {% if user_form.date_of_birth.errors %}
-                                    <div class="text-danger small">{{ user_form.date_of_birth.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Address</label>
-                                {{ user_form.address }}
-                                {% if user_form.address.errors %}
-                                    <div class="text-danger small">{{ user_form.address.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Profile Picture</label>
-                                {{ user_form.profile_picture }}
-                                {% if user_form.profile_picture.errors %}
-                                    <div class="text-danger small">{{ user_form.profile_picture.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ul class="nav nav-tabs" id="lecturerTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">
+                            <i class="bi bi-person-vcard"></i> Personal Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button" role="tab" aria-controls="academic" aria-selected="false">
+                            <i class="bi bi-mortarboard"></i> Academic Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="employment-tab" data-bs-toggle="tab" data-bs-target="#employment" type="button" role="tab" aria-controls="employment" aria-selected="false">
+                            <i class="bi bi-briefcase"></i> Employment Info
+                        </button>
+                    </li>
+                </ul>
             </div>
         </div>
 
-        <!-- Authentication -->
-        <div class="row p-3">
-            <div class="col-md-12">
+        <!-- Tab Content -->
+        <div class="tab-content" id="lecturerTabsContent">
+            <!-- Personal Information Tab -->
+            <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="personal-tab">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="card-title mb-0">
-                            <i class="bi bi-lock"></i> Authentication
-                        </h6>
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Personal Information</h5>
+                        <p class="small text-muted mb-0">Basic details and contact information</p>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">
+                        <div class="row">
+                            <!-- Profile Picture -->
+                            <div class="col-md-12 mb-4 text-center">
+                                <div class="profile-picture-container">
+                                    {% if lecturer and lecturer.user.profile_picture %}
+                                        <img src="{{ lecturer.user.profile_picture.url }}" 
+                                             class="profile-picture img-thumbnail rounded-circle" 
+                                             id="profilePreview" alt="Profile Picture">
+                                    {% else %}
+                                        <div class="profile-picture-placeholder rounded-circle d-flex align-items-center justify-content-center" 
+                                             id="profilePreview">
+                                            <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="mt-3">
+                                    <label class="form-label">Profile Picture</label>
+                                    {{ user_form.profile_picture }}
+                                    {% if user_form.profile_picture.errors %}
+                                        <div class="text-danger small">{{ user_form.profile_picture.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Basic Info -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">First Name</label>
+                                {{ user_form.first_name }}
+                                {% if user_form.first_name.errors %}
+                                    <div class="text-danger small">{{ user_form.first_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Last Name</label>
+                                {{ user_form.last_name }}
+                                {% if user_form.last_name.errors %}
+                                    <div class="text-danger small">{{ user_form.last_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Username</label>
+                                {{ user_form.username }}
+                                {% if user_form.username.errors %}
+                                    <div class="text-danger small">{{ user_form.username.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Contact Info -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required">Email</label>
+                                {{ user_form.email }}
+                                {% if user_form.email.errors %}
+                                    <div class="text-danger small">{{ user_form.email.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                {{ user_form.phone }}
+                                {% if user_form.phone.errors %}
+                                    <div class="text-danger small">{{ user_form.phone.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Personal Details -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Gender</label>
+                                {{ user_form.gender }}
+                                {% if user_form.gender.errors %}
+                                    <div class="text-danger small">{{ user_form.gender.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Date of Birth</label>
+                                {{ user_form.date_of_birth }}
+                                {% if user_form.date_of_birth.errors %}
+                                    <div class="text-danger small">{{ user_form.date_of_birth.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">National ID</label>
+                                {{ user_form.national_id }}
+                                {% if user_form.national_id.errors %}
+                                    <div class="text-danger small">{{ user_form.national_id.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Address -->
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Address</label>
+                                {{ user_form.address }}
+                                {% if user_form.address.errors %}
+                                    <div class="text-danger small">{{ user_form.address.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Password fields -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label {% if not lecturer %}required{% endif %}">
                                     Password {% if not lecturer %}(Required){% else %}(Leave blank to keep current){% endif %}
                                 </label>
                                 {{ user_form.password }}
                                 {% if user_form.password.errors %}
-                                    <div class="text-danger small">{{ user_form.password.errors.0 }}</div>
+                                    <div class="text-danger small">{{ user_form.password.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Confirm Password</label>
                                 {{ user_form.password_confirm }}
                                 {% if user_form.password_confirm.errors %}
-                                    <div class="text-danger small">{{ user_form.password_confirm.errors.0 }}</div>
+                                    <div class="text-danger small">{{ user_form.password_confirm.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Academic Information -->
-        <div class="row p-3">
-            <div class="col-md-12">
+            <!-- Academic Information Tab -->
+            <div class="tab-pane fade" id="academic" role="tabpanel" aria-labelledby="academic-tab">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="card-title mb-0">
-                            <i class="bi bi-mortarboard"></i> Academic Information
-                        </h6>
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Academic Information</h5>
+                        <p class="small text-muted mb-0">Educational background and qualifications</p>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                        <div class="row">
+                            <!-- Academic Details -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Employee Number</label>
                                 {{ lecturer_form.employee_number }}
                                 {% if lecturer_form.employee_number.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.employee_number.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.employee_number.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Department</label>
                                 {{ lecturer_form.department }}
                                 {% if lecturer_form.department.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.department.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.department.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Academic Rank <span class="text-danger">*</span></label>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Academic Rank</label>
                                 {{ lecturer_form.academic_rank }}
                                 {% if lecturer_form.academic_rank.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.academic_rank.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.academic_rank.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Employment Type</label>
-                                {{ lecturer_form.employment_type }}
-                                {% if lecturer_form.employment_type.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.employment_type.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
+
+                            <!-- Educational Background -->
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Highest Qualification</label>
                                 {{ lecturer_form.highest_qualification }}
                                 {% if lecturer_form.highest_qualification.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.highest_qualification.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.highest_qualification.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">University Graduated From</label>
                                 {{ lecturer_form.university_graduated }}
                                 {% if lecturer_form.university_graduated.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.university_graduated.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.university_graduated.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Graduation Year</label>
                                 {{ lecturer_form.graduation_year }}
                                 {% if lecturer_form.graduation_year.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.graduation_year.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.graduation_year.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Professional Registration</label>
                                 {{ lecturer_form.professional_registration }}
                                 {% if lecturer_form.professional_registration.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.professional_registration.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.professional_registration.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-12">
+
+                            <!-- Research -->
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Research Interests</label>
                                 {{ lecturer_form.research_interests }}
                                 {% if lecturer_form.research_interests.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.research_interests.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.research_interests.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-12">
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Publications</label>
                                 {{ lecturer_form.publications }}
                                 {% if lecturer_form.publications.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.publications.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.publications.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Experience & Employment -->
-        <div class="row p-3">
-            <div class="col-md-12">
+            <!-- Employment Information Tab -->
+            <div class="tab-pane fade" id="employment" role="tabpanel" aria-labelledby="employment-tab">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-warning text-dark">
-                        <h6 class="card-title mb-0">
-                            <i class="bi bi-briefcase"></i> Experience & Employment Details
-                        </h6>
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Employment Information</h5>
+                        <p class="small text-muted mb-0">Work experience and employment details</p>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Teaching Experience (Years)</label>
-                                {{ lecturer_form.teaching_experience_years }}
-                                {% if lecturer_form.teaching_experience_years.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.teaching_experience_years.errors.0 }}</div>
+                        <div class="row">
+                            <!-- Employment Type and Dates -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Employment Type</label>
+                                {{ lecturer_form.employment_type }}
+                                {% if lecturer_form.employment_type.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.employment_type.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Research Experience (Years)</label>
-                                {{ lecturer_form.research_experience_years }}
-                                {% if lecturer_form.research_experience_years.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.research_experience_years.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Industry Experience (Years)</label>
-                                {{ lecturer_form.industry_experience_years }}
-                                {% if lecturer_form.industry_experience_years.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.industry_experience_years.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Joining Date <span class="text-danger">*</span></label>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required">Joining Date</label>
                                 {{ lecturer_form.joining_date }}
                                 {% if lecturer_form.joining_date.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.joining_date.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.joining_date.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Contract End Date (if applicable)</label>
                                 {{ lecturer_form.contract_end_date }}
                                 {% if lecturer_form.contract_end_date.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.contract_end_date.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.contract_end_date.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+
+                            <!-- Experience -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Teaching Experience (Years)</label>
+                                {{ lecturer_form.teaching_experience_years }}
+                                {% if lecturer_form.teaching_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.teaching_experience_years.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Research Experience (Years)</label>
+                                {{ lecturer_form.research_experience_years }}
+                                {% if lecturer_form.research_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.research_experience_years.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Industry Experience (Years)</label>
+                                {{ lecturer_form.industry_experience_years }}
+                                {% if lecturer_form.industry_experience_years.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.industry_experience_years.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Office and Contact Details -->
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Salary</label>
-                                {{ lecturer_form.salary }}
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    {{ lecturer_form.salary }}
+                                </div>
                                 {% if lecturer_form.salary.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.salary.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.salary.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Office Location</label>
                                 {{ lecturer_form.office_location }}
                                 {% if lecturer_form.office_location.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.office_location.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.office_location.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Office Phone</label>
                                 {{ lecturer_form.office_phone }}
                                 {% if lecturer_form.office_phone.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.office_phone.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.office_phone.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check mt-4">
+
+                            <!-- Consultation Hours and Status -->
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Consultation Hours</label>
+                                {{ lecturer_form.consultation_hours }}
+                                {% if lecturer_form.consultation_hours.errors %}
+                                    <div class="text-danger small">{{ lecturer_form.consultation_hours.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">e.g., Monday-Friday 2:00-4:00 PM</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check form-switch mt-4">
                                     {{ lecturer_form.is_active }}
                                     <label class="form-check-label" for="{{ lecturer_form.is_active.id_for_label }}">
                                         Active Status
                                     </label>
                                 </div>
                                 {% if lecturer_form.is_active.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.is_active.errors.0 }}</div>
+                                    <div class="text-danger small">{{ lecturer_form.is_active.errors }}</div>
                                 {% endif %}
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Consultation Hours</label>
-                                {{ lecturer_form.consultation_hours }}
-                                {% if lecturer_form.consultation_hours.errors %}
-                                    <div class="text-danger small">{{ lecturer_form.consultation_hours.errors.0 }}</div>
-                                {% endif %}
-                                <small class="form-text text-muted">e.g., Monday-Friday 2:00-4:00 PM</small>
                             </div>
                         </div>
                     </div>
@@ -331,18 +388,27 @@
             </div>
         </div>
 
-        <!-- Submit Buttons -->
+        <!-- Form Actions -->
         <div class="row p-3">
             <div class="col-md-12">
                 <div class="card shadow-sm">
-                    <div class="card-body text-center">
-                        <button type="submit" class="btn btn-primary btn-lg me-3" style="background-color: #1a73e8; border-color: #1a73e8;">
-                            <i class="bi bi-check-circle"></i> 
-                            {% if lecturer %}Update Lecturer{% else %}Create Lecturer{% endif %}
-                        </button>
-                        <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary btn-lg">
-                            <i class="bi bi-x-circle"></i> Cancel
-                        </a>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'lecturer_list' %}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <button type="reset" class="btn btn-outline-warning btn-lg me-2">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-circle"></i> 
+                                    {% if lecturer %}Update Lecturer{% else %}Create Lecturer{% endif %}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -352,6 +418,46 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(tabEl);
+            tab.show();
+        });
+    });
+
+    // Activate the first tab by default
+    const firstTab = new bootstrap.Tab(document.querySelector('#personal-tab'));
+    firstTab.show();
+
+    // Profile picture preview
+    const profileInput = document.querySelector('input[name="profile_picture"]');
+    const profilePreview = document.getElementById('profilePreview');
+    
+    if (profileInput) {
+        profileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (profilePreview.tagName === 'IMG') {
+                        profilePreview.src = e.target.result;
+                    } else {
+                        // Replace placeholder div with img
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'profile-picture img-thumbnail rounded-circle';
+                        img.id = 'profilePreview';
+                        profilePreview.parentNode.replaceChild(img, profilePreview);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     // Form validation
     const form = document.getElementById('lecturerForm');
     const requiredFields = form.querySelectorAll('[required]');
@@ -430,31 +536,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Profile picture preview
-    const profilePictureInput = document.querySelector('input[name="profile_picture"]');
-    if (profilePictureInput) {
-        profilePictureInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    // Create or update preview
-                    let preview = document.getElementById('profilePreview');
-                    if (!preview) {
-                        preview = document.createElement('img');
-                        preview.id = 'profilePreview';
-                        preview.className = 'img-thumbnail mt-2';
-                        preview.style.maxWidth = '150px';
-                        preview.style.maxHeight = '150px';
-                        profilePictureInput.parentNode.appendChild(preview);
-                    }
-                    preview.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-    
     // Auto-generate employee number if empty
     const employeeNumberField = document.querySelector('input[name="employee_number"]');
     const firstNameField = document.querySelector('input[name="first_name"]');
@@ -497,7 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .card {
     border: none;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .card:hover {
@@ -507,12 +588,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .card-header {
     border-radius: 8px 8px 0 0 !important;
-    font-weight: 600;
+    padding: 1rem 1.25rem;
+    background-color: #f8f9fa !important;
+    border-bottom: 1px solid rgba(0,0,0,.125);
 }
 
-.form-label {
-    font-weight: 600;
-    color: #333;
+.card-title {
+    font-size: 1.1rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #1a73e8;
+}
+
+.profile-picture-container {
+    position: relative;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 4px solid #f0f0f0;
+    transition: all 0.3s ease;
+}
+
+.profile-picture:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.profile-picture-placeholder {
+    width: 150px;
+    height: 150px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 4px solid #f0f0f0;
+    margin: 0 auto;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
 }
 
 .form-control, .form-select {
@@ -555,8 +675,24 @@ document.addEventListener('DOMContentLoaded', function() {
     transform: translateY(-1px);
 }
 
-.card-body {
-    padding: 1.5rem;
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+.input-group-text {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+}
+
+.form-switch .form-check-input {
+    width: 2em;
+    height: 1em;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
 }
 
 .form-check-input:checked {
@@ -568,18 +704,48 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #1a73e8 !important;
 }
 
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: #1a73e8;
+    border-bottom: 2px solid #1a73e8;
+    font-weight: bold;
+}
+
+.nav-tabs .nav-link i {
+    margin-right: 5px;
+}
+
 @media (max-width: 768px) {
+    .profile-picture, .profile-picture-placeholder {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+    
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+    
     .container {
         padding: 0;
     }
     
     .card-body {
         padding: 1rem;
-    }
-    
-    .btn-lg {
-        width: 100%;
-        margin-bottom: 0.5rem;
     }
 }
 
@@ -604,6 +770,23 @@ document.addEventListener('DOMContentLoaded', function() {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Animation for form validation */
+@keyframes shake {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 70%, 90% {
+        transform: translateX(-2px);
+    }
+    40%, 60% {
+        transform: translateX(2px);
+    }
+}
+
+.is-invalid {
+    animation: shake 0.5s ease-in-out;
 }
 </style>
 
