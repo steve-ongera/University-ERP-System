@@ -63,4 +63,171 @@
             <div class="card shadow-sm h-100">
                 <div class="card-header">
                     <h5 class="fw-bold mb-0">
-                        <i class="bi
+                        <i class="bi bi-person-badge me-2"></i>Student Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                            <p><strong>Programme:</strong> {{ student.programme.name }} ({{ student.programme.code }})</p>
+                            <p><strong>Current Year:</strong> Year {{ student.current_year }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %}">
+                                    {{ student.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Admission Date:</strong> {{ student.admission_date|date:"d M Y" }}</p>
+                            <p><strong>Admission Type:</strong> {{ student.get_admission_type_display }}</p>
+                            <p><strong>Sponsor Type:</strong> {{ student.get_sponsor_type_display }}</p>
+                            <p><strong>Cumulative GPA:</strong> {{ student.cumulative_gpa|default:"N/A" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-book me-2"></i>Course Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Course Code:</strong> {{ course.code }}</p>
+                    <p><strong>Course Name:</strong> {{ course.name }}</p>
+                    <p><strong>Course Type:</strong> {{ course.get_course_type_display }}</p>
+                    <p><strong>Level:</strong> {{ course.get_level_display }}</p>
+                    <p><strong>Credit Hours:</strong> {{ course.credit_hours }}</p>
+                    <p><strong>Contact Hours:</strong> {{ course.total_contact_hours }} (Lec: {{ course.lecture_hours }}, Tut: {{ course.tutorial_hours }}, Pra: {{ course.practical_hours }})</p>
+                    <p><strong>Department:</strong> {{ course.department.name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Enrollment Details -->
+    {% if current_enrollment %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-calendar-check me-2"></i>Current Enrollment ({{ current_enrollment.semester }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Enrollment Date:</strong> {{ current_enrollment.enrollment_date|date:"d M Y" }}</p>
+                            <p><strong>Academic Year:</strong> {{ current_enrollment.semester.academic_year.year }}</p>
+                            <p><strong>Semester:</strong> Semester {{ current_enrollment.semester.semester_number }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Lecturer:</strong> 
+                                {% if current_enrollment.lecturer %}
+                                    {{ current_enrollment.lecturer.user.get_full_name }}
+                                {% else %}
+                                    Not assigned
+                                {% endif %}
+                            </p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{% if current_enrollment.is_active %}success{% else %}secondary{% endif %}">
+                                    {% if current_enrollment.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Repeat Course:</strong> {% if current_enrollment.is_repeat %}Yes{% else %}No{% endif %}</p>
+                            <p><strong>Audit Course:</strong> {% if current_enrollment.is_audit %}Yes{% else %}No{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enrollment History -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Enrollment History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if enrollments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Lecturer</th>
+                                    <th>Enrollment Date</th>
+                                    <th>Status</th>
+                                    <th>Repeat</th>
+                                    <th>Audit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ enrollment.semester.academic_year.year }}</td>
+                                    <td>Semester {{ enrollment.semester.semester_number }}</td>
+                                    <td>
+                                        {% if enrollment.lecturer %}
+                                            {{ enrollment.lecturer.user.get_full_name }}
+                                        {% else %}
+                                            Not assigned
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ enrollment.enrollment_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if enrollment.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if enrollment.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{% if enrollment.is_repeat %}Yes{% else %}No{% endif %}</td>
+                                    <td>{% if enrollment.is_audit %}Yes{% else %}No{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        No enrollment history found for this student in this course.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <a href="{% url 'course_enrollments' student.programme.id course.id %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Course Enrollments
+                    </a>
+                    <a href="{% url 'student_detail' student.id %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-person-lines-fill me-1"></i> Student Profile
+                    </a>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="bi bi-book me-1"></i> Course Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
