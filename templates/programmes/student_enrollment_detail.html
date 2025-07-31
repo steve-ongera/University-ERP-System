@@ -1,0 +1,66 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Student Enrollment Details</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ course.code }}</span> - {{ course.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person me-1"></i>{{ student.user.get_full_name }} ({{ student.student_id }})
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        {% if student.user.profile_picture %}
+                            <img src="{{ student.user.profile_picture.url }}" alt="Profile" class="rounded-circle" width="80" height="80">
+                        {% else %}
+                            <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="bi bi-person-fill text-white fs-2"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'programme_list' %}">Programmes</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'programme_detail' student.programme.id %}">{{ student.programme.code }}</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'course_enrollments' student.programme.id course.id %}">{{ course.code }} Enrollments</a></li>
+                                <li class="breadcrumb-item active">{{ student.student_id }}</li>
+                            </ol>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student and Course Info -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi

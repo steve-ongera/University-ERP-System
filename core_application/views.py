@@ -3178,3 +3178,308 @@ def get_departments_by_faculty(request):
     ).values('id', 'name', 'code')
     
     return JsonResponse({'departments': list(departments)})
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Count, Q, Avg
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from .models import (
+    Programme, Course, ProgrammeCourse, Student, Enrollment, 
+    Semester, AcademicYear, Faculty, Department
+)
+
+@login_required
+def programme_list(request):
+    """View to display all programmes with statistics"""
+    programmes = Programme.objects.select_related(
+        'department', 'faculty'
+    ).prefetch_related(
+        'students', 'programme_courses__course'
+    ).filter(is_active=True)
+    
+    # Add search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        programmes = programmes.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(department__name__icontains=search_query) |
+            Q(faculty__name__icontains=search_query)
+        )
+    
+    # Filter by faculty
+    faculty_id = request.GET.get('faculty', '')
+    if faculty_id:
+        programmes = programmes.filter(faculty_id=faculty_id)
+    
+    # Filter by programme type
+    programme_type = request.GET.get('programme_type', '')
+    if programme_type:
+        programmes = programmes.filter(programme_type=programme_type)
+    
+    # Add statistics for each programme
+    programme_stats = []
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    for programme in programmes:
+        total_courses = programme.programme_courses.filter(is_active=True).count()
+        active_students = programme.students.filter(status='active').count()
+        
+        # Get enrolled students for current semester
+        current_enrollments = 0
+        if current_semester:
+            current_enrollments = Enrollment.objects.filter(
+                student__programme=programme,
+                semester=current_semester,
+                is_active=True
+            ).values('student').distinct().count()
+        
+        programme_stats.append({
+            'programme': programme,
+            'total_courses': total_courses,
+            'active_students': active_students,
+            'current_enrollments': current_enrollments,
+        })
+    
+    # Pagination
+    paginator = Paginator(programme_stats, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    faculties = Faculty.objects.filter(is_active=True).order_by('name')
+    programme_types = Programme.PROGRAMME_TYPES
+    
+    context = {
+        'page_obj': page_obj,
+        'faculties': faculties,
+        'programme_types': programme_types,
+        'search_query': search_query,
+        'selected_faculty': faculty_id,
+        'selected_programme_type': programme_type,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'programmes/programme_list.html', context)
+
+
+@login_required
+def programme_detail(request, programme_id):
+    """View to display programme details with courses organized by year and semester"""
+    programme = get_object_or_404(
+        Programme.objects.select_related('department', 'faculty'),
+        id=programme_id,
+        is_active=True
+    )
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all programme courses organized by year and semester
+    programme_courses = ProgrammeCourse.objects.select_related(
+        'course', 'course__department'
+    ).filter(
+        programme=programme,
+        is_active=True
+    ).order_by('year', 'semester', 'course__name')
+    
+    # Organize courses by year and semester
+    courses_by_year = {}
+    years = []
+    
+    for pc in programme_courses:
+        year = pc.year
+        semester = pc.semester
+        
+        if year not in years:
+            years.append(year)
+        
+        if year not in courses_by_year:
+            courses_by_year[year] = {}
+        
+        if semester not in courses_by_year[year]:
+            courses_by_year[year][semester] = []
+        
+        # Get enrollment count for current semester
+        enrollment_count = 0
+        if current_semester:
+            enrollment_count = Enrollment.objects.filter(
+                course=pc.course,
+                semester=current_semester,
+                student__programme=programme,
+                is_active=True
+            ).count()
+        
+        course_data = {
+            'course': pc.course,
+            'programme_course': pc,
+            'enrollment_count': enrollment_count,
+        }
+        
+        courses_by_year[year][semester].append(course_data)
+    
+    # Calculate programme statistics
+    programme_stats = {
+        'total_courses': programme_courses.count(),
+        'total_credits': sum(pc.course.credit_hours for pc in programme_courses),
+        'total_lecture_hours': sum(pc.course.lecture_hours for pc in programme_courses),
+        'total_practical_hours': sum(pc.course.practical_hours for pc in programme_courses),
+        'core_courses': programme_courses.filter(is_mandatory=True).count(),
+        'elective_courses': programme_courses.filter(is_mandatory=False).count(),
+        'active_students': programme.students.filter(status='active').count(),
+    }
+    
+    context = {
+        'programme': programme,
+        'courses_by_year': courses_by_year,
+        'years': sorted(years),
+        'programme_stats': programme_stats,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'programmes/programme_detail.html', context)
+
+
+@login_required
+def course_enrollments(request, programme_id, course_id):
+    """View to display students enrolled in a specific course for a programme"""
+    programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+    course = get_object_or_404(Course, id=course_id, is_active=True)
+    
+    # Verify the course is part of this programme
+    programme_course = get_object_or_404(
+        ProgrammeCourse,
+        programme=programme,
+        course=course,
+        is_active=True
+    )
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get enrollments for current semester
+    enrollments = Enrollment.objects.select_related(
+        'student__user', 'student__programme', 'lecturer__user'
+    ).filter(
+        course=course,
+        student__programme=programme,
+        is_active=True
+    )
+    
+    # Filter by semester
+    semester_id = request.GET.get('semester', '')
+    if semester_id:
+        enrollments = enrollments.filter(semester_id=semester_id)
+    elif current_semester:
+        enrollments = enrollments.filter(semester=current_semester)
+    
+    # Add search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        enrollments = enrollments.filter(
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(student__student_id__icontains=search_query) |
+            Q(student__user__username__icontains=search_query)
+        )
+    
+    # Filter by year
+    year_filter = request.GET.get('year', '')
+    if year_filter:
+        enrollments = enrollments.filter(student__current_year=year_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        enrollments = enrollments.filter(student__status=status_filter)
+    
+    enrollments = enrollments.order_by(
+        'student__current_year', 
+        'student__user__last_name', 
+        'student__user__first_name'
+    )
+    
+    # Pagination
+    paginator = Paginator(enrollments, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    available_semesters = Semester.objects.filter(
+        enrollments__course=course,
+        enrollments__student__programme=programme,
+        enrollments__is_active=True
+    ).distinct().order_by('-academic_year__start_date', '-semester_number')
+    
+    years_with_enrollments = enrollments.values_list(
+        'student__current_year', flat=True
+    ).distinct().order_by('student__current_year')
+    
+    # Calculate statistics
+    enrollment_stats = {
+        'total_enrolled': enrollments.count(),
+        'by_year': {},
+        'by_status': {},
+        'repeat_students': enrollments.filter(is_repeat=True).count(),
+        'audit_students': enrollments.filter(is_audit=True).count(),
+    }
+    
+    # Group by year
+    for year in years_with_enrollments:
+        enrollment_stats['by_year'][year] = enrollments.filter(
+            student__current_year=year
+        ).count()
+    
+    # Group by status
+    for status, _ in Student.STATUS_CHOICES:
+        count = enrollments.filter(student__status=status).count()
+        if count > 0:
+            enrollment_stats['by_status'][status] = count
+    
+    context = {
+        'programme': programme,
+        'course': course,
+        'programme_course': programme_course,
+        'page_obj': page_obj,
+        'enrollment_stats': enrollment_stats,
+        'available_semesters': available_semesters,
+        'years_with_enrollments': years_with_enrollments,
+        'current_semester': current_semester,
+        'search_query': search_query,
+        'selected_semester': semester_id,
+        'selected_year': year_filter,
+        'selected_status': status_filter,
+        'student_status_choices': Student.STATUS_CHOICES,
+    }
+    
+    return render(request, 'programmes/course_enrollments.html', context)
+
+
+@login_required
+def student_enrollment_detail(request, student_id, course_id):
+    """View to display detailed information about a student's enrollment in a course"""
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        id=student_id
+    )
+    course = get_object_or_404(Course, id=course_id)
+    
+    # Get all enrollments for this student in this course
+    enrollments = Enrollment.objects.select_related(
+        'semester__academic_year', 'lecturer__user'
+    ).filter(
+        student=student,
+        course=course
+    ).order_by('-semester__academic_year__start_date', '-semester__semester_number')
+    
+    # Get the most recent enrollment
+    current_enrollment = enrollments.first()
+    
+    context = {
+        'student': student,
+        'course': course,
+        'enrollments': enrollments,
+        'current_enrollment': current_enrollment,
+    }
+    
+    return render(request, 'programmes/student_enrollment_detail.html', context)

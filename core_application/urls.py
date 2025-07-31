@@ -82,6 +82,13 @@ urlpatterns = [
     path('lecturers/bulk/action/', views.lecturer_bulk_action, name='lecturer_bulk_action'),
     
     # Export functionality
-    path('lecturers/export/csv/', views.lecturer_export, name='lecturer_export')
+    path('lecturers/export/csv/', views.lecturer_export, name='lecturer_export'),
+    # Programme URLs
+    path('programmes/', views.programme_list, name='programme_list'),
+    path('programmes/<int:programme_id>/', views.programme_detail, name='programme_detail'),
+    path('programmes/<int:programme_id>/courses/<int:course_id>/enrollments/', 
+         views.course_enrollments, name='course_enrollments'),
+    path('students/<int:student_id>/courses/<int:course_id>/enrollment/', 
+         views.student_enrollment_detail, name='student_enrollment_detail'),
 
 ]

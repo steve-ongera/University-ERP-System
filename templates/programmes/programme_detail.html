@@ -1,0 +1,430 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Programme Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ programme.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ programme.code }}</span> | 
+                            <span class="badge bg-{% if programme.programme_type == 'bachelor' %}info{% elif programme.programme_type == 'master' %}success{% elif programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                                {{ programme.get_programme_type_display }}
+                            </span> |
+                            <span class="badge bg-secondary">{{ programme.get_study_mode_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ programme.faculty.name }} - {{ programme.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>{{ programme.duration_years }} years ({{ programme.total_semesters }} semesters)
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ programme_stats.active_students }}</h4>
+                            <small class="text-muted">active students</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="#" class="btn btn-outline-secondary">
+                                <i class="bi bi-pencil"></i> Edit Programme
+                            </a>
+                            <a href="{% url 'programme_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ programme_stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Total Courses</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ programme_stats.total_credits }}</h5>
+                            <p class="small text-muted mb-0">Total Credits</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ programme_stats.total_lecture_hours }}</h5>
+                            <p class="small text-muted mb-0">Lecture Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ programme_stats.total_practical_hours }}</h5>
+                            <p class="small text-muted mb-0">Practical Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ programme_stats.core_courses }}</h5>
+                            <p class="small text-muted mb-0">Core Courses</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-primary">{{ programme_stats.elective_courses }}</h5>
+                            <p class="small text-muted mb-0">Electives</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Description -->
+    {% if programme.description %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Programme Description</h5>
+                    <p class="card-text">{{ programme.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Courses by Year and Semester -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Programme Curriculum</h5>
+                    {% if current_semester %}
+                        <small class="text-muted">Current Semester: {{ current_semester }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Year Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="yearTabs" role="tablist">
+                        {% for year in years %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                        id="year-{{ year }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#year-{{ year }}" 
+                                        type="button" 
+                                        role="tab">
+                                    Year {{ year }}
+                                </button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Year Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year, semesters in courses_by_year.items %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                 id="year-{{ year }}" 
+                                 role="tabpanel">
+                                
+                                <!-- Semester Tabs -->
+                                <div class="d-flex mb-3">
+                                    {% for semester, courses in semesters.items %}
+                                        <button class="btn btn-sm btn-outline-secondary me-2 {% if forloop.first %}active{% endif %}" 
+                                                onclick="showSemester('year-{{ year }}-sem-{{ semester }}', this)">
+                                            Semester {{ semester }}
+                                        </button>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Semester Content -->
+                                {% for semester, courses in semesters.items %}
+                                    <div class="semester-content {% if not forloop.first %}d-none{% endif %}" 
+                                         id="year-{{ year }}-sem-{{ semester }}">
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead class="thead-light">
+                                                    <tr>
+                                                        <th>Code</th>
+                                                        <th>Course Name</th>
+                                                        <th>Type</th>
+                                                        <th>Credits</th>
+                                                        <th>Lecture Hrs</th>
+                                                        <th>Practical Hrs</th>
+                                                        <th>Enrolled Students</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for course_data in courses %}
+                                                    <tr>
+                                                        <td>
+                                                            <span class="badge bg-secondary">{{ course_data.course.code }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <strong>{{ course_data.course.name }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ course_data.course.department.name }}</small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-{% if course_data.programme_course.is_mandatory %}danger{% else %}success{% endif %}">
+                                                                {% if course_data.programme_course.is_mandatory %}Core{% else %}Elective{% endif %}
+                                                            </span>
+                                                        </td>
+                                                        <td>{{ course_data.course.credit_hours }}</td>
+                                                        <td>{{ course_data.course.lecture_hours }}h</td>
+                                                        <td>{{ course_data.course.practical_hours }}h</td>
+                                                        <td>
+                                                            {% if course_data.enrollment_count > 0 %}
+                                                                <span class="badge bg-primary fs-6">{{ course_data.enrollment_count }}</span>
+                                                            {% else %}
+                                                                <span class="text-muted">0</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if course_data.enrollment_count > 0 %}
+                                                                <a href="{% url 'course_enrollments' programme.id course_data.course.id %}" 
+                                                                   class="btn btn-sm btn-outline-primary">
+                                                                    <i class="bi bi-people"></i> View Students
+                                                                </a>
+                                                            {% else %}
+                                                                <span class="text-muted">No enrollments</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr>
+                                                        <td colspan="8" class="text-center py-4">No courses found for this semester</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entry Requirements and Career Prospects -->
+    <div class="row p-3">
+        {% if programme.entry_requirements %}
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-primary">
+                        <i class="bi bi-journal-check me-2"></i>Entry Requirements
+                    </h5>
+                    <p class="card-text">{{ programme.entry_requirements }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if programme.career_prospects %}
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-success">
+                        <i class="bi bi-briefcase me-2"></i>Career Prospects
+                    </h5>
+                    <p class="card-text">{{ programme.career_prospects }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'programme_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Programmes
+                    </a>
+                    <a href="#" class="btn btn-primary me-2">
+                        <i class="bi bi-pencil"></i> Edit Programme
+                    </a>
+                    <button class="btn btn-outline-info me-2" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced showSemester function
+    function showSemester(semesterId, button) {
+        // Hide all semester content in the current year
+        const yearTab = button.closest('.tab-pane');
+        const semesterContents = yearTab.querySelectorAll('.semester-content');
+        const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
+        
+        // Hide all semester contents
+        semesterContents.forEach(content => content.classList.add('d-none'));
+        
+        // Remove active class from all semester buttons
+        semesterButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show selected semester content
+        const targetContent = document.getElementById(semesterId);
+        if (targetContent) {
+            targetContent.classList.remove('d-none');
+        }
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+    }
+    
+    // Ensure tabs are properly activated
+    function ensureActiveTab() {
+        // Handle year tabs
+        const yearTabs = document.querySelectorAll('#yearTabs .nav-link');
+        const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
+        
+        // Check if any year tab is active
+        let hasActiveYearTab = false;
+        yearTabs.forEach(tab => {
+            if (tab.classList.contains('active')) {
+                hasActiveYearTab = true;
+            }
+        });
+        
+        if (!hasActiveYearTab && yearTabs.length > 0) {
+            yearTabs[0].classList.add('active');
+            yearTabs[0].setAttribute('aria-selected', 'true');
+            
+            const targetId = yearTabs[0].getAttribute('data-bs-target');
+            if (targetId) {
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        }
+        
+        // Handle semester tabs for each year
+        yearTabContents.forEach(yearPane => {
+            const semesterButtons = yearPane.querySelectorAll('.btn-outline-secondary');
+            const semesterContents = yearPane.querySelectorAll('.semester-content');
+            
+            if (yearPane.classList.contains('active') || yearPane.classList.contains('show')) {
+                let hasActiveSemesterTab = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemesterTab = true;
+                    }
+                });
+                
+                if (!hasActiveSemesterTab && semesterButtons.length > 0) {
+                    semesterButtons[0].classList.add('active');
+                    
+                    if (semesterContents.length > 0) {
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    }
+    
+    // Handle Bootstrap tab events
+    const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
+    yearTabElements.forEach(tabElement => {
+        tabElement.addEventListener('shown.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+            
+            if (targetPane) {
+                const semesterButtons = targetPane.querySelectorAll('.btn-outline-secondary');
+                const semesterContents = targetPane.querySelectorAll('.semester-content');
+                
+                let hasActiveSemester = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemester = true;
+                    }
+                });
+                
+                if (!hasActiveSemester && semesterButtons.length > 0) {
+                    semesterButtons[0].classList.add('active');
+                    if (semesterContents.length > 0) {
+                        semesterContents.forEach(content => content.classList.add('d-none'));
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    });
+    
+    // Initialize tabs
+    ensureActiveTab();
+    
+    // Expose showSemester function globally
+    window.showSemester = showSemester;
+    
+    // Safety check after delay
+    setTimeout(ensureActiveTab, 100);
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.semester-content {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary.active {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+</style>
+
+{% endblock %}

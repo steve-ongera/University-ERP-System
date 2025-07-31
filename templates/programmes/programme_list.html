@@ -1,0 +1,219 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Academic Programmes</h2>
+                        <p class="text-muted mb-0">
+                            Manage and view all university programmes
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="#" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i> Add New Programme
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search Programmes</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="Programme name, code, department...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="faculty" class="form-label">Faculty</label>
+                            <select class="form-select" id="faculty" name="faculty">
+                                <option value="">All Faculties</option>
+                                {% for faculty in faculties %}
+                                    <option value="{{ faculty.id }}" {% if selected_faculty == faculty.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ faculty.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="programme_type" class="form-label">Programme Type</label>
+                            <select class="form-select" id="programme_type" name="programme_type">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in programme_types %}
+                                    <option value="{{ type_code }}" {% if selected_programme_type == type_code %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                            <a href="{% url 'programme_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programmes Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            {% if page_obj %}
+                <div class="row">
+                    {% for item in page_obj %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card shadow-sm h-100 programme-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-primary">{{ item.programme.code }}</span>
+                                    <span class="badge bg-{% if item.programme.programme_type == 'bachelor' %}info{% elif item.programme.programme_type == 'master' %}success{% elif item.programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                                        {{ item.programme.get_programme_type_display }}
+                                    </span>
+                                </div>
+                                
+                                <h5 class="card-title">{{ item.programme.name }}</h5>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-building me-1"></i>{{ item.programme.faculty.name }}
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-diagram-3 me-1"></i>{{ item.programme.department.name }}
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>{{ item.programme.duration_years }} years
+                                    </small>
+                                </div>
+
+                                <!-- Statistics -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <h6 class="text-primary mb-0">{{ item.total_courses }}</h6>
+                                        <small class="text-muted">Courses</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h6 class="text-success mb-0">{{ item.active_students }}</h6>
+                                        <small class="text-muted">Students</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h6 class="text-warning mb-0">{{ item.current_enrollments }}</h6>
+                                        <small class="text-muted">Enrolled</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        {{ item.programme.get_study_mode_display }}
+                                    </small>
+                                    <a href="{% url 'programme_detail' item.programme.id %}" class="btn btn-sm btn-outline-primary">
+                                        View Details <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="row">
+                    <div class="col-md-12">
+                        <nav aria-label="Programmes pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}">
+                                            Previous
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}">
+                                                {{ num }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}">
+                                            Next
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
+                        <h4 class="text-muted">No Programmes Found</h4>
+                        <p class="text-muted">No programmes match your search criteria.</p>
+                        <a href="{% url 'programme_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.programme-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.programme-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-footer {
+    border-top: 1px solid rgba(0,0,0,.125);
+}
+</style>
+
+{% endblock %}
