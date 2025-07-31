@@ -309,11 +309,18 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
 $(document).ready(function() {
+    // Activate the first tab (Personal Details) by default if no hash is present
+    if (!window.location.hash) {
+        $('#Stud-PersonalDetails-tab').addClass('active');
+        $('#Stud-PersonalDetails').addClass('show active');
+    } else {
+        // If there's a hash, activate that tab
+        $('a[href="' + window.location.hash + '"]').tab('show');
+    }
+    
     // Handle profile picture upload
     $('#profileUpload').click(function() {
         $('#uploadedProf').click();
@@ -358,13 +365,13 @@ $(document).ready(function() {
         $('.alert').alert('close');
     }, 5000);
     
-    // Handle tab anchor links
-    if (window.location.hash) {
-        $('a[href="' + window.location.hash + '"]').tab('show');
-    }
-    
+    // Handle tab switching
     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
         window.location.hash = e.target.hash;
+        // Remove active class from all nav links
+        $('.nav-link').removeClass('active');
+        // Add active class to the clicked nav link
+        $(this).addClass('active');
     });
 });
 </script>

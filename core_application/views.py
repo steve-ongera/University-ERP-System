@@ -2601,3 +2601,243 @@ def calculate_student_gpa(request, student_id):
         return JsonResponse({'error': 'Student not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
+from django.db.models import Avg, Sum, Count, Q
+from collections import defaultdict
+from decimal import Decimal
+from .models import Student, Enrollment, Grade, AcademicYear, Semester
+
+@login_required
+def student_transcript(request, student_id=None):
+    # Check if user is a student
+    if not hasattr(request.user, 'student_profile'):
+        return HttpResponseForbidden("Access denied. Students only.")
+    
+    student = request.user.student_profile
+
+    # Get all enrollments for this student with related data
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        is_active=True
+    ).select_related(
+        'course',
+        'semester',
+        'semester__academic_year'
+    ).prefetch_related(
+        'grade'
+    ).order_by('semester__academic_year__year', 'semester__semester_number', 'course__code')
+
+    # Organize data by academic year and semester
+    transcript_data = defaultdict(lambda: defaultdict(list))
+    
+    for enrollment in enrollments:
+        year = enrollment.semester.academic_year.year
+        semester_num = enrollment.semester.semester_number
+        
+        # Get grade information
+        grade_info = None
+        try:
+            grade_info = enrollment.grade
+        except Grade.DoesNotExist:
+            pass
+        
+        # Calculate total marks
+        total_marks = None
+        if grade_info and grade_info.total_marks:
+            total_marks = grade_info.total_marks
+        elif grade_info:
+            # Calculate from individual components if total_marks is not set
+            marks = []
+            if grade_info.theory_marks is not None:
+                marks.append(grade_info.theory_marks)
+            if grade_info.practical_marks is not None:
+                marks.append(grade_info.practical_marks)
+            if grade_info.clinical_marks is not None:
+                marks.append(grade_info.clinical_marks)
+            if grade_info.continuous_assessment is not None:
+                marks.append(grade_info.continuous_assessment)
+            if grade_info.final_exam_marks is not None:
+                marks.append(grade_info.final_exam_marks)
+            
+            if marks:
+                total_marks = sum(marks) / len(marks)
+        
+        subject_data = {
+            'unit': enrollment.course,
+            'enrollment': enrollment,
+            'grade': grade_info,
+            'theory_marks': grade_info.final_exam if grade_info else None,
+            'practical_marks': grade_info.practical_marks if grade_info else None,
+            'clinical_marks': grade_info.project_marks if grade_info else None,
+            'continuous_assessment': grade_info.continuous_assessment if grade_info else None,
+            'final_exam_marks': grade_info.total_marks if grade_info else None,
+            'total_marks': total_marks,
+            'grade_letter': grade_info.grade if grade_info else 'N/A',
+            'grade_points': grade_info.grade_points if grade_info else None,
+            'is_passed': grade_info.is_passed if grade_info else False,
+            'status': 'Passed' if (grade_info and grade_info.is_passed) else 'Failed' if grade_info else 'Pending'
+        }
+        
+        transcript_data[year][semester_num].append(subject_data)
+
+    # Convert to regular dict and sort
+    transcript_data = dict(transcript_data)
+    for year in transcript_data:
+        transcript_data[year] = dict(transcript_data[year])
+        for semester in transcript_data[year]:
+            transcript_data[year][semester].sort(key=lambda x: x['unit'].code)
+
+    # Calculate GPA for each semester and overall
+    semester_gpas = {}
+    overall_credits = 0
+    overall_grade_points = 0
+    total_subjects = 0
+    passed_subjects = 0
+    
+    for year in transcript_data:
+        for semester_num in transcript_data[year]:
+            semester_credits = 0
+            semester_grade_points = 0
+            
+            for subject_data in transcript_data[year][semester_num]:
+                total_subjects += 1
+                if subject_data['is_passed']:
+                    passed_subjects += 1
+                    
+                if subject_data['grade_points'] is not None:
+                    credits = subject_data['unit'].credit_hours
+                    grade_points = subject_data['grade_points']
+                    
+                    semester_credits += credits
+                    semester_grade_points += (grade_points * credits)
+                    
+                    overall_credits += credits
+                    overall_grade_points += (grade_points * credits)
+            
+            if semester_credits > 0:
+                semester_gpa = semester_grade_points / semester_credits
+                semester_gpas[f"{year}-{semester_num}"] = {
+                    'gpa': round(semester_gpa, 2),
+                    'credits': semester_credits
+                }
+
+    overall_gpa = round(overall_grade_points / overall_credits, 2) if overall_credits > 0 else 0
+    
+    # Calculate completion percentage based on programme requirements
+    programme_units = student.programme.programme_courses.filter(is_active=True)
+    total_programme_units = programme_units.count()
+    completed_percentage = round((passed_subjects / total_programme_units) * 100, 1) if total_programme_units > 0 else 0
+    
+    # Determine academic standing
+    if overall_gpa >= 3.5:
+        academic_standing = "Excellent"
+    elif overall_gpa >= 3.0:
+        academic_standing = "Good"
+    elif overall_gpa >= 2.5:
+        academic_standing = "Satisfactory"
+    elif overall_gpa >= 2.0:
+        academic_standing = "Fair"
+    else:
+        academic_standing = "Poor"
+
+    context = {
+        'student': student,
+        'transcript_data': transcript_data,
+        'semester_gpas': semester_gpas,
+        'overall_gpa': overall_gpa,
+        'total_credits': overall_credits,
+        'completed_percentage': completed_percentage,
+        'academic_standing': academic_standing,
+        'total_subjects': total_subjects,
+        'passed_subjects': passed_subjects,
+    }
+    
+    return render(request, 'student/student_transcript.html', context)
+
+
+# Alternative view for generating transcript PDF
+@login_required
+def student_transcript_pdf(request, student_id=None):
+    """Generate PDF version of student transcript"""
+    from django.http import HttpResponse
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.units import inch
+    from io import BytesIO
+    
+    # Get the same data as the regular transcript view
+    if student_id:
+        if not (request.user.user_type in ['admin', 'instructor', 'staff', 'registrar']):
+            return HttpResponseForbidden("Access denied.")
+        student = get_object_or_404(Student, id=student_id)
+    else:
+        if not hasattr(request.user, 'student_profile'):
+            return HttpResponseForbidden("Access denied. Students only.")
+        student = request.user.student_profile
+    
+    # Create the HttpResponse object with PDF headers
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="transcript_{student.registration_number}.pdf"'
+    
+    # Create the PDF object using BytesIO as a file-like buffer
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    
+    # Container for the 'Flowable' objects
+    elements = []
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.HexColor('#3639A4'),
+        alignment=1  # Center alignment
+    )
+    
+    # Title
+    title = Paragraph("ACADEMIC TRANSCRIPT", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+    
+    # Student Information
+    student_info = [
+        ['Student Name:', student.user.get_full_name()],
+        ['Registration Number:', student.registration_number],
+        ['Programme:', student.programme.name],
+        ['School:', student.programme.school.name],
+        ['Current Year/Semester:', f"{student.current_year}/{student.current_semester}"],
+        ['Status:', student.get_status_display()],
+    ]
+    
+    student_table = Table(student_info, colWidths=[2*inch, 4*inch])
+    student_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    elements.append(student_table)
+    elements.append(Spacer(1, 20))
+    
+    # Add transcript data (simplified version for PDF)
+    # This would need to be expanded based on your specific requirements
+    
+    # Build PDF
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response

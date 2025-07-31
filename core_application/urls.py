@@ -67,5 +67,8 @@ urlpatterns = [
     # AJAX endpoints
     path('admin-get-student-info/', views.get_student_info, name='get_student_info'),
     path('admin-calculate-gpa/<str:student_id>/', views.calculate_student_gpa, name='calculate_student_gpa'),
+     #students transcript
+    path('student/transcript/', views.student_transcript, name='student_transcript'),
+    path('student-download-transcript', views.student_transcript_pdf , name='student_transcript_pdf'),
 
 ]
