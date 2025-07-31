@@ -348,48 +348,7 @@ class StudentForm(forms.ModelForm):
 
 
 
-# Forms
-class UserForm(forms.ModelForm):
-    password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False,
-        help_text="Leave blank to keep current password"
-    )
-    password_confirm = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False,
-        label="Confirm Password"
-    )
-    
-    class Meta:
-        model = User
-        fields = [
-            'username', 'email', 'first_name', 'last_name', 
-            'phone', 'address', 'gender', 'date_of_birth', 
-            'profile_picture', 'national_id'
-        ]
-        widgets = {
-            'username': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
-            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
-            'national_id': forms.TextInput(attrs={'class': 'form-control'}),
-        }
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        password_confirm = cleaned_data.get('password_confirm')
-        
-        if password and password != password_confirm:
-            raise forms.ValidationError("Passwords don't match")
-        
-        return cleaned_data
+
 
 class LecturerForm(forms.ModelForm):
     class Meta:

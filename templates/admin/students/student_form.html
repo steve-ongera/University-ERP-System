@@ -354,6 +354,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Activate the first tab by default
+    const firstTab = document.querySelector('#studentFormTabs .nav-link:first-child');
+    if (firstTab) {
+        new bootstrap.Tab(firstTab).show();
+    }
+
     // Form validation
     const forms = document.querySelectorAll('.needs-validation')
     Array.from(forms).forEach(form => {
