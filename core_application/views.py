@@ -13,11 +13,18 @@ def student_login(request):
         password = request.POST['password']
         
         user = authenticate(request, username=username, password=password)
-        if user is not None and user.user_type == 'student':
+        if user is not None:
             login(request, user)
-            return redirect('student_dashboard')
+            
+            # Redirect based on user_type
+            if user.user_type == 'student':
+                return redirect('student_dashboard')
+            elif user.user_type == 'lecturer':
+                return redirect('lecturer_dashboard')
+            else:
+                messages.error(request, 'Unauthorized user type.')
         else:
-            messages.error(request, 'Invalid credentials or not a student account')
+            messages.error(request, 'Invalid username or password.')
     
     return render(request, 'student/auth/login.html')
 
@@ -4142,3 +4149,110 @@ def fee_structure_comparison(request):
     }
     
     return render(request, 'admin/fee_structure_comparison.html', context)
+
+
+
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Q
+from django.utils import timezone
+from .models import (
+    User, Lecturer, Enrollment, Course, Semester, 
+    AcademicYear, Grade, Student
+)
+
+@login_required
+def lecturer_dashboard(request):
+    # Check if user is a lecturer
+    if not hasattr(request.user, 'lecturer_profile') or request.user.user_type not in ['lecturer', 'professor']:
+        messages.error(request, "Access denied. You must be a lecturer to view this page.")
+        return redirect('home')
+    
+    lecturer = request.user.lecturer_profile
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get lecturer's courses for current semester
+    current_courses = Course.objects.filter(
+        department=lecturer.department,
+        enrollments__semester=current_semester,
+        enrollments__lecturer=lecturer
+    ).distinct() if current_semester else Course.objects.none()
+    
+    # Get total students taught by this lecturer in current semester
+    total_students = Enrollment.objects.filter(
+        lecturer=lecturer,
+        semester=current_semester,
+        is_active=True
+    ).count() if current_semester else 0
+    
+    # Get courses taught this semester with student counts
+    courses_with_students = []
+    for course in current_courses:
+        student_count = Enrollment.objects.filter(
+            course=course,
+            lecturer=lecturer,
+            semester=current_semester,
+            is_active=True
+        ).count()
+        courses_with_students.append({
+            'course': course,
+            'student_count': student_count
+        })
+    
+    # Get recent enrollments for lecturer's courses
+    recent_enrollments = Enrollment.objects.filter(
+        lecturer=lecturer,
+        semester=current_semester,
+        is_active=True
+    ).select_related('student', 'course').order_by('-enrollment_date')[:5] if current_semester else []
+    
+    # Get grading statistics
+    total_grades_pending = Enrollment.objects.filter(
+        lecturer=lecturer,
+        semester=current_semester,
+        is_active=True
+    ).exclude(grade__isnull=False).count() if current_semester else 0
+    
+    total_grades_completed = Grade.objects.filter(
+        enrollment__lecturer=lecturer,
+        enrollment__semester=current_semester
+    ).count() if current_semester else 0
+    
+    # Calculate grading progress percentage
+    total_enrollments = total_grades_pending + total_grades_completed
+    grading_progress = (total_grades_completed / total_enrollments * 100) if total_enrollments > 0 else 0
+    
+    # Get lecturer's teaching load (total courses)
+    total_courses_teaching = current_courses.count()
+    
+    # Get lecturer's consultation hours and office info
+    consultation_hours = lecturer.consultation_hours
+    office_location = lecturer.office_location
+    
+    # Get academic rank and experience
+    academic_rank = lecturer.get_academic_rank_display()
+    teaching_experience = lecturer.teaching_experience_years
+    
+    context = {
+        'lecturer': lecturer,
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+        'total_students': total_students,
+        'total_courses_teaching': total_courses_teaching,
+        'courses_with_students': courses_with_students,
+        'recent_enrollments': recent_enrollments,
+        'total_grades_pending': total_grades_pending,
+        'total_grades_completed': total_grades_completed,
+        'grading_progress': round(grading_progress, 1),
+        'consultation_hours': consultation_hours,
+        'office_location': office_location,
+        'academic_rank': academic_rank,
+        'teaching_experience': teaching_experience,
+    }
+    
+    return render(request, 'lecturers/lecturer_dashboard.html', context)

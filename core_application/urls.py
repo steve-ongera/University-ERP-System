@@ -6,6 +6,7 @@ urlpatterns = [
     # Student authentication
     path('', views.student_login, name='student_login'),
     path('logout/', views.student_logout, name='student_logout'),
+    path('lecturer/dashboard/', views.lecturer_dashboard, name='lecturer_dashboard'),
     
     # Student dashboard and main views
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
