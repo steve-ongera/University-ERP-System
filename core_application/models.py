@@ -510,6 +510,259 @@ class Grade(models.Model):
     def __str__(self):
         return f"{self.enrollment.student.student_id} - {self.enrollment.course.code} - {self.grade}"
 
+# Additional models for lecturer unit assignment and course management
+# Add these to your existing models.py file
+
+class LecturerCourseAssignment(models.Model):
+    """Assigns courses/units to lecturers for specific academic years and semesters"""
+    lecturer = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='course_assignments')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lecturer_assignments')
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name='lecturer_assignments')
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='lecturer_assignments')
+    
+    # Assignment details
+    assigned_date = models.DateTimeField(auto_now_add=True)
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                  related_name='assigned_courses', 
+                                  help_text="Admin/HOD who assigned the course")
+    is_active = models.BooleanField(default=True)
+    
+    # Optional additional information
+    lecture_venue = models.CharField(max_length=100, blank=True, help_text="Default lecture hall/venue")
+    lecture_time = models.CharField(max_length=100, blank=True, help_text="e.g., Mon 8-10am, Wed 2-4pm")
+    remarks = models.TextField(blank=True)
+    
+    class Meta:
+        unique_together = ['lecturer', 'course', 'academic_year', 'semester']
+        ordering = ['academic_year', 'semester', 'course__name']
+    
+    def __str__(self):
+        return f"{self.lecturer.user.get_full_name()} - {self.course.code} ({self.academic_year.year} S{self.semester.semester_number})"
+
+
+class CourseNotes(models.Model):
+    """Notes posted by lecturers for their assigned courses"""
+    NOTE_TYPES = (
+        ('lecture', 'Lecture Notes'),
+        ('tutorial', 'Tutorial Notes'),
+        ('handout', 'Handout'),
+        ('reference', 'Reference Material'),
+        ('supplementary', 'Supplementary Material'),
+        ('revision', 'Revision Notes'),
+    )
+    
+    lecturer_assignment = models.ForeignKey(LecturerCourseAssignment, on_delete=models.CASCADE, 
+                                          related_name='course_notes')
+    title = models.CharField(max_length=200)
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPES, default='lecture')
+    description = models.TextField(blank=True)
+    
+    # File upload
+    notes_file = models.FileField(upload_to='course_notes/', 
+                                help_text="Upload PDF, DOC, PPTX or other document formats")
+    file_size = models.IntegerField(null=True, blank=True, help_text="File size in bytes")
+    
+    # Metadata
+    week_number = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(20)])
+    topic = models.CharField(max_length=200, blank=True)
+    posted_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Access control
+    is_public = models.BooleanField(default=True, help_text="Visible to all enrolled students")
+    download_count = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-posted_date']
+    
+    def __str__(self):
+        return f"{self.lecturer_assignment.course.code} - {self.title}"
+
+
+class Assignment(models.Model):
+    """Assignments posted by lecturers for their courses"""
+    ASSIGNMENT_TYPES = (
+        ('individual', 'Individual Assignment'),
+        ('group', 'Group Assignment'),
+        ('project', 'Project'),
+        ('essay', 'Essay'),
+        ('report', 'Report'),
+        ('case_study', 'Case Study'),
+        ('presentation', 'Presentation'),
+        ('practical', 'Practical Work'),
+    )
+    
+    SUBMISSION_FORMATS = (
+        ('pdf', 'PDF Only'),
+        ('doc', 'Word Document'),
+        ('any', 'Any Format'),
+        ('code', 'Code Files'),
+        ('presentation', 'Presentation File'),
+    )
+    
+    lecturer_assignment = models.ForeignKey(LecturerCourseAssignment, on_delete=models.CASCADE, 
+                                          related_name='assignments')
+    title = models.CharField(max_length=200)
+    assignment_type = models.CharField(max_length=20, choices=ASSIGNMENT_TYPES, default='individual')
+    description = models.TextField()
+    instructions = models.TextField(blank=True, help_text="Detailed instructions for students")
+    
+    # Assignment files (optional)
+    assignment_file = models.FileField(upload_to='assignments/', null=True, blank=True,
+                                     help_text="Assignment question paper or additional materials")
+    
+    # Timing
+    posted_date = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateTimeField()
+    late_submission_allowed = models.BooleanField(default=False)
+    late_submission_penalty = models.CharField(max_length=200, blank=True, 
+                                             help_text="e.g., 10% deduction per day")
+    
+    # Submission requirements
+    max_file_size_mb = models.IntegerField(default=10, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    submission_format = models.CharField(max_length=20, choices=SUBMISSION_FORMATS, default='pdf')
+    max_pages = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    min_words = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    max_words = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    
+    # Grading
+    total_marks = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(100)])
+    weight_percentage = models.DecimalField(max_digits=5, decimal_places=2, 
+                                          validators=[MinValueValidator(0), MaxValueValidator(100)],
+                                          help_text="Weight towards final grade (e.g., 15.00 for 15%)")
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_published = models.BooleanField(default=False, help_text="Make visible to students")
+    
+    class Meta:
+        ordering = ['-posted_date']
+    
+    def __str__(self):
+        return f"{self.lecturer_assignment.course.code} - {self.title}"
+    
+    @property
+    def is_overdue(self):
+        return timezone.now() > self.due_date
+    
+    @property
+    def total_submissions(self):
+        return self.submissions.count()
+    
+    @property
+    def submitted_count(self):
+        return self.submissions.filter(is_submitted=True).count()
+    
+    @property
+    def pending_submissions(self):
+        """Count of enrolled students who haven't submitted"""
+        enrolled_students = Enrollment.objects.filter(
+            course=self.lecturer_assignment.course,
+            semester=self.lecturer_assignment.semester,
+            is_active=True
+        ).count()
+        return enrolled_students - self.submitted_count
+
+
+class AssignmentSubmission(models.Model):
+    """Student submissions for assignments"""
+    SUBMISSION_STATUS = (
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('late', 'Late Submission'),
+        ('resubmitted', 'Resubmitted'),
+    )
+    
+    GRADING_STATUS = (
+        ('pending', 'Pending Grading'),
+        ('graded', 'Graded'),
+        ('returned', 'Returned with Feedback'),
+    )
+    
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='submissions')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='assignment_submissions')
+    
+    # Submission details
+    submission_file = models.FileField(upload_to='assignment_submissions/')
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.IntegerField(null=True, blank=True, help_text="File size in bytes")
+    
+    # Submission metadata
+    submitted_date = models.DateTimeField(null=True, blank=True)
+    last_modified_date = models.DateTimeField(auto_now=True)
+    submission_status = models.CharField(max_length=20, choices=SUBMISSION_STATUS, default='draft')
+    is_submitted = models.BooleanField(default=False)
+    is_late = models.BooleanField(default=False)
+    
+    # Student notes
+    student_comments = models.TextField(blank=True, help_text="Optional comments from student")
+    
+    # Grading
+    marks_obtained = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    percentage_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    grading_status = models.CharField(max_length=20, choices=GRADING_STATUS, default='pending')
+    graded_date = models.DateTimeField(null=True, blank=True)
+    graded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                related_name='graded_submissions')
+    
+    # Feedback
+    lecturer_feedback = models.TextField(blank=True)
+    feedback_file = models.FileField(upload_to='assignment_feedback/', null=True, blank=True,
+                                   help_text="Optional feedback file from lecturer")
+    
+    class Meta:
+        unique_together = ['assignment', 'student']
+        ordering = ['-submitted_date']
+    
+    def save(self, *args, **kwargs):
+        # Set submission status and check if late
+        if self.is_submitted and not self.submitted_date:
+            self.submitted_date = timezone.now()
+            if self.submitted_date > self.assignment.due_date:
+                self.is_late = True
+                self.submission_status = 'late'
+            else:
+                self.submission_status = 'submitted'
+        
+        # Calculate percentage score
+        if self.marks_obtained is not None and self.assignment.total_marks:
+            self.percentage_score = (self.marks_obtained / self.assignment.total_marks) * 100
+        
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.student.student_id} - {self.assignment.title}"
+
+
+class NotesDownload(models.Model):
+    """Track downloads of course notes by students"""
+    course_notes = models.ForeignKey(CourseNotes, on_delete=models.CASCADE, related_name='downloads')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='notes_downloads')
+    downloaded_date = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-downloaded_date']
+    
+    def __str__(self):
+        return f"{self.student.student_id} downloaded {self.course_notes.title}"
+
+
+class AssignmentAnnouncement(models.Model):
+    """Announcements related to specific assignments"""
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='announcements')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    posted_date = models.DateTimeField(auto_now_add=True)
+    is_urgent = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['-posted_date']
+    
+    def __str__(self):
+        return f"{self.assignment.title} - {self.title}"
 # Fee Management Models (Updated for University)
 class FeeStructure(models.Model):
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='fee_structures')
