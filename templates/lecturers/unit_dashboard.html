@@ -1,0 +1,175 @@
+<!-- lecturer/unit_dashboard.html -->
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-person-badge me-2"></i>Lecturer Unit Dashboard
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ lecturer.user.get_full_name }}</span> | 
+                            <span class="badge bg-info">{{ lecturer.academic_rank }}</span> |
+                            <span class="badge bg-secondary">{{ lecturer.department.name }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>Academic Year: {{ current_academic_year.year }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>Current Semester: {{ current_semester.semester_number }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.total_courses }}</h4>
+                            <small class="text-muted">assigned courses</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Assigned Courses</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.total_students }}</h5>
+                            <p class="small text-muted mb-0">Total Students</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.total_assignments }}</h5>
+                            <p class="small text-muted mb-0">Assignments Posted</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_notes }}</h5>
+                            <p class="small text-muted mb-0">Notes Uploaded</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.pending_submissions }}</h5>
+                            <p class="small text-muted mb-0">Pending Submissions</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ lecturer.teaching_experience_years }}</h5>
+                            <p class="small text-muted mb-0">Years Experience</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Courses -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-journal-text me-2"></i>My Assigned Courses
+                    </h5>
+                    {% if current_semester %}
+                        <small class="text-muted">Current Semester: {{ current_semester }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if assignment_stats %}
+                        <div class="row">
+                            {% for stat in assignment_stats %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100 border-left-primary">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                                    {{ stat.assignment.course.code }}
+                                                </div>
+                                                <div class="h6 mb-0 font-weight-bold text-gray-800">
+                                                    {{ stat.assignment.course.name }}
+                                                </div>
+                                                <div class="small text-muted">
+                                                    {{ stat.assignment.course.department.name }}
+                                                </div>
+                                                
+                                                <!-- Course Statistics -->
+                                                <div class="mt-3">
+                                                    <div class="row text-center">
+                                                        <div class="col-4">
+                                                            <div class="border-right">
+                                                                <h6 class="text-primary mb-0">{{ stat.student_count }}</h6>
+                                                                <small class="text-muted">Students</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <div class="border-right">
+                                                                <h6 class="text-warning mb-0">{{ stat.assignment_count }}</h6>
+                                                                <small class="text-muted">Assignments</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <h6 class="text-info mb-0">{{ stat.notes_count }}</h6>
+                                                            <small class="text-muted">Notes</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Course Details -->
+                                                <div class="mt-2">
+                                                    <span class="badge bg-secondary">{{ stat.assignment.course.credit_hours }} Credits</span>
+                                                    <span class="badge bg-info">Level {{ stat.assignment.course.level }}</span>
+                                                </div>
+                                                
+                                                <!-- Venue and Time -->
+                                                {% if stat.assignment.lecture_venue or stat.assignment.lecture_time %}
+                                                <div class="mt-2 small">
+                                                    {% if stat.assignment.lecture_venue %}
+                                                        <div><i class="bi bi-geo-alt me-1"></i>{{ stat.assignment.lecture_venue }}</div>
+                                                    {% endif %}
+                                                    {% if stat.assignment.lecture_time %}
+                                                        <div><i class="bi bi-clock me-1"></i>{{ stat.assignment.lecture_time }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <!-- Pending Submissions Alert -->
+                                                {% if stat.pending_submissions > 0 %}
+                                                <div class="mt-2">
+                                                    <div class="alert alert-warning alert-sm mb-0 py-1">
+                                                        <small>
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            {{ stat.pending_submissions }} pending submission{{ stat.pending_submissions|pluralize }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Action Buttons -->
+                                        <div class="mt-3">
+                                            <div class="btn-group d-flex" role="

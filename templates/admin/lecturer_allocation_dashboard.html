@@ -1,0 +1,736 @@
+<!-- admin/lecturer_allocation_dashboard.html -->
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-person-workspace me-2"></i>Lecturer Course Allocation
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ current_academic_year.year }}</span> | 
+                            <span class="badge bg-info">Semester {{ current_semester.semester_number }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>Academic Year: {{ current_academic_year.year }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>Current Semester: {{ current_semester.semester_number }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-success">{{ stats.allocated_courses }}/{{ stats.total_courses }}</h4>
+                            <small class="text-muted">courses allocated</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Total Courses</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.allocated_courses }}</h5>
+                            <p class="small text-muted mb-0">Allocated</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.unallocated_courses }}</h5>
+                            <p class="small text-muted mb-0">Unallocated</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_lecturers }}</h5>
+                            <p class="small text-muted mb-0">Total Lecturers</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.lecturers_with_assignments }}</h5>
+                            <p class="small text-muted mb-0">Assigned Lecturers</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.total_lecturers|add:"-"|add:stats.lecturers_with_assignments }}</h5>
+                            <p class="small text-muted mb-0">Unassigned</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="allocationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="allocated-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#allocated" type="button" role="tab">
+                                <i class="bi bi-check-circle me-1"></i>Allocated Courses ({{ stats.allocated_courses }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="unallocated-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#unallocated" type="button" role="tab">
+                                <i class="bi bi-exclamation-circle me-1"></i>Unallocated Courses ({{ stats.unallocated_courses }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="lecturers-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#lecturers" type="button" role="tab">
+                                <i class="bi bi-people me-1"></i>Lecturers ({{ stats.total_lecturers }})
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="allocationTabsContent">
+                        
+                        <!-- Allocated Courses Tab -->
+                        <div class="tab-pane fade show active" id="allocated" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="allocatedSearch" 
+                                           placeholder="Search allocated courses...">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" id="allocatedDepartmentFilter">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="allocatedTable">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Course Code</th>
+                                            <th>Course Name</th>
+                                            <th>Department</th>
+                                            <th>Lecturer</th>
+                                            <th>Venue</th>
+                                            <th>Time</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for allocation in allocations %}
+                                        <tr data-allocation-id="{{ allocation.id }}" 
+                                            data-department-id="{{ allocation.course.department.id }}">
+                                            <td>
+                                                <span class="badge bg-secondary">{{ allocation.course.code }}</span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ allocation.course.name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ allocation.course.credit_hours }} credits</small>
+                                            </td>
+                                            <td>{{ allocation.course.department.name }}</td>
+                                            <td>
+                                                <strong>{{ allocation.lecturer.user.get_full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ allocation.lecturer.academic_rank }}</small>
+                                            </td>
+                                            <td>{{ allocation.lecture_venue|default:"-" }}</td>
+                                            <td>{{ allocation.lecture_time|default:"-" }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        onclick="editAllocation('{{ allocation.id }}')">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="removeAllocation('{{ allocation.id }}', '{{ allocation.course.code }}', '{{ allocation.lecturer.user.get_full_name }}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4">No courses allocated yet</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Unallocated Courses Tab -->
+                        <div class="tab-pane fade" id="unallocated" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="unallocatedSearch" 
+                                           placeholder="Search unallocated courses...">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" id="unallocatedDepartmentFilter">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary" onclick="bulkAllocate()">
+                                        <i class="bi bi-lightning"></i> Bulk Allocate
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="unallocatedTable">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" id="selectAllUnallocated">
+                                            </th>
+                                            <th>Course Code</th>
+                                            <th>Course Name</th>
+                                            <th>Department</th>
+                                            <th>Credits</th>
+                                            <th>Level</th>
+                                            <th>Assign To</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for course in unallocated_courses %}
+                                        <tr data-course-id="{{ course.id }}" 
+                                            data-department-id="{{ course.department.id }}">
+                                            <td>
+                                                <input type="checkbox" class="course-checkbox" value="{{ course.id }}">
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">{{ course.code }}</span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ course.name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ course.course_type|title }}</small>
+                                            </td>
+                                            <td>{{ course.department.name }}</td>
+                                            <td>{{ course.credit_hours }}</td>
+                                            <td>
+                                                <span class="badge bg-info">{{ course.level }}</span>
+                                            </td>
+                                            <td>
+                                                <select class="form-control form-control-sm lecturer-select" 
+                                                        data-course-id="{{ course.id }}">
+                                                    <option value="">Select Lecturer</option>
+                                                    {% for lecturer in lecturers %}
+                                                        {% if lecturer.department == course.department %}
+                                                        <option value="{{ lecturer.id }}">
+                                                            {{ lecturer.user.get_full_name }} ({{ lecturer.academic_rank }})
+                                                        </option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-success assign-btn" 
+                                                        data-course-id="{{ course.id }}" 
+                                                        onclick="quickAssign('{{ course.id }}')">
+                                                    <i class="bi bi-plus-circle"></i> Assign
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center py-4">
+                                                <i class="bi bi-check-circle text-success"></i>
+                                                All courses have been allocated!
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Lecturers Tab -->
+                        <div class="tab-pane fade" id="lecturers" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" id="lecturerSearch" 
+                                           placeholder="Search lecturers...">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" id="lecturerDepartmentFilter">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="lecturerTable">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Lecturer</th>
+                                            <th>Department</th>
+                                            <th>Academic Rank</th>
+                                            <th>Assigned Courses</th>
+                                            <th>Total Credits</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for lecturer in lecturers %}
+                                        <tr data-lecturer-id="{{ lecturer.id }}" 
+                                            data-department-id="{{ lecturer.department.id }}">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3">
+                                                        {% if lecturer.user.profile_picture %}
+                                                            <img src="{{ lecturer.user.profile_picture.url }}" 
+                                                                 class="rounded-circle" width="40" height="40">
+                                                        {% else %}
+                                                            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
+                                                                 style="width: 40px; height: 40px;">
+                                                                <span class="text-white fw-bold">
+                                                                    {{ lecturer.user.first_name|first }}{{ lecturer.user.last_name|first }}
+                                                                </span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div>
+                                                        <strong>{{ lecturer.user.get_full_name }}</strong>
+                                                        <br>
+                                                        <small class="text-muted">{{ lecturer.employee_number }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ lecturer.department.name }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ lecturer.academic_rank }}</span>
+                                            </td>
+                                            <td>
+                                                {% with lecturer_courses=lecturer.course_assignments.all %}
+                                                    {% if lecturer_courses %}
+                                                        <span class="badge bg-success">{{ lecturer_courses.count }}</span>
+                                                        <div class="small mt-1">
+                                                            {% for assignment in lecturer_courses|slice:":3" %}
+                                                                <span class="badge bg-light text-dark">{{ assignment.course.code }}</span>
+                                                            {% endfor %}
+                                                            {% if lecturer_courses.count > 3 %}
+                                                                <span class="text-muted">+{{ lecturer_courses.count|add:"-3" }} more</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="text-muted">No assignments</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                {% with total_credits=lecturer.course_assignments.all|length %}
+                                                    {{ total_credits }}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        onclick="viewLecturerDetails('{{ lecturer.id }}')">
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success" 
+                                                        onclick="assignToLecturer('{{ lecturer.id }}')">
+                                                    <i class="bi bi-plus"></i> Assign
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">No lecturers found</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Modal -->
+<div class="modal fade" id="assignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Course to Lecturer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assignmentForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Course</label>
+                                <select class="form-control" name="course_id" id="modalCourseSelect" required>
+                                    <option value="">Select Course</option>
+                                    {% for course in unallocated_courses %}
+                                    <option value="{{ course.id }}" data-department="{{ course.department.id }}">
+                                        {{ course.code }} - {{ course.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lecturer</label>
+                                <select class="form-control" name="lecturer_id" id="modalLecturerSelect" required>
+                                    <option value="">Select Lecturer</option>
+                                    {% for lecturer in lecturers %}
+                                    <option value="{{ lecturer.id }}" data-department="{{ lecturer.department.id }}">
+                                        {{ lecturer.user.get_full_name }} ({{ lecturer.academic_rank }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lecture Venue</label>
+                                <input type="text" class="form-control" name="lecture_venue" 
+                                       placeholder="e.g., Room 101, LH A">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lecture Time</label>
+                                <input type="text" class="form-control" name="lecture_time" 
+                                       placeholder="e.g., Mon 8-10am, Wed 2-4pm">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Remarks</label>
+                        <textarea class="form-control" name="remarks" rows="3" 
+                                  placeholder="Additional notes or remarks"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAssignment()">Assign Course</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize search functionality
+    initializeSearch();
+    
+    // Initialize department filters
+    initializeDepartmentFilters();
+    
+    // Initialize checkbox functionality
+    initializeCheckboxes();
+});
+
+function initializeSearch() {
+    // Allocated courses search
+    document.getElementById('allocatedSearch').addEventListener('keyup', function() {
+        filterTable('allocatedTable', this.value, [1, 2, 3]); // Search in code, name, lecturer columns
+    });
+    
+    // Unallocated courses search
+    document.getElementById('unallocatedSearch').addEventListener('keyup', function() {
+        filterTable('unallocatedTable', this.value, [1, 2]); // Search in code, name columns
+    });
+    
+    // Lecturer search
+    document.getElementById('lecturerSearch').addEventListener('keyup', function() {
+        filterTable('lecturerTable', this.value, [0, 1]); // Search in name, department columns
+    });
+}
+
+function initializeDepartmentFilters() {
+    // Allocated courses department filter
+    document.getElementById('allocatedDepartmentFilter').addEventListener('change', function() {
+        const departmentId = this.value;
+        filterTableByAttribute('allocatedTable', 'data-department-id', departmentId);
+    });
+    
+    // Unallocated courses department filter
+    document.getElementById('unallocatedDepartmentFilter').addEventListener('change', function() {
+        const departmentId = this.value;
+        filterTableByAttribute('unallocatedTable', 'data-department-id', departmentId);
+    });
+    
+    // Lecturer department filter
+    document.getElementById('lecturerDepartmentFilter').addEventListener('change', function() {
+        const departmentId = this.value;
+        filterTableByAttribute('lecturerTable', 'data-department-id', departmentId);
+    });
+}
+
+function initializeCheckboxes() {
+    // Select all unallocated courses
+    document.getElementById('selectAllUnallocated').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.course-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+}
+
+function filterTable(tableId, searchTerm, columns) {
+    const table = document.getElementById(tableId);
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+        let shouldShow = false;
+        
+        columns.forEach(colIndex => {
+            const cell = row.cells[colIndex];
+            if (cell && cell.textContent.toLowerCase().includes(searchTerm.toLowerCase())) {
+                shouldShow = true;
+            }
+        });
+        
+        row.style.display = shouldShow ? '' : 'none';
+    });
+}
+
+function filterTableByAttribute(tableId, attribute, value) {
+    const table = document.getElementById(tableId);
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+        if (!value || row.getAttribute(attribute) === value) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function quickAssign(courseId) {
+    const row = document.querySelector(`[data-course-id="${courseId}"]`);
+    const lecturerSelect = row.querySelector('.lecturer-select');
+    const lecturerId = lecturerSelect.value;
+    
+    if (!lecturerId) {
+        alert('Please select a lecturer first.');
+        return;
+    }
+    
+    assignCourse(courseId, lecturerId);
+}
+
+function assignCourse(courseId, lecturerId, venue = '', time = '', remarks = '') {
+    const formData = new FormData();
+    formData.append('course_id', courseId);
+    formData.append('lecturer_id', lecturerId);
+    formData.append('lecture_venue', venue);
+    formData.append('lecture_time', time);
+    formData.append('remarks', remarks);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "allocate_course_to_lecturer" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload(); // Refresh to update the tables
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'An error occurred while assigning the course.');
+        console.error('Error:', error);
+    });
+}
+
+function removeAllocation(allocationId, courseCode, lecturerName) {
+    if (!confirm(`Are you sure you want to remove the allocation of ${courseCode} from ${lecturerName}?`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('allocation_id', allocationId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "remove_course_allocation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            location.reload(); // Refresh to update the tables
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'An error occurred while removing the allocation.');
+        console.error('Error:', error);
+    });
+}
+
+function showAssignmentModal(courseId = '', lecturerId = '') {
+    const modal = new bootstrap.Modal(document.getElementById('assignmentModal'));
+    
+    if (courseId) {
+        document.getElementById('modalCourseSelect').value = courseId;
+    }
+    if (lecturerId) {
+        document.getElementById('modalLecturerSelect').value = lecturerId;
+    }
+    
+    modal.show();
+}
+
+function submitAssignment() {
+    const form = document.getElementById('assignmentForm');
+    const formData = new FormData(form);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    const courseId = formData.get('course_id');
+    const lecturerId = formData.get('lecturer_id');
+    
+    if (!courseId || !lecturerId) {
+        showAlert('danger', 'Please select both course and lecturer.');
+        return;
+    }
+    
+    assignCourse(
+        courseId,
+        lecturerId,
+        formData.get('lecture_venue'),
+        formData.get('lecture_time'),
+        formData.get('remarks')
+    );
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('assignmentModal'));
+    modal.hide();
+}
+
+function bulkAllocate() {
+    const selectedCourses = Array.from(document.querySelectorAll('.course-checkbox:checked'))
+                                 .map(cb => cb.value);
+    
+    if (selectedCourses.length === 0) {
+        alert('Please select at least one course.');
+        return;
+    }
+    
+    // For now, just show the assignment modal
+    // You could enhance this to do intelligent bulk assignment
+    showAssignmentModal();
+}
+
+function showAlert(type, message) {
+    const alertHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show">
+            <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.container.onprintContainer');
+    container.insertAdjacentHTML('afterbegin', alertHTML);
+}
+
+// Add CSRF token to all requests
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+if (!csrfToken) {
+    // Add CSRF token if not present
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'hidden';
+    tokenInput.name = 'csrfmiddlewaretoken';
+    tokenInput.value = '{{ csrf_token }}';
+    document.body.appendChild(tokenInput);
+}
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer, .modal {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.lecturer-select {
+    min-width: 200px;
+}
+
+.assign-btn:disabled {
+    opacity: 0.6;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.course-checkbox {
+    transform: scale(1.2);
+}
+
+.tab-content {
+    min-height: 400px;
+}
+</style>
+
+{% endblock %}

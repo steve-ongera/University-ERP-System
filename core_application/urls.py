@@ -107,4 +107,16 @@ urlpatterns = [
     path('programme/<int:programme_id>/fees/', views.programme_fee_detail, name='programme_fee_detail'),
     path('fee-structures/comparison/', views.fee_structure_comparison, name='fee_structure_comparison'),
 
+    # Admin or HOD views
+    path('dashboard/lecturer-allocation/', views.lecturer_allocation_dashboard, name='lecturer_allocation_dashboard'),
+    path('dashboard/allocate-course/', views.allocate_course_to_lecturer, name='allocate_course_to_lecturer'),
+    path('dashboard/remove-allocation/', views.remove_course_allocation, name='remove_course_allocation'),
+
+    # Lecturer views
+    path('lecturer/unit//dashboard/', views.lecturer_unit_dashboard, name='lecturer_unit_dashboard'),
+    path('lecturer/course/<int:assignment_id>/', views.lecturer_course_detail, name='lecturer_course_detail'),
+    path('lecturer/course/<int:assignment_id>/create-assignment/', views.create_assignment, name='create_assignment'),
+    path('lecturer/course/<int:assignment_id>/create-notes/', views.create_course_notes, name='create_course_notes'),
+    path('lecturer/course/<int:assignment_id>/create-announcement/', views.create_announcement, name='create_announcement'),
+
 ]

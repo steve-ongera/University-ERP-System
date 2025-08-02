@@ -4538,7 +4538,7 @@ def lecturer_unit_dashboard(request):
         'stats': stats
     }
     
-    return render(request, 'lecturer/dashboard.html', context)
+    return render(request, 'lecturers/unit_dashboard.html', context)
 
 @login_required
 @user_passes_test(is_lecturer)
@@ -4610,7 +4610,7 @@ def lecturer_course_detail(request, assignment_id):
         'assignment_submission_stats': assignment_submission_stats
     }
     
-    return render(request, 'lecturer/course_detail.html', context)
+    return render(request, 'lecturers/course_detail.html', context)
 
 @login_required
 @user_passes_test(is_lecturer)
@@ -4682,7 +4682,7 @@ def create_assignment(request, assignment_id):
         'submission_formats': Assignment.SUBMISSION_FORMATS
     }
     
-    return render(request, 'lecturer/create_assignment.html', context)
+    return render(request, 'lecturers/create_assignment.html', context)
 
 @login_required
 @user_passes_test(is_lecturer)
@@ -4742,7 +4742,7 @@ def create_course_notes(request, assignment_id):
         'note_types': CourseNotes.NOTE_TYPES
     }
     
-    return render(request, 'lecturer/create_notes.html', context)
+    return render(request, 'lecturers/create_notes.html', context)
 
 @login_required
 @user_passes_test(is_lecturer)
