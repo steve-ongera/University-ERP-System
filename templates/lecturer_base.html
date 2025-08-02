@@ -2,56 +2,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="Abno">
     <meta name="keyword" content="">
-    <title>university portal</title>
-    <link rel="icon" id="portalLogo" href="{% static 'logo.png'%}" />
-    <link rel="shortcut icon" type="image/x-icon" href="uploads\041cdf98-cbe3-4394-9c6a-df1c0894ec8c.jpeg?v=xIaIT07Ehx5-zh8IuvePzff91SV7McLe35lktf_lm3M" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+    <title>Uni Portal</title>
+    <link rel="icon" id="portalLogo" href="{% static 'logo.png'%}">
+    <link rel="shortcut icon" type="image/x-icon" href="uploads\041cdf98-cbe3-4394-9c6a-df1c0894ec8c.jpeg?v=xIaIT07Ehx5-zh8IuvePzff91SV7McLe35lktf_lm3M">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="/assets/bs5/bs5-intro-tour-main/js/bs5-intro-tour.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@2.2.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
-          integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto|Varela+Round">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
-    <link href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet" />
+    <link href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" integrity="sha512-nMNlpuaDPrqlEls3IX/Q56H36qvBASwb3ipuo3MxeWbsQB1881ox0cRv7UPTgBlriqoynt35KjEwgGUeUXIPnw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
     
-    <link rel="stylesheet" href="{% static 'Settings.css' %}" />
-    <link rel="stylesheet" href="{% static 'main.css' %}" />
-    <link rel="stylesheet" href="{% static 'site.css' %}" />
-    <link rel="stylesheet" href="{% static 'customstepper.css' %}" />
-
+    <link rel="stylesheet" href="{% static 'Settings.css' %}">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'site.css' %}">
+    <link rel="stylesheet" href="{% static 'customstepper.css' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-
 
     <color theme="#1a73e8" tab="#1d2aed" secondary="#1a73e8" hidden></color>
     <script src="{% static 'color.js'%}"></script>
 </head>
 <body>
-
     <!-- Loader -->
     <div class="loader">
-        <svg version="1.1" 
-            class="svg-loader" 
-            xmlns="http://www.w3.org/2000/svg" 
-            xmlns:xlink="http://www.w3.org/1999/xlink" 
-            x="0px"
-            y="0px" 
-            viewBox="0 0 80 80" 
-            xml:space="preserve">
-            <path 
-                fill="#1a73e8" 
-                d="M10,40c0,0,0-0.4,0-1.1c0-0.3,0-0.8,0-1.3c0-0.3,0-0.5,0-0.8c0-0.3,0.1-0.6,0.1-0.9c0.1-0.6,0.1-1.4,0.2-2.1
+        <svg version="1.1" class="svg-loader" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+            <path fill="#1a73e8" d="M10,40c0,0,0-0.4,0-1.1c0-0.3,0-0.8,0-1.3c0-0.3,0-0.5,0-0.8c0-0.3,0.1-0.6,0.1-0.9c0.1-0.6,0.1-1.4,0.2-2.1
                 c0.2-0.8,0.3-1.6,0.5-2.5c0.2-0.9,0.6-1.8,0.8-2.8c0.3-1,0.8-1.9,1.2-3c0.5-1,1.1-2,1.7-3.1c0.7-1,1.4-2.1,2.2-3.1
                 c1.6-2.1,3.7-3.9,6-5.6c2.3-1.7,5-3,7.9-4.1c0.7-0.2,1.5-0.4,2.2-0.7c0.7-0.3,1.5-0.3,2.3-0.5c0.8-0.2,1.5-0.3,2.3-0.4l1.2-0.1
                 l0.6-0.1l0.3,0l0.1,0l0.1,0l0,0c0.1,0-0.1,0,0.1,0c1.5,0,2.9-0.1,4.5,0.2c0.8,0.1,1.6,0.1,2.4,0.3c0.8,0.2,1.5,0.3,2.3,0.5
@@ -65,9 +50,7 @@
                 c-0.7,0.9-1.3,1.9-1.9,2.8c-0.5,1-1,1.9-1.4,2.8c-0.4,0.9-0.8,1.8-1,2.6c-0.3,0.9-0.5,1.6-0.7,2.4c-0.2,0.7-0.3,1.4-0.4,2.1
                 c-0.1,0.3-0.1,0.6-0.2,0.9c0,0.3-0.1,0.6-0.1,0.8c0,0.5-0.1,0.9-0.1,1.3C10,39.6,10,40,10,40z">
             </path>
-            <path 
-                fill="#e8f0fe" 
-                d="M62,40.1c0,0,0,0.2-0.1,0.7c0,0.2,0,0.5-0.1,0.8c0,0.2,0,0.3,0,0.5c0,0.2-0.1,0.4-0.1,0.7
+            <path fill="#e8f0fe" d="M62,40.1c0,0,0,0.2-0.1,0.7c0,0.2,0,0.5-0.1,0.8c0,0.2,0,0.3,0,0.5c0,0.2-0.1,0.4-0.1,0.7
                 c-0.1,0.5-0.2,1-0.3,1.6c-0.2,0.5-0.3,1.1-0.5,1.8c-0.2,0.6-0.5,1.3-0.7,1.9c-0.3,0.7-0.7,1.3-1,2.1c-0.4,0.7-0.9,1.4-1.4,2.1
                 c-0.5,0.7-1.1,1.4-1.7,2c-1.2,1.3-2.7,2.5-4.4,3.6c-1.7,1-3.6,1.8-5.5,2.4c-2,0.5-4,0.7-6.2,0.7c-1.9-0.1-4.1-0.4-6-1.1
                 c-1.9-0.7-3.7-1.5-5.2-2.6c-1.5-1.1-2.9-2.3-4-3.7c-0.6-0.6-1-1.4-1.5-2c-0.4-0.7-0.8-1.4-1.2-2c-0.3-0.7-0.6-1.3-0.8-2
@@ -85,22 +68,22 @@
         <div class="container-fluid">
             <div class="d-flex justify-content-between">
                 <div class="d-flex align-items-center">
-                    <img class="navbar-brand" src="{% static 'logo.png'%}" />
+                    <img class="navbar-brand" src="{% static 'logo.png'%}">
                     <i class="ri-menu-fill menu-top primary-text top" id="menuToggle"></i>
                 </div>
             </div>
             <div class="mb-lg-0 text-center ms-2 my-1 institutionbrand">
-                    <h4 class="d-flex justify-content-start primary-text fw-bold">kenya University / Training College Portal</h4>
+                    <h4 class="d-flex justify-content-start primary-text fw-bold">Kenya Uni/Training Portal</h4>
             </div>
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <li class="nav-item dropdown notification">
                     <a class="nav-link dropdown-toggle primary-text notifyIcon" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="ri-notification-3-line top" data-bs-toggle="tooltip" data-bs-placement="right"
-                           data-bs-custom-class="custom-tooltip" data-bs-title="Notifications"></i>
+                           data-bs-title="Notifications"></i>
                         <div class="text-white text-center"><span>0</span></div>
                     </a>
                     <ul class="dropdown-menu notify shadow" aria-labelledby="navbarDropdown">
-                        <li><h6 class="primary-text ms-3">Notification</h6></li>
+                        <li><h6 class="primary-text ms-3">Notifications</h6></li>
                             <li class="border-bottom py-1">
                                 No notifications
                             </li>
@@ -109,7 +92,7 @@
                 <li class="nav-item dropdown border-start">
                     <a class="nav-link dropdown-toggle primary-text profile" href="#" id="navbarProfile" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="d-flex align-items-center">
-                            <img src="{% static 'avatar2.png'%}"  /> <span class="ms-2 salutation" id="salutation">Hi,{{request.user.first_name}} </span>
+                            <img src="{% static 'avatar2.png'%}"> <span class="ms-2 salutation" id="salutation">Hi,{{request.user.first_name}}</span>
                         </div>
                     </a>
                     <ul class="dropdown-menu shadow" aria-labelledby="navbarDropdown">
@@ -120,199 +103,129 @@
             </ul>
         </div>
     </nav>
-    <!--  -->
     <!-- Sidenav -->
     <nav class="sidenav">
         <ul class="menu">
             <li class="menu-link active" id="dashboard">
-                <a class="menu_sub" href="#"> <i class="ri-dashboard-line"></i> <span>Dashboard</span></a>
+                <a class="menu_sub" href="#"><i class="ri-dashboard-line"></i><span>Dashboard</span></a>
             </li>
             <li class="menu-link" id="courses">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-book-open-line"></i>
-                    <span>Course Management</span>
+                    <span>Courses</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="myCourses" href="#">My Courses</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="courseContent" href="#">Course Content</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="courseMaterials" href="#">Course Materials</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="courseSchedule" href="#">Class Schedule</a>
-                    </li>
+                    <li class="sub-item"><a id="myCourses" href="#">My Courses</a></li>
+                    <li class="sub-item"><a id="courseContent" href="#">Content</a></li>
+                    <li class="sub-item"><a id="courseMaterials" href="#">Materials</a></li>
+                    <li class="sub-item"><a id="courseSchedule" href="#">Schedule</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="students">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-user-3-line"></i>
-                    <span>Student Management</span>
+                    <span>Students</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="myStudents" href="#">My Students</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="enrollment" href="#">Enrollments</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="attendance" href="#">Attendance</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="studentProgress" href="#">Student Progress</a>
-                    </li>
+                    <li class="sub-item"><a id="myStudents" href="#">My Students</a></li>
+                    <li class="sub-item"><a id="enrollment" href="#">Enrollments</a></li>
+                    <li class="sub-item"><a id="attendance" href="#">Attendance</a></li>
+                    <li class="sub-item"><a id="studentProgress" href="#">Progress</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="grading">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-file-edit-line"></i>
-                    <span>Grading & Assessment</span>
+                    <span>Grading</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="gradeEntry" href="#">Grade Entry</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="examResults" href="#">Exam Results</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="gradebook" href="#">Gradebook</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="transcripts" href="#">Generate Reports</a>
-                    </li>
+                    <li class="sub-item"><a id="gradeEntry" href="#">Grade Entry</a></li>
+                    <li class="sub-item"><a id="examResults" href="#">Results</a></li>
+                    <li class="sub-item"><a id="gradebook" href="#">Gradebook</a></li>
+                    <li class="sub-item"><a id="transcripts" href="#">Reports</a></li>
                 </ul>
             </li>
             <li class="menu-link messDiv" id="message">
-                <a class="menu_sub" href="#">
-                    <i class="ri-message-2-line"></i>
-                    <span>Messages</span>
-                </a>
+                <a class="menu_sub" href="#"><i class="ri-message-2-line"></i><span>Messages</span></a>
             </li>
             <li class="menu-link" id="research">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-microscope-line"></i>
-                    <span>Research & Publications</span>
+                    <span>Research</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="researchProjects" href="#">Research Projects</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="publications" href="#">Publications</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="conferences" href="#">Conferences</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="grants" href="#">Research Grants</a>
-                    </li>
+                    <li class="sub-item"><a id="researchProjects" href="#">Projects</a></li>
+                    <li class="sub-item"><a id="publications" href="#">Publications</a></li>
+                    <li class="sub-item"><a id="conferences" href="#">Conferences</a></li>
+                    <li class="sub-item"><a id="grants" href="#">Grants</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="timetable">
-                <a class="menu_sub" href="#">
-                    <i class="ri-calendar-line"></i>
-                    <span>My Timetable</span>
-                </a>
+                <a class="menu_sub" href="#"><i class="ri-calendar-line"></i><span>Timetable</span></a>
             </li>
             <li class="menu-link" id="academic">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-government-line"></i>
-                    <span>Academic Affairs</span>
+                    <span>Academics</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="academicCalendar" href="#">Academic Calendar</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="examSchedule" href="#">Exam Schedule</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="curriculum" href="#">Curriculum</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="policies" href="#">Academic Policies</a>
-                    </li>
+                    <li class="sub-item"><a id="academicCalendar" href="#">Calendar</a></li>
+                    <li class="sub-item"><a id="examSchedule" href="#">Exams</a></li>
+                    <li class="sub-item"><a id="curriculum" href="#">Curriculum</a></li>
+                    <li class="sub-item"><a id="policies" href="#">Policies</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="reports">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-file-chart-line"></i>
-                    <span>Reports & Analytics</span>
+                    <span>Reports</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="teachingReports" href="#">Teaching Reports</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="studentAnalytics" href="#">Student Analytics</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="performanceMetrics" href="#">Performance Metrics</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="departmentReports" href="#">Department Reports</a>
-                    </li>
+                    <li class="sub-item"><a id="teachingReports" href="#">Teaching</a></li>
+                    <li class="sub-item"><a id="studentAnalytics" href="#">Analytics</a></li>
+                    <li class="sub-item"><a id="performanceMetrics" href="#">Metrics</a></li>
+                    <li class="sub-item"><a id="departmentReports" href="#">Dept</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="consultation">
-                <a class="menu_sub" href="#">
-                    <i class="ri-question-answer-line"></i>
-                    <span>Student Consultation</span>
-                </a>
+                <a class="menu_sub" href="#"><i class="ri-question-answer-line"></i><span>Consultation</span></a>
             </li>
             <li class="menu-link" id="evaluation">
                 <a href="#" class="menu_sub">
                     <i class="ri-star-line"></i>
-                    <span>Course Evaluations</span>
+                    <span>Evaluations</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="studentFeedback" href="#">Student Feedback</a>
-                    </li>
+                    <li class="sub-item"><a id="studentFeedback" href="#">Feedback</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="professional">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-medal-line"></i>
-                    <span>Professional Development</span>
+                    <span>Prof Dev</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item">
-                        <a id="training" href="#">Training Programs</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="certifications" href="#">Certifications</a>
-                    </li>
-                    <li class="sub-item">
-                        <a id="workshops" href="#">Workshops</a>
-                    </li>
+                    <li class="sub-item"><a id="training" href="#">Training</a></li>
+                    <li class="sub-item"><a id="certifications" href="#">Certs</a></li>
+                    <li class="sub-item"><a id="workshops" href="#">Workshops</a></li>
                 </ul>
             </li>
             <li class="menu-link" id="support">
-                <a class="menu_sub" href="#">
-                    <i class="ri-customer-service-2-line"></i>
-                    <span>Help & Support</span>
-                </a>
+                <a class="menu_sub" href="#"><i class="ri-customer-service-2-line"></i><span>Support</span></a>
             </li>
         </ul>
         <div class="brand-footer">
             <span>©2025 - kencom softwares</span>
         </div>
     </nav>
-    <!-- #end sidenav  -->
 
     <main role="main" class="pb-3">
         {% block content %}
@@ -320,25 +233,17 @@
     </main>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'bs5-intro-tour.js'%}"></script>
-
     <script src="https://cdn.ckeditor.com/ckeditor5/35.1.0/classic/ckeditor.js"></script>
     <script src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.3.0/dist/qr-code-styling.umd.min.js"></script>
-    
-    <!-- QRCode.js CDN -->
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
-
-    <!-- jQuery CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"
-            integrity="sha512-2ImtlRlf2VVmiGZsjm9bEyhjGW4dU7B6TNwh/hx/iSByxNENtj3WVE6o/9Lj4TJeVXPi4bnOIMXFIJJAeufa0A=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.4/jspdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/linways/table-to-excel@v1.0.4/dist/tableToExcel.js"></script>
@@ -363,8 +268,8 @@
                 buttonsStyling: false
             })
             swalWithBootstrapButtons.fire({
-                title: 'Are you sure ?',
-                html: "Do you really want to delete these record? <br/> This process cannot be undone",
+                title: 'Are you sure?',
+                html: "Delete this record?<br/>Cannot be undone",
                 icon: 'error',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -375,7 +280,7 @@
                 if (result.isConfirmed) {
                     swalWithBootstrapButtons.fire(
                         'Deleted!',
-                        'Your file has been deleted.',
+                        'Record deleted.',
                         'success',
                         '2000'
                     )
@@ -397,9 +302,7 @@
         var options = {
             "server": "https://jiunge.com/widget?v=1.1"
         };
-
         var JW = new JiungeWidget(options);
-        //call this method on click of pay button
         $("#jiungePay").on("click", function () {
             JW.open();
         })
