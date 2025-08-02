@@ -4256,3 +4256,540 @@ def lecturer_dashboard(request):
     }
     
     return render(request, 'lecturers/lecturer_dashboard.html', context)
+
+# views.py - Add these views to your existing views file
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Count, Q
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.views.decorators.http import require_http_methods
+from django.forms import modelformset_factory
+import json
+
+from .models import (
+    User, Lecturer, Course, AcademicYear, Semester, LecturerCourseAssignment,
+    Assignment, CourseNotes, AssignmentSubmission, Enrollment, Student,
+    Programme, Department, Faculty, AssignmentAnnouncement
+)
+
+def is_admin_or_hod(user):
+    """Check if user is admin or head of department"""
+    return user.user_type in ['admin', 'hod', 'dean']
+
+def is_lecturer(user):
+    """Check if user is a lecturer"""
+    return user.user_type in ['lecturer', 'professor'] and hasattr(user, 'lecturer_profile')
+
+@login_required
+@user_passes_test(is_admin_or_hod)
+def lecturer_allocation_dashboard(request):
+    """Dashboard for admin to allocate units to lecturers"""
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if not current_academic_year or not current_semester:
+        messages.error(request, "Please set current academic year and semester first.")
+        return redirect('admin_dashboard')
+    
+    # Get all active courses
+    courses = Course.objects.filter(is_active=True).select_related('department', 'department__faculty')
+    
+    # Get all active lecturers
+    lecturers = Lecturer.objects.filter(
+        is_active=True,
+        user__is_active=True
+    ).select_related('user', 'department')
+    
+    # Get current allocations
+    allocations = LecturerCourseAssignment.objects.filter(
+        academic_year=current_academic_year,
+        semester=current_semester,
+        is_active=True
+    ).select_related('lecturer__user', 'course')
+    
+    # Create a mapping of course_id to lecturer for quick lookup
+    allocated_courses = {alloc.course_id: alloc for alloc in allocations}
+    
+    # Get unallocated courses
+    allocated_course_ids = set(allocated_courses.keys())
+    all_course_ids = set(courses.values_list('id', flat=True))
+    unallocated_course_ids = all_course_ids - allocated_course_ids
+    unallocated_courses = courses.filter(id__in=unallocated_course_ids)
+    
+    # Filter courses by department if user is HOD
+    if request.user.user_type == 'hod':
+        user_department = request.user.headed_departments.first()
+        if user_department:
+            courses = courses.filter(department=user_department)
+            lecturers = lecturers.filter(department=user_department)
+            unallocated_courses = unallocated_courses.filter(department=user_department)
+    
+    # Get statistics
+    stats = {
+        'total_courses': courses.count(),
+        'allocated_courses': len(allocated_course_ids),
+        'unallocated_courses': unallocated_courses.count(),
+        'total_lecturers': lecturers.count(),
+        'lecturers_with_assignments': allocations.values('lecturer').distinct().count()
+    }
+    
+    # Get departments for filtering
+    departments = Department.objects.filter(is_active=True)
+    if request.user.user_type == 'hod':
+        user_department = request.user.headed_departments.first()
+        if user_department:
+            departments = departments.filter(id=user_department.id)
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'courses': courses,
+        'lecturers': lecturers,
+        'allocations': allocations,
+        'allocated_courses': allocated_courses,
+        'unallocated_courses': unallocated_courses,
+        'stats': stats,
+        'departments': departments,
+    }
+    
+    return render(request, 'admin/lecturer_allocation_dashboard.html', context)
+
+@login_required
+@user_passes_test(is_admin_or_hod)
+@require_http_methods(["POST"])
+def allocate_course_to_lecturer(request):
+    """AJAX endpoint to allocate a course to a lecturer"""
+    
+    try:
+        course_id = request.POST.get('course_id')
+        lecturer_id = request.POST.get('lecturer_id')
+        lecture_venue = request.POST.get('lecture_venue', '')
+        lecture_time = request.POST.get('lecture_time', '')
+        remarks = request.POST.get('remarks', '')
+        
+        if not course_id or not lecturer_id:
+            return JsonResponse({'success': False, 'message': 'Course and lecturer are required.'})
+        
+        # Get current academic year and semester
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_academic_year or not current_semester:
+            return JsonResponse({'success': False, 'message': 'Current academic year and semester not set.'})
+        
+        course = get_object_or_404(Course, id=course_id, is_active=True)
+        lecturer = get_object_or_404(Lecturer, id=lecturer_id, is_active=True)
+        
+        # Check if course is already allocated
+        existing_allocation = LecturerCourseAssignment.objects.filter(
+            course=course,
+            academic_year=current_academic_year,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        if existing_allocation:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Course {course.code} is already allocated to {existing_allocation.lecturer.user.get_full_name()}'
+            })
+        
+        # Create allocation
+        allocation = LecturerCourseAssignment.objects.create(
+            lecturer=lecturer,
+            course=course,
+            academic_year=current_academic_year,
+            semester=current_semester,
+            assigned_by=request.user,
+            lecture_venue=lecture_venue,
+            lecture_time=lecture_time,
+            remarks=remarks
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Course {course.code} successfully allocated to {lecturer.user.get_full_name()}',
+            'allocation_id': allocation.id,
+            'lecturer_name': lecturer.user.get_full_name(),
+            'course_code': course.code,
+            'course_name': course.name
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required
+@user_passes_test(is_admin_or_hod)
+@require_http_methods(["POST"])
+def remove_course_allocation(request):
+    """AJAX endpoint to remove a course allocation"""
+    
+    try:
+        allocation_id = request.POST.get('allocation_id')
+        
+        if not allocation_id:
+            return JsonResponse({'success': False, 'message': 'Allocation ID is required.'})
+        
+        allocation = get_object_or_404(LecturerCourseAssignment, id=allocation_id)
+        
+        # Check if user has permission to remove this allocation
+        if request.user.user_type == 'hod':
+            user_department = request.user.headed_departments.first()
+            if user_department and allocation.course.department != user_department:
+                return JsonResponse({'success': False, 'message': 'You can only manage allocations in your department.'})
+        
+        course_code = allocation.course.code
+        lecturer_name = allocation.lecturer.user.get_full_name()
+        
+        allocation.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Allocation of {course_code} to {lecturer_name} has been removed.',
+            'course_id': allocation.course.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required
+@user_passes_test(is_lecturer)
+def lecturer_unit_dashboard(request):
+    """Dashboard for lecturers to view their allocated courses"""
+    
+    lecturer = request.user.lecturer_profile
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if not current_academic_year or not current_semester:
+        messages.error(request, "Current academic year and semester not set.")
+        return render(request, 'lecturer/dashboard.html', {'lecturer': lecturer})
+    
+    # Get lecturer's course assignments for current semester
+    assignments = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        academic_year=current_academic_year,
+        semester=current_semester,
+        is_active=True
+    ).select_related('course', 'course__department').prefetch_related(
+        'course__enrollments__student__user',
+        'assignments',
+        'course_notes'
+    )
+    
+    # Calculate statistics for each assignment
+    assignment_stats = []
+    for assignment in assignments:
+        # Get enrolled students for this course in current semester
+        enrollments = Enrollment.objects.filter(
+            course=assignment.course,
+            semester=current_semester,
+            is_active=True
+        ).select_related('student__user')
+        
+        # Get assignment and notes counts
+        assignment_count = Assignment.objects.filter(
+            lecturer_assignment=assignment,
+            is_active=True
+        ).count()
+        
+        notes_count = CourseNotes.objects.filter(
+            lecturer_assignment=assignment,
+            is_active=True
+        ).count()
+        
+        # Get pending submissions across all assignments
+        pending_submissions = 0
+        for assign in assignment.assignments.filter(is_active=True, is_published=True):
+            pending_submissions += assign.pending_submissions
+        
+        assignment_stats.append({
+            'assignment': assignment,
+            'enrolled_students': enrollments,
+            'student_count': enrollments.count(),
+            'assignment_count': assignment_count,
+            'notes_count': notes_count,
+            'pending_submissions': pending_submissions
+        })
+    
+    # Overall statistics
+    stats = {
+        'total_courses': assignments.count(),
+        'total_students': sum([stat['student_count'] for stat in assignment_stats]),
+        'total_assignments': sum([stat['assignment_count'] for stat in assignment_stats]),
+        'total_notes': sum([stat['notes_count'] for stat in assignment_stats]),
+        'pending_submissions': sum([stat['pending_submissions'] for stat in assignment_stats])
+    }
+    
+    context = {
+        'lecturer': lecturer,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'assignment_stats': assignment_stats,
+        'stats': stats
+    }
+    
+    return render(request, 'lecturer/dashboard.html', context)
+
+@login_required
+@user_passes_test(is_lecturer)
+def lecturer_course_detail(request, assignment_id):
+    """Detailed view of a specific course assignment for lecturer"""
+    
+    lecturer = request.user.lecturer_profile
+    assignment = get_object_or_404(
+        LecturerCourseAssignment,
+        id=assignment_id,
+        lecturer=lecturer,
+        is_active=True
+    )
+    
+    # Get enrolled students
+    enrollments = Enrollment.objects.filter(
+        course=assignment.course,
+        semester=assignment.semester,
+        is_active=True
+    ).select_related('student__user', 'student__programme').order_by('student__user__first_name')
+    
+    # Get course assignments
+    course_assignments = Assignment.objects.filter(
+        lecturer_assignment=assignment,
+        is_active=True
+    ).order_by('-posted_date')
+    
+    # Get course notes
+    course_notes = CourseNotes.objects.filter(
+        lecturer_assignment=assignment,
+        is_active=True
+    ).order_by('-posted_date')
+    
+    # Get recent announcements
+    recent_announcements = AssignmentAnnouncement.objects.filter(
+        assignment__lecturer_assignment=assignment,
+        is_active=True
+    ).order_by('-posted_date')[:5]
+    
+    # Statistics
+    stats = {
+        'enrolled_students': enrollments.count(),
+        'total_assignments': course_assignments.count(),
+        'published_assignments': course_assignments.filter(is_published=True).count(),
+        'total_notes': course_notes.count(),
+        'total_announcements': recent_announcements.count()
+    }
+    
+    # Get submission statistics for each assignment
+    assignment_submission_stats = []
+    for assign in course_assignments.filter(is_published=True):
+        submissions = AssignmentSubmission.objects.filter(assignment=assign)
+        assignment_submission_stats.append({
+            'assignment': assign,
+            'total_submissions': submissions.count(),
+            'submitted_count': submissions.filter(is_submitted=True).count(),
+            'pending_grading': submissions.filter(is_submitted=True, grading_status='pending').count(),
+            'graded_count': submissions.filter(grading_status='graded').count()
+        })
+    
+    context = {
+        'lecturer': lecturer,
+        'assignment': assignment,
+        'enrollments': enrollments,
+        'course_assignments': course_assignments,
+        'course_notes': course_notes,
+        'recent_announcements': recent_announcements,
+        'stats': stats,
+        'assignment_submission_stats': assignment_submission_stats
+    }
+    
+    return render(request, 'lecturer/course_detail.html', context)
+
+@login_required
+@user_passes_test(is_lecturer)
+def create_assignment(request, assignment_id):
+    """Create new assignment for a course"""
+    
+    lecturer = request.user.lecturer_profile
+    course_assignment = get_object_or_404(
+        LecturerCourseAssignment,
+        id=assignment_id,
+        lecturer=lecturer,
+        is_active=True
+    )
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            title = request.POST.get('title')
+            assignment_type = request.POST.get('assignment_type')
+            description = request.POST.get('description')
+            instructions = request.POST.get('instructions', '')
+            due_date = request.POST.get('due_date')
+            total_marks = request.POST.get('total_marks')
+            weight_percentage = request.POST.get('weight_percentage')
+            submission_format = request.POST.get('submission_format')
+            max_file_size_mb = request.POST.get('max_file_size_mb', 10)
+            late_submission_allowed = request.POST.get('late_submission_allowed') == 'on'
+            late_submission_penalty = request.POST.get('late_submission_penalty', '')
+            is_published = request.POST.get('is_published') == 'on'
+            
+            # Validate required fields
+            if not all([title, assignment_type, description, due_date, total_marks, weight_percentage]):
+                messages.error(request, 'Please fill in all required fields.')
+                return redirect('create_assignment', assignment_id=assignment_id)
+            
+            # Create assignment
+            assignment = Assignment.objects.create(
+                lecturer_assignment=course_assignment,
+                title=title,
+                assignment_type=assignment_type,
+                description=description,
+                instructions=instructions,
+                due_date=due_date,
+                total_marks=int(total_marks),
+                weight_percentage=float(weight_percentage),
+                submission_format=submission_format,
+                max_file_size_mb=int(max_file_size_mb),
+                late_submission_allowed=late_submission_allowed,
+                late_submission_penalty=late_submission_penalty,
+                is_published=is_published
+            )
+            
+            # Handle file upload
+            if 'assignment_file' in request.FILES:
+                assignment.assignment_file = request.FILES['assignment_file']
+                assignment.save()
+            
+            messages.success(request, f'Assignment "{title}" created successfully.')
+            return redirect('lecturer_course_detail', assignment_id=assignment_id)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating assignment: {str(e)}')
+            return redirect('create_assignment', assignment_id=assignment_id)
+    
+    context = {
+        'lecturer': lecturer,
+        'course_assignment': course_assignment,
+        'assignment_types': Assignment.ASSIGNMENT_TYPES,
+        'submission_formats': Assignment.SUBMISSION_FORMATS
+    }
+    
+    return render(request, 'lecturer/create_assignment.html', context)
+
+@login_required
+@user_passes_test(is_lecturer)
+def create_course_notes(request, assignment_id):
+    """Create new course notes"""
+    
+    lecturer = request.user.lecturer_profile
+    course_assignment = get_object_or_404(
+        LecturerCourseAssignment,
+        id=assignment_id,
+        lecturer=lecturer,
+        is_active=True
+    )
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            title = request.POST.get('title')
+            note_type = request.POST.get('note_type')
+            description = request.POST.get('description', '')
+            topic = request.POST.get('topic', '')
+            week_number = request.POST.get('week_number')
+            is_public = request.POST.get('is_public') == 'on'
+            
+            # Validate required fields
+            if not all([title, note_type]) or 'notes_file' not in request.FILES:
+                messages.error(request, 'Title, note type, and file are required.')
+                return redirect('create_course_notes', assignment_id=assignment_id)
+            
+            # Create notes
+            notes = CourseNotes.objects.create(
+                lecturer_assignment=course_assignment,
+                title=title,
+                note_type=note_type,
+                description=description,
+                topic=topic,
+                week_number=int(week_number) if week_number else None,
+                is_public=is_public,
+                notes_file=request.FILES['notes_file']
+            )
+            
+            # Set file size
+            if notes.notes_file:
+                notes.file_size = notes.notes_file.size
+                notes.save()
+            
+            messages.success(request, f'Notes "{title}" uploaded successfully.')
+            return redirect('lecturer_course_detail', assignment_id=assignment_id)
+            
+        except Exception as e:
+            messages.error(request, f'Error uploading notes: {str(e)}')
+            return redirect('create_course_notes', assignment_id=assignment_id)
+    
+    context = {
+        'lecturer': lecturer,
+        'course_assignment': course_assignment,
+        'note_types': CourseNotes.NOTE_TYPES
+    }
+    
+    return render(request, 'lecturer/create_notes.html', context)
+
+@login_required
+@user_passes_test(is_lecturer)
+def create_announcement(request, assignment_id):
+    """Create announcement for an assignment"""
+    
+    lecturer = request.user.lecturer_profile
+    
+    if request.method == 'POST':
+        try:
+            assignment_pk = request.POST.get('assignment_pk')
+            title = request.POST.get('title')
+            message = request.POST.get('message')
+            is_urgent = request.POST.get('is_urgent') == 'on'
+            
+            if not all([assignment_pk, title, message]):
+                return JsonResponse({'success': False, 'message': 'All fields are required.'})
+            
+            # Verify assignment belongs to lecturer
+            assignment = get_object_or_404(
+                Assignment,
+                id=assignment_pk,
+                lecturer_assignment__lecturer=lecturer,
+                is_active=True
+            )
+            
+            # Create announcement
+            announcement = AssignmentAnnouncement.objects.create(
+                assignment=assignment,
+                title=title,
+                message=message,
+                is_urgent=is_urgent
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Announcement created successfully.',
+                'announcement': {
+                    'id': announcement.id,
+                    'title': announcement.title,
+                    'message': announcement.message,
+                    'is_urgent': announcement.is_urgent,
+                    'posted_date': announcement.posted_date.strftime('%Y-%m-%d %H:%M')
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method.'})

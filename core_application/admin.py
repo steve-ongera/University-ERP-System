@@ -667,6 +667,64 @@ class EventRegistrationAdmin(admin.ModelAdmin):
     search_fields = ('event__title', 'user__username')
     date_hierarchy = 'registration_date'
 
+from django.contrib import admin
+from .models import (
+    LecturerCourseAssignment, CourseNotes, Assignment,
+    AssignmentSubmission, NotesDownload, AssignmentAnnouncement
+)
+
+@admin.register(LecturerCourseAssignment)
+class LecturerCourseAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('lecturer', 'course', 'academic_year', 'semester', 'assigned_date', 'assigned_by', 'is_active')
+    list_filter = ('academic_year', 'semester', 'is_active')
+    search_fields = ('lecturer__user__first_name', 'lecturer__user__last_name', 'course__code', 'course__name')
+    #autocomplete_fields = ('lecturer', 'course', 'academic_year', 'semester', 'assigned_by')
+    list_select_related = ('lecturer', 'course', 'academic_year', 'semester')
+
+
+@admin.register(CourseNotes)
+class CourseNotesAdmin(admin.ModelAdmin):
+    list_display = ('lecturer_assignment', 'title', 'note_type', 'week_number', 'posted_date', 'is_active', 'is_public', 'download_count')
+    list_filter = ('note_type', 'is_active', 'is_public', 'posted_date')
+    search_fields = ('title', 'description', 'topic', 'lecturer_assignment__course__code')
+    autocomplete_fields = ('lecturer_assignment',)
+
+
+@admin.register(Assignment)
+class AssignmentAdmin(admin.ModelAdmin):
+    list_display = ('lecturer_assignment', 'title', 'assignment_type', 'due_date', 'is_active', 'is_published', 'total_marks', 'weight_percentage')
+    list_filter = ('assignment_type', 'is_active', 'is_published', 'posted_date', 'due_date')
+    search_fields = ('title', 'description', 'lecturer_assignment__course__code')
+    autocomplete_fields = ('lecturer_assignment',)
+
+
+@admin.register(AssignmentSubmission)
+class AssignmentSubmissionAdmin(admin.ModelAdmin):
+    list_display = (
+        'assignment', 'student', 'is_submitted', 'is_late', 
+        'submitted_date', 'submission_status', 'grading_status', 
+        'marks_obtained', 'percentage_score'
+    )
+    list_filter = ('submission_status', 'grading_status', 'is_submitted', 'is_late')
+    search_fields = ('student__student_id', 'assignment__title')
+    autocomplete_fields = ('assignment', 'student', 'graded_by')
+
+
+@admin.register(NotesDownload)
+class NotesDownloadAdmin(admin.ModelAdmin):
+    list_display = ('course_notes', 'student', 'downloaded_date', 'ip_address')
+    list_filter = ('downloaded_date',)
+    search_fields = ('student__student_id', 'course_notes__title')
+    autocomplete_fields = ('course_notes', 'student')
+
+
+@admin.register(AssignmentAnnouncement)
+class AssignmentAnnouncementAdmin(admin.ModelAdmin):
+    list_display = ('assignment', 'title', 'posted_date', 'is_urgent', 'is_active')
+    list_filter = ('is_urgent', 'is_active', 'posted_date')
+    search_fields = ('title', 'message', 'assignment__title')
+    autocomplete_fields = ('assignment',)
+
 # Update admin site header for additional models
 admin.site.site_header = "University Management System - Complete"
 admin.site.site_title = "UMS Admin Portal"
