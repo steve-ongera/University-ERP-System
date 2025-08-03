@@ -112,8 +112,8 @@ class UserForm(forms.ModelForm):
             if password != confirm_password:
                 raise ValidationError("Passwords do not match.")
 
-            if not self.is_update and len(password) < 8:
-                raise ValidationError("Password must be at least 8 characters.")
+            if not self.is_update and len(password) < 6:
+                raise ValidationError("Password must be at least 6 characters.")
 
         return cleaned_data
 

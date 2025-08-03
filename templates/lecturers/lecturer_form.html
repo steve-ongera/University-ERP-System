@@ -178,8 +178,8 @@
 
                             <!-- Password fields -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label {% if not lecturer %}required{% endif %}">
-                                    Password {% if not lecturer %}(Required){% else %}(Leave blank to keep current){% endif %}
+                                <label class="form-label ">
+                                    Password (Leave blank to keep current)
                                 </label>
                                 {{ user_form.password }}
                                 {% if user_form.password.errors %}
@@ -188,9 +188,9 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Confirm Password</label>
-                                {{ user_form.password_confirm }}
-                                {% if user_form.password_confirm.errors %}
-                                    <div class="text-danger small">{{ user_form.password_confirm.errors }}</div>
+                                {{ user_form.confirm_password }}
+                                {% if user_form.confirm_password.errors %}
+                                    <div class="text-danger small">{{ user_form.confirm_password.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
