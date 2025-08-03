@@ -7,7 +7,7 @@
     <meta name="description" content="">
     <meta name="author" content="Abno">
     <meta name="keyword" content="">
-    <title>Uni Portal</title>
+    <title>University Portal</title>
     <link rel="icon" id="portalLogo" href="{% static 'logo.png'%}">
     <link rel="shortcut icon" type="image/x-icon" href="uploads\041cdf98-cbe3-4394-9c6a-df1c0894ec8c.jpeg?v=xIaIT07Ehx5-zh8IuvePzff91SV7McLe35lktf_lm3M">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -73,7 +73,7 @@
                 </div>
             </div>
             <div class="mb-lg-0 text-center ms-2 my-1 institutionbrand">
-                    <h4 class="d-flex justify-content-start primary-text fw-bold">Kenya Uni/Training Portal</h4>
+                    <h4 class="d-flex justify-content-start primary-text fw-bold">Kenya University/College Training Portal</h4>
             </div>
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <li class="nav-item dropdown notification">
@@ -112,11 +112,11 @@
             <li class="menu-link" id="courses">
                 <a href="javascript:void(0);" class="menu_sub">
                     <i class="ri-book-open-line"></i>
-                    <span>Courses</span>
+                    <span>Units</span>
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item"><a id="myCourses" href="#">My Courses</a></li>
+                    <li class="sub-item"><a id="myCourses" href="{% url 'lecturer_unit_dashboard'%}">My Units</a></li>
                     <li class="sub-item"><a id="courseContent" href="#">Content</a></li>
                     <li class="sub-item"><a id="courseMaterials" href="#">Materials</a></li>
                     <li class="sub-item"><a id="courseSchedule" href="#">Schedule</a></li>
