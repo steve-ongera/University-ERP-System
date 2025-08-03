@@ -1,0 +1,665 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Course Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ assignment.course.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ assignment.course.code }}</span> | 
+                            <span class="badge bg-{% if assignment.course.course_type == 'core' %}danger{% elif assignment.course.course_type == 'elective' %}success{% else %}secondary{% endif %}">
+                                {{ assignment.course.get_course_type_display }}
+                            </span> |
+                            <span class="badge bg-info">{{ assignment.course.credit_hours }} Credits</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ assignment.course.department.faculty.name }} - {{ assignment.course.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ lecturer.user.get_full_name }} ({{ lecturer.academic_rank|title }})
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ assignment.academic_year.year }} - Semester {{ assignment.semester.semester_number }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.enrolled_students }}</h4>
+                            <small class="text-muted">enrolled students</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'create_assignment' assignment.id %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle"></i> New Assignment
+                            </a>
+                            <a href="{% url 'create_course_notes' assignment.id %}" class="btn btn-info">
+                                <i class="bi bi-file-earmark-plus"></i> Upload Notes
+                            </a>
+                            <a href="{% url 'lecturer_unit_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.enrolled_students }}</h5>
+                            <p class="small text-muted mb-0">Enrolled Students</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.total_assignments }}</h5>
+                            <p class="small text-muted mb-0">Total Assignments</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.published_assignments }}</h5>
+                            <p class="small text-muted mb-0">Published</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_notes }}</h5>
+                            <p class="small text-muted mb-0">Course Notes</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.total_announcements }}</h5>
+                            <p class="small text-muted mb-0">Announcements</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ assignment.course.level }}</h5>
+                            <p class="small text-muted mb-0">Course Level</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Information -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Course Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Lecture Hours:</strong> {{ assignment.course.lecture_hours }}h</p>
+                            <p class="mb-2"><strong>Tutorial Hours:</strong> {{ assignment.course.tutorial_hours }}h</p>
+                            <p class="mb-2"><strong>Practical Hours:</strong> {{ assignment.course.practical_hours }}h</p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if assignment.lecture_venue %}
+                            <p class="mb-2"><strong>Venue:</strong> {{ assignment.lecture_venue }}</p>
+                            {% endif %}
+                            {% if assignment.lecture_time %}
+                            <p class="mb-2"><strong>Schedule:</strong> {{ assignment.lecture_time }}</p>
+                            {% endif %}
+                            <p class="mb-2"><strong>Total Contact Hours:</strong> {{ assignment.course.total_contact_hours }}h</p>
+                        </div>
+                    </div>
+                    {% if assignment.course.description %}
+                    <div class="mt-3">
+                        <h6 class="fw-bold">Description</h6>
+                        <p class="text-muted">{{ assignment.course.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Assignment Details</h5>
+                    <p class="mb-2"><strong>Assigned Date:</strong> {{ assignment.assigned_date|date:"M d, Y" }}</p>
+                    {% if assignment.assigned_by %}
+                    <p class="mb-2"><strong>Assigned By:</strong> {{ assignment.assigned_by.get_full_name }}</p>
+                    {% endif %}
+                    <p class="mb-2"><strong>Status:</strong> 
+                        <span class="badge bg-{% if assignment.is_active %}success{% else %}secondary{% endif %}">
+                            {% if assignment.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </p>
+                    {% if assignment.remarks %}
+                    <div class="mt-3">
+                        <h6 class="fw-bold">Remarks</h6>
+                        <p class="text-muted small">{{ assignment.remarks }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="courseDetailTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">
+                                <i class="bi bi-people me-1"></i>Students ({{ stats.enrolled_students }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button" role="tab">
+                                <i class="bi bi-journal-text me-1"></i>Assignments ({{ stats.total_assignments }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+                                <i class="bi bi-file-earmark-text me-1"></i>Notes ({{ stats.total_notes }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="announcements-tab" data-bs-toggle="tab" data-bs-target="#announcements" type="button" role="tab">
+                                <i class="bi bi-megaphone me-1"></i>Announcements
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="courseDetailTabsContent">
+                        <!-- Students Tab -->
+                        <div class="tab-pane fade show active" id="students" role="tabpanel">
+                            {% if enrollments %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Programme</th>
+                                            <th>Year/Semester</th>
+                                            <th>Enrollment Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for enrollment in enrollments %}
+                                        <tr>
+                                            <td><span class="badge bg-secondary">{{ enrollment.student.student_id }}</span></td>
+                                            <td>
+                                                <strong>{{ enrollment.student.user.get_full_name }}</strong>
+                                                <br><small class="text-muted">{{ enrollment.student.user.email }}</small>
+                                            </td>
+                                            <td>{{ enrollment.student.programme.name|truncatechars:30 }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">Y{{ enrollment.student.current_year }}S{{ enrollment.student.current_semester }}</span>
+                                            </td>
+                                            <td>{{ enrollment.enrollment_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if enrollment.is_active %}success{% else %}secondary{% endif %}">
+                                                    {% if enrollment.is_active %}Active{% else %}Inactive{% endif %}
+                                                </span>
+                                                {% if enrollment.is_repeat %}
+                                                <span class="badge bg-warning">Repeat</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" onclick="viewStudentDetails('{{ enrollment.student.id }}')">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-info" onclick="viewSubmissions('{{ enrollment.student.id }}')">
+                                                        <i class="bi bi-file-text"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-people display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Students Enrolled</h5>
+                                <p class="text-muted">No students are currently enrolled in this course.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Assignments Tab -->
+                        <div class="tab-pane fade" id="assignments" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Course Assignments</h6>
+                                <a href="{% url 'create_assignment' assignment.id %}" class="btn btn-success btn-sm">
+                                    <i class="bi bi-plus-circle me-1"></i>Create New Assignment
+                                </a>
+                            </div>
+
+                            {% if course_assignments %}
+                            <div class="row">
+                                {% for assign in course_assignments %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-left-primary">
+                                        <div class="card-header d-flex justify-content-between">
+                                            <h6 class="mb-0">{{ assign.title }}</h6>
+                                            <div>
+                                                <span class="badge bg-{% if assign.is_published %}success{% else %}warning{% endif %}">
+                                                    {% if assign.is_published %}Published{% else %}Draft{% endif %}
+                                                </span>
+                                                {% if assign.is_overdue %}
+                                                <span class="badge bg-danger">Overdue</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="small text-muted mb-2">{{ assign.get_assignment_type_display }}</p>
+                                            <p class="card-text">{{ assign.description|truncatechars:100 }}</p>
+                                            
+                                            <div class="row text-center mt-3">
+                                                <div class="col-4">
+                                                    <small class="text-muted">Marks</small>
+                                                    <h6>{{ assign.total_marks }}</h6>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted">Weight</small>
+                                                    <h6>{{ assign.weight_percentage }}%</h6>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted">Submissions</small>
+                                                    <h6>{{ assign.submitted_count }}/{{ stats.enrolled_students }}</h6>
+                                                </div>
+                                            </div>
+                                            
+                                            <hr>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">
+                                                    <i class="bi bi-calendar me-1"></i>Due: {{ assign.due_date|date:"M d, Y H:i" }}
+                                                </small>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" onclick="viewAssignmentDetails('{{ assign.id }}')">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-success" onclick="gradeSubmissions('{{ assign.id }}')">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-info" onclick="createAnnouncement('{{ assign.id }}')">
+                                                        <i class="bi bi-megaphone"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Assignment Statistics -->
+                            {% if assignment_submission_stats %}
+                            <div class="mt-4">
+                                <h6 class="fw-bold mb-3">Submission Statistics</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Assignment</th>
+                                                <th>Total Submissions</th>
+                                                <th>Submitted</th>
+                                                <th>Pending Grading</th>
+                                                <th>Graded</th>
+                                                <th>Progress</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for stat in assignment_submission_stats %}
+                                            <tr>
+                                                <td>{{ stat.assignment.title|truncatechars:30 }}</td>
+                                                <td>{{ stat.total_submissions }}</td>
+                                                <td>{{ stat.submitted_count }}</td>
+                                                <td>{{ stat.pending_grading }}</td>
+                                                <td>{{ stat.graded_count }}</td>
+                                                <td>
+                                                    <div class="progress" style="height: 15px;">
+                                                        {% if stats.enrolled_students > 0 %}
+                                                        {% widthratio stat.submitted_count stats.enrolled_students 100 as progress %}
+                                                        <div class="progress-bar bg-success" style="width: {{ progress }}%"></div>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-journal-text display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Assignments Yet</h5>
+                                <p class="text-muted">Create your first assignment to get started.</p>
+                                <a href="{% url 'create_assignment' assignment.id %}" class="btn btn-success">
+                                    <i class="bi bi-plus-circle me-1"></i>Create Assignment
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notes Tab -->
+                        <div class="tab-pane fade" id="notes" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Course Notes</h6>
+                                <a href="{% url 'create_course_notes' assignment.id %}" class="btn btn-info btn-sm">
+                                    <i class="bi bi-file-earmark-plus me-1"></i>Upload New Notes
+                                </a>
+                            </div>
+
+                            {% if course_notes %}
+                            <div class="row">
+                                {% for note in course_notes %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-header d-flex justify-content-between">
+                                            <small class="text-muted">{{ note.get_note_type_display }}</small>
+                                            {% if note.week_number %}
+                                            <span class="badge bg-secondary">Week {{ note.week_number }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ note.title }}</h6>
+                                            {% if note.topic %}
+                                            <p class="small text-primary mb-2"><strong>{{ note.topic }}</strong></p>
+                                            {% endif %}
+                                            {% if note.description %}
+                                            <p class="card-text small">{{ note.description|truncatechars:80 }}</p>
+                                            {% endif %}
+                                            
+                                            <div class="mt-3">
+                                                <p class="small text-muted mb-1">
+                                                    <i class="bi bi-calendar me-1"></i>{{ note.posted_date|date:"M d, Y" }}
+                                                </p>
+                                                <p class="small text-muted mb-1">
+                                                    <i class="bi bi-download me-1"></i>{{ note.download_count }} downloads
+                                                </p>
+                                                {% if note.file_size %}
+                                                <p class="small text-muted mb-1">
+                                                    <i class="bi bi-file-earmark me-1"></i>{{ note.file_size|filesizeformat }}
+                                                </p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="card-footer">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="badge bg-{% if note.is_public %}success{% else %}warning{% endif %}">
+                                                    {% if note.is_public %}Public{% else %}Private{% endif %}
+                                                </span>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ note.notes_file.url }}" class="btn btn-outline-primary" target="_blank">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{{ note.notes_file.url }}" class="btn btn-outline-success" download>
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Course Notes</h5>
+                                <p class="text-muted">Upload course notes for your students.</p>
+                                <a href="{% url 'create_course_notes' assignment.id %}" class="btn btn-info">
+                                    <i class="bi bi-file-earmark-plus me-1"></i>Upload Notes
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Announcements Tab -->
+                        <div class="tab-pane fade" id="announcements" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Course Announcements</h6>
+                                <button class="btn btn-warning btn-sm" onclick="openAnnouncementModal()">
+                                    <i class="bi bi-megaphone me-1"></i>New Announcement
+                                </button>
+                            </div>
+
+                            {% if recent_announcements %}
+                            <div class="list-group">
+                                {% for announcement in recent_announcements %}
+                                <div class="list-group-item {% if announcement.is_urgent %}border-warning{% endif %}">
+                                    <div class="d-flex justify-content-between">
+                                        <h6 class="mb-1">
+                                            {% if announcement.is_urgent %}
+                                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                                            {% endif %}
+                                            {{ announcement.title }}
+                                        </h6>
+                                        <small class="text-muted">{{ announcement.posted_date|timesince }} ago</small>
+                                    </div>
+                                    <p class="mb-1">{{ announcement.message }}</p>
+                                    <small class="text-muted">Assignment: {{ announcement.assignment.title }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-megaphone display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Announcements</h5>
+                                <p class="text-muted">Create announcements to communicate with your students.</p>
+                                <button class="btn btn-warning" onclick="openAnnouncementModal()">
+                                    <i class="bi bi-megaphone me-1"></i>Create Announcement
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'lecturer_unit_dashboard' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button class="btn btn-outline-info me-2" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <div class="btn-group">
+                        <a href="{% url 'create_assignment' assignment.id %}" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> New Assignment
+                        </a>
+                        <a href="{% url 'create_course_notes' assignment.id %}" class="btn btn-info">
+                            <i class="bi bi-file-earmark-plus"></i> Upload Notes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Announcement Modal -->
+<div class="modal fade" id="announcementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Announcement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="announcementForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Assignment</label>
+                        <select class="form-select" name="assignment_pk" required>
+                            <option value="">Select Assignment</option>
+                            {% for assign in course_assignments %}
+                            <option value="{{ assign.id }}">{{ assign.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" name="message" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_urgent" id="isUrgent">
+                            <label class="form-check-label" for="isUrgent">
+                                Mark as urgent
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Create Announcement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to open announcement modal
+    window.openAnnouncementModal = function() {
+        const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
+        modal.show();
+    };
+
+    // Handle announcement form submission
+    document.getElementById('announcementForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch("{% url 'create_announcement' assignment.id %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating the announcement.');
+        });
+    });
+
+    // Placeholder functions for various actions
+    window.viewStudentDetails = function(studentId) {
+        // Implement student details view
+        console.log('View student details:', studentId);
+    };
+
+    window.viewSubmissions = function(studentId) {
+        // Implement view submissions for student
+        console.log('View submissions for student:', studentId);
+    };
+
+    window.viewAssignmentDetails = function(assignmentId) {
+        // Implement assignment details view
+        console.log('View assignment details:', assignmentId);
+    };
+
+    window.gradeSubmissions = function(assignmentId) {
+        // Implement grading interface
+        console.log('Grade submissions for assignment:', assignmentId);
+    };
+
+    window.createAnnouncement = function(assignmentId) {
+        // Pre-select the assignment in the modal
+        const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
+        const select = document.querySelector('select[name="assignment_pk"]');
+        select.value = assignmentId;
+        modal.show();
+    };
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer, .modal {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.list-group-item.border-warning {
+    border-color: #ffc107 !important;
+    background-color: #fff3cd;
+}
+</style>
+
+{% endblock %}

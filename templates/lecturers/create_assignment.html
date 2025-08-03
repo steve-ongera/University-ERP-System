@@ -1,0 +1,534 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Create New Assignment</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ course_assignment.course.code }}</span> - 
+                            {{ course_assignment.course.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ course_assignment.course.department.faculty.name }} - {{ course_assignment.course.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ lecturer.user.get_full_name }} ({{ lecturer.academic_rank|title }})
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ course_assignment.course.credit_hours }}</h4>
+                            <small class="text-muted">credit hours</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'lecturer_course_detail' course_assignment.id %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Course
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Assignment Details</h5>
+                    <small class="text-muted">Fill in the assignment information below</small>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="assignmentForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Basic Information -->
+                            <div class="col-md-8">
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="bi bi-info-circle me-1"></i>Basic Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="title" class="form-label">Assignment Title *</label>
+                                                <input type="text" class="form-control" id="title" name="title" required 
+                                                       placeholder="e.g., Database Design Project">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="assignment_type" class="form-label">Assignment Type *</label>
+                                                <select class="form-select" id="assignment_type" name="assignment_type" required>
+                                                    <option value="">Select Type</option>
+                                                    {% for value, label in assignment_types %}
+                                                    <option value="{{ value }}">{{ label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="description" class="form-label">Description *</label>
+                                            <textarea class="form-control" id="description" name="description" rows="3" required
+                                                      placeholder="Brief description of the assignment"></textarea>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="instructions" class="form-label">Detailed Instructions</label>
+                                            <textarea class="form-control" id="instructions" name="instructions" rows="4"
+                                                      placeholder="Detailed instructions for students (optional)"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Grading Information -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="bi bi-award me-1"></i>Grading Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="total_marks" class="form-label">Total Marks *</label>
+                                                <input type="number" class="form-control" id="total_marks" name="total_marks" 
+                                                       min="1" max="100" required placeholder="e.g., 20">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="weight_percentage" class="form-label">Weight Percentage *</label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control" id="weight_percentage" 
+                                                           name="weight_percentage" min="0" max="100" step="0.01" required 
+                                                           placeholder="e.g., 15">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Submission Requirements -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="bi bi-upload me-1"></i>Submission Requirements</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="submission_format" class="form-label">Submission Format</label>
+                                                <select class="form-select" id="submission_format" name="submission_format">
+                                                    {% for value, label in submission_formats %}
+                                                    <option value="{{ value }}">{{ label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="max_file_size_mb" class="form-label">Max File Size (MB)</label>
+                                                <input type="number" class="form-control" id="max_file_size_mb" 
+                                                       name="max_file_size_mb" min="1" max="100" value="10">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label for="max_pages" class="form-label">Max Pages (Optional)</label>
+                                                <input type="number" class="form-control" id="max_pages" name="max_pages" 
+                                                       min="1" placeholder="e.g., 10">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="min_words" class="form-label">Min Words (Optional)</label>
+                                                <input type="number" class="form-control" id="min_words" name="min_words" 
+                                                       min="1" placeholder="e.g., 500">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="max_words" class="form-label">Max Words (Optional)</label>
+                                                <input type="number" class="form-control" id="max_words" name="max_words" 
+                                                       min="1" placeholder="e.g., 2000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Assignment File Upload -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h6 class="mb-0"><i class="bi bi-file-earmark me-1"></i>Assignment Materials</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="assignment_file" class="form-label">Assignment File (Optional)</label>
+                                            <input type="file" class="form-control" id="assignment_file" name="assignment_file" 
+                                                   accept=".pdf,.doc,.docx,.ppt,.pptx">
+                                            <div class="form-text">Upload assignment question paper or additional materials (PDF, DOC, PPT)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar -->
+                            <div class="col-md-4">
+                                <!-- Timing -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-danger text-white">
+                                        <h6 class="mb-0"><i class="bi bi-clock me-1"></i>Timing</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="due_date" class="form-label">Due Date & Time *</label>
+                                            <input type="datetime-local" class="form-control" id="due_date" 
+                                                   name="due_date" required>
+                                        </div>
+                                        
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="late_submission_allowed" 
+                                                   name="late_submission_allowed">
+                                            <label class="form-check-label" for="late_submission_allowed">
+                                                Allow Late Submissions
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="mb-3" id="late_penalty_group" style="display: none;">
+                                            <label for="late_submission_penalty" class="form-label">Late Submission Penalty</label>
+                                            <input type="text" class="form-control" id="late_submission_penalty" 
+                                                   name="late_submission_penalty" 
+                                                   placeholder="e.g., 10% deduction per day">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Publication Settings -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h6 class="mb-0"><i class="bi bi-eye me-1"></i>Publication</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="is_published" 
+                                                   name="is_published" checked>
+                                            <label class="form-check-label" for="is_published">
+                                                <strong>Publish Immediately</strong>
+                                            </label>
+                                            <div class="form-text">Students can see this assignment immediately</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Course Info -->
+                                <div class="card border-0 bg-light mb-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 text-muted"><i class="bi bi-info-circle me-1"></i>Course Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="small mb-2"><strong>Course:</strong> {{ course_assignment.course.name }}</p>
+                                        <p class="small mb-2"><strong>Code:</strong> {{ course_assignment.course.code }}</p>
+                                        <p class="small mb-2"><strong>Credits:</strong> {{ course_assignment.course.credit_hours }}</p>
+                                        <p class="small mb-2"><strong>Level:</strong> {{ course_assignment.course.level }}</p>
+                                        <p class="small mb-0"><strong>Department:</strong> {{ course_assignment.course.department.name }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Help -->
+                                <div class="card border-0 bg-light">
+                                    <div class="card-header">
+                                        <h6 class="mb-0 text-muted"><i class="bi bi-question-circle me-1"></i>Help</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="small mb-0">
+                                            <li>Fields marked with * are required</li>
+                                            <li>Weight percentage should add up to 100% for all assignments</li>
+                                            <li>Set reasonable due dates for students</li>
+                                            <li>Upload assignment files in common formats</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-body text-end">
+                                        <a href="{% url 'lecturer_course_detail' course_assignment.id %}" 
+                                           class="btn btn-outline-secondary me-2">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info me-2" onclick="previewAssignment()">
+                                            <i class="bi bi-eye"></i> Preview
+                                        </button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-check-circle"></i> Create Assignment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assignment Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+                <!-- Preview content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="submitForm()">Create Assignment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum due date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const minDateTime = tomorrow.toISOString().slice(0, 16);
+    document.getElementById('due_date').min = minDateTime;
+
+    // Toggle late submission penalty field
+    const lateSubmissionCheckbox = document.getElementById('late_submission_allowed');
+    const latePenaltyGroup = document.getElementById('late_penalty_group');
+    
+    lateSubmissionCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            latePenaltyGroup.style.display = 'block';
+        } else {
+            latePenaltyGroup.style.display = 'none';
+        }
+    });
+
+    // Form validation
+    const form = document.getElementById('assignmentForm');
+    form.addEventListener('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+        }
+    });
+
+    // Preview function
+    window.previewAssignment = function() {
+        const formData = new FormData(form);
+        const previewContent = document.getElementById('previewContent');
+        
+        // Build preview HTML
+        let html = `
+            <div class="card">
+                <div class="card-header">
+                    <h5>${formData.get('title') || 'Assignment Title'}</h5>
+                    <p class="mb-0">
+                        <span class="badge bg-primary">${formData.get('assignment_type') || 'Type'}</span>
+                        <span class="badge bg-success">${formData.get('total_marks') || '0'} marks</span>
+                        <span class="badge bg-info">${formData.get('weight_percentage') || '0'}% weight</span>
+                    </p>
+                </div>
+                <div class="card-body">
+                    <h6>Description:</h6>
+                    <p>${formData.get('description') || 'No description provided'}</p>
+                    
+                    ${formData.get('instructions') ? `
+                    <h6>Instructions:</h6>
+                    <p>${formData.get('instructions')}</p>
+                    ` : ''}
+                    
+                    <h6>Submission Details:</h6>
+                    <ul>
+                        <li>Due Date: ${formData.get('due_date') ? new Date(formData.get('due_date')).toLocaleString() : 'Not set'}</li>
+                        <li>Format: ${formData.get('submission_format') || 'Any'}</li>
+                        <li>Max File Size: ${formData.get('max_file_size_mb') || '10'} MB</li>
+                        ${formData.get('max_pages') ? `<li>Max Pages: ${formData.get('max_pages')}</li>` : ''}
+                        ${formData.get('min_words') ? `<li>Min Words: ${formData.get('min_words')}</li>` : ''}
+                        ${formData.get('max_words') ? `<li>Max Words: ${formData.get('max_words')}</li>` : ''}
+                        <li>Late Submission: ${formData.get('late_submission_allowed') ? 'Allowed' : 'Not Allowed'}</li>
+                        ${formData.get('late_submission_penalty') ? `<li>Late Penalty: ${formData.get('late_submission_penalty')}</li>` : ''}
+                    </ul>
+                    
+                    <h6>Publication Status:</h6>
+                    <p><span class="badge bg-${formData.get('is_published') ? 'success' : 'warning'}">
+                        ${formData.get('is_published') ? 'Will be published immediately' : 'Saved as draft'}
+                    </span></p>
+                </div>
+            </div>
+        `;
+        
+        previewContent.innerHTML = html;
+        
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        modal.show();
+    };
+
+    // Submit form from modal
+    window.submitForm = function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+        modal.hide();
+        form.submit();
+    };
+
+    // Form validation function
+    function validateForm() {
+        const title = document.getElementById('title').value;
+        const assignmentType = document.getElementById('assignment_type').value;
+        const description = document.getElementById('description').value;
+        const dueDate = document.getElementById('due_date').value;
+        const totalMarks = document.getElementById('total_marks').value;
+        const weightPercentage = document.getElementById('weight_percentage').value;
+
+        if (!title || !assignmentType || !description || !dueDate || !totalMarks || !weightPercentage) {
+            alert('Please fill in all required fields.');
+            return false;
+        }
+
+        // Validate due date is in the future
+        const due = new Date(dueDate);
+        const now = new Date();
+        if (due <= now) {
+            alert('Due date must be in the future.');
+            return false;
+        }
+
+        // Validate marks and percentage
+        if (totalMarks < 1 || totalMarks > 100) {
+            alert('Total marks must be between 1 and 100.');
+            return false;
+        }
+
+        if (weightPercentage < 0 || weightPercentage > 100) {
+            alert('Weight percentage must be between 0 and 100.');
+            return false;
+        }
+
+        // Validate word count ranges
+        const minWords = document.getElementById('min_words').value;
+        const maxWords = document.getElementById('max_words').value;
+        
+        if (minWords && maxWords && parseInt(minWords) >= parseInt(maxWords)) {
+            alert('Minimum words must be less than maximum words.');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Auto-save functionality (optional)
+    let autoSaveTimer;
+    function autoSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            // Save form data to localStorage
+            const formData = new FormData(form);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            localStorage.setItem('assignmentDraft', JSON.stringify(data));
+        }, 2000);
+    }
+
+    // Add auto-save to form inputs
+    const inputs = form.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        input.addEventListener('input', autoSave);
+    });
+
+    // Load saved draft if available
+    const savedDraft = localStorage.getItem('assignmentDraft');
+    if (savedDraft) {
+        const data = JSON.parse(savedDraft);
+        Object.keys(data).forEach(key => {
+            const element = form.querySelector(`[name="${key}"]`);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = data[key] === 'on';
+                } else {
+                    element.value = data[key];
+                }
+            }
+        });
+    }
+
+    // Clear draft on successful submission
+    form.addEventListener('submit', function() {
+        localStorage.removeItem('assignmentDraft');
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .card-footer, .modal {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.card-header {
+    font-weight: 600;
+}
+
+.form-text {
+    font-size: 0.875em;
+    color: #6c757d;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.preview-content {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+</style>
+
+{% endblock %}
