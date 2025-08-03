@@ -1,0 +1,390 @@
+{% extends 'student_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-file-earmark-text me-2"></i>My Assignments
+                        </h2>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ student.user.get_full_name }} 
+                            <span class="badge bg-primary ms-2">{{ student.student_id }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>Academic Year: {{ current_semester.academic_year.year }}
+                            <span class="badge bg-secondary ms-2">Semester {{ current_semester.semester_number }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ assignments|length }}</h4>
+                            <small class="text-muted">Total Assignments</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Summary -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Filter Buttons -->
+                            <div class="btn-group" role="group" aria-label="Assignment filters">
+                                <a href="?status=all" class="btn {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                    All Assignments
+                                </a>
+                                <a href="?status=pending" class="btn {% if status_filter == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                                    Pending
+                                </a>
+                                <a href="?status=submitted" class="btn {% if status_filter == 'submitted' %}btn-success{% else %}btn-outline-success{% endif %}">
+                                    Submitted
+                                </a>
+                                <a href="?status=overdue" class="btn {% if status_filter == 'overdue' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                                    Overdue
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Statistics -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h4 class="text-primary">{{ assignments|length }}</h4>
+                    <small class="text-muted">Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h4 class="text-success">
+                        {% for assignment in assignments %}
+                            {% if assignment.is_submitted %}{{ forloop.counter0|add:"1" }}{% endif %}
+                        {% empty %}0{% endfor %}
+                    </h4>
+                    <small class="text-muted">Submitted</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h4 class="text-warning">
+                        {% for assignment in assignments %}
+                            {% if not assignment.is_submitted and not assignment.is_overdue %}{{ forloop.counter0|add:"1" }}{% endif %}
+                        {% empty %}0{% endfor %}
+                    </h4>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h4 class="text-danger">
+                        {% for assignment in assignments %}
+                            {% if assignment.is_overdue and not assignment.is_submitted %}{{ forloop.counter0|add:"1" }}{% endif %}
+                        {% empty %}0{% endfor %}
+                    </h4>
+                    <small class="text-muted">Overdue</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            {% if assignments %}
+                {% for assignment in assignments %}
+                <div class="card shadow-sm mb-3 assignment-card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="fw-bold mb-2">
+                                            <a href="{% url 'student_assignment_detail' assignment.id %}" class="text-decoration-none">
+                                                {{ assignment.title }}
+                                            </a>
+                                        </h5>
+                                        <p class="text-muted mb-1">
+                                            <span class="badge bg-primary me-1">{{ assignment.lecturer_assignment.course.code }}</span>
+                                            <span class="badge bg-{% if assignment.assignment_type == 'individual' %}info{% elif assignment.assignment_type == 'group' %}warning{% else %}secondary{% endif %} me-1">
+                                                {{ assignment.get_assignment_type_display }}
+                                            </span>
+                                            <span class="badge bg-{% if assignment.is_submitted %}success{% elif assignment.is_overdue %}danger{% else %}warning{% endif %}">
+                                                {% if assignment.is_submitted %}
+                                                    Submitted {% if assignment.student_submission.is_late %}(Late){% endif %}
+                                                {% elif assignment.is_overdue %}
+                                                    Overdue
+                                                {% else %}
+                                                    Pending
+                                                {% endif %}
+                                            </span>
+                                        </p>
+                                        <p class="mb-1">
+                                            <i class="bi bi-book me-1"></i>{{ assignment.lecturer_assignment.course.name }}
+                                        </p>
+                                        <p class="mb-1">
+                                            <i class="bi bi-person-circle me-1"></i>{{ assignment.lecturer_assignment.lecturer.user.get_full_name }}
+                                        </p>
+                                        <p class="mb-0">
+                                            <i class="bi bi-calendar me-1"></i>
+                                            <small class="text-muted">
+                                                Posted: {{ assignment.posted_date|date:"M d, Y" }} | 
+                                                Due: {{ assignment.due_date|date:"M d, Y H:i" }}
+                                                {% if assignment.is_submitted %}
+                                                    | Submitted: {{ assignment.student_submission.submitted_date|date:"M d, Y H:i" }}
+                                                {% endif %}
+                                            </small>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Assignment description preview -->
+                                <div class="mt-2">
+                                    <p class="text-muted small mb-0">
+                                        {{ assignment.description|truncatechars:150 }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="text-end">
+                                    <div class="mb-2">
+                                        <span class="badge bg-light text-dark">{{ assignment.total_marks }} marks</span>
+                                        <span class="badge bg-light text-dark">{{ assignment.weight_percentage }}%</span>
+                                    </div>
+                                    
+                                    {% if assignment.student_submission.marks_obtained %}
+                                    <div class="mb-2">
+                                        <span class="badge bg-success">
+                                            Score: {{ assignment.student_submission.marks_obtained }}/{{ assignment.total_marks }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Time remaining or status -->
+                                    <div class="mb-2">
+                                        {% if assignment.is_submitted %}
+                                            <small class="text-success">
+                                                <i class="bi bi-check-circle me-1"></i>Completed
+                                            </small>
+                                        {% elif assignment.is_overdue %}
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Overdue
+                                            </small>
+                                        {% else %}
+                                            <small class="text-warning countdown" data-due-date="{{ assignment.due_date|date:'c' }}">
+                                                <i class="bi bi-clock me-1"></i>
+                                                <span class="time-remaining"></span>
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="btn-group-sm">
+                                        <a href="{% url 'student_assignment_detail' assignment.id %}" class="btn btn-primary btn-sm">
+                                            {% if assignment.is_submitted %}
+                                                <i class="bi bi-eye"></i> View
+                                            {% else %}
+                                                <i class="bi bi-upload"></i> Submit
+                                            {% endif %}
+                                        </a>
+                                        {% if assignment.assignment_file %}
+                                        <a href="{{ assignment.assignment_file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- Pagination -->
+                {% if assignments.has_other_pages %}
+                <nav aria-label="Assignments pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if assignments.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ assignments.previous_page_number }}&status={{ status_filter }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in assignments.paginator.page_range %}
+                            {% if assignments.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > assignments.number|add:'-3' and num < assignments.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&status={{ status_filter }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if assignments.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ assignments.next_page_number }}&status={{ status_filter }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Assignments Found</h5>
+                        <p class="text-muted">
+                            {% if status_filter != 'all' %}
+                                No assignments match your current filter. <a href="?status=all">View all assignments</a>
+                            {% else %}
+                                You don't have any assignments for this semester yet.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update countdown timers
+    function updateCountdowns() {
+        const countdownElements = document.querySelectorAll('.countdown');
+        
+        countdownElements.forEach(function(element) {
+            const dueDate = new Date(element.dataset.dueDate);
+            const now = new Date().getTime();
+            const distance = dueDate.getTime() - now;
+            const timeRemainingSpan = element.querySelector('.time-remaining');
+
+            if (distance > 0) {
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (days > 0) {
+                    timeRemainingSpan.textContent = `${days}d ${hours}h`;
+                } else if (hours > 0) {
+                    timeRemainingSpan.textContent = `${hours}h ${minutes}m`;
+                } else {
+                    timeRemainingSpan.textContent = `${minutes}m`;
+                }
+                
+                // Color coding based on time remaining
+                if (distance < 24 * 60 * 60 * 1000) { // Less than 24 hours
+                    element.classList.remove('text-warning');
+                    element.classList.add('text-danger');
+                } else if (distance < 3 * 24 * 60 * 60 * 1000) { // Less than 3 days
+                    element.classList.remove('text-warning');
+                    element.classList.add('text-warning');
+                }
+            } else {
+                timeRemainingSpan.textContent = 'OVERDUE';
+                element.classList.remove('text-warning');
+                element.classList.add('text-danger');
+            }
+        });
+    }
+
+    updateCountdowns();
+    setInterval(updateCountdowns, 60000); // Update every minute
+
+    // Add hover effects to assignment cards
+    const assignmentCards = document.querySelectorAll('.assignment-card');
+    assignmentCards.forEach(function(card) {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.transition = 'transform 0.2s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .btn-group, .pagination {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .assignment-card {
+        break-inside: avoid;
+    }
+}
+
+.assignment-card {
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.assignment-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.countdown {
+    font-weight: 500;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+{% endblock %}

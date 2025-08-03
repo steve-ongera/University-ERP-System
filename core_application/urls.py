@@ -119,4 +119,19 @@ urlpatterns = [
     path('lecturer/course/<int:assignment_id>/create-notes/', views.create_course_notes, name='create_course_notes'),
     path('lecturer/course/<int:assignment_id>/create-announcement/', views.create_announcement, name='create_announcement'),
 
+    # Student Dashboard URLs
+    path('student/unit/dashboard/', views.student_unit_dashboard, name='student_unit_dashboard'),
+    path('student/course/<int:enrollment_id>/', views.student_course_detail, name='student_course_detail'),
+    
+    # Assignment URLs
+    path('student/assignments/', views.student_assignments, name='student_assignments'),
+    path('student/assignment/<int:assignment_id>/', views.assignment_detail, name='assignment_detail'),
+    path('student/assignment/<int:assignment_id>/submit/', views.submit_assignment, name='submit_assignment'),
+    
+    # Notes and Downloads
+    path('student/notes/<int:notes_id>/download/', views.download_notes, name='download_notes'),
+    
+    # Grades
+    path('student/grades/', views.student_grades, name='student_grades'),
+
 ]

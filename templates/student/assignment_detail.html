@@ -1,0 +1,507 @@
+{% extends 'student_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Assignment Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ assignment.title }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ assignment.lecturer_assignment.course.code }}</span> | 
+                            <span class="badge bg-{% if assignment.assignment_type == 'individual' %}info{% elif assignment.assignment_type == 'group' %}warning{% else %}secondary{% endif %}">
+                                {{ assignment.get_assignment_type_display }}
+                            </span> |
+                            <span class="badge bg-{% if submission.is_submitted %}success{% elif is_overdue %}danger{% else %}warning{% endif %}">
+                                {% if submission.is_submitted %}
+                                    Submitted {% if submission.is_late %}(Late){% endif %}
+                                {% elif is_overdue %}
+                                    Overdue
+                                {% else %}
+                                    Pending
+                                {% endif %}
+                            </span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-book me-1"></i>{{ assignment.lecturer_assignment.course.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ assignment.lecturer_assignment.lecturer.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>Posted: {{ assignment.posted_date|date:"M d, Y H:i" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ assignment.total_marks }}</h4>
+                            <small class="text-muted">Total Marks</small>
+                            <br><small class="text-muted">{{ assignment.weight_percentage }}% of final grade</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'student_course_detail' enrollment.id %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Course
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                            {% if assignment.assignment_file %}
+                            <a href="{{ assignment.assignment_file.url }}" class="btn btn-outline-secondary" target="_blank">
+                                <i class="bi bi-download"></i> Download Assignment File
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Due Date Alert -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            {% if is_overdue and not submission.is_submitted %}
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Assignment Overdue!</strong> The submission deadline was {{ assignment.due_date|date:"M d, Y H:i" }}.
+                {% if assignment.late_submission_allowed %}
+                Late submissions are allowed{% if assignment.late_submission_penalty %} with penalty: {{ assignment.late_submission_penalty }}{% endif %}.
+                {% else %}
+                Late submissions are not allowed for this assignment.
+                {% endif %}
+            </div>
+            {% elif not submission.is_submitted %}
+            <div class="alert alert-warning">
+                <i class="bi bi-clock me-2"></i>
+                <strong>Due Date:</strong> {{ assignment.due_date|date:"M d, Y H:i" }}
+                <span class="float-end">
+                    <strong>Time Remaining:</strong> 
+                    <span id="countdown"></span>
+                </span>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i>
+                <strong>Assignment Submitted!</strong> 
+                Submitted on {{ submission.submitted_date|date:"M d, Y H:i" }}
+                {% if submission.is_late %}<span class="text-warning">(Late Submission)</span>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Assignment Details and Submission -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- Assignment Description -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-file-text me-2"></i>Assignment Description
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ assignment.description|linebreaks }}
+                    </div>
+                    
+                    {% if assignment.instructions %}
+                    <div class="border-top pt-3">
+                        <h6 class="fw-bold">Instructions</h6>
+                        {{ assignment.instructions|linebreaks }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Submission Requirements -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-list-check me-2"></i>Submission Requirements
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>File Format:</strong> {{ assignment.get_submission_format_display }}</p>
+                            <p class="mb-2"><strong>Max File Size:</strong> {{ assignment.max_file_size_mb }} MB</p>
+                            {% if assignment.max_pages %}
+                            <p class="mb-2"><strong>Maximum Pages:</strong> {{ assignment.max_pages }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if assignment.min_words %}
+                            <p class="mb-2"><strong>Minimum Words:</strong> {{ assignment.min_words }}</p>
+                            {% endif %}
+                            {% if assignment.max_words %}
+                            <p class="mb-2"><strong>Maximum Words:</strong> {{ assignment.max_words }}</p>
+                            {% endif %}
+                            <p class="mb-2"><strong>Due Date:</strong> {{ assignment.due_date|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if assignment.late_submission_allowed %}
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Late Submission Policy:</strong> 
+                        {% if assignment.late_submission_penalty %}
+                        {{ assignment.late_submission_penalty }}
+                        {% else %}
+                        Late submissions are allowed.
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Submission Form -->
+            {% if can_submit and not submission.is_submitted %}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-upload me-2"></i>Submit Assignment
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="submissionForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="submission_file" class="form-label">
+                                <strong>Choose File to Upload</strong>
+                            </label>
+                            <input type="file" class="form-control" id="submission_file" name="submission_file" required>
+                            <div class="form-text">
+                                Accepted formats: {{ assignment.get_submission_format_display }}.
+                                Maximum file size: {{ assignment.max_file_size_mb }} MB.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="student_comments" class="form-label">Comments (Optional)</label>
+                            <textarea class="form-control" id="student_comments" name="student_comments" rows="3" 
+                                      placeholder="Any additional comments about your submission...">{{ submission.student_comments }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmSubmission" required>
+                                <label class="form-check-label" for="confirmSubmission">
+                                    I confirm that this is my own work and I understand the submission requirements.
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="saveDraft()">
+                                <i class="bi bi-save me-1"></i>Save as Draft
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-upload me-1"></i>Submit Assignment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% elif submission.is_submitted %}
+            <!-- Submission Details -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-check-circle me-2"></i>Submission Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Submitted:</strong> {{ submission.submitted_date|date:"M d, Y H:i" }}</p>
+                            <p class="mb-2"><strong>Status:</strong> 
+                                <span class="badge bg-{% if submission.is_late %}warning{% else %}success{% endif %}">
+                                    {{ submission.get_submission_status_display }}
+                                </span>
+                            </p>
+                            <p class="mb-2"><strong>File:</strong> {{ submission.original_filename }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>File Size:</strong> {{ submission.file_size|filesizeformat }}</p>
+                            <p class="mb-2"><strong>Grading Status:</strong> 
+                                <span class="badge bg-{% if submission.grading_status == 'graded' %}success{% elif submission.grading_status == 'returned' %}info{% else %}warning{% endif %}">
+                                    {{ submission.get_grading_status_display }}
+                                </span>
+                            </p>
+                            {% if submission.marks_obtained %}
+                            <p class="mb-2"><strong>Score:</strong> {{ submission.marks_obtained }}/{{ assignment.total_marks }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if submission.student_comments %}
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="fw-bold">Your Comments:</h6>
+                        <p class="text-muted">{{ submission.student_comments }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if submission.lecturer_feedback %}
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="fw-bold">Lecturer Feedback:</h6>
+                        <p class="text-muted">{{ submission.lecturer_feedback|linebreaks }}</p>
+                        {% if submission.feedback_file %}
+                        <a href="{{ submission.feedback_file.url }}" class="btn btn-outline-info btn-sm" target="_blank">
+                            <i class="bi bi-download me-1"></i>Download Feedback File
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <a href="{{ submission.submission_file.url }}" class="btn btn-primary" target="_blank">
+                            <i class="bi bi-download me-1"></i>Download Your Submission
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-exclamation-triangle display-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">Submission Not Available</h5>
+                    <p class="text-muted">This assignment is overdue and late submissions are not allowed.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Assignment Info Sidebar -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">Assignment Information</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Course:</strong> {{ assignment.lecturer_assignment.course.code }}</p>
+                    <p class="mb-2"><strong>Lecturer:</strong> {{ assignment.lecturer_assignment.lecturer.user.get_full_name }}</p>
+                    <p class="mb-2"><strong>Posted:</strong> {{ assignment.posted_date|date:"M d, Y" }}</p>
+                    <p class="mb-2"><strong>Due:</strong> {{ assignment.due_date|date:"M d, Y H:i" }}</p>
+                    <p class="mb-2"><strong>Total Marks:</strong> {{ assignment.total_marks }}</p>
+                    <p class="mb-2"><strong>Weight:</strong> {{ assignment.weight_percentage }}%</p>
+                    
+                    {% if submission.marks_obtained %}
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6 class="text-center mb-2">Your Score</h6>
+                        <div class="text-center">
+                            <h4 class="text-primary">{{ submission.marks_obtained }}/{{ assignment.total_marks }}</h4>
+                            <p class="small text-muted mb-0">{{ submission.percentage_score|floatformat:1 }}%</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Announcements -->
+            {% if announcements %}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-megaphone me-1"></i>Announcements
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for announcement in announcements %}
+                    <div class="border-bottom pb-2 mb-2 {% if not forloop.last %}border-bottom{% endif %}">
+                        <h6 class="mb-1">
+                            {% if announcement.is_urgent %}
+                            <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                            {% endif %}
+                            {{ announcement.title }}
+                        </h6>
+                        <p class="small mb-1">{{ announcement.message|truncatechars:100 }}</p>
+                        <small class="text-muted">{{ announcement.posted_date|timesince }} ago</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Countdown timer
+    const dueDate = new Date('{{ assignment.due_date|date:"c" }}');
+    const countdownElement = document.getElementById('countdown');
+    
+    if (countdownElement && !{{ submission.is_submitted|yesno:"true,false" }}) {
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = dueDate.getTime() - now;
+
+            if (distance > 0) {
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                
+                countdownElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
+                
+                if (distance < 24 * 60 * 60 * 1000) { // Less than 24 hours
+                    countdownElement.classList.add('text-danger');
+                } else if (distance < 3 * 24 * 60 * 60 * 1000) { // Less than 3 days
+                    countdownElement.classList.add('text-warning');
+                }
+            } else {
+                countdownElement.innerHTML = 'OVERDUE';
+                countdownElement.classList.add('text-danger');
+            }
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 60000); // Update every minute
+    }
+
+    // Handle submission form
+    const submissionForm = document.getElementById('submissionForm');
+    if (submissionForm) {
+        submissionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('submission_file');
+            const confirmCheckbox = document.getElementById('confirmSubmission');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file to upload.');
+                return;
+            }
+            
+            if (!confirmCheckbox.checked) {
+                alert('Please confirm that this is your own work.');
+                return;
+            }
+            
+            // Check file size
+            const maxSize = {{ assignment.max_file_size_mb }} * 1024 * 1024;
+            if (fileInput.files[0].size > maxSize) {
+                alert(`File size exceeds maximum allowed size of {{ assignment.max_file_size_mb }} MB.`);
+                return;
+            }
+            
+            if (confirm('Are you sure you want to submit this assignment? This action cannot be undone.')) {
+                submitAssignment();
+            }
+        });
+    }
+
+    // Submit assignment function
+    window.submitAssignment = function() {
+        const formData = new FormData(document.getElementById('submissionForm'));
+        const submitBtn = document.querySelector('button[type="submit"]');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass me-1"></i>Submitting...';
+        
+        fetch("{% url 'submit_assignment' assignment.id %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Assignment submitted successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-upload me-1"></i>Submit Assignment';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the assignment.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-upload me-1"></i>Submit Assignment';
+        });
+    };
+
+    // Save draft function
+    window.saveDraft = function() {
+        const formData = new FormData(document.getElementById('submissionForm'));
+        
+        fetch("{% url 'submit_assignment' assignment.id %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Draft saved successfully!');
+            } else {
+                alert('Error saving draft: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the draft.');
+        });
+    };
+});
+</script>
+
+<style>
+@media print {
+    .btn, .form-control, .form-check, #submissionForm {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.border-bottom:last-child {
+    border-bottom: none !important;
+}
+
+#countdown {
+    font-weight: bold;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,671 @@
+{% extends 'student_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-trophy me-2"></i>Academic Transcript
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-person-circle me-1"></i>{{ student.user.get_full_name }}
+                            <span class="badge bg-primary ms-2">{{ student.student_id }}</span>
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-mortarboard me-1"></i>{{ student.programme.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ student.programme.department.name }}, {{ student.programme.faculty.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ overall_gpa|floatformat:2 }}</h4>
+                            <small class="text-muted">Cumulative GPA</small>
+                            <br><small class="text-muted">{{ total_credit_hours }} Credit Hours</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Transcript
+                            </button>
+                            <button class="btn btn-outline-success" onclick="downloadPDF()">
+                                <i class="bi bi-download"></i> Download PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Summary -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-1">{{ overall_gpa|floatformat:2 }}</h4>
+                    <small>Cumulative GPA</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-1">{{ total_credit_hours }}</h4>
+                    <small>Credit Hours</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-1">
+                        {% for grade in grades %}
+                            {% if grade.is_passed %}{{ forloop.counter0|add:"1" }}{% endif %}
+                        {% empty %}0{% endfor %}
+                    </h4>
+                    <small>Courses Passed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-1">{{ student.current_year }}</h4>
+                    <small>Current Year</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Information -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-person-badge me-1"></i>Student Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Student ID:</strong> {{ student.student_id }}</p>
+                            <p class="mb-2"><strong>Name:</strong> {{ student.user.get_full_name }}</p>
+                            <p class="mb-2"><strong>Programme:</strong> {{ student.programme.code }}</p>
+                            <p class="mb-2"><strong>Current Year:</strong> Year {{ student.current_year }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Admission Date:</strong> {{ student.admission_date|date:"M Y" }}</p>
+                            <p class="mb-2"><strong>Status:</strong> 
+                                <span class="badge bg-{% if student.status == 'active' %}success{% else %}warning{% endif %}">
+                                    {{ student.get_status_display }}
+                                </span>
+                            </p>
+                            <p class="mb-2"><strong>Expected Graduation:</strong> {{ student.expected_graduation_date|date:"M Y" }}</p>
+                            <p class="mb-2"><strong>Study Mode:</strong> {{ student.programme.get_study_mode_display }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-graph-up me-1"></i>Academic Progress
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- GPA Progress Chart would go here -->
+                    <div class="mb-3">
+                        <label class="form-label small">Academic Performance</label>
+                        <div class="progress" style="height: 20px;">
+                            {% if overall_gpa >= 3.5 %}
+                                <div class="progress-bar bg-success" style="width: {{ overall_gpa|floatformat:0|default:0|add:"0" }}%">
+                                    Excellent ({{ overall_gpa|floatformat:2 }})
+                                </div>
+                            {% elif overall_gpa >= 3.0 %}
+                                <div class="progress-bar bg-info" style="width: {{ overall_gpa|floatformat:0|default:0|add:"0" }}%">
+                                    Good ({{ overall_gpa|floatformat:2 }})
+                                </div>
+                            {% elif overall_gpa >= 2.5 %}
+                                <div class="progress-bar bg-warning" style="width: {{ overall_gpa|floatformat:0|default:0|add:"0" }}%">
+                                    Average ({{ overall_gpa|floatformat:2 }})
+                                </div>
+                            {% else %}
+                                <div class="progress-bar bg-danger" style="width: {{ overall_gpa|floatformat:0|default:0|add:"0" }}%">
+                                    Below Average ({{ overall_gpa|floatformat:2 }})
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <small class="text-muted">Credits Earned</small>
+                            <h6>{{ total_credit_hours }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Credits Required</small>
+                            <h6>{{ student.programme.credit_hours_required }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Progress</small>
+                            <h6>{{ total_credit_hours|floatformat:0|default:0 }}/{{ student.programme.credit_hours_required }}%</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grades by Semester -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            {% if grades %}
+                {% regroup grades by enrollment.semester as semester_grades %}
+                {% for semester_group in semester_grades %}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bi bi-calendar3 me-1"></i>
+                                    {{ semester_group.grouper.academic_year.year }} - Semester {{ semester_group.grouper.semester_number }}
+                                </h6>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                {% with semester_group.list as semester_grades_list %}
+                                {% with semester_grades_list|length as total_courses %}
+                                {% with semester_grades_list|first as first_grade %}
+                                    <small class="text-muted">
+                                        {{ total_courses }} Course{{ total_courses|pluralize }} | 
+                                        <!-- Calculate semester GPA -->
+                                        {% for grade in semester_grades_list %}
+                                            {% if forloop.first %}
+                                                {% with 0 as sem_quality_points %}
+                                                {% with 0 as sem_credit_hours %}
+                                            {% endif %}
+                                            {% if grade.quality_points %}
+                                                {% with sem_quality_points|add:grade.quality_points as sem_quality_points %}
+                                                {% with sem_credit_hours|add:grade.enrollment.course.credit_hours as sem_credit_hours %}
+                                            {% endif %}
+                                            {% if forloop.last and sem_credit_hours > 0 %}
+                                                Semester GPA: {{ sem_quality_points|floatformat:2 }}/{{ sem_credit_hours }} = 
+                                                {% widthratio sem_quality_points sem_credit_hours 1 %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </small>
+                                {% endwith %}
+                                {% endwith %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course Code</th>
+                                        <th>Course Name</th>
+                                        <th class="text-center">Credit Hours</th>
+                                        <th class="text-center">CAT (40%)</th>
+                                        <th class="text-center">Exam (60%)</th>
+                                        <th class="text-center">Total</th>
+                                        <th class="text-center">Grade</th>
+                                        <th class="text-center">Points</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for grade in semester_group.list %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ grade.enrollment.course.code }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ grade.enrollment.course.name }}
+                                            {% if grade.enrollment.is_repeat %}
+                                                <span class="badge bg-warning ms-1">Repeat</span>
+                                            {% endif %}
+                                            {% if grade.enrollment.is_audit %}
+                                                <span class="badge bg-info ms-1">Audit</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {{ grade.enrollment.course.credit_hours }}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.continuous_assessment %}
+                                                {{ grade.continuous_assessment|floatformat:1 }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.final_exam %}
+                                                {{ grade.final_exam|floatformat:1 }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.total_marks %}
+                                                <strong>{{ grade.total_marks|floatformat:1 }}%</strong>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.grade %}
+                                                <span class="badge bg-{% if grade.grade == 'A+' or grade.grade == 'A' %}success{% elif grade.grade == 'A-' or grade.grade == 'B+' or grade.grade == 'B' %}primary{% elif grade.grade == 'B-' or grade.grade == 'C+' or grade.grade == 'C' %}warning{% elif grade.grade == 'C-' %}secondary{% else %}danger{% endif %}">
+                                                    {{ grade.grade }}
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.grade_points %}
+                                                {{ grade.grade_points|floatformat:1 }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if grade.is_passed %}
+                                                <i class="bi bi-check-circle text-success" title="Passed"></i>
+                                            {% elif grade.grade %}
+                                                <i class="bi bi-x-circle text-danger" title="Failed"></i>
+                                            {% else %}
+                                                <i class="bi bi-clock text-warning" title="Pending"></i>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Semester Summary -->
+                        <div class="row mt-3 pt-3 border-top">
+                            <div class="col-md-8">
+                                <small class="text-muted">
+                                    Courses: {{ semester_group.list|length }} | 
+                                    Passed: 
+                                    {% for grade in semester_group.list %}
+                                        {% if grade.is_passed %}{{ forloop.counter0|add:"1" }}{% endif %}
+                                    {% empty %}0{% endfor %} | 
+                                    Failed: 
+                                    {% for grade in semester_group.list %}
+                                        {% if not grade.is_passed and grade.grade %}{{ forloop.counter0|add:"1" }}{% endif %}
+                                    {% empty %}0{% endfor %}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <small class="text-muted">
+                                    <!-- Calculate and display semester GPA -->
+                                    {% with 0|floatformat:2 as semester_gpa %}
+                                    {% with 0 as semester_quality_points %}
+                                    {% with 0 as semester_credit_hours %}
+                                    {% for grade in semester_group.list %}
+                                        {% if grade.quality_points %}
+                                            {% with semester_quality_points|add:grade.quality_points as semester_quality_points %}
+                                            {% with semester_credit_hours|add:grade.enrollment.course.credit_hours as semester_credit_hours %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if semester_credit_hours > 0 %}
+                                        {% widthratio semester_quality_points semester_credit_hours 100 as temp_gpa %}
+                                        Semester GPA: {{ temp_gpa|floatformat:2 }}
+                                    {% else %}
+                                        Semester GPA: N/A
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-trophy display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Grades Available</h5>
+                        <p class="text-muted">Your academic grades will appear here once they are published by your lecturers.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Grade Legend -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-info-circle me-1"></i>Grading Scale
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-success mb-1">A+</span><br>
+                                <small>90-100%</small><br>
+                                <small class="text-muted">4.0 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-success mb-1">A</span><br>
+                                <small>80-89%</small><br>
+                                <small class="text-muted">4.0 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-primary mb-1">A-</span><br>
+                                <small>75-79%</small><br>
+                                <small class="text-muted">3.7 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-primary mb-1">B+</span><br>
+                                <small>70-74%</small><br>
+                                <small class="text-muted">3.3 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-warning mb-1">B</span><br>
+                                <small>65-69%</small><br>
+                                <small class="text-muted">3.0 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-warning mb-1">B-</span><br>
+                                <small>60-64%</small><br>
+                                <small class="text-muted">2.7 pts</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-secondary mb-1">C+</span><br>
+                                <small>55-59%</small><br>
+                                <small class="text-muted">2.3 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-secondary mb-1">C</span><br>
+                                <small>50-54%</small><br>
+                                <small class="text-muted">2.0 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-secondary mb-1">C-</span><br>
+                                <small>45-49%</small><br>
+                                <small class="text-muted">1.7 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-danger mb-1">D+</span><br>
+                                <small>40-44%</small><br>
+                                <small class="text-muted">1.3 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-danger mb-1">D</span><br>
+                                <small>35-39%</small><br>
+                                <small class="text-muted">1.0 pts</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-2 border rounded">
+                                <span class="badge bg-danger mb-1">F</span><br>
+                                <small>Below 35%</small><br>
+                                <small class="text-muted">0.0 pts</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <small class="text-muted">
+                                <strong>Note:</strong> Grades C- and above are considered passing grades. 
+                                Grade point average (GPA) is calculated using quality points (grade points × credit hours) divided by total credit hours attempted.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Standing -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-award me-1"></i>Academic Standing
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Current Status:</h6>
+                            {% if overall_gpa >= 3.5 %}
+                                <span class="badge bg-success fs-6">Dean's List - Excellent Performance</span>
+                                <p class="text-muted mt-2">Congratulations! You are performing exceptionally well academically.</p>
+                            {% elif overall_gpa >= 3.0 %}
+                                <span class="badge bg-primary fs-6">Good Standing</span>
+                                <p class="text-muted mt-2">You are maintaining good academic performance. Keep up the excellent work!</p>
+                            {% elif overall_gpa >= 2.5 %}
+                                <span class="badge bg-warning fs-6">Satisfactory Standing</span>
+                                <p class="text-muted mt-2">Your performance is satisfactory. Consider seeking academic support to improve your grades.</p>
+                            {% elif overall_gpa >= 2.0 %}
+                                <span class="badge bg-danger fs-6">Academic Warning</span>
+                                <p class="text-muted mt-2">Your GPA is below the required standard. Please consult with your academic advisor.</p>
+                            {% else %}
+                                <span class="badge bg-danger fs-6">Academic Probation</span>
+                                <p class="text-muted mt-2">Immediate academic intervention required. Contact the registrar's office.</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Graduation Requirements:</h6>
+                            <div class="progress mb-2" style="height: 20px;">
+                                {% widthratio total_credit_hours student.programme.credit_hours_required 100 as progress_percent %}
+                                <div class="progress-bar" style="width: {{ progress_percent }}%">
+                                    {{ progress_percent }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ total_credit_hours }} of {{ student.programme.credit_hours_required }} credit hours completed
+                            </small>
+                            
+                            {% if overall_gpa >= 2.0 %}
+                                <p class="text-success mt-2">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Meeting minimum GPA requirement for graduation (2.0)
+                                </p>
+                            {% else %}
+                                <p class="text-danger mt-2">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Below minimum GPA requirement for graduation (2.0)
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Print functionality
+    window.print = function() {
+        window.print();
+    };
+    
+    // Download PDF functionality (would require backend implementation)
+    window.downloadPDF = function() {
+        // This would typically make a request to a backend endpoint that generates a PDF
+        alert('PDF download functionality would be implemented on the backend.');
+        // Example:
+        // window.location.href = '/student/transcript/pdf/';
+    };
+    
+    // Add tooltips to grade points
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    // Bootstrap tooltip initialization would go here if using Bootstrap 5
+    
+    // Highlight current semester
+    const currentSemesterCards = document.querySelectorAll('.card');
+    // Add any special highlighting for current semester if needed
+});
+
+// Calculate semester GPA (helper function for template)
+function calculateSemesterGPA(grades) {
+    let totalQualityPoints = 0;
+    let totalCreditHours = 0;
+    
+    grades.forEach(function(grade) {
+        if (grade.quality_points && grade.credit_hours) {
+            totalQualityPoints += grade.quality_points;
+            totalCreditHours += grade.credit_hours;
+        }
+    });
+    
+    return totalCreditHours > 0 ? (totalQualityPoints / totalCreditHours).toFixed(2) : 0;
+}
+</script>
+
+<style>
+@media print {
+    .btn, .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        margin-bottom: 15px !important;
+        break-inside: avoid;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .badge {
+        border: 1px solid #000;
+        color: #000 !important;
+        background-color: transparent !important;
+    }
+    
+    /* Ensure each semester prints on separate page if needed */
+    .semester-break {
+        page-break-before: always;
+    }
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.02);
+}
+
+.card:hover {
+    transform: translateY(-1px);
+    transition: transform 0.2s ease;
+}
+
+/* Grade badge styling */
+.badge {
+    font-size: 0.8em;
+    padding: 0.4em 0.6em;
+}
+
+/* Custom styling for academic standing badges */
+.fs-6 {
+    font-size: 1rem !important;
+    padding: 0.5rem 1rem;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .badge {
+        font-size: 0.7em;
+    }
+}
+
+/* Print-specific table styling */
+@media print {
+    .table {
+        border-collapse: collapse !important;
+    }
+    
+    .table th,
+    .table td {
+        border: 1px solid #000 !important;
+        padding: 8px !important;
+    }
+    
+    .table thead th {
+        background-color: #f8f9fa !important;
+        font-weight: bold !important;
+    }
+}
+</style>
+
+{% endblock %}
