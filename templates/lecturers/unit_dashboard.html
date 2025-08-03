@@ -1,4 +1,3 @@
-<!-- lecturer/unit_dashboard.html -->
 {% extends 'lecturer_base.html' %}
 {% load static %}
 
@@ -17,31 +16,41 @@
 </div>
 
 <div class="container onprintContainer">
-    <!-- Header -->
+    <!-- Lecturer Header -->
     <div class="row p-3">
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <h2 class="fw-bold">
-                            <i class="bi bi-person-badge me-2"></i>Lecturer Unit Dashboard
-                        </h2>
+                        <h2 class="fw-bold">My Course Assignments</h2>
                         <p class="text-muted mb-1">
-                            <span class="badge bg-primary">{{ lecturer.user.get_full_name }}</span> | 
-                            <span class="badge bg-info">{{ lecturer.academic_rank }}</span> |
-                            <span class="badge bg-secondary">{{ lecturer.department.name }}</span>
+                            <i class="bi bi-person-circle me-1"></i>{{ lecturer.user.get_full_name }}
+                            <span class="badge bg-primary">{{ lecturer.academic_rank|title }}</span>
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-building me-1"></i>{{ lecturer.department.faculty.name }} - {{ lecturer.department.name }}
                         </p>
                         <p class="mb-0">
-                            <i class="bi bi-calendar me-1"></i>Academic Year: {{ current_academic_year.year }}
-                        </p>
-                        <p class="mb-0">
-                            <i class="bi bi-clock me-1"></i>Current Semester: {{ current_semester.semester_number }}
+                            <i class="bi bi-calendar me-1"></i>{{ current_academic_year.year }} - Semester {{ current_semester.semester_number }}
                         </p>
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="d-inline-block bg-light rounded p-3">
                             <h4 class="mb-1 text-primary">{{ stats.total_courses }}</h4>
-                            <small class="text-muted">assigned courses</small>
+                            <small class="text-muted">allocated courses</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="#" class="btn btn-outline-secondary">
+                                <i class="bi bi-person-gear"></i> Update Profile
+                            </a>
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-house"></i> Main Dashboard
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -57,7 +66,7 @@
                     <div class="row text-center">
                         <div class="col-md-2 border-end">
                             <h5 class="text-primary">{{ stats.total_courses }}</h5>
-                            <p class="small text-muted mb-0">Assigned Courses</p>
+                            <p class="small text-muted mb-0">Total Courses</p>
                         </div>
                         <div class="col-md-2 border-end">
                             <h5 class="text-success">{{ stats.total_students }}</h5>
@@ -65,19 +74,19 @@
                         </div>
                         <div class="col-md-2 border-end">
                             <h5 class="text-warning">{{ stats.total_assignments }}</h5>
-                            <p class="small text-muted mb-0">Assignments Posted</p>
+                            <p class="small text-muted mb-0">Assignments</p>
                         </div>
                         <div class="col-md-2 border-end">
                             <h5 class="text-info">{{ stats.total_notes }}</h5>
-                            <p class="small text-muted mb-0">Notes Uploaded</p>
+                            <p class="small text-muted mb-0">Course Notes</p>
                         </div>
                         <div class="col-md-2 border-end">
                             <h5 class="text-danger">{{ stats.pending_submissions }}</h5>
                             <p class="small text-muted mb-0">Pending Submissions</p>
                         </div>
                         <div class="col-md-2">
-                            <h5 class="text-secondary">{{ lecturer.teaching_experience_years }}</h5>
-                            <p class="small text-muted mb-0">Years Experience</p>
+                            <h5 class="text-secondary">{{ current_semester.semester_number }}</h5>
+                            <p class="small text-muted mb-0">Current Semester</p>
                         </div>
                     </div>
                 </div>
@@ -85,91 +94,420 @@
         </div>
     </div>
 
-    <!-- Assigned Courses -->
+    <!-- Course Assignments -->
+    {% if assignment_stats %}
     <div class="row p-3">
         <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-header">
-                    <h5 class="fw-bold mb-0">
-                        <i class="bi bi-journal-text me-2"></i>My Assigned Courses
-                    </h5>
-                    {% if current_semester %}
-                        <small class="text-muted">Current Semester: {{ current_semester }}</small>
-                    {% endif %}
+                    <h5 class="fw-bold mb-0">My Course Assignments - {{ current_academic_year.year }}</h5>
+                    <small class="text-muted">Current Semester: {{ current_semester }}</small>
                 </div>
                 <div class="card-body">
-                    {% if assignment_stats %}
-                        <div class="row">
-                            {% for stat in assignment_stats %}
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <div class="card h-100 border-left-primary">
-                                    <div class="card-body">
-                                        <div class="row no-gutters align-items-center">
-                                            <div class="col mr-2">
-                                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                                    {{ stat.assignment.course.code }}
-                                                </div>
-                                                <div class="h6 mb-0 font-weight-bold text-gray-800">
-                                                    {{ stat.assignment.course.name }}
-                                                </div>
-                                                <div class="small text-muted">
-                                                    {{ stat.assignment.course.department.name }}
-                                                </div>
-                                                
-                                                <!-- Course Statistics -->
-                                                <div class="mt-3">
-                                                    <div class="row text-center">
-                                                        <div class="col-4">
-                                                            <div class="border-right">
-                                                                <h6 class="text-primary mb-0">{{ stat.student_count }}</h6>
-                                                                <small class="text-muted">Students</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <div class="border-right">
-                                                                <h6 class="text-warning mb-0">{{ stat.assignment_count }}</h6>
-                                                                <small class="text-muted">Assignments</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <h6 class="text-info mb-0">{{ stat.notes_count }}</h6>
-                                                            <small class="text-muted">Notes</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Course Details -->
-                                                <div class="mt-2">
-                                                    <span class="badge bg-secondary">{{ stat.assignment.course.credit_hours }} Credits</span>
-                                                    <span class="badge bg-info">Level {{ stat.assignment.course.level }}</span>
-                                                </div>
-                                                
-                                                <!-- Venue and Time -->
-                                                {% if stat.assignment.lecture_venue or stat.assignment.lecture_time %}
-                                                <div class="mt-2 small">
-                                                    {% if stat.assignment.lecture_venue %}
-                                                        <div><i class="bi bi-geo-alt me-1"></i>{{ stat.assignment.lecture_venue }}</div>
-                                                    {% endif %}
-                                                    {% if stat.assignment.lecture_time %}
-                                                        <div><i class="bi bi-clock me-1"></i>{{ stat.assignment.lecture_time }}</div>
-                                                    {% endif %}
-                                                </div>
-                                                {% endif %}
-                                                
-                                                <!-- Pending Submissions Alert -->
-                                                {% if stat.pending_submissions > 0 %}
-                                                <div class="mt-2">
-                                                    <div class="alert alert-warning alert-sm mb-0 py-1">
-                                                        <small>
-                                                            <i class="bi bi-exclamation-triangle me-1"></i>
-                                                            {{ stat.pending_submissions }} pending submission{{ stat.pending_submissions|pluralize }}
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                                {% endif %}
+                    <div class="row">
+                        {% for stat in assignment_stats %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card border h-100">
+                                <div class="card-header bg-light">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">{{ stat.assignment.course.name }}</h6>
+                                            <span class="badge bg-secondary">{{ stat.assignment.course.code }}</span>
+                                            <span class="badge bg-info">{{ stat.assignment.course.credit_hours }} Credits</span>
+                                        </div>
+                                        <div class="text-end">
+                                            <small class="text-muted">Level {{ stat.assignment.course.level }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Course Statistics -->
+                                    <div class="row text-center mb-3">
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="text-primary mb-0">{{ stat.student_count }}</h6>
+                                                <small class="text-muted">Students</small>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Action Buttons -->
-                                        <div class="mt-3">
-                                            <div class="btn-group d-flex" role="
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="text-success mb-0">{{ stat.assignment_count }}</h6>
+                                                <small class="text-muted">Assignments</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <div class="border-end">
+                                                <h6 class="text-info mb-0">{{ stat.notes_count }}</h6>
+                                                <small class="text-muted">Notes</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <h6 class="text-warning mb-0">{{ stat.pending_submissions }}</h6>
+                                            <small class="text-muted">Pending</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Course Details -->
+                                    <div class="mb-3">
+                                        <p class="small text-muted mb-1">
+                                            <i class="bi bi-clock me-1"></i>
+                                            Lecture: {{ stat.assignment.course.lecture_hours }}h | 
+                                            Practical: {{ stat.assignment.course.practical_hours }}h
+                                        </p>
+                                        {% if stat.assignment.lecture_venue %}
+                                        <p class="small text-muted mb-1">
+                                            <i class="bi bi-geo-alt me-1"></i>{{ stat.assignment.lecture_venue }}
+                                        </p>
+                                        {% endif %}
+                                        {% if stat.assignment.lecture_time %}
+                                        <p class="small text-muted mb-1">
+                                            <i class="bi bi-calendar-week me-1"></i>{{ stat.assignment.lecture_time }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Enrolled Students Preview -->
+                                    {% if stat.enrolled_students %}
+                                    <div class="mb-3">
+                                        <h6 class="small fw-bold text-muted mb-2">Recent Students:</h6>
+                                        <div class="d-flex flex-wrap">
+                                            {% for enrollment in stat.enrolled_students|slice:":5" %}
+                                            <span class="badge bg-light text-dark me-1 mb-1">
+                                                {{ enrollment.student.user.get_full_name|truncatechars:15 }}
+                                            </span>
+                                            {% endfor %}
+                                            {% if stat.student_count > 5 %}
+                                            <span class="badge bg-secondary">+{{ stat.student_count|add:"-5" }} more</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Action Buttons -->
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'lecturer_course_detail' stat.assignment.id %}" 
+                                           class="btn btn-primary btn-sm">
+                                            <i class="bi bi-eye me-1"></i>View Course Details
+                                        </a>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'create_assignment' stat.assignment.id %}" 
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-plus-circle me-1"></i>New Assignment
+                                            </a>
+                                            <a href="{% url 'create_course_notes' stat.assignment.id %}" 
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="bi bi-file-earmark-plus me-1"></i>Upload Notes
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar-check me-1"></i>
+                                        Assigned: {{ stat.assignment.assigned_date|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Assignments -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+                    <h4 class="text-muted">No Course Assignments</h4>
+                    <p class="text-muted">You don't have any course assignments for the current semester.</p>
+                    <p class="small text-muted">Contact your department head if you believe this is an error.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-primary">
+                                    <i class="bi bi-calendar-check me-2"></i>
+                                    <div>
+                                        <div class="fw-bold">View Schedule</div>
+                                        <small>Check timetable</small>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-success">
+                                    <i class="bi bi-file-earmark-text me-2"></i>
+                                    <div>
+                                        <div class="fw-bold">Grade Submissions</div>
+                                        <small>Review pending work</small>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-info">
+                                    <i class="bi bi-chat-dots me-2"></i>
+                                    <div>
+                                        <div class="fw-bold">Messages</div>
+                                        <small>Student communications</small>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="d-grid">
+                                <a href="#" class="btn btn-outline-warning">
+                                    <i class="bi bi-graph-up me-2"></i>
+                                    <div>
+                                        <div class="fw-bold">Reports</div>
+                                        <small>Performance analytics</small>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Recent Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% if assignment_stats %}
+                            {% for stat in assignment_stats|slice:":3" %}
+                            <div class="list-group-item border-0 px-0">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1">{{ stat.assignment.course.code }}</h6>
+                                        <p class="mb-1 small">{{ stat.student_count }} students enrolled</p>
+                                        <small class="text-muted">{{ stat.assignment.assigned_date|timesince }} ago</small>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">Active</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-inbox text-muted"></i>
+                            <p class="text-muted small mb-0">No recent activity</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-person-check me-2"></i>Contact Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="small text-muted">Employee Number</label>
+                        <p class="mb-1">{{ lecturer.employee_number }}</p>
+                    </div>
+                    {% if lecturer.office_location %}
+                    <div class="mb-3">
+                        <label class="small text-muted">Office Location</label>
+                        <p class="mb-1">{{ lecturer.office_location }}</p>
+                    </div>
+                    {% endif %}
+                    {% if lecturer.office_phone %}
+                    <div class="mb-3">
+                        <label class="small text-muted">Office Phone</label>
+                        <p class="mb-1">{{ lecturer.office_phone }}</p>
+                    </div>
+                    {% endif %}
+                    {% if lecturer.consultation_hours %}
+                    <div class="mb-3">
+                        <label class="small text-muted">Consultation Hours</label>
+                        <p class="mb-1">{{ lecturer.consultation_hours }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-house"></i> Main Dashboard
+                    </a>
+                    <button class="btn btn-outline-info me-2" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button class="btn btn-primary" onclick="refreshDashboard()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh functionality
+    function refreshDashboard() {
+        location.reload();
+    }
+    
+    // Make refresh function global
+    window.refreshDashboard = refreshDashboard;
+    
+    // Add hover effects to course cards
+    const courseCards = document.querySelectorAll('.card.border');
+    courseCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.transition = 'transform 0.2s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Update time indicators
+    function updateTimeIndicators() {
+        const timeElements = document.querySelectorAll('[data-time]');
+        timeElements.forEach(element => {
+            // You can add logic here to update relative time displays
+        });
+    }
+    
+    // Update every minute
+    setInterval(updateTimeIndicators, 60000);
+});
+
+// Notification system for pending submissions
+{% if stats.pending_submissions > 0 %}
+document.addEventListener('DOMContentLoaded', function() {
+    if ({{ stats.pending_submissions }} > 0) {
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-warning border-0 position-fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.zIndex = '9999';
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    You have {{ stats.pending_submissions }} pending submission(s) to review.
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        const bsToast = new bootstrap.Toast(toast, {delay: 5000});
+        bsToast.show();
+    }
+});
+{% endif %}
+</script>
+
+<style>
+@media print {
+    .btn, .card-footer, .quick-actions {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+}
+
+.card.border:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-info:hover,
+.btn-outline-warning:hover {
+    transform: translateY(-1px);
+}
+
+.list-group-item {
+    transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Custom scrollbar for course cards */
+.card-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.card-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 2px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+</style>
+
+{% endblock %}
