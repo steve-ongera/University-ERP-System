@@ -91,3 +91,198 @@
                                         </select>
                                     </div>
                                 </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="topic" class="form-label">Topic</label>
+                                        <input type="text" class="form-control" id="topic" name="topic" 
+                                               placeholder="e.g., Database Design Principles">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="week_number" class="form-label">Week Number</label>
+                                        <input type="number" class="form-control" id="week_number" name="week_number" 
+                                               min="1" max="52" placeholder="e.g., 5">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3" 
+                                              placeholder="Brief description of the notes content..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Upload Section -->
+                        <div class="card border-0 bg-light mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="bi bi-cloud-upload me-1"></i>File Upload</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="notes_file" class="form-label">Notes File *</label>
+                                    <input type="file" class="form-control" id="notes_file" name="notes_file" required
+                                           accept=".pdf,.doc,.docx,.ppt,.pptx,.txt">
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Supported formats: PDF, Word Documents, PowerPoint, Text files. Max size: 10MB
+                                    </div>
+                                </div>
+                                
+                                <!-- File Preview Area -->
+                                <div id="filePreview" class="d-none">
+                                    <div class="alert alert-light border">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-file-earmark-text fs-2 text-primary me-3"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold" id="fileName"></div>
+                                                <small class="text-muted" id="fileSize"></small>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" id="removeFile">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Settings Section -->
+                        <div class="card border-0 bg-light mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="bi bi-gear me-1"></i>Settings</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_public" name="is_public">
+                                    <label class="form-check-label" for="is_public">
+                                        <strong>Make Public</strong>
+                                        <small class="d-block text-muted">Allow other lecturers to view these notes</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'lecturer_course_detail' course_assignment.id %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <span class="spinner-border spinner-border-sm d-none me-2" id="submitSpinner"></span>
+                                <i class="bi bi-cloud-upload me-1"></i>Upload Notes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with Guidelines -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-lightbulb me-1"></i>Upload Guidelines</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-primary">File Requirements</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="bi bi-check-circle text-success me-1"></i>Maximum file size: 10MB</li>
+                            <li><i class="bi bi-check-circle text-success me-1"></i>Supported formats: PDF, DOC, DOCX, PPT, PPTX, TXT</li>
+                            <li><i class="bi bi-check-circle text-success me-1"></i>Clear, readable content</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-primary">Best Practices</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="bi bi-star text-warning me-1"></i>Use descriptive titles</li>
+                            <li><i class="bi bi-star text-warning me-1"></i>Include relevant topics</li>
+                            <li><i class="bi bi-star text-warning me-1"></i>Specify week numbers for organization</li>
+                            <li><i class="bi bi-star text-warning me-1"></i>Add helpful descriptions</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Tip:</strong> Making notes public allows other lecturers in your department to reference your materials.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('notes_file');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const removeFileBtn = document.getElementById('removeFile');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitSpinner = document.getElementById('submitSpinner');
+    const form = document.getElementById('notesForm');
+
+    // File input change handler
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size exceeds 10MB limit. Please choose a smaller file.');
+                fileInput.value = '';
+                filePreview.classList.add('d-none');
+                return;
+            }
+
+            // Show file preview
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            filePreview.classList.remove('d-none');
+        } else {
+            filePreview.classList.add('d-none');
+        }
+    });
+
+    // Remove file handler
+    removeFileBtn.addEventListener('click', function() {
+        fileInput.value = '';
+        filePreview.classList.add('d-none');
+    });
+
+    // Form submission handler
+    form.addEventListener('submit', function(e) {
+        // Show loading state
+        submitBtn.disabled = true;
+        submitSpinner.classList.remove('d-none');
+        
+        // Basic validation
+        const title = document.getElementById('title').value.trim();
+        const noteType = document.getElementById('note_type').value;
+        const file = fileInput.files[0];
+
+        if (!title || !noteType || !file) {
+            e.preventDefault();
+            alert('Please fill in all required fields and select a file.');
+            submitBtn.disabled = false;
+            submitSpinner.classList.add('d-none');
+            return;
+        }
+    });
+
+    // Helper function to format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+
+{% endblock %}
