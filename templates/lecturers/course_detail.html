@@ -554,7 +554,6 @@
         </div>
     </div>
 </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Function to open announcement modal
@@ -564,58 +563,68 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Handle announcement form submission
-    document.getElementById('announcementForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        
-        fetch("{% url 'create_announcement' assignment.id %}", {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while creating the announcement.');
+    const announcementForm = document.getElementById('announcementForm');
+    if (announcementForm) {
+        announcementForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch("{% url 'create_announcement' assignment.id %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while creating the announcement.');
+            });
+        });
+    }
+
+    // Initialize Bootstrap tabs and allow them to be switched
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
         });
     });
 
     // Placeholder functions for various actions
     window.viewStudentDetails = function(studentId) {
-        // Implement student details view
         console.log('View student details:', studentId);
     };
 
     window.viewSubmissions = function(studentId) {
-        // Implement view submissions for student
         console.log('View submissions for student:', studentId);
     };
 
     window.viewAssignmentDetails = function(assignmentId) {
-        // Implement assignment details view
         console.log('View assignment details:', assignmentId);
     };
 
     window.gradeSubmissions = function(assignmentId) {
-        // Implement grading interface
         console.log('Grade submissions for assignment:', assignmentId);
     };
 
     window.createAnnouncement = function(assignmentId) {
-        // Pre-select the assignment in the modal
         const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
         const select = document.querySelector('select[name="assignment_pk"]');
-        select.value = assignmentId;
+        if (select) {
+            select.value = assignmentId;
+        }
         modal.show();
     };
 });
