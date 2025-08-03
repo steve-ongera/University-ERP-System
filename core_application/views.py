@@ -4793,3 +4793,511 @@ def create_announcement(request, assignment_id):
             return JsonResponse({'success': False, 'message': str(e)})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+
+# views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse, Http404
+from django.utils import timezone
+from django.db.models import Q, Count, Avg
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from django.conf import settings
+import os
+
+from .models import (
+    Student, Enrollment, Course, Assignment, AssignmentSubmission, 
+    CourseNotes, NotesDownload, Semester, AcademicYear,
+    LecturerCourseAssignment, AssignmentAnnouncement
+)
+#used for cats and notes
+@login_required
+def student_unit_dashboard(request):
+    """Main student dashboard showing enrolled courses and overview"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found. Please contact administrator.")
+        return redirect('login')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get student's active enrollments for current semester
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        semester=current_semester,
+        is_active=True
+    ).select_related(
+        'course', 'course__department', 'course__department__faculty', 'lecturer'
+    ).order_by('course__name')
+    
+    # Calculate statistics
+    total_courses = enrollments.count()
+    total_assignments = Assignment.objects.filter(
+        lecturer_assignment__course__in=[e.course for e in enrollments],
+        lecturer_assignment__semester=current_semester,
+        is_published=True
+    ).count()
+    
+    # Get pending assignments (not submitted)
+    submitted_assignments = AssignmentSubmission.objects.filter(
+        student=student,
+        is_submitted=True
+    ).values_list('assignment_id', flat=True)
+    
+    pending_assignments = Assignment.objects.filter(
+        lecturer_assignment__course__in=[e.course for e in enrollments],
+        lecturer_assignment__semester=current_semester,
+        is_published=True
+    ).exclude(id__in=submitted_assignments).count()
+    
+    # Get overdue assignments
+    overdue_assignments = Assignment.objects.filter(
+        lecturer_assignment__course__in=[e.course for e in enrollments],
+        lecturer_assignment__semester=current_semester,
+        is_published=True,
+        due_date__lt=timezone.now()
+    ).exclude(id__in=submitted_assignments).count()
+    
+    # Get recent announcements
+    recent_announcements = AssignmentAnnouncement.objects.filter(
+        assignment__lecturer_assignment__course__in=[e.course for e in enrollments],
+        assignment__lecturer_assignment__semester=current_semester,
+        is_active=True
+    ).order_by('-posted_date')[:5]
+    
+    # Course statistics for each enrollment
+    course_stats = []
+    for enrollment in enrollments:
+        course_assignments = Assignment.objects.filter(
+            lecturer_assignment__course=enrollment.course,
+            lecturer_assignment__semester=current_semester,
+            is_published=True
+        )
+        
+        submitted_count = AssignmentSubmission.objects.filter(
+            student=student,
+            assignment__in=course_assignments,
+            is_submitted=True
+        ).count()
+        
+        course_notes_count = CourseNotes.objects.filter(
+            lecturer_assignment__course=enrollment.course,
+            lecturer_assignment__semester=current_semester,
+            is_active=True,
+            is_public=True
+        ).count()
+        
+        course_stats.append({
+            'enrollment': enrollment,
+            'total_assignments': course_assignments.count(),
+            'submitted_assignments': submitted_count,
+            'pending_assignments': course_assignments.count() - submitted_count,
+            'notes_count': course_notes_count
+        })
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'enrollments': enrollments,
+        'course_stats': course_stats,
+        'total_courses': total_courses,
+        'total_assignments': total_assignments,
+        'pending_assignments': pending_assignments,
+        'overdue_assignments': overdue_assignments,
+        'recent_announcements': recent_announcements,
+    }
+    
+    return render(request, 'student/unit_dashboard.html', context)
+
+
+@login_required
+def student_course_detail(request, enrollment_id):
+    """Detailed view of a specific course with assignments and notes"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('login')
+    
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related(
+            'course', 'course__department', 'course__department__faculty', 
+            'lecturer', 'semester'
+        ),
+        id=enrollment_id,
+        student=student,
+        is_active=True
+    )
+    
+    # Get lecturer assignment for this course
+    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+        course=enrollment.course,
+        semester=enrollment.semester,
+        is_active=True
+    ).first()
+    
+    # Get course assignments
+    assignments = Assignment.objects.filter(
+        lecturer_assignment=lecturer_assignment,
+        is_published=True
+    ).order_by('-posted_date')
+    
+    # Get student's submissions for these assignments
+    submissions = AssignmentSubmission.objects.filter(
+        student=student,
+        assignment__in=assignments
+    )
+    submission_dict = {sub.assignment_id: sub for sub in submissions}
+    
+    # Add submission status to assignments
+    for assignment in assignments:
+        assignment.student_submission = submission_dict.get(assignment.id)
+        assignment.is_submitted = assignment.id in submission_dict and submission_dict[assignment.id].is_submitted
+        assignment.is_overdue = assignment.due_date < timezone.now()
+        assignment.can_submit = not assignment.is_overdue or assignment.late_submission_allowed
+    
+    # Get course notes
+    course_notes = CourseNotes.objects.filter(
+        lecturer_assignment=lecturer_assignment,
+        is_active=True,
+        is_public=True
+    ).order_by('-posted_date')
+    
+    # Get recent announcements for this course
+    announcements = AssignmentAnnouncement.objects.filter(
+        assignment__lecturer_assignment=lecturer_assignment,
+        is_active=True
+    ).order_by('-posted_date')[:10]
+    
+    # Calculate statistics
+    total_assignments = assignments.count()
+    submitted_count = len([a for a in assignments if a.is_submitted])
+    pending_count = total_assignments - submitted_count
+    overdue_count = len([a for a in assignments if a.is_overdue and not a.is_submitted])
+    
+    # Get student's grades for this course
+    try:
+        from .models import Grade
+        grade = Grade.objects.get(enrollment=enrollment)
+    except Grade.DoesNotExist:
+        grade = None
+    
+    context = {
+        'student': student,
+        'enrollment': enrollment,
+        'lecturer_assignment': lecturer_assignment,
+        'assignments': assignments,
+        'course_notes': course_notes,
+        'announcements': announcements,
+        'grade': grade,
+        'stats': {
+            'total_assignments': total_assignments,
+            'submitted_count': submitted_count,
+            'pending_count': pending_count,
+            'overdue_count': overdue_count,
+            'notes_count': course_notes.count(),
+        }
+    }
+    
+    return render(request, 'student/course_detail.html', context)
+
+
+@login_required
+def download_notes(request, notes_id):
+    """Download course notes and track the download"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('login')
+    
+    notes = get_object_or_404(CourseNotes, id=notes_id, is_active=True, is_public=True)
+    
+    # Check if student is enrolled in this course
+    enrollment_exists = Enrollment.objects.filter(
+        student=student,
+        course=notes.lecturer_assignment.course,
+        semester=notes.lecturer_assignment.semester,
+        is_active=True
+    ).exists()
+    
+    if not enrollment_exists:
+        messages.error(request, "You are not enrolled in this course.")
+        return redirect('student_dashboard')
+    
+    # Track the download
+    NotesDownload.objects.create(
+        course_notes=notes,
+        student=student,
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    # Increment download count
+    notes.download_count += 1
+    notes.save(update_fields=['download_count'])
+    
+    # Serve the file
+    try:
+        if notes.notes_file:
+            response = HttpResponse(notes.notes_file.read(), content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{os.path.basename(notes.notes_file.name)}"'
+            return response
+    except Exception as e:
+        messages.error(request, "Error downloading file. Please try again.")
+        return redirect('student_course_detail', enrollment_id=enrollment_exists.id if enrollment_exists else 0)
+    
+    messages.error(request, "File not found.")
+    return redirect('student_dashboard')
+
+
+@login_required
+def assignment_detail(request, assignment_id):
+    """Detailed view of an assignment with submission form"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('login')
+    
+    assignment = get_object_or_404(
+        Assignment.objects.select_related(
+            'lecturer_assignment', 'lecturer_assignment__course',
+            'lecturer_assignment__lecturer', 'lecturer_assignment__semester'
+        ),
+        id=assignment_id,
+        is_published=True
+    )
+    
+    # Check if student is enrolled in this course
+    enrollment = get_object_or_404(
+        Enrollment,
+        student=student,
+        course=assignment.lecturer_assignment.course,
+        semester=assignment.lecturer_assignment.semester,
+        is_active=True
+    )
+    
+    # Get or create submission
+    submission, created = AssignmentSubmission.objects.get_or_create(
+        assignment=assignment,
+        student=student,
+        defaults={'submission_status': 'draft'}
+    )
+    
+    # Check if assignment is overdue
+    is_overdue = assignment.due_date < timezone.now()
+    can_submit = not is_overdue or assignment.late_submission_allowed
+    
+    # Get assignment announcements
+    announcements = AssignmentAnnouncement.objects.filter(
+        assignment=assignment,
+        is_active=True
+    ).order_by('-posted_date')
+    
+    context = {
+        'student': student,
+        'assignment': assignment,
+        'enrollment': enrollment,
+        'submission': submission,
+        'is_overdue': is_overdue,
+        'can_submit': can_submit,
+        'announcements': announcements,
+    }
+    
+    return render(request, 'student/assignment_detail.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def submit_assignment(request, assignment_id):
+    """Handle assignment submission"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Student profile not found.'})
+    
+    assignment = get_object_or_404(Assignment, id=assignment_id, is_published=True)
+    
+    # Check if student is enrolled
+    enrollment = Enrollment.objects.filter(
+        student=student,
+        course=assignment.lecturer_assignment.course,
+        semester=assignment.lecturer_assignment.semester,
+        is_active=True
+    ).first()
+    
+    if not enrollment:
+        return JsonResponse({'success': False, 'message': 'You are not enrolled in this course.'})
+    
+    # Check if submission is allowed
+    is_overdue = assignment.due_date < timezone.now()
+    if is_overdue and not assignment.late_submission_allowed:
+        return JsonResponse({'success': False, 'message': 'Assignment submission deadline has passed.'})
+    
+    # Get or create submission
+    submission, created = AssignmentSubmission.objects.get_or_create(
+        assignment=assignment,
+        student=student
+    )
+    
+    # Check if already submitted
+    if submission.is_submitted:
+        return JsonResponse({'success': False, 'message': 'Assignment has already been submitted.'})
+    
+    # Handle file upload
+    if 'submission_file' not in request.FILES:
+        return JsonResponse({'success': False, 'message': 'Please select a file to upload.'})
+    
+    uploaded_file = request.FILES['submission_file']
+    
+    # Validate file size
+    max_size = assignment.max_file_size_mb * 1024 * 1024  # Convert MB to bytes
+    if uploaded_file.size > max_size:
+        return JsonResponse({
+            'success': False, 
+            'message': f'File size exceeds maximum allowed size of {assignment.max_file_size_mb}MB.'
+        })
+    
+    # Validate file format
+    allowed_extensions = {
+        'pdf': ['.pdf'],
+        'doc': ['.doc', '.docx'],
+        'any': ['.pdf', '.doc', '.docx', '.txt', '.rtf'],
+        'code': ['.py', '.java', '.cpp', '.c', '.js', '.html', '.css', '.zip'],
+        'presentation': ['.ppt', '.pptx', '.odp']
+    }
+    
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+    if assignment.submission_format in allowed_extensions:
+        if file_extension not in allowed_extensions[assignment.submission_format]:
+            return JsonResponse({
+                'success': False,
+                'message': f'Invalid file format. Allowed formats: {", ".join(allowed_extensions[assignment.submission_format])}'
+            })
+    
+    # Update submission
+    submission.submission_file = uploaded_file
+    submission.original_filename = uploaded_file.name
+    submission.file_size = uploaded_file.size
+    submission.student_comments = request.POST.get('student_comments', '')
+    submission.is_submitted = True
+    submission.submitted_date = timezone.now()
+    
+    if is_overdue:
+        submission.is_late = True
+        submission.submission_status = 'late'
+    else:
+        submission.submission_status = 'submitted'
+    
+    submission.save()
+    
+    messages.success(request, 'Assignment submitted successfully!')
+    return JsonResponse({'success': True, 'message': 'Assignment submitted successfully!'})
+
+
+@login_required
+def student_assignments(request):
+    """View all assignments for the student across all courses"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('login')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all enrollments for current semester
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        semester=current_semester,
+        is_active=True
+    ).select_related('course')
+    
+    # Get all assignments for enrolled courses
+    assignments = Assignment.objects.filter(
+        lecturer_assignment__course__in=[e.course for e in enrollments],
+        lecturer_assignment__semester=current_semester,
+        is_published=True
+    ).select_related(
+        'lecturer_assignment', 'lecturer_assignment__course'
+    ).order_by('-posted_date')
+    
+    # Get submission status for each assignment
+    submissions = AssignmentSubmission.objects.filter(
+        student=student,
+        assignment__in=assignments
+    )
+    submission_dict = {sub.assignment_id: sub for sub in submissions}
+    
+    # Add submission info to assignments
+    for assignment in assignments:
+        assignment.student_submission = submission_dict.get(assignment.id)
+        assignment.is_submitted = assignment.id in submission_dict and submission_dict[assignment.id].is_submitted
+        assignment.is_overdue = assignment.due_date < timezone.now()
+    
+    # Filter assignments based on status
+    status_filter = request.GET.get('status', 'all')
+    if status_filter == 'pending':
+        assignments = [a for a in assignments if not a.is_submitted]
+    elif status_filter == 'submitted':
+        assignments = [a for a in assignments if a.is_submitted]
+    elif status_filter == 'overdue':
+        assignments = [a for a in assignments if a.is_overdue and not a.is_submitted]
+    
+    # Pagination
+    paginator = Paginator(assignments, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'student': student,
+        'assignments': page_obj,
+        'current_semester': current_semester,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'student/assignments.html', context)
+
+
+@login_required
+def student_grades(request):
+    """View student's grades for all courses"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('login')
+    
+    # Get all enrollments with grades
+    from .models import Grade
+    grades = Grade.objects.filter(
+        enrollment__student=student
+    ).select_related(
+        'enrollment', 'enrollment__course', 'enrollment__semester'
+    ).order_by('-enrollment__semester__start_date', 'enrollment__course__name')
+    
+    # Calculate overall GPA
+    total_quality_points = sum(g.quality_points or 0 for g in grades if g.quality_points)
+    total_credit_hours = sum(g.enrollment.course.credit_hours for g in grades if g.quality_points)
+    overall_gpa = total_quality_points / total_credit_hours if total_credit_hours > 0 else 0
+    
+    # Update student's cumulative GPA
+    student.cumulative_gpa = overall_gpa
+    student.total_credit_hours = total_credit_hours
+    student.save(update_fields=['cumulative_gpa', 'total_credit_hours'])
+    
+    context = {
+        'student': student,
+        'grades': grades,
+        'overall_gpa': overall_gpa,
+        'total_credit_hours': total_credit_hours,
+    }
+    
+    return render(request, 'student/grades_student.html', context)

@@ -1,0 +1,283 @@
+{% extends 'student_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Student Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Welcome, {{ student.user.get_full_name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ student.student_id }}</span> | 
+                            <span class="badge bg-success">{{ student.programme.name }}</span> |
+                            <span class="badge bg-info">{{ student.get_status_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ student.programme.department.faculty.name }} - {{ student.programme.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                        </p>
+                        {% if current_semester %}
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ current_semester.academic_year.year }} - Semester {{ current_semester.semester_number }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ student.cumulative_gpa|floatformat:2|default:"N/A" }}</h4>
+                            <small class="text-muted">Current GPA</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ total_courses }}</h5>
+                            <p class="small text-muted mb-0">Enrolled Courses</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ total_assignments }}</h5>
+                            <p class="small text-muted mb-0">Total Assignments</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ pending_assignments }}</h5>
+                            <p class="small text-muted mb-0">Pending</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ overdue_assignments }}</h5>
+                            <p class="small text-muted mb-0">Overdue</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ student.total_credit_hours|default:"0" }}</h5>
+                            <p class="small text-muted mb-0">Credit Hours</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ student.programme.credit_hours_required }}</h5>
+                            <p class="small text-muted mb-0">Required Credits</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-3">Quick Actions</h5>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'student_assignments' %}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-journal-text me-2"></i>View All Assignments
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'student_grades' %}" class="btn btn-outline-success w-100">
+                                <i class="bi bi-trophy me-2"></i>View Grades
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-info w-100" onclick="window.print()">
+                                <i class="bi bi-printer me-2"></i>Print Dashboard
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="#" class="btn btn-outline-warning w-100">
+                                <i class="bi bi-person-circle me-2"></i>Profile Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- Enrolled Courses -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-book me-2"></i>My Courses
+                        {% if current_semester %}
+                        <small class="text-muted">({{ current_semester.academic_year.year }} - Semester {{ current_semester.semester_number }})</small>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if course_stats %}
+                    <div class="row">
+                        {% for stat in course_stats %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-left-primary h-100">
+                                <div class="card-header d-flex justify-content-between">
+                                    <h6 class="mb-0">{{ stat.enrollment.course.name|truncatechars:30 }}</h6>
+                                    <span class="badge bg-primary">{{ stat.enrollment.course.code }}</span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="small text-muted mb-2">
+                                        {{ stat.enrollment.course.get_course_type_display }} | 
+                                        {{ stat.enrollment.course.credit_hours }} Credits
+                                    </p>
+                                    {% if stat.enrollment.lecturer %}
+                                    <p class="small mb-2">
+                                        <i class="bi bi-person me-1"></i>{{ stat.enrollment.lecturer.user.get_full_name }}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <div class="row text-center mt-3">
+                                        <div class="col-4">
+                                            <small class="text-muted">Assignments</small>
+                                            <h6>{{ stat.total_assignments }}</h6>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Submitted</small>
+                                            <h6 class="text-success">{{ stat.submitted_assignments }}</h6>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Notes</small>
+                                            <h6 class="text-info">{{ stat.notes_count }}</h6>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <div class="progress mb-2" style="height: 8px;">
+                                            {% if stat.total_assignments > 0 %}
+                                            {% widthratio stat.submitted_assignments stat.total_assignments 100 as progress %}
+                                            <div class="progress-bar bg-success" style="width: {{ progress }}%"></div>
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">
+                                            Progress: {{ stat.submitted_assignments }}/{{ stat.total_assignments }} assignments completed
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{% url 'student_course_detail' stat.enrollment.id %}" class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-arrow-right me-1"></i>View Course Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-megaphone display-4 text-muted"></i>
+                        <h6 class="text-muted mt-2">No Announcements</h6>
+                        <p class="text-muted small">No recent announcements available.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-clock-history me-2"></i>Upcoming Deadlines
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_assignments > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        You have <strong>{{ pending_assignments }}</strong> pending assignments.
+                        {% if overdue_assignments > 0 %}
+                        <strong>{{ overdue_assignments }}</strong> are overdue.
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-center">
+                        <a href="{% url 'student_assignments' %}?status=pending" class="btn btn-warning me-2">
+                            <i class="bi bi-journal-text me-1"></i>View Pending Assignments
+                        </a>
+                        {% if overdue_assignments > 0 %}
+                        <a href="{% url 'student_assignments' %}?status=overdue" class="btn btn-danger">
+                            <i class="bi bi-exclamation-triangle me-1"></i>View Overdue Assignments
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle display-4 text-success"></i>
+                        <h6 class="text-success mt-2">All Caught Up!</h6>
+                        <p class="text-muted">You have no pending assignments at the moment.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-footer, .alert-dismissible {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.list-group-item.border-warning {
+    border-color: #ffc107 !important;
+    background-color: #fff3cd;
+}
+</style>
+
+{% endblock %}
+                  
