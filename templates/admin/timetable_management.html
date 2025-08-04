@@ -384,7 +384,6 @@
         </div>
     </div>
 </div>
-
 <script>
 class TimetableManager {
     constructor() {
@@ -550,6 +549,9 @@ class TimetableManager {
     }
     
     addDragEventListeners() {
+        // Remove existing listeners first to prevent duplicates
+        this.removeDragEventListeners();
+        
         // Course drag events
         document.querySelectorAll('.course-item').forEach(item => {
             item.addEventListener('dragstart', (e) => {
@@ -570,25 +572,39 @@ class TimetableManager {
         
         // Time slot drop events
         document.querySelectorAll('.time-slot').forEach(slot => {
-            slot.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                slot.classList.add('drag-over');
-            });
-            
-            slot.addEventListener('dragleave', (e) => {
-                slot.classList.remove('drag-over');
-            });
-            
-            slot.addEventListener('drop', (e) => {
-                e.preventDefault();
-                slot.classList.remove('drag-over');
-                
-                if (this.draggedCourse && !slot.classList.contains('occupied')) {
-                    this.handleCourseDrop(slot);
-                }
-            });
+            slot.addEventListener('dragover', this.handleDragOver.bind(this));
+            slot.addEventListener('dragleave', this.handleDragLeave.bind(this));
+            slot.addEventListener('drop', this.handleDrop.bind(this));
         });
+    }
+    
+    removeDragEventListeners() {
+        // Remove event listeners from time slots to prevent memory leaks
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.removeEventListener('dragover', this.handleDragOver.bind(this));
+            slot.removeEventListener('dragleave', this.handleDragLeave.bind(this));
+            slot.removeEventListener('drop', this.handleDrop.bind(this));
+        });
+    }
+    
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.currentTarget.classList.add('drag-over');
+    }
+    
+    handleDragLeave(e) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+    
+    handleDrop(e) {
+        e.preventDefault();
+        const slot = e.currentTarget;
+        slot.classList.remove('drag-over');
+        
+        if (this.draggedCourse && !slot.classList.contains('occupied')) {
+            this.handleCourseDrop(slot);
+        }
     }
     
     handleCourseDrop(slot) {
@@ -661,6 +677,9 @@ class TimetableManager {
             class_type: classType
         };
         
+        // Store slot reference before clearing pendingEntry
+        const currentSlot = this.pendingEntry.slot;
+        
         try {
             const response = await fetch('/admin-save-timetable-entry/', {
                 method: 'POST',
@@ -674,19 +693,24 @@ class TimetableManager {
             const data = await response.json();
             
             if (data.success) {
-                this.addTimetableEntryToSlot(this.pendingEntry.slot, data.entry);
+                this.addTimetableEntryToSlot(currentSlot, data.entry);
                 this.showMessage('Timetable entry saved successfully', 'success');
                 
                 // Close modal and reset
                 bootstrap.Modal.getInstance(document.getElementById('lecturerModal')).hide();
                 this.resetModal();
-                this.pendingEntry = null;
                 
                 // Add success animation
-                this.pendingEntry.slot.classList.add('success-animation');
+                currentSlot.classList.add('success-animation');
                 setTimeout(() => {
-                    this.pendingEntry.slot.classList.remove('success-animation');
+                    currentSlot.classList.remove('success-animation');
                 }, 600);
+                
+                // Clear pending entry after successful save
+                this.pendingEntry = null;
+                
+                // Re-initialize drag listeners to keep the interface active
+                this.addDragEventListeners();
                 
             } else {
                 if (data.conflicts) {
@@ -697,7 +721,26 @@ class TimetableManager {
             }
         } catch (error) {
             this.showMessage('Network error occurred', 'error');
+            console.error('Save error:', error);
         }
+    }
+
+    initializeModal() {
+        // Reset modal on close and ensure proper cleanup
+        document.getElementById('lecturerModal').addEventListener('hidden.bs.modal', () => {
+            this.resetModal();
+            // Only clear pendingEntry if modal is closed without saving
+            // (it will be null if save was successful)
+            if (this.pendingEntry) {
+                this.pendingEntry = null;
+            }
+        });
+        
+        // Prevent modal from closing when clicking outside if there are conflicts
+        document.getElementById('lecturerModal').addEventListener('hide.bs.modal', (e) => {
+            // Allow normal closing behavior
+            return true;
+        });
     }
     
     addTimetableEntryToSlot(slot, entry) {
@@ -725,6 +768,8 @@ class TimetableManager {
     renderTimetable(year) {
         // Clear all slots for this year
         const yearTab = document.querySelector(`#year${year}`);
+        if (!yearTab) return;
+        
         yearTab.querySelectorAll('.time-slot').forEach(slot => {
             slot.querySelector('.slot-content').innerHTML = '';
             slot.classList.remove('occupied');
@@ -741,6 +786,9 @@ class TimetableManager {
                 this.addTimetableEntryToSlot(slot, entry);
             }
         });
+        
+        // Re-add drag listeners after rendering timetable
+        this.addDragEventListeners();
     }
     
     async deleteEntry(entryId) {
@@ -749,7 +797,7 @@ class TimetableManager {
         }
         
         try {
-            const response = await fetch(`/admin/delete-timetable-entry/${entryId}/`, {
+            const response = await fetch(`/admin-delete-timetable-entry/${entryId}/`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRFToken': this.getCSRFToken()
@@ -768,6 +816,10 @@ class TimetableManager {
                 }
                 
                 this.showMessage('Entry deleted successfully', 'success');
+                
+                // Re-add drag listeners to keep interface active
+                this.addDragEventListeners();
+                
             } else {
                 this.showMessage(data.error || 'Failed to delete entry', 'error');
             }
@@ -821,14 +873,6 @@ class TimetableManager {
         document.getElementById('venueInput').value = '';
         document.getElementById('classTypeSelect').value = 'lecture';
         document.querySelectorAll('.conflict-warning').forEach(w => w.remove());
-    }
-    
-    initializeModal() {
-        // Reset modal on close
-        document.getElementById('lecturerModal').addEventListener('hidden.bs.modal', () => {
-            this.resetModal();
-            this.pendingEntry = null;
-        });
     }
     
     getCSRFToken() {
