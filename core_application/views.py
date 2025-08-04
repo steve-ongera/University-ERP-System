@@ -5664,3 +5664,33 @@ def submission_statistics(request, assignment_id):
     }
     
     return JsonResponse(stats)
+
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+
+@csrf_exempt
+def handler404(request, exception=None):
+    """ Custom 404 error handler """
+    context = {
+        'error_code': '404_NOT_FOUND',
+        'timestamp': timezone.now().isoformat(),
+    }
+    return render(request, '404.html', context, status=404)
+
+@csrf_exempt
+def handler500(request):
+    """ Custom 500 error handler """
+    context = {
+        'error_code': '500_SERVER_ERROR',
+        'timestamp': timezone.now().isoformat(),
+    }
+    return render(request, '500.html', context, status=500)
+
+def custom_permission_denied(request, exception=None):
+    """ Custom 403 error handler """
+    return render(request, '403.html', status=403)
+
+def custom_bad_request(request, exception=None):
+    """ Custom 400 error handler """
+    return render(request, '400.html', status=400)
