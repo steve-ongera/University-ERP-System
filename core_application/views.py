@@ -4151,17 +4151,13 @@ def fee_structure_comparison(request):
     return render(request, 'admin/fee_structure_comparison.html', context)
 
 
-
-
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg, Sum
 from django.utils import timezone
-from .models import (
-    User, Lecturer, Enrollment, Course, Semester, 
-    AcademicYear, Grade, Student
-)
+from datetime import datetime, timedelta
+import json
 
 @login_required
 def lecturer_dashboard(request):
@@ -4172,16 +4168,16 @@ def lecturer_dashboard(request):
     
     lecturer = request.user.lecturer_profile
     
-    # Get current semester
+    # Get current semester and academic year
     current_semester = Semester.objects.filter(is_current=True).first()
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     
-    # Get lecturer's courses for current semester
-    current_courses = Course.objects.filter(
-        department=lecturer.department,
-        enrollments__semester=current_semester,
-        enrollments__lecturer=lecturer
-    ).distinct() if current_semester else Course.objects.none()
+    # Get lecturer's course assignments for current semester
+    current_assignments = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        semester=current_semester,
+        is_active=True
+    ).select_related('course', 'academic_year') if current_semester else LecturerCourseAssignment.objects.none()
     
     # Get total students taught by this lecturer in current semester
     total_students = Enrollment.objects.filter(
@@ -4190,28 +4186,69 @@ def lecturer_dashboard(request):
         is_active=True
     ).count() if current_semester else 0
     
-    # Get courses taught this semester with student counts
-    courses_with_students = []
-    for course in current_courses:
-        student_count = Enrollment.objects.filter(
+    # Get courses taught this semester with detailed statistics
+    courses_with_stats = []
+    total_credit_hours = 0
+    
+    for assignment in current_assignments:
+        course = assignment.course
+        enrollments = Enrollment.objects.filter(
             course=course,
             lecturer=lecturer,
             semester=current_semester,
             is_active=True
+        )
+        
+        student_count = enrollments.count()
+        grades_completed = Grade.objects.filter(
+            enrollment__in=enrollments,
+            grade__isnull=False
         ).count()
-        courses_with_students.append({
+        
+        # Calculate average grade for this course
+        avg_grade_points = Grade.objects.filter(
+            enrollment__in=enrollments,
+            grade_points__isnull=False
+        ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa'] or 0
+        
+        # Get attendance statistics
+        attendance_sessions = AttendanceSession.objects.filter(
+            timetable_slot__course=course,
+            lecturer=lecturer,
+            semester=current_semester
+        )
+        
+        total_sessions = attendance_sessions.count()
+        total_attendance_records = Attendance.objects.filter(
+            attendance_session__in=attendance_sessions,
+            status='present'
+        ).count()
+        
+        # Calculate attendance rate
+        expected_attendance = student_count * total_sessions
+        attendance_rate = (total_attendance_records / expected_attendance * 100) if expected_attendance > 0 else 0
+        
+        courses_with_stats.append({
+            'assignment': assignment,
             'course': course,
-            'student_count': student_count
+            'student_count': student_count,
+            'grades_completed': grades_completed,
+            'grading_progress': (grades_completed / student_count * 100) if student_count > 0 else 0,
+            'avg_grade_points': round(avg_grade_points, 2),
+            'attendance_rate': round(attendance_rate, 1),
+            'total_sessions': total_sessions
         })
+        
+        total_credit_hours += course.credit_hours
     
-    # Get recent enrollments for lecturer's courses
+    # Get recent enrollments
     recent_enrollments = Enrollment.objects.filter(
         lecturer=lecturer,
         semester=current_semester,
         is_active=True
-    ).select_related('student', 'course').order_by('-enrollment_date')[:5] if current_semester else []
+    ).select_related('student__user', 'course').order_by('-enrollment_date')[:8] if current_semester else []
     
-    # Get grading statistics
+    # Calculate overall grading statistics
     total_grades_pending = Enrollment.objects.filter(
         lecturer=lecturer,
         semester=current_semester,
@@ -4223,17 +4260,143 @@ def lecturer_dashboard(request):
         enrollment__semester=current_semester
     ).count() if current_semester else 0
     
-    # Calculate grading progress percentage
     total_enrollments = total_grades_pending + total_grades_completed
     grading_progress = (total_grades_completed / total_enrollments * 100) if total_enrollments > 0 else 0
     
-    # Get lecturer's teaching load (total courses)
-    total_courses_teaching = current_courses.count()
+    # Get attendance analytics for charts
+    attendance_data = []
+    weekly_attendance = []
     
+    if current_semester:
+        # Get weekly attendance data for the last 12 weeks
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(weeks=12)
+        
+        for week in range(12):
+            week_start = start_date + timedelta(weeks=week)
+            week_end = week_start + timedelta(days=6)
+            
+            week_attendance = Attendance.objects.filter(
+                timetable_slot__course__in=[cs['course'] for cs in courses_with_stats],
+                attendance_session__session_date__range=[week_start, week_end],
+                status='present'
+            ).count()
+            
+            week_total = Attendance.objects.filter(
+                timetable_slot__course__in=[cs['course'] for cs in courses_with_stats],
+                attendance_session__session_date__range=[week_start, week_end]
+            ).count()
+            
+            attendance_rate = (week_attendance / week_total * 100) if week_total > 0 else 0
+            
+            weekly_attendance.append({
+                'week': f"Week {week + 1}",
+                'attendance_rate': round(attendance_rate, 1),
+                'total_students': week_total
+            })
+    
+    # Get enrollment trends (monthly data for current academic year)
+    enrollment_trends = []
+    if current_academic_year:
+        for month in range(1, 13):
+            month_enrollments = Enrollment.objects.filter(
+                lecturer=lecturer,
+                enrollment_date__year=current_academic_year.start_date.year,
+                enrollment_date__month=month,
+                is_active=True
+            ).count()
+            
+            enrollment_trends.append({
+                'month': datetime(2024, month, 1).strftime('%B'),
+                'enrollments': month_enrollments
+            })
+    
+    # Get grade distribution data
+    grade_distribution = []
+    if current_semester:
+        grades = Grade.objects.filter(
+            enrollment__lecturer=lecturer,
+            enrollment__semester=current_semester,
+            grade__isnull=False
+        ).values('grade').annotate(count=Count('grade')).order_by('grade')
+        
+        for grade_data in grades:
+            grade_distribution.append({
+                'grade': grade_data['grade'],
+                'count': grade_data['count']
+            })
+    
+    # Get assignment submission statistics
+    assignment_stats = []
+    if current_semester:
+        assignments = Assignment.objects.filter(
+            lecturer_assignment__lecturer=lecturer,
+            lecturer_assignment__semester=current_semester,
+            is_published=True
+        )
+        
+        for assignment in assignments[:5]:  # Latest 5 assignments
+            total_submissions = assignment.submissions.count()
+            submitted_count = assignment.submissions.filter(is_submitted=True).count()
+            pending_count = total_submissions - submitted_count
+            
+            assignment_stats.append({
+                'title': assignment.title,
+                'submitted': submitted_count,
+                'pending': pending_count,
+                'total': total_submissions,
+                'submission_rate': (submitted_count / total_submissions * 100) if total_submissions > 0 else 0
+            })
+    
+    # Get daily schedule for current week
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    week_schedule = []
+    
+    for day in range(7):
+        current_day = week_start + timedelta(days=day)
+        day_sessions = AttendanceSession.objects.filter(
+            lecturer=lecturer,
+            session_date=current_day,
+            is_active=True
+        ).select_related('timetable_slot__course')
+        
+        week_schedule.append({
+            'date': current_day,
+            'day_name': current_day.strftime('%A'),
+            'sessions': day_sessions,
+            'is_today': current_day == today
+        })
+    
+    # Calculate performance metrics
+    performance_metrics = {
+        'total_courses': len(courses_with_stats),
+        'total_credit_hours': total_credit_hours,
+        'avg_class_size': round(total_students / len(courses_with_stats), 1) if courses_with_stats else 0,
+        'overall_attendance_rate': round(sum([cs['attendance_rate'] for cs in courses_with_stats]) / len(courses_with_stats), 1) if courses_with_stats else 0,
+        'avg_grade_points': round(sum([cs['avg_grade_points'] for cs in courses_with_stats]) / len(courses_with_stats), 2) if courses_with_stats else 0
+    }
+    
+    # Get upcoming deadlines
+    upcoming_assignments = Assignment.objects.filter(
+        lecturer_assignment__lecturer=lecturer,
+        lecturer_assignment__semester=current_semester,
+        due_date__gte=timezone.now(),
+        is_published=True
+    ).order_by('due_date')[:5]
+    
+    # Prepare chart data for JSON serialization
+    chart_data = {
+        'weekly_attendance': json.dumps(weekly_attendance),
+        'enrollment_trends': json.dumps(enrollment_trends),
+        'grade_distribution': json.dumps(grade_distribution),
+        'assignment_stats': json.dumps(assignment_stats)
+    }
+
     # Get lecturer's consultation hours and office info
     consultation_hours = lecturer.consultation_hours
     office_location = lecturer.office_location
-    
+
     # Get academic rank and experience
     academic_rank = lecturer.get_academic_rank_display()
     teaching_experience = lecturer.teaching_experience_years
@@ -4243,18 +4406,26 @@ def lecturer_dashboard(request):
         'current_semester': current_semester,
         'current_academic_year': current_academic_year,
         'total_students': total_students,
-        'total_courses_teaching': total_courses_teaching,
-        'courses_with_students': courses_with_students,
+        'courses_with_stats': courses_with_stats,
         'recent_enrollments': recent_enrollments,
         'total_grades_pending': total_grades_pending,
         'total_grades_completed': total_grades_completed,
         'grading_progress': round(grading_progress, 1),
+        'consultation_hours': lecturer.consultation_hours,
+        'office_location': lecturer.office_location,
+        'academic_rank': lecturer.get_academic_rank_display(),
+        'teaching_experience': lecturer.teaching_experience_years,
+        'performance_metrics': performance_metrics,
+        'week_schedule': week_schedule,
+        'upcoming_assignments': upcoming_assignments,
+        'chart_data': chart_data,
+        'today': today,
         'consultation_hours': consultation_hours,
         'office_location': office_location,
         'academic_rank': academic_rank,
         'teaching_experience': teaching_experience,
     }
-    
+
     return render(request, 'lecturers/lecturer_dashboard.html', context)
 
 # views.py - Add these views to your existing views file
