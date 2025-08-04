@@ -1341,8 +1341,95 @@ class Timetable(models.Model):
     def __str__(self):
         return f"{self.course.code} - {self.day_of_week} {self.start_time}-{self.end_time}"
 
+import qrcode
+import io
+import base64
+from datetime import datetime, timedelta
+from django.utils import timezone
+
+class AttendanceSession(models.Model):
+    """QR Code attendance session for each class"""
+    WEEK_CHOICES = [(i, f'Week {i}') for i in range(1, 13)]  # Week 1 to 12
+    
+    timetable_slot = models.ForeignKey(Timetable, on_delete=models.CASCADE, related_name='attendance_sessions')
+    lecturer = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='attendance_sessions')
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='attendance_sessions')
+    week_number = models.IntegerField(choices=WEEK_CHOICES)
+    session_date = models.DateField()
+    session_token = models.CharField(max_length=100, unique=True)  # Unique token for QR code
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()  # 3 hours after creation
+    is_active = models.BooleanField(default=True)
+    qr_code_data = models.TextField(blank=True)  # Base64 encoded QR code image
+    
+    class Meta:
+        unique_together = ['timetable_slot', 'week_number', 'session_date']
+        ordering = ['-created_at']
+    
+    def save(self, *args, **kwargs):
+        if not self.session_token:
+            # Generate unique token
+            import uuid
+            self.session_token = str(uuid.uuid4())
+        
+        if not self.expires_at:
+            # Set expiry to 3 hours from creation
+            self.expires_at = timezone.now() + timedelta(hours=3)
+        
+        super().save(*args, **kwargs)
+        
+        # Generate QR code after saving
+        if not self.qr_code_data:
+            self.generate_qr_code()
+    
+    def generate_qr_code(self):
+        """Generate QR code for attendance session"""
+        from django.urls import reverse
+        from django.contrib.sites.models import Site
+        
+        # Create attendance URL
+        current_site = Site.objects.get_current()
+        attendance_url = f"http://{current_site.domain}{reverse('mark_attendance_qr', kwargs={'token': self.session_token})}"
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(attendance_url)
+        qr.make(fit=True)
+        
+        # Create QR code image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        # Save to model
+        self.qr_code_data = qr_code_base64
+        AttendanceSession.objects.filter(id=self.id).update(qr_code_data=qr_code_base64)
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    @property
+    def qr_code_image_url(self):
+        if self.qr_code_data:
+            return f"data:image/png;base64,{self.qr_code_data}"
+        return None
+    
+    def __str__(self):
+        return f"{self.timetable_slot.course.code} - Week {self.week_number} - {self.session_date}"
+
+
 class Attendance(models.Model):
-    """Student attendance tracking"""
+    """Student attendance tracking - simplified version"""
     STATUS_CHOICES = (
         ('present', 'Present'),
         ('absent', 'Absent'),
@@ -1350,20 +1437,26 @@ class Attendance(models.Model):
         ('excused', 'Excused Absence'),
     )
     
+    WEEK_CHOICES = [(i, f'Week {i}') for i in range(1, 13)]  # Week 1 to 12
+    
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance_records')
+    attendance_session = models.ForeignKey(AttendanceSession, on_delete=models.CASCADE, related_name='attendance_records')
     timetable_slot = models.ForeignKey(Timetable, on_delete=models.CASCADE, related_name='attendance_records')
-    date = models.DateField()
+    week_number = models.IntegerField(choices=WEEK_CHOICES)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
-    marked_by = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='marked_attendance')
-    remarks = models.CharField(max_length=200, blank=True)
     marked_at = models.DateTimeField(auto_now_add=True)
+    remarks = models.CharField(max_length=200, blank=True)
+    
+    # Track how attendance was marked
+    marked_via_qr = models.BooleanField(default=False)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
     
     class Meta:
-        unique_together = ['student', 'timetable_slot', 'date']
-        ordering = ['-date']
+        unique_together = ['student', 'attendance_session', 'week_number']
+        ordering = ['-marked_at']
     
     def __str__(self):
-        return f"{self.student.student_id} - {self.timetable_slot.course.code} - {self.date} - {self.status}"
+        return f"{self.student.student_id} - {self.timetable_slot.course.code} - Week {self.week_number} - {self.status}"
 
 class Notification(models.Model):
     """System notifications"""

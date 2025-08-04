@@ -510,18 +510,62 @@ class TimetableAdmin(admin.ModelAdmin):
         }),
     )
 
+from django.contrib import admin
+from .models import Attendance, AttendanceSession
+from django.utils.html import format_html
+
+
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
-    list_display = ('student', 'get_course', 'date', 'status', 'marked_by', 'marked_at')
-    list_filter = ('status', 'date', 'timetable_slot__course__department', 
-                   'timetable_slot__semester__academic_year')
-    search_fields = ('student__student_id', 'student__user__first_name', 
-                    'timetable_slot__course__code')
+    list_display = ('student', 'get_course', 'get_session_date', 'status', 'marked_via_qr', 'marked_at')
+    list_filter = (
+        'status',
+        'marked_via_qr',
+        'week_number',
+        'timetable_slot__course__department',
+        'timetable_slot__semester__academic_year',
+    )
+    search_fields = (
+        'student__student_id',
+        'student__user__first_name',
+        'student__user__last_name',
+        'timetable_slot__course__code',
+    )
     readonly_fields = ('marked_at',)
-    
+
     def get_course(self, obj):
         return obj.timetable_slot.course.code
     get_course.short_description = 'Course'
+
+    def get_session_date(self, obj):
+        return obj.attendance_session.session_date
+    get_session_date.short_description = 'Session Date'
+
+
+@admin.register(AttendanceSession)
+class AttendanceSessionAdmin(admin.ModelAdmin):
+    list_display = ('timetable_slot', 'lecturer', 'semester', 'week_number', 'session_date', 'is_active', 'show_qr_code')
+    list_filter = ('is_active', 'semester', 'week_number')
+    search_fields = (
+        'timetable_slot__course__code',
+        'lecturer__user__first_name',
+        'lecturer__user__last_name',
+        'session_token',
+    )
+    readonly_fields = ('session_token', 'created_at', 'expires_at', 'qr_code_preview')
+
+    def show_qr_code(self, obj):
+        if obj.qr_code_image_url:
+            return format_html(f'<img src="{obj.qr_code_image_url}" width="100" height="100" />')
+        return "-"
+    show_qr_code.short_description = "QR Code"
+
+    def qr_code_preview(self, obj):
+        if obj.qr_code_image_url:
+            return format_html(f'<img src="{obj.qr_code_image_url}" width="200" height="200" />')
+        return "QR code not generated."
+    qr_code_preview.short_description = "QR Code Preview"
+
 
 # Notification Admin
 @admin.register(Notification)
