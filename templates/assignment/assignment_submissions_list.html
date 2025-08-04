@@ -1,0 +1,876 @@
+<!-- assignment_submissions_list.html -->
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Assignment Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ assignment.title }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ assignment.lecturer_assignment.course.code }}</span> | 
+                            <span class="badge bg-{% if assignment.assignment_type == 'individual' %}info{% else %}warning{% endif %}">
+                                {{ assignment.get_assignment_type_display }}
+                            </span> |
+                            <span class="badge bg-success">{{ assignment.total_marks }} Marks</span> |
+                            <span class="badge bg-secondary">{{ assignment.weight_percentage }}% Weight</span>
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-book me-1"></i>{{ assignment.lecturer_assignment.course.name }}
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-calendar me-1"></i>Due: {{ assignment.due_date|date:"M d, Y H:i" }}
+                            {% if assignment.is_overdue %}
+                            <span class="badge bg-danger ms-2">Overdue</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>Posted: {{ assignment.posted_date|date:"M d, Y H:i" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.submission_rate }}%</h4>
+                            <small class="text-muted">submission rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_enrolled }}</h5>
+                            <p class="small text-muted mb-0">Total Enrolled</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.total_submitted }}</h5>
+                            <p class="small text-muted mb-0">Submitted</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_graded }}</h5>
+                            <p class="small text-muted mb-0">Graded</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.total_pending }}</h5>
+                            <p class="small text-muted mb-0">Pending</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.late_submissions }}</h5>
+                            <p class="small text-muted mb-0">Late</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.avg_score }}%</h5>
+                            <p class="small text-muted mb-0">Average Score</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="showStatistics()">
+                        <i class="bi bi-graph-up"></i> Statistics
+                    </button>
+                    <a href="{% url 'bulk_grade_submissions' assignment.id %}" class="btn btn-warning">
+                        <i class="bi bi-check2-all"></i> Bulk Grade
+                    </a>
+                    <button class="btn btn-info" onclick="exportGrades()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" onclick="filterSubmissions('all')" id="filter-all">All</button>
+                    <button class="btn btn-outline-success" onclick="filterSubmissions('submitted')" id="filter-submitted">Submitted</button>
+                    <button class="btn btn-outline-warning" onclick="filterSubmissions('pending')" id="filter-pending">Pending</button>
+                    <button class="btn btn-outline-info" onclick="filterSubmissions('graded')" id="filter-graded">Graded</button>
+                    <button class="btn btn-outline-danger" onclick="filterSubmissions('late')" id="filter-late">Late</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submissions List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if submission_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="submissionsTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Programme</th>
+                                    <th>Submission Status</th>
+                                    <th>Submitted Date</th>
+                                    <th>Grade Status</th>
+                                    <th>Score</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in submission_data %}
+                                <tr class="submission-row" 
+                                    data-status="{% if data.has_submitted %}submitted{% else %}not-submitted{% endif %}"
+                                    data-graded="{% if data.is_graded %}graded{% else %}pending{% endif %}"
+                                    data-late="{% if data.is_late %}late{% else %}on-time{% endif %}">
+                                    <td>
+                                        <div>
+                                            <strong>{{ data.student.user.get_full_name }}</strong>
+                                            <br><small class="text-muted">{{ data.student.student_id }}</small>
+                                            <br><small class="text-muted">{{ data.student.user.email }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ data.student.programme.code }}</span>
+                                        <br><small>Y{{ data.student.current_year }}S{{ data.student.current_semester }}</small>
+                                    </td>
+                                    <td>
+                                        {% if data.has_submitted %}
+                                            <span class="badge bg-success">Submitted</span>
+                                            {% if data.is_late %}
+                                            <span class="badge bg-danger">Late</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-warning">Not Submitted</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if data.submission and data.submission.submitted_date %}
+                                            {{ data.submission.submitted_date|date:"M d, Y H:i" }}
+                                            {% if data.is_late %}
+                                            <br><small class="text-danger">
+                                                <i class="bi bi-clock"></i> Late by {{ data.submission.submitted_date|timesince:assignment.due_date }}
+                                            </small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if data.has_submitted %}
+                                            {% if data.is_graded %}
+                                                <span class="badge bg-success">Graded</span>
+                                                <br><small class="text-muted">{{ data.submission.graded_date|date:"M d, Y" }}</small>
+                                            {% else %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if data.submission and data.submission.marks_obtained is not None %}
+                                            <strong class="text-primary">{{ data.submission.marks_obtained }}/{{ assignment.total_marks }}</strong>
+                                            <br><small class="text-muted">{{ data.submission.percentage_score|floatformat:1 }}%</small>
+                                            {% if data.submission.percentage_score >= 80 %}
+                                                <span class="badge bg-success">A</span>
+                                            {% elif data.submission.percentage_score >= 70 %}
+                                                <span class="badge bg-info">B</span>
+                                            {% elif data.submission.percentage_score >= 60 %}
+                                                <span class="badge bg-warning">C</span>
+                                            {% elif data.submission.percentage_score >= 50 %}
+                                                <span class="badge bg-secondary">D</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">F</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if data.has_submitted %}
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'grade_submission' data.submission.id %}" 
+                                               class="btn btn-outline-primary" title="Grade Submission">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button class="btn btn-outline-success" 
+                                                    onclick="previewSubmission('{{ data.submission.id }}')" 
+                                                    title="Preview File">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <a href="{{ data.submission.submission_file.url }}" 
+                                               class="btn btn-outline-info" 
+                                               download="{{ data.submission.original_filename }}"
+                                               title="Download File">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            {% if not data.is_graded %}
+                                            <button class="btn btn-outline-warning" 
+                                                    onclick="quickGrade('{{ data.submission.id }}')" 
+                                                    title="Quick Grade">
+                                                <i class="bi bi-lightning"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">No submission</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Submissions pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Submissions Yet</h5>
+                        <p class="text-muted">Students haven't submitted any work for this assignment yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'lecturer_course_detail' assignment.lecturer_assignment.id %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Course
+                    </a>
+                    <button class="btn btn-outline-info" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">File Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContainer" style="height: 600px; position: relative;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading preview...</p>
+                    </div>
+                </div>
+                
+                <!-- PDF.js Controls -->
+                <div class="d-none" id="pdfControls">
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded mt-2">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary btn-sm" id="prevPage">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="nextPage">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div>
+                            Page <span id="pageNum">1</span> of <span id="pageCount">1</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary btn-sm" id="zoomOut">
+                                <i class="bi bi-zoom-out"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="zoomIn">
+                                <i class="bi bi-zoom-in"></i>
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" id="toggleAnnotation">
+                                <i class="bi bi-pencil"></i> Mark
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Canvas for PDF with annotation overlay -->
+                <div class="position-relative d-none" id="pdfCanvasContainer">
+                    <canvas id="pdfCanvas" style="border: 1px solid #ccc;"></canvas>
+                    <canvas id="annotationCanvas" 
+                            style="position: absolute; top: 0; left: 0; cursor: crosshair; pointer-events: none;"
+                            class="d-none"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveAnnotations" style="display: none;">
+                    Save Annotations
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Grade Modal -->
+<div class="modal fade" id="quickGradeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Grade</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickGradeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Marks Obtained</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="quickMarks" min="0" max="{{ assignment.total_marks }}" step="0.5" required>
+                            <span class="input-group-text">/ {{ assignment.total_marks }}</span>
+                        </div>
+                        <div class="form-text">Maximum marks: {{ assignment.total_marks }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quick Feedback (Optional)</label>
+                        <textarea class="form-control" id="quickFeedback" rows="3" placeholder="Brief feedback for the student..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Percentage:</strong> <span id="percentageDisplay">0%</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="submitQuickGrade">Save Grade</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Modal -->
+<div class="modal fade" id="statisticsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assignment Statistics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statisticsContent">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading statistics...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentSubmissionId = null;
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.2;
+    let canvas = null;
+    let ctx = null;
+    let annotationCanvas = null;
+    let annotationCtx = null;
+    let isAnnotating = false;
+    let annotations = [];
+
+    // PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Filter functionality
+    window.filterSubmissions = function(filter) {
+        const rows = document.querySelectorAll('.submission-row');
+        const buttons = document.querySelectorAll('[id^="filter-"]');
+        
+        // Reset button styles
+        buttons.forEach(btn => {
+            btn.classList.remove('btn-primary', 'btn-outline-primary');
+            btn.classList.add('btn-outline-secondary');
+        });
+        
+        // Highlight active filter
+        const activeBtn = document.getElementById(`filter-${filter}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('btn-outline-secondary');
+            activeBtn.classList.add('btn-primary');
+        }
+        
+        rows.forEach(row => {
+            let show = false;
+            
+            switch (filter) {
+                case 'all':
+                    show = true;
+                    break;
+                case 'submitted':
+                    show = row.dataset.status === 'submitted';
+                    break;
+                case 'pending':
+                    show = row.dataset.status === 'submitted' && row.dataset.graded === 'pending';
+                    break;
+                case 'graded':
+                    show = row.dataset.graded === 'graded';
+                    break;
+                case 'late':
+                    show = row.dataset.late === 'late';
+                    break;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    };
+
+    // Preview submission functionality
+    window.previewSubmission = function(submissionId) {
+        currentSubmissionId = submissionId;
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        
+        // Get file URL - you'll need to create an endpoint for this
+        fetch(`/submission/${submissionId}/file-url/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.file_url) {
+                    loadFilePreview(data.file_url, data.file_type);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading file:', error);
+                document.getElementById('previewContainer').innerHTML = 
+                    '<div class="alert alert-danger">Error loading file preview</div>';
+            });
+        
+        modal.show();
+    };
+
+    function loadFilePreview(fileUrl, fileType) {
+        const container = document.getElementById('previewContainer');
+        const pdfControls = document.getElementById('pdfControls');
+        const pdfCanvasContainer = document.getElementById('pdfCanvasContainer');
+        
+        if (fileType === 'pdf' || fileUrl.toLowerCase().endsWith('.pdf')) {
+            // Load PDF
+            container.innerHTML = '';
+            pdfControls.classList.remove('d-none');
+            pdfCanvasContainer.classList.remove('d-none');
+            container.appendChild(pdfCanvasContainer);
+            
+            canvas = document.getElementById('pdfCanvas');
+            ctx = canvas.getContext('2d');
+            annotationCanvas = document.getElementById('annotationCanvas');
+            annotationCtx = annotationCanvas.getContext('2d');
+            
+            loadPDF(fileUrl);
+        } else {
+            // For other file types, show basic info or embed if possible
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-file-earmark display-1 text-muted"></i>
+                    <h5 class="mt-3">File Preview Not Available</h5>
+                    <p class="text-muted">This file type cannot be previewed. Please download to view.</p>
+                    <a href="${fileUrl}" class="btn btn-primary" download>
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                </div>
+            `;
+        }
+    }
+
+    function loadPDF(url) {
+        pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+            pdfDoc = pdfDoc_;
+            document.getElementById('pageCount').textContent = pdfDoc.numPages;
+            
+            // Limit to first 3 pages for preview
+            const maxPages = Math.min(3, pdfDoc.numPages);
+            document.getElementById('pageCount').textContent = maxPages;
+            
+            renderPage(pageNum);
+        }).catch(function(error) {
+            console.error('Error loading PDF:', error);
+            document.getElementById('previewContainer').innerHTML = 
+                '<div class="alert alert-danger">Error loading PDF preview</div>';
+        });
+    }
+
+    function renderPage(num) {
+        pageRendering = true;
+        
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Set annotation canvas to same size
+            annotationCanvas.height = viewport.height;
+            annotationCanvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            const renderTask = page.render(renderContext);
+            
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            });
+        });
+        
+        document.getElementById('pageNum').textContent = num;
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    // PDF Controls
+    document.getElementById('prevPage').addEventListener('click', function() {
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('nextPage').addEventListener('click', function() {
+        const maxPages = Math.min(3, pdfDoc ? pdfDoc.numPages : 1);
+        if (pageNum >= maxPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('zoomIn').addEventListener('click', function() {
+        scale += 0.2;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('zoomOut').addEventListener('click', function() {
+        if (scale <= 0.2) return;
+        scale -= 0.2;
+        queueRenderPage(pageNum);
+    });
+
+    // Annotation functionality
+    document.getElementById('toggleAnnotation').addEventListener('click', function() {
+        isAnnotating = !isAnnotating;
+        const btn = this;
+        const canvas = document.getElementById('annotationCanvas');
+        
+        if (isAnnotating) {
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+            btn.innerHTML = '<i class="bi bi-pencil-fill"></i> Marking';
+            canvas.classList.remove('d-none');
+            canvas.style.pointerEvents = 'auto';
+            document.getElementById('saveAnnotations').style.display = 'inline-block';
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+            btn.innerHTML = '<i class="bi bi-pencil"></i> Mark';
+            canvas.style.pointerEvents = 'none';
+        }
+    });
+
+    // Drawing on annotation canvas
+    let drawing = false;
+    let startX, startY;
+
+    function setupAnnotationEvents() {
+        if (!annotationCanvas) return;
+        
+        annotationCanvas.addEventListener('mousedown', startDrawing);
+        annotationCanvas.addEventListener('mousemove', draw);
+        annotationCanvas.addEventListener('mouseup', stopDrawing);
+        annotationCanvas.addEventListener('mouseout', stopDrawing);
+    }
+
+    function startDrawing(e) {
+        if (!isAnnotating) return;
+        drawing = true;
+        const rect = annotationCanvas.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        
+        annotationCtx.beginPath();
+        annotationCtx.moveTo(startX, startY);
+        annotationCtx.strokeStyle = '#dc3545'; // Red color for marking
+        annotationCtx.lineWidth = 2;
+        annotationCtx.lineCap = 'round';
+    }
+
+    function draw(e) {
+        if (!drawing || !isAnnotating) return;
+        const rect = annotationCanvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        annotationCtx.lineTo(currentX, currentY);
+        annotationCtx.stroke();
+    }
+
+    function stopDrawing() {
+        if (!drawing) return;
+        drawing = false;
+        annotationCtx.beginPath();
+    }
+
+    // Setup annotation events when canvas is ready
+    setTimeout(setupAnnotationEvents, 1000);
+
+    // Quick grade functionality
+    window.quickGrade = function(submissionId) {
+        currentSubmissionId = submissionId;
+        const modal = new bootstrap.Modal(document.getElementById('quickGradeModal'));
+        
+        // Reset form
+        document.getElementById('quickMarks').value = '';
+        document.getElementById('quickFeedback').value = '';
+        document.getElementById('percentageDisplay').textContent = '0%';
+        
+        modal.show();
+    };
+
+    // Calculate percentage on marks input
+    document.getElementById('quickMarks').addEventListener('input', function() {
+        const marks = parseFloat(this.value) || 0;
+        const totalMarks = {{ assignment.total_marks }};
+        const percentage = (marks / totalMarks * 100).toFixed(1);
+        document.getElementById('percentageDisplay').textContent = percentage + '%';
+    });
+
+    // Submit quick grade
+    document.getElementById('submitQuickGrade').addEventListener('click', function() {
+        const marks = document.getElementById('quickMarks').value;
+        const feedback = document.getElementById('quickFeedback').value;
+        
+        if (!marks) {
+            alert('Please enter marks');
+            return;
+        }
+        
+        const formData = {
+            marks_obtained: marks,
+            feedback: feedback
+        };
+        
+        fetch(`/submission/${currentSubmissionId}/quick-grade/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while grading.');
+        });
+    });
+
+    // Statistics functionality
+    window.showStatistics = function() {
+        const modal = new bootstrap.Modal(document.getElementById('statisticsModal'));
+        
+        fetch(`/assignment/{{ assignment.id }}/statistics/`)
+            .then(response => response.json())
+            .then(data => {
+                displayStatistics(data);
+            })
+            .catch(error => {
+                console.error('Error loading statistics:', error);
+                document.getElementById('statisticsContent').innerHTML = 
+                    '<div class="alert alert-danger">Error loading statistics</div>';
+            });
+        
+        modal.show();
+    };
+
+    function displayStatistics(stats) {
+        const content = document.getElementById('statisticsContent');
+        
+        let gradeDistributionHtml = '';
+        stats.grade_distribution.forEach(grade => {
+            const percentage = stats.total_graded > 0 ? (grade.count / stats.total_graded * 100).toFixed(1) : 0;
+            gradeDistributionHtml += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>${grade.name}</span>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 200px;">
+                            <div class="progress-bar" style="width: ${percentage}%"></div>
+                        </div>
+                        <span class="badge bg-secondary">${grade.count} (${percentage}%)</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        content.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Submission Overview</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Total Enrolled:</td>
+                            <td><strong>${stats.total_enrolled}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Submitted:</td>
+                            <td><strong>${stats.total_submitted}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Submission Rate:</td>
+                            <td><strong>${(stats.total_submitted / stats.total_enrolled * 100).toFixed(1)}%</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Late Submissions:</td>
+                            <td><strong>${stats.late_submissions}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Average Score:</td>
+                            <td><strong>${stats.avg_score.toFixed(1)}%</strong></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Grade Distribution</h6>
+                    ${gradeDistributionHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    // Export functionality
+    window.exportGrades = function() {
+        window.open(`/assignment/{{ assignment.id }}/export-grades/`, '_blank');
+    };
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.progress {
+    height: 15px;
+    background-color: #e9ecef;
+}
+
+#annotationCanvas {
+    border: 2px dashed transparent;
+}
+
+#annotationCanvas.annotation-active {
+    border-color: #dc3545;
+}
+
+.submission-row:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+{% endblock %}

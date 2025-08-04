@@ -5301,3 +5301,366 @@ def student_grades(request):
     }
     
     return render(request, 'student/grades_student.html', context)
+
+
+
+# views.py - Add these views to your existing views.py file
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Avg
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+import json
+from decimal import Decimal
+
+from .models import (
+    LecturerCourseAssignment, Assignment, AssignmentSubmission, 
+    Grade, Enrollment, Student, Lecturer
+)
+
+@login_required
+def assignment_submissions_list(request, assignment_id):
+    """View all submissions for a specific assignment"""
+    assignment = get_object_or_404(Assignment, id=assignment_id)
+    lecturer_assignment = assignment.lecturer_assignment
+    
+    # Verify lecturer has access to this assignment
+    if not hasattr(request.user, 'lecturer_profile'):
+        messages.error(request, "Access denied. Only lecturers can view submissions.")
+        return redirect('lecturer_unit_dashboard')
+    
+    lecturer = request.user.lecturer_profile
+    if lecturer_assignment.lecturer != lecturer:
+        messages.error(request, "You don't have permission to view these submissions.")
+        return redirect('lecturer_unit_dashboard')
+    
+    # Get all enrolled students for this course and semester
+    enrolled_students = Enrollment.objects.filter(
+        course=lecturer_assignment.course,
+        semester=lecturer_assignment.semester,
+        is_active=True
+    ).select_related('student__user', 'student__programme')
+    
+    # Get all submissions for this assignment
+    submissions = AssignmentSubmission.objects.filter(
+        assignment=assignment
+    ).select_related('student__user', 'student__programme')
+    
+    # Create a comprehensive list combining enrolled students and their submissions
+    submission_data = []
+    submitted_student_ids = set(submissions.values_list('student_id', flat=True))
+    
+    for enrollment in enrolled_students:
+        student = enrollment.student
+        try:
+            submission = submissions.get(student=student)
+        except AssignmentSubmission.DoesNotExist:
+            submission = None
+        
+        submission_data.append({
+            'student': student,
+            'enrollment': enrollment,
+            'submission': submission,
+            'has_submitted': submission is not None and submission.is_submitted,
+            'is_late': submission.is_late if submission else False,
+            'is_graded': submission and submission.grading_status == 'graded',
+        })
+    
+    # Sort by submission status and student name
+    submission_data.sort(key=lambda x: (
+        not x['has_submitted'],  # Submitted first
+        x['is_late'],  # On-time submissions before late ones
+        x['student'].user.last_name
+    ))
+    
+    # Pagination
+    paginator = Paginator(submission_data, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    total_enrolled = enrolled_students.count()
+    total_submitted = submissions.filter(is_submitted=True).count()
+    total_graded = submissions.filter(grading_status='graded').count()
+    total_pending = total_submitted - total_graded
+    late_submissions = submissions.filter(is_late=True, is_submitted=True).count()
+    
+    # Grade statistics
+    graded_submissions = submissions.filter(grading_status='graded', marks_obtained__isnull=False)
+    avg_score = graded_submissions.aggregate(avg_score=Avg('percentage_score'))['avg_score']
+    
+    context = {
+        'assignment': assignment,
+        'lecturer_assignment': lecturer_assignment,
+        'submission_data': page_obj,
+        'page_obj': page_obj,
+        'stats': {
+            'total_enrolled': total_enrolled,
+            'total_submitted': total_submitted,
+            'total_graded': total_graded,
+            'total_pending': total_pending,
+            'late_submissions': late_submissions,
+            'submission_rate': round((total_submitted / total_enrolled * 100), 1) if total_enrolled > 0 else 0,
+            'avg_score': round(avg_score, 1) if avg_score else 0,
+        }
+    }
+    
+    return render(request, 'assignment/assignment_submissions_list.html', context)
+
+
+@login_required
+def grade_submission(request, submission_id):
+    """Grade a specific submission"""
+    submission = get_object_or_404(AssignmentSubmission, id=submission_id)
+    assignment = submission.assignment
+    lecturer_assignment = assignment.lecturer_assignment
+    
+    # Verify lecturer has access
+    if not hasattr(request.user, 'lecturer_profile'):
+        messages.error(request, "Access denied.")
+        return redirect('lecturer_unit_dashboard')
+    
+    lecturer = request.user.lecturer_profile
+    if lecturer_assignment.lecturer != lecturer:
+        messages.error(request, "You don't have permission to grade this submission.")
+        return redirect('lecturer_unit_dashboard')
+    
+    if request.method == 'POST':
+        try:
+            marks_obtained = Decimal(request.POST.get('marks_obtained', 0))
+            lecturer_feedback = request.POST.get('lecturer_feedback', '')
+            
+            # Validate marks
+            if marks_obtained < 0 or marks_obtained > assignment.total_marks:
+                messages.error(request, f"Marks must be between 0 and {assignment.total_marks}")
+                return redirect('grade_submission', submission_id=submission_id)
+            
+            # Update submission
+            submission.marks_obtained = marks_obtained
+            submission.lecturer_feedback = lecturer_feedback
+            submission.grading_status = 'graded'
+            submission.graded_date = timezone.now()
+            submission.graded_by = request.user
+            submission.save()
+            
+            messages.success(request, f"Submission graded successfully. Score: {submission.percentage_score}%")
+            
+            # Redirect to next ungraded submission or back to list
+            next_submission = AssignmentSubmission.objects.filter(
+                assignment=assignment,
+                grading_status='pending',
+                is_submitted=True
+            ).exclude(id=submission_id).first()
+            
+            if next_submission and request.POST.get('grade_next'):
+                return redirect('grade_submission', submission_id=next_submission.id)
+            else:
+                return redirect('assignment_submissions_list', assignment_id=assignment.id)
+                
+        except (ValueError, TypeError) as e:
+            messages.error(request, "Invalid marks entered. Please enter a valid number.")
+    
+    # Get next and previous submissions for navigation
+    all_submissions = AssignmentSubmission.objects.filter(
+        assignment=assignment,
+        is_submitted=True
+    ).order_by('student__user__last_name')
+    
+    submission_ids = list(all_submissions.values_list('id', flat=True))
+    current_index = submission_ids.index(submission.id) if submission.id in submission_ids else 0
+    
+    next_submission = None
+    prev_submission = None
+    if current_index < len(submission_ids) - 1:
+        next_submission = AssignmentSubmission.objects.get(id=submission_ids[current_index + 1])
+    if current_index > 0:
+        prev_submission = AssignmentSubmission.objects.get(id=submission_ids[current_index - 1])
+    
+    context = {
+        'submission': submission,
+        'assignment': assignment,
+        'lecturer_assignment': lecturer_assignment,
+        'next_submission': next_submission,
+        'prev_submission': prev_submission,
+        'current_position': current_index + 1,
+        'total_submissions': len(submission_ids),
+    }
+    
+    return render(request, 'assignment/grade_submission.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def quick_grade_submission(request, submission_id):
+    """Quick grade submission via AJAX"""
+    submission = get_object_or_404(AssignmentSubmission, id=submission_id)
+    assignment = submission.assignment
+    lecturer_assignment = assignment.lecturer_assignment
+    
+    # Verify lecturer has access
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'success': False, 'message': 'Access denied'})
+    
+    lecturer = request.user.lecturer_profile
+    if lecturer_assignment.lecturer != lecturer:
+        return JsonResponse({'success': False, 'message': 'Permission denied'})
+    
+    try:
+        data = json.loads(request.body)
+        marks_obtained = Decimal(str(data.get('marks_obtained', 0)))
+        feedback = data.get('feedback', '')
+        
+        # Validate marks
+        if marks_obtained < 0 or marks_obtained > assignment.total_marks:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Marks must be between 0 and {assignment.total_marks}'
+            })
+        
+        # Update submission
+        submission.marks_obtained = marks_obtained
+        submission.lecturer_feedback = feedback
+        submission.grading_status = 'graded'
+        submission.graded_date = timezone.now()
+        submission.graded_by = request.user
+        submission.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Submission graded successfully',
+            'percentage_score': float(submission.percentage_score),
+            'graded_date': submission.graded_date.strftime('%Y-%m-%d %H:%M')
+        })
+        
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
+        return JsonResponse({'success': False, 'message': 'Invalid data provided'})
+
+
+@login_required
+def bulk_grade_submissions(request, assignment_id):
+    """Bulk grade multiple submissions"""
+    assignment = get_object_or_404(Assignment, id=assignment_id)
+    lecturer_assignment = assignment.lecturer_assignment
+    
+    # Verify lecturer has access
+    if not hasattr(request.user, 'lecturer_profile'):
+        messages.error(request, "Access denied.")
+        return redirect('lecturer_unit_dashboard')
+    
+    lecturer = request.user.lecturer_profile
+    if lecturer_assignment.lecturer != lecturer:
+        messages.error(request, "Permission denied.")
+        return redirect('lecturer_unit_dashboard')
+    
+    if request.method == 'POST':
+        try:
+            graded_count = 0
+            errors = []
+            
+            for key, value in request.POST.items():
+                if key.startswith('marks_'):
+                    submission_id = key.replace('marks_', '')
+                    try:
+                        submission = AssignmentSubmission.objects.get(
+                            id=submission_id, 
+                            assignment=assignment
+                        )
+                        marks = Decimal(str(value)) if value else None
+                        feedback = request.POST.get(f'feedback_{submission_id}', '')
+                        
+                        if marks is not None:
+                            if marks < 0 or marks > assignment.total_marks:
+                                errors.append(f"Invalid marks for {submission.student.user.get_full_name()}")
+                                continue
+                            
+                            submission.marks_obtained = marks
+                            submission.lecturer_feedback = feedback
+                            submission.grading_status = 'graded'
+                            submission.graded_date = timezone.now()
+                            submission.graded_by = request.user
+                            submission.save()
+                            graded_count += 1
+                            
+                    except (AssignmentSubmission.DoesNotExist, ValueError, TypeError):
+                        errors.append(f"Error grading submission {submission_id}")
+            
+            if graded_count > 0:
+                messages.success(request, f"Successfully graded {graded_count} submissions.")
+            
+            if errors:
+                messages.warning(request, f"Errors occurred: {'; '.join(errors)}")
+            
+            return redirect('assignment_submissions_list', assignment_id=assignment_id)
+            
+        except Exception as e:
+            messages.error(request, "An error occurred during bulk grading.")
+    
+    # Get all submitted but ungraded submissions
+    submissions = AssignmentSubmission.objects.filter(
+        assignment=assignment,
+        is_submitted=True
+    ).select_related('student__user').order_by('student__user__last_name')
+    
+    context = {
+        'assignment': assignment,
+        'lecturer_assignment': lecturer_assignment,
+        'submissions': submissions,
+    }
+    
+    return render(request, 'assignment/bulk_grade_submissions.html', context)
+
+
+@login_required
+def submission_statistics(request, assignment_id):
+    """View detailed statistics for assignment submissions"""
+    assignment = get_object_or_404(Assignment, id=assignment_id)
+    lecturer_assignment = assignment.lecturer_assignment
+    
+    # Verify lecturer has access
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Access denied'})
+    
+    lecturer = request.user.lecturer_profile
+    if lecturer_assignment.lecturer != lecturer:
+        return JsonResponse({'error': 'Permission denied'})
+    
+    submissions = AssignmentSubmission.objects.filter(assignment=assignment, is_submitted=True)
+    
+    # Grade distribution
+    grade_ranges = [
+        {'name': 'A (80-100)', 'min': 80, 'max': 100, 'count': 0},
+        {'name': 'B (70-79)', 'min': 70, 'max': 79, 'count': 0},
+        {'name': 'C (60-69)', 'min': 60, 'max': 69, 'count': 0},
+        {'name': 'D (50-59)', 'min': 50, 'max': 59, 'count': 0},
+        {'name': 'F (0-49)', 'min': 0, 'max': 49, 'count': 0},
+    ]
+    
+    for submission in submissions.filter(grading_status='graded'):
+        score = submission.percentage_score or 0
+        for grade_range in grade_ranges:
+            if grade_range['min'] <= score <= grade_range['max']:
+                grade_range['count'] += 1
+                break
+    
+    stats = {
+        'total_enrolled': Enrollment.objects.filter(
+            course=lecturer_assignment.course,
+            semester=lecturer_assignment.semester,
+            is_active=True
+        ).count(),
+        'total_submitted': submissions.count(),
+        'total_graded': submissions.filter(grading_status='graded').count(),
+        'late_submissions': submissions.filter(is_late=True).count(),
+        'avg_score': submissions.filter(
+            grading_status='graded', 
+            percentage_score__isnull=False
+        ).aggregate(avg=Avg('percentage_score'))['avg'] or 0,
+        'grade_distribution': grade_ranges,
+    }
+    
+    return JsonResponse(stats)

@@ -130,8 +130,13 @@ urlpatterns = [
     
     # Notes and Downloads
     path('student/notes/<int:notes_id>/download/', views.download_notes, name='download_notes'),
-    
-    # Grades
     path('student/grades/', views.student_grades, name='student_grades'),
+
+    # Assignment Submission URLs
+    path('assignment/<int:assignment_id>/submissions/', views.assignment_submissions_list, name='assignment_submissions_list'),
+    path('submission/<int:submission_id>/grade/', views.grade_submission, name='grade_submission'),   
+    path('submission/<int:submission_id>/quick-grade/', views.quick_grade_submission, name='quick_grade_submission'), 
+    path('assignment/<int:assignment_id>/bulk-grade/', views.bulk_grade_submissions, name='bulk_grade_submissions'),
+    path('assignment/<int:assignment_id>/statistics/', views.submission_statistics, name='submission_statistics'),
 
 ]

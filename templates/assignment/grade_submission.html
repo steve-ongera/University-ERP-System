@@ -1,0 +1,859 @@
+<!-- grade_submission.html -->
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header with Navigation -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'lecturer_course_detail' lecturer_assignment.id %}">{{ assignment.lecturer_assignment.course.code }}</a>
+                                </li>
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'assignment_submissions_list' assignment.id %}">{{ assignment.title }}</a>
+                                </li>
+                                <li class="breadcrumb-item active">Grade Submission</li>
+                            </ol>
+                        </nav>
+                        
+                        <h2 class="fw-bold">Grade Submission</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <strong>{{ submission.student.user.get_full_name }}</strong> 
+                            ({{ submission.student.student_id }})
+                        </p>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-mortarboard me-1"></i>
+                            {{ submission.student.programme.name }} - Y{{ submission.student.current_year }}S{{ submission.student.current_semester }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-envelope me-1"></i>{{ submission.student.user.email }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ current_position }}/{{ total_submissions }}</h4>
+                            <small class="text-muted">submissions</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Info -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-journal-text me-1"></i>Assignment Details</h6>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ assignment.title }}</h5>
+                    <p class="card-text">{{ assignment.description|truncatechars:150 }}</p>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Type:</strong> {{ assignment.get_assignment_type_display }}</p>
+                            <p class="mb-1"><strong>Total Marks:</strong> {{ assignment.total_marks }}</p>
+                            <p class="mb-1"><strong>Weight:</strong> {{ assignment.weight_percentage }}%</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Due Date:</strong></p>
+                            <p class="text-muted">{{ assignment.due_date|date:"M d, Y H:i" }}</p>
+                            {% if assignment.is_overdue %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-upload me-1"></i>Submission Info</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Status:</strong></p>
+                            {% if submission.is_submitted %}
+                                <span class="badge bg-success">Submitted</span>
+                                {% if submission.is_late %}
+                                <span class="badge bg-danger">Late</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Submitted:</strong></p>
+                            <p class="text-muted">{{ submission.submitted_date|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if submission.is_late %}
+                    <div class="alert alert-warning mt-2">
+                        <i class="bi bi-clock me-1"></i>
+                        <strong>Late Submission:</strong> 
+                        Submitted {{ submission.submitted_date|timesince:assignment.due_date }} after deadline
+                    </div>
+                    {% endif %}
+                    
+                    {% if submission.student_comments %}
+                    <div class="mt-2">
+                        <strong>Student Comments:</strong>
+                        <p class="text-muted small">{{ submission.student_comments }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-2">
+                        <strong>File:</strong> 
+                        <a href="{{ submission.submission_file.url }}" class="text-decoration-none" download="{{ submission.original_filename }}">
+                            <i class="bi bi-file-earmark"></i> {{ submission.original_filename }}
+                            {% if submission.file_size %}
+                            ({{ submission.file_size|filesizeformat }})
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content: File Preview and Grading -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- File Preview -->
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-eye me-1"></i>File Preview</h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="toggleFullscreen()">
+                            <i class="bi bi-arrows-fullscreen"></i>
+                        </button>
+                        <a href="{{ submission.submission_file.url }}" class="btn btn-outline-success" download="{{ submission.original_filename }}">
+                            <i class="bi bi-download"></i> Download
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="filePreviewContainer" style="height: 600px; overflow: auto; position: relative;">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading preview...</span>
+                            </div>
+                            <p class="mt-2">Loading file preview...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- PDF Controls -->
+                    <div class="d-none bg-light p-2" id="pdfControls">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary" id="prevPage" disabled>
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" id="nextPage">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+                            <div class="text-center">
+                                <span class="small">Page <span id="pageNum">1</span> of <span id="pageCount">1</span></span>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary" id="zoomOut">
+                                    <i class="bi bi-zoom-out"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" id="zoomIn">
+                                    <i class="bi bi-zoom-in"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" id="toggleAnnotation">
+                                    <i class="bi bi-pencil"></i> Mark
+                                </button>
+                                <button class="btn btn-outline-warning" id="clearAnnotations">
+                                    <i class="bi bi-eraser"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Canvas Container for PDF -->
+                    <div class="d-none position-relative" id="canvasContainer" style="text-align: center; padding: 20px;">
+                        <canvas id="pdfCanvas" style="border: 1px solid #ccc; max-width: 100%;"></canvas>
+                        <canvas id="annotationCanvas" 
+                                style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); cursor: crosshair; pointer-events: none; border: 1px solid #ccc;"
+                                class="d-none"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Grading Form -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-clipboard-check me-1"></i>Grade Submission</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="gradingForm">
+                        {% csrf_token %}
+                        
+                        <!-- Current Grade Display -->
+                        {% if submission.marks_obtained is not None %}
+                        <div class="alert alert-info">
+                            <h6 class="mb-1">Current Grade</h6>
+                            <div class="d-flex justify-content-between">
+                                <span><strong>{{ submission.marks_obtained }}/{{ assignment.total_marks }}</strong></span>
+                                <span class="badge bg-primary">{{ submission.percentage_score|floatformat:1 }}%</span>
+                            </div>
+                            {% if submission.graded_date %}
+                            <small class="text-muted">Graded on {{ submission.graded_date|date:"M d, Y H:i" }}</small>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Marks Input -->
+                        <div class="mb-3">
+                            <label for="marks_obtained" class="form-label">
+                                <strong>Marks Obtained</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="marks_obtained" 
+                                       name="marks_obtained" 
+                                       min="0" 
+                                       max="{{ assignment.total_marks }}" 
+                                       step="0.5"
+                                       value="{{ submission.marks_obtained|default:'' }}"
+                                       required>
+                                <span class="input-group-text">/ {{ assignment.total_marks }}</span>
+                            </div>
+                            <div class="form-text">
+                                Maximum marks: {{ assignment.total_marks }}
+                            </div>
+                            
+                            <!-- Real-time percentage calculation -->
+                            <div class="mt-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="small text-muted">Percentage:</span>
+                                    <span class="badge bg-secondary" id="percentageDisplay">0%</span>
+                                </div>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar" id="percentageBar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Grade Scale Reference -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-info btn-sm w-100" data-bs-toggle="collapse" data-bs-target="#gradeScale">
+                                <i class="bi bi-info-circle"></i> Grade Scale Reference
+                            </button>
+                            <div class="collapse mt-2" id="gradeScale">
+                                <div class="small">
+                                    <div class="d-flex justify-content-between"><span>A:</span><span>80-100%</span></div>
+                                    <div class="d-flex justify-content-between"><span>B:</span><span>70-79%</span></div>
+                                    <div class="d-flex justify-content-between"><span>C:</span><span>60-69%</span></div>
+                                    <div class="d-flex justify-content-between"><span>D:</span><span>50-59%</span></div>
+                                    <div class="d-flex justify-content-between"><span>F:</span><span>0-49%</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Feedback -->
+                        <div class="mb-3">
+                            <label for="lecturer_feedback" class="form-label">
+                                <strong>Feedback for Student</strong>
+                            </label>
+                            <textarea class="form-control" 
+                                      id="lecturer_feedback" 
+                                      name="lecturer_feedback" 
+                                      rows="5" 
+                                      placeholder="Provide detailed feedback on the student's work...">{{ submission.lecturer_feedback }}</textarea>
+                            <div class="form-text">
+                                Constructive feedback helps students improve
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Feedback Templates -->
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">Quick Feedback Templates:</label>
+                            <div class="btn-group-vertical w-100" role="group">
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="addFeedback('Excellent work! Well structured and thoroughly researched.')">
+                                    <i class="bi bi-plus"></i> Excellent Work
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="addFeedback('Good effort. Consider improving organization and clarity.')">
+                                    <i class="bi bi-plus"></i> Good Effort
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="addFeedback('Needs improvement. Please review assignment requirements.')">
+                                    <i class="bi bi-plus"></i> Needs Improvement
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addFeedback('Incomplete submission. Please ensure all requirements are met.')">
+                                    <i class="bi bi-plus"></i> Incomplete
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Save Grade
+                            </button>
+                            <button type="submit" name="grade_next" value="true" class="btn btn-primary">
+                                <i class="bi bi-arrow-right-circle"></i> Save & Grade Next
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-1"></i>Navigation</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        {% if prev_submission %}
+                        <a href="{% url 'grade_submission' prev_submission.id %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </button>
+                        {% endif %}
+                        
+                        {% if next_submission %}
+                        <a href="{% url 'grade_submission' next_submission.id %}" class="btn btn-outline-secondary btn-sm">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                            Next <i class="bi bi-chevron-right"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="text-center">
+                        <small class="text-muted">{{ current_position }} of {{ total_submissions }} submissions</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-grid">
+                        <a href="{% url 'assignment_submissions_list' assignment.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-list"></i> All Submissions
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Assignment Statistics -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-graph-up me-1"></i>Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div id="quickStats">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // PDF.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.0;
+    let canvas = null;
+    let ctx = null;
+    let annotationCanvas = null;
+    let annotationCtx = null;
+    let isAnnotating = false;
+    let annotations = [];
+    let drawing = false;
+
+    // Initialize file preview
+    initializeFilePreview();
+    
+    // Load quick statistics
+    loadQuickStats();
+    
+    // Setup real-time percentage calculation
+    setupPercentageCalculation();
+    
+    // Setup annotation functionality
+    setupAnnotations();
+
+    function initializeFilePreview() {
+        const fileUrl = '{{ submission.submission_file.url }}';
+        const fileName = '{{ submission.original_filename }}';
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        
+        if (fileExtension === 'pdf') {
+            loadPDFPreview(fileUrl);
+        } else if (['doc', 'docx'].includes(fileExtension)) {
+            loadDocumentPreview(fileUrl, fileName);
+        } else {
+            loadGenericPreview(fileUrl, fileName);
+        }
+    }
+
+    function loadPDFPreview(url) {
+        const container = document.getElementById('filePreviewContainer');
+        const controls = document.getElementById('pdfControls');
+        const canvasContainer = document.getElementById('canvasContainer');
+        
+        // Show PDF controls and canvas
+        controls.classList.remove('d-none');
+        canvasContainer.classList.remove('d-none');
+        
+        // Setup canvas elements
+        canvas = document.getElementById('pdfCanvas');
+        ctx = canvas.getContext('2d');
+        annotationCanvas = document.getElementById('annotationCanvas');
+        annotationCtx = annotationCanvas.getContext('2d');
+        
+        // Load PDF
+        pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+            pdfDoc = pdfDoc_;
+            
+            // Limit to first 3 pages for preview
+            const maxPages = Math.min(3, pdfDoc.numPages);
+            document.getElementById('pageCount').textContent = maxPages;
+            
+            renderPage(pageNum);
+            setupPDFControls();
+        }).catch(function(error) {
+            console.error('Error loading PDF:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger m-3">
+                    <h6>Error Loading PDF</h6>
+                    <p>Could not load PDF preview. Please download the file to view it.</p>
+                    <a href="${url}" class="btn btn-primary btn-sm" download>
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                </div>
+            `;
+        });
+    }
+
+    function renderPage(num) {
+        pageRendering = true;
+        
+        // Clear previous annotations when changing pages
+        if (annotationCtx) {
+            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+        }
+        
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Set annotation canvas to same size and position
+            annotationCanvas.height = viewport.height;
+            annotationCanvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            const renderTask = page.render(renderContext);
+            
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            });
+        });
+        
+        document.getElementById('pageNum').textContent = num;
+        
+        // Update navigation buttons
+        document.getElementById('prevPage').disabled = (num <= 1);
+        const maxPages = Math.min(3, pdfDoc ? pdfDoc.numPages : 1);
+        document.getElementById('nextPage').disabled = (num >= maxPages);
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    function setupPDFControls() {
+        document.getElementById('prevPage').addEventListener('click', function() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        });
+
+        document.getElementById('nextPage').addEventListener('click', function() {
+            const maxPages = Math.min(3, pdfDoc ? pdfDoc.numPages : 1);
+            if (pageNum >= maxPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        });
+
+        document.getElementById('zoomIn').addEventListener('click', function() {
+            scale += 0.2;
+            queueRenderPage(pageNum);
+        });
+
+        document.getElementById('zoomOut').addEventListener('click', function() {
+            if (scale <= 0.4) return;
+            scale -= 0.2;
+            queueRenderPage(pageNum);
+        });
+    }
+
+    function loadDocumentPreview(url, fileName) {
+        const container = document.getElementById('filePreviewContainer');
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-file-earmark-word display-1 text-primary"></i>
+                <h5 class="mt-3">Word Document</h5>
+                <p class="text-muted">${fileName}</p>
+                <p class="text-muted">Preview not available for Word documents</p>
+                <div class="btn-group">
+                    <a href="${url}" class="btn btn-primary" download="${fileName}">
+                        <i class="bi bi-download"></i> Download to View
+                    </a>
+                    <button class="btn btn-outline-info" onclick="openInNewTab('${url}')">
+                        <i class="bi bi-box-arrow-up-right"></i> Open in New Tab
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function loadGenericPreview(url, fileName) {
+        const container = document.getElementById('filePreviewContainer');
+        const extension = fileName.split('.').pop().toLowerCase();
+        
+        let iconClass = 'bi-file-earmark';
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
+            iconClass = 'bi-file-earmark-image';
+        } else if (['txt'].includes(extension)) {
+            iconClass = 'bi-file-earmark-text';
+        } else if (['zip', 'rar'].includes(extension)) {
+            iconClass = 'bi-file-earmark-zip';
+        }
+        
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi ${iconClass} display-1 text-muted"></i>
+                <h5 class="mt-3">${fileName}</h5>
+                <p class="text-muted">File type: ${extension.toUpperCase()}</p>
+                <div class="btn-group">
+                    <a href="${url}" class="btn btn-primary" download="${fileName}">
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                    <button class="btn btn-outline-info" onclick="openInNewTab('${url}')">
+                        <i class="bi bi-box-arrow-up-right"></i> Open in New Tab
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function setupAnnotations() {
+        const toggleBtn = document.getElementById('toggleAnnotation');
+        const clearBtn = document.getElementById('clearAnnotations');
+        
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                isAnnotating = !isAnnotating;
+                
+                if (isAnnotating) {
+                    this.classList.remove('btn-outline-danger');
+                    this.classList.add('btn-danger');
+                    this.innerHTML = '<i class="bi bi-pencil-fill"></i> Marking';
+                    annotationCanvas.classList.remove('d-none');
+                    annotationCanvas.style.pointerEvents = 'auto';
+                    annotationCanvas.style.cursor = 'crosshair';
+                } else {
+                    this.classList.remove('btn-danger');
+                    this.classList.add('btn-outline-danger');
+                    this.innerHTML = '<i class="bi bi-pencil"></i> Mark';
+                    annotationCanvas.style.pointerEvents = 'none';
+                    annotationCanvas.style.cursor = 'default';
+                }
+            });
+        }
+        
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (annotationCtx) {
+                    annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                    annotations = [];
+                }
+            });
+        }
+        
+        // Setup drawing events
+        setupDrawingEvents();
+    }
+
+    function setupDrawingEvents() {
+        if (!annotationCanvas) return;
+        
+        let startX, startY;
+        
+        annotationCanvas.addEventListener('mousedown', function(e) {
+            if (!isAnnotating) return;
+            
+            drawing = true;
+            const rect = annotationCanvas.getBoundingClientRect();
+            startX = (e.clientX - rect.left) * (annotationCanvas.width / rect.width);
+            startY = (e.clientY - rect.top) * (annotationCanvas.height / rect.height);
+            
+            annotationCtx.beginPath();
+            annotationCtx.moveTo(startX, startY);
+            annotationCtx.strokeStyle = '#dc3545'; // Red color for marking
+            annotationCtx.lineWidth = 2;
+            annotationCtx.lineCap = 'round';
+            annotationCtx.lineJoin = 'round';
+        });
+        
+        annotationCanvas.addEventListener('mousemove', function(e) {
+            if (!drawing || !isAnnotating) return;
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const currentX = (e.clientX - rect.left) * (annotationCanvas.width / rect.width);
+            const currentY = (e.clientY - rect.top) * (annotationCanvas.height / rect.height);
+            
+            annotationCtx.lineTo(currentX, currentY);
+            annotationCtx.stroke();
+        });
+        
+        annotationCanvas.addEventListener('mouseup', function() {
+            if (!drawing) return;
+            drawing = false;
+            annotationCtx.beginPath();
+        });
+        
+        annotationCanvas.addEventListener('mouseleave', function() {
+            if (!drawing) return;
+            drawing = false;
+            annotationCtx.beginPath();
+        });
+    }
+
+    function setupPercentageCalculation() {
+        const marksInput = document.getElementById('marks_obtained');
+        const percentageDisplay = document.getElementById('percentageDisplay');
+        const percentageBar = document.getElementById('percentageBar');
+        const totalMarks = {{ assignment.total_marks }};
+        
+        function updatePercentage() {
+            const marks = parseFloat(marksInput.value) || 0;
+            const percentage = Math.round((marks / totalMarks) * 100);
+            
+            percentageDisplay.textContent = percentage + '%';
+            percentageBar.style.width = percentage + '%';
+            
+            // Update progress bar color based on grade
+            percentageBar.className = 'progress-bar';
+            if (percentage >= 80) {
+                percentageBar.classList.add('bg-success');
+            } else if (percentage >= 70) {
+                percentageBar.classList.add('bg-info');
+            } else if (percentage >= 60) {
+                percentageBar.classList.add('bg-warning');
+            } else if (percentage >= 50) {
+                percentageBar.classList.add('bg-secondary');
+            } else {
+                percentageBar.classList.add('bg-danger');
+            }
+        }
+        
+        marksInput.addEventListener('input', updatePercentage);
+        
+        // Initial calculation
+        if (marksInput.value) {
+            updatePercentage();
+        }
+    }
+
+    function loadQuickStats() {
+        fetch('/assignment/{{ assignment.id }}/statistics/')
+            .then(response => response.json())
+            .then(data => {
+                const statsContainer = document.getElementById('quickStats');
+                statsContainer.innerHTML = `
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6 class="text-primary">${data.total_submitted}</h6>
+                            <small class="text-muted">Submitted</small>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-success">${data.total_graded}</h6>
+                            <small class="text-muted">Graded</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h6 class="text-info">${data.avg_score.toFixed(1)}%</h6>
+                        <small class="text-muted">Average Score</small>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+                document.getElementById('quickStats').innerHTML = 
+                    '<small class="text-muted">Stats unavailable</small>';
+            });
+    }
+
+    // Helper functions
+    window.addFeedback = function(text) {
+        const textarea = document.getElementById('lecturer_feedback');
+        const currentValue = textarea.value.trim();
+        
+        if (currentValue) {
+            textarea.value = currentValue + '\n\n' + text;
+        } else {
+            textarea.value = text;
+        }
+        
+        // Focus and scroll to end
+        textarea.focus();
+        textarea.scrollTop = textarea.scrollHeight;
+    };
+
+    window.openInNewTab = function(url) {
+        window.open(url, '_blank');
+    };
+
+    window.toggleFullscreen = function() {
+        const container = document.getElementById('filePreviewContainer');
+        
+        if (!document.fullscreenElement) {
+            container.requestFullscreen().catch(err => {
+                console.error('Error attempting to enable fullscreen:', err);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    // Form validation
+    document.getElementById('gradingForm').addEventListener('submit', function(e) {
+        const marks = document.getElementById('marks_obtained').value;
+        const totalMarks = {{ assignment.total_marks }};
+        
+        if (!marks || marks === '') {
+            e.preventDefault();
+            alert('Please enter marks for this submission.');
+            return false;
+        }
+        
+        if (parseFloat(marks) < 0 || parseFloat(marks) > totalMarks) {
+            e.preventDefault();
+            alert(`Marks must be between 0 and ${totalMarks}.`);
+            return false;
+        }
+        
+        // Show loading state
+        const submitBtns = this.querySelectorAll('button[type="submit"]');
+        submitBtns.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+        });
+    });
+});
+</script>
+
+<style>
+.progress {
+    height: 6px;
+}
+
+#annotationCanvas {
+    border: 2px dashed transparent;
+}
+
+#annotationCanvas:not(.d-none) {
+    border-color: #dc3545;
+}
+
+.card {
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+@media print {
+    .btn, .card-footer, .modal {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+#filePreviewContainer {
+    background-color: #f8f9fa;
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 2px;
+}
+
+.btn-group-vertical .btn:last-child {
+    margin-bottom: 0;
+}
+</style>
+
+{% endblock %}

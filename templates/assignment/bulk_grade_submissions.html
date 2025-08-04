@@ -1,0 +1,68 @@
+<!-- bulk_grade_submissions.html -->
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'lecturer_course_detail' lecturer_assignment.id %}">{{ lecturer_assignment.course.code }}</a>
+                                </li>
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'assignment_submissions_list' assignment.id %}">{{ assignment.title }}</a>
+                                </li>
+                                <li class="breadcrumb-item active">Bulk Grade</li>
+                            </ol>
+                        </nav>
+                        
+                        <h2 class="fw-bold">Bulk Grade Submissions</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ assignment.lecturer_assignment.course.code }}</span> |
+                            <span class="badge bg-success">{{ assignment.total_marks }} Marks</span> |
+                            <span class="badge bg-info">{{ assignment.weight_percentage }}% Weight</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-journal-text me-1"></i>{{ assignment.title }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ submissions|length }}</h4>
+                            <small class="text-muted">submissions to grade</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Grading Instructions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Bulk Grading Instructions</h6>
+                <ul class="mb-0">
+                    <li>Enter marks for each submission in the table below</li>
+                    <li>Add optional feedback for individual students</li>
+                    <li>Leave marks blank to skip grading for that submission</li>
+                    <li>All changes will be saved when you click "Save All Grades"</li>
