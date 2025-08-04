@@ -4960,8 +4960,8 @@ def student_course_detail(request, enrollment_id):
     for assignment in assignments:
         assignment.student_submission = submission_dict.get(assignment.id)
         assignment.is_submitted = assignment.id in submission_dict and submission_dict[assignment.id].is_submitted
-        assignment.is_overdue = assignment.due_date < timezone.now()
-        assignment.can_submit = not assignment.is_overdue or assignment.late_submission_allowed
+        assignment.is_late = assignment.due_date < timezone.now()
+        assignment.can_submit = not assignment.is_late or assignment.late_submission_allowed
     
     # Get course notes
     course_notes = CourseNotes.objects.filter(

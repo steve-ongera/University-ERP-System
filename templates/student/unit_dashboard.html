@@ -1,4 +1,4 @@
-{% extends 'student_base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
@@ -59,7 +59,7 @@
                     <div class="row text-center">
                         <div class="col-md-2 border-end">
                             <h5 class="text-primary">{{ total_courses }}</h5>
-                            <p class="small text-muted mb-0">Enrolled Courses</p>
+                            <p class="small text-muted mb-0">Enrolled units</p>
                         </div>
                         <div class="col-md-2 border-end">
                             <h5 class="text-success">{{ total_assignments }}</h5>
@@ -127,7 +127,7 @@
             <div class="card shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0 fw-bold">
-                        <i class="bi bi-book me-2"></i>My Courses
+                        <i class="bi bi-book me-2"></i>My Units
                         {% if current_semester %}
                         <small class="text-muted">({{ current_semester.academic_year.year }} - Semester {{ current_semester.semester_number }})</small>
                         {% endif %}
@@ -156,7 +156,7 @@
                                     
                                     <div class="row text-center mt-3">
                                         <div class="col-4">
-                                            <small class="text-muted">Assignments</small>
+                                            <small class="text-muted">Assignment</small>
                                             <h6>{{ stat.total_assignments }}</h6>
                                         </div>
                                         <div class="col-4">
@@ -183,7 +183,7 @@
                                 </div>
                                 <div class="card-footer">
                                     <a href="{% url 'student_course_detail' stat.enrollment.id %}" class="btn btn-primary btn-sm w-100">
-                                        <i class="bi bi-arrow-right me-1"></i>View Course Details
+                                        <i class="bi bi-arrow-right me-1"></i>View unit Details
                                     </a>
                                 </div>
                             </div>
