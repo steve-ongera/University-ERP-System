@@ -34,6 +34,11 @@ SITE_ID = 1
 
 AUTH_USER_MODEL='core_application.User'
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://6493f9542099.ngrok-free.app"
+]
+
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
