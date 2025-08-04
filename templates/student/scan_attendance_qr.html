@@ -139,6 +139,37 @@
     </div>
 </div>
 
+<!-- Camera Permission Modal -->
+<div class="modal fade" id="cameraPermissionModal" tabindex="-1" aria-labelledby="cameraPermissionModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="cameraPermissionModalLabel">
+                    <i class="bi bi-camera me-2"></i>Camera Permission Required
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-camera-video text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <h6>Allow Camera Access</h6>
+                <p class="text-muted">To scan QR codes, we need access to your device camera. Please click "Allow Camera Access" and then allow permission when prompted by your browser.</p>
+                <div class="alert alert-info">
+                    <small><strong>Mobile Users:</strong> Make sure to allow camera permission when your browser asks.</small>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" id="allowCameraBtn">
+                    <i class="bi bi-camera me-2"></i>Allow Camera Access
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="useManuaInputBtn">
+                    <i class="bi bi-keyboard me-2"></i>Use Manual Input
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- QR Code Scanner JavaScript -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
 
@@ -160,27 +191,116 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorText = document.getElementById('errorText');
     const manualToken = document.getElementById('manualToken');
     const submitTokenBtn = document.getElementById('submitTokenBtn');
+    
+    // Modal elements
+    const cameraPermissionModal = new bootstrap.Modal(document.getElementById('cameraPermissionModal'));
+    const allowCameraBtn = document.getElementById('allowCameraBtn');
+    const useManuaInputBtn = document.getElementById('useManuaInputBtn');
 
     let qrScanner = null;
     let isScanning = false;
+    let cameraPermissionGranted = false;
 
-    // Initialize camera
+    // Check if device is mobile
+    function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    // Show camera permission modal
+    function showCameraPermissionModal() {
+        loadingCamera.classList.add('d-none');
+        cameraPermissionModal.show();
+    }
+
+    // Force camera permission request
+    async function forceCameraPermission() {
+        try {
+            // Show loading
+            allowCameraBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Requesting Permission...';
+            allowCameraBtn.disabled = true;
+
+            // Try multiple approaches for mobile devices
+            const constraints = {
+                video: {
+                    facingMode: isMobileDevice() ? 'environment' : 'user', // Use back camera on mobile
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            // Request permission using getUserMedia first
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            // Stop the stream immediately (we just needed permission)
+            stream.getTracks().forEach(track => track.stop());
+            
+            cameraPermissionGranted = true;
+            cameraPermissionModal.hide();
+            
+            // Small delay then initialize camera
+            setTimeout(() => {
+                initializeCamera();
+            }, 500);
+
+        } catch (error) {
+            console.error('Camera permission error:', error);
+            allowCameraBtn.innerHTML = '<i class="bi bi-camera me-2"></i>Try Again';
+            allowCameraBtn.disabled = false;
+            
+            let errorMsg = 'Camera access denied or not available.';
+            if (error.name === 'NotAllowedError') {
+                errorMsg = 'Camera permission denied. Please allow camera access and try again.';
+            } else if (error.name === 'NotFoundError') {
+                errorMsg = 'No camera found on this device.';
+            } else if (error.name === 'NotSupportedError') {
+                errorMsg = 'Camera not supported in this browser.';
+            }
+            
+            showError(errorMsg);
+        }
+    }
+
+    // Initialize camera with better mobile support
     async function initializeCamera() {
         try {
-            // Check if QrScanner is supported
-            if (!QrScanner.hasCamera()) {
+            loadingCamera.classList.remove('d-none');
+            
+            // Double-check camera availability
+            const hasCamera = await QrScanner.hasCamera();
+            if (!hasCamera) {
                 throw new Error('No camera found on this device');
             }
+
+            // Configure scanner with mobile-optimized settings
+            const scannerOptions = {
+                returnDetailedScanResult: true,
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+                maxScansPerSecond: 5, // Reduce for mobile performance
+                preferredCamera: isMobileDevice() ? 'environment' : 'user'
+            };
 
             // Create QR scanner instance
             qrScanner = new QrScanner(video, result => {
                 console.log('QR Code detected:', result.data);
                 handleQRCodeDetected(result.data);
-            }, {
-                returnDetailedScanResult: true,
-                highlightScanRegion: true,
-                highlightCodeOutline: true,
-            });
+            }, scannerOptions);
+
+            // Set camera preference for mobile
+            if (isMobileDevice()) {
+                try {
+                    const cameras = await QrScanner.listCameras(true);
+                    const backCamera = cameras.find(camera => 
+                        camera.label.toLowerCase().includes('back') || 
+                        camera.label.toLowerCase().includes('environment')
+                    );
+                    if (backCamera) {
+                        await qrScanner.setCamera(backCamera.id);
+                    }
+                } catch (err) {
+                    console.log('Could not set preferred camera:', err);
+                }
+            }
 
             // Start camera
             await qrScanner.start();
@@ -189,12 +309,50 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingCamera.classList.add('d-none');
             cameraPreview.classList.remove('d-none');
             cameraControls.classList.remove('d-none');
+            
+            // Auto-start scanning
+            startScanning();
 
         } catch (error) {
             console.error('Camera initialization error:', error);
             loadingCamera.classList.add('d-none');
             cameraError.classList.remove('d-none');
-            showError('Failed to access camera: ' + error.message);
+            
+            let errorMsg = 'Failed to access camera: ' + error.message;
+            if (error.name === 'NotAllowedError') {
+                errorMsg = 'Camera permission denied. Please refresh the page and allow camera access.';
+            }
+            showError(errorMsg);
+        }
+    }
+
+    // Check initial camera permission status
+    async function checkCameraPermission() {
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Camera not supported in this browser');
+            }
+
+            // Check if permission was previously granted
+            if (navigator.permissions) {
+                const permission = await navigator.permissions.query({ name: 'camera' });
+                
+                if (permission.state === 'granted') {
+                    cameraPermissionGranted = true;
+                    initializeCamera();
+                } else if (permission.state === 'denied') {
+                    showCameraPermissionModal();
+                } else {
+                    // Permission not determined, show modal
+                    showCameraPermissionModal();
+                }
+            } else {
+                // Permissions API not supported, show modal
+                showCameraPermissionModal();
+            }
+        } catch (error) {
+            console.error('Permission check error:', error);
+            showCameraPermissionModal();
         }
     }
 
@@ -329,6 +487,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Event listeners
+    allowCameraBtn.addEventListener('click', forceCameraPermission);
+    useManuaInputBtn.addEventListener('click', function() {
+        cameraPermissionModal.hide();
+        document.getElementById('manualToken').focus();
+    });
+    
     startScanBtn.addEventListener('click', startScanning);
     stopScanBtn.addEventListener('click', stopScanning);
     switchCameraBtn.addEventListener('click', switchCamera);
@@ -348,8 +512,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize camera on page load
-    initializeCamera();
+    // Check camera permission on page load
+    checkCameraPermission();
 });
 </script>
 
