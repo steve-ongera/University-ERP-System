@@ -6284,3 +6284,434 @@ def lecturer_timetable_view(request):
             'error': f'An error occurred: {str(e)}',
         }
         return render(request, 'lecturers/lecturer_timetable.html', context)
+    
+
+    # views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Q, Count, Prefetch
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+import json
+
+from .models import (
+    AttendanceSession, Attendance, Timetable, Student, Lecturer, 
+    Semester, AcademicYear, Enrollment
+)
+
+@login_required
+def lecturer_generate_qr_attendance(request, timetable_id):
+    """Lecturer view to generate QR code for attendance"""
+    try:
+        lecturer = get_object_or_404(Lecturer, user=request.user)
+        timetable_slot = get_object_or_404(Timetable, id=timetable_id, lecturer=lecturer)
+        
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        if not current_semester:
+            messages.error(request, "No active semester found.")
+            return redirect('lecturer_dashboard')
+        
+        if request.method == 'POST':
+            week_number = request.POST.get('week_number')
+            session_date = request.POST.get('session_date')
+            
+            if not week_number or not session_date:
+                messages.error(request, "Week number and session date are required.")
+                return redirect(request.META.get('HTTP_REFERER', 'lecturer_dashboard'))
+            
+            try:
+                # Check if session already exists for this week
+                existing_session = AttendanceSession.objects.filter(
+                    timetable_slot=timetable_slot,
+                    week_number=week_number,
+                    session_date=session_date
+                ).first()
+                
+                if existing_session:
+                    if existing_session.is_expired:
+                        # Deactivate expired session and create new one
+                        existing_session.is_active = False
+                        existing_session.save()
+                    else:
+                        messages.info(request, f"Attendance session for Week {week_number} already exists and is still active.")
+                        return redirect('lecturer_attendance_dashboard')
+                
+                # Create new attendance session
+                attendance_session = AttendanceSession.objects.create(
+                    timetable_slot=timetable_slot,
+                    lecturer=lecturer,
+                    semester=current_semester,
+                    week_number=week_number,
+                    session_date=session_date
+                )
+                
+                messages.success(request, f"QR Code generated successfully for Week {week_number}!")
+                return redirect('lecturer_attendance_dashboard')
+                
+            except Exception as e:
+                messages.error(request, f"Error creating attendance session: {str(e)}")
+                return redirect('lecturer_attendance_dashboard')
+        
+        # Get enrolled students for this course
+        enrolled_students = Student.objects.filter(
+            enrollments__course=timetable_slot.course,
+            enrollments__semester=current_semester,
+            enrollments__is_active=True
+        ).count()
+        
+        # Get existing sessions for this timetable slot
+        existing_sessions = AttendanceSession.objects.filter(
+            timetable_slot=timetable_slot,
+            semester=current_semester
+        ).order_by('-week_number')
+        
+        context = {
+            'timetable_slot': timetable_slot,
+            'lecturer': lecturer,
+            'current_semester': current_semester,
+            'enrolled_students': enrolled_students,
+            'existing_sessions': existing_sessions,
+            'week_choices': AttendanceSession.WEEK_CHOICES,
+        }
+        
+        return render(request, 'lecturer/generate_qr_attendance.html', context)
+        
+    except Lecturer.DoesNotExist:
+        messages.error(request, "Lecturer profile not found.")
+        return redirect('lecturer_dashboard')
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('lecturer_dashboard')
+
+
+@login_required
+def lecturer_attendance_dashboard(request):
+    """Lecturer dashboard to view all attendance sessions and statistics"""
+    try:
+        lecturer = get_object_or_404(Lecturer, user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            messages.error(request, "No active semester found.")
+            return redirect('lecturer_dashboard')
+        
+        # Get lecturer's timetable slots for current semester
+        timetable_slots = Timetable.objects.filter(
+            lecturer=lecturer,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course', 'programme').order_by('day_of_week', 'start_time')
+        
+        # Get attendance sessions with statistics
+        attendance_sessions = AttendanceSession.objects.filter(
+            lecturer=lecturer,
+            semester=current_semester
+        ).select_related('timetable_slot__course').annotate(
+            total_attendance=Count('attendance_records'),
+            present_count=Count('attendance_records', filter=Q(attendance_records__status='present')),
+            absent_count=Count('attendance_records', filter=Q(attendance_records__status='absent')),
+            late_count=Count('attendance_records', filter=Q(attendance_records__status='late'))
+        ).order_by('-created_at')
+        
+        # Paginate sessions
+        paginator = Paginator(attendance_sessions, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        # Get overall statistics
+        total_sessions = attendance_sessions.count()
+        active_sessions = attendance_sessions.filter(is_active=True, expires_at__gt=timezone.now()).count()
+        total_courses = timetable_slots.values('course').distinct().count()
+        
+        # Get attendance summary by course
+        course_attendance = []
+        for slot in timetable_slots:
+            sessions = AttendanceSession.objects.filter(
+                timetable_slot=slot,
+                semester=current_semester
+            )
+            total_possible_attendance = 0
+            actual_attendance = 0
+            
+            for session in sessions:
+                enrolled_count = Student.objects.filter(
+                    enrollments__course=slot.course,
+                    enrollments__semester=current_semester,
+                    enrollments__is_active=True
+                ).count()
+                present_count = Attendance.objects.filter(
+                    attendance_session=session,
+                    status='present'
+                ).count()
+                
+                total_possible_attendance += enrolled_count
+                actual_attendance += present_count
+            
+            attendance_rate = (actual_attendance / total_possible_attendance * 100) if total_possible_attendance > 0 else 0
+            
+            course_attendance.append({
+                'course': slot.course,
+                'timetable_slot': slot,
+                'sessions_count': sessions.count(),
+                'attendance_rate': round(attendance_rate, 1),
+                'total_possible': total_possible_attendance,
+                'actual_attendance': actual_attendance
+            })
+        
+        context = {
+            'lecturer': lecturer,
+            'current_semester': current_semester,
+            'timetable_slots': timetable_slots,
+            'attendance_sessions': page_obj,
+            'course_attendance': course_attendance,
+            'stats': {
+                'total_sessions': total_sessions,
+                'active_sessions': active_sessions,
+                'total_courses': total_courses,
+            }
+        }
+        
+        return render(request, 'lecturer/attendance_dashboard.html', context)
+        
+    except Lecturer.DoesNotExist:
+        messages.error(request, "Lecturer profile not found.")
+        return redirect('lecturer_dashboard')
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('lecturer_dashboard')
+
+
+def mark_attendance_qr(request, token):
+    """Student marks attendance via QR code"""
+    try:
+        # Get attendance session by token
+        attendance_session = get_object_or_404(AttendanceSession, session_token=token)
+        
+        # Check if session is still active and not expired
+        if not attendance_session.is_active or attendance_session.is_expired:
+            return render(request, 'student/attendance_error.html', {
+                'error': 'This attendance session has expired or is no longer active.',
+                'session': attendance_session
+            })
+        
+        if request.method == 'POST':
+            if not request.user.is_authenticated:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'You must be logged in to mark attendance.'
+                })
+            
+            try:
+                student = get_object_or_404(Student, user=request.user)
+                
+                # Check if student is enrolled in this course
+                enrollment = Enrollment.objects.filter(
+                    student=student,
+                    course=attendance_session.timetable_slot.course,
+                    semester=attendance_session.semester,
+                    is_active=True
+                ).first()
+                
+                if not enrollment:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'You are not enrolled in this course.'
+                    })
+                
+                # Check if attendance already marked for this session
+                existing_attendance = Attendance.objects.filter(
+                    student=student,
+                    attendance_session=attendance_session
+                ).first()
+                
+                if existing_attendance:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'You have already marked attendance for this session.'
+                    })
+                
+                # Mark attendance
+                attendance = Attendance.objects.create(
+                    student=student,
+                    attendance_session=attendance_session,
+                    timetable_slot=attendance_session.timetable_slot,
+                    week_number=attendance_session.week_number,
+                    status='present',
+                    marked_via_qr=True,
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Attendance marked successfully!',
+                    'attendance_id': attendance.id
+                })
+                
+            except Student.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Student profile not found.'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error marking attendance: {str(e)}'
+                })
+        
+        # GET request - show attendance form
+        context = {
+            'attendance_session': attendance_session,
+            'course': attendance_session.timetable_slot.course,
+            'lecturer': attendance_session.lecturer,
+            'week_number': attendance_session.week_number,
+            'expires_at': attendance_session.expires_at,
+        }
+        
+        return render(request, 'student/mark_attendance_qr.html', context)
+        
+    except AttendanceSession.DoesNotExist:
+        return render(request, 'student/attendance_error.html', {
+            'error': 'Invalid attendance session. The QR code may be corrupted or expired.'
+        })
+    except Exception as e:
+        return render(request, 'student/attendance_error.html', {
+            'error': f'An error occurred: {str(e)}'
+        })
+
+
+@login_required
+def lecturer_attendance_detail(request, session_id):
+    """Detailed view of a specific attendance session"""
+    try:
+        lecturer = get_object_or_404(Lecturer, user=request.user)
+        attendance_session = get_object_or_404(
+            AttendanceSession, 
+            id=session_id, 
+            lecturer=lecturer
+        )
+        
+        # Get all attendance records for this session
+        attendance_records = Attendance.objects.filter(
+            attendance_session=attendance_session
+        ).select_related('student__user').order_by('student__user__first_name')
+        
+        # Get enrolled students who haven't marked attendance
+        enrolled_students = Student.objects.filter(
+            enrollments__course=attendance_session.timetable_slot.course,
+            enrollments__semester=attendance_session.semester,
+            enrollments__is_active=True
+        ).exclude(
+            id__in=attendance_records.values_list('student_id', flat=True)
+        ).select_related('user')
+        
+        # Statistics
+        total_enrolled = Student.objects.filter(
+            enrollments__course=attendance_session.timetable_slot.course,
+            enrollments__semester=attendance_session.semester,
+            enrollments__is_active=True
+        ).count()
+        
+        present_count = attendance_records.filter(status='present').count()
+        absent_count = enrolled_students.count()  # Students who didn't mark attendance
+        late_count = attendance_records.filter(status='late').count()
+        
+        attendance_rate = (present_count / total_enrolled * 100) if total_enrolled > 0 else 0
+        
+        context = {
+            'attendance_session': attendance_session,
+            'attendance_records': attendance_records,
+            'absent_students': enrolled_students,
+            'lecturer': lecturer,
+            'stats': {
+                'total_enrolled': total_enrolled,
+                'present_count': present_count,
+                'absent_count': absent_count,
+                'late_count': late_count,
+                'attendance_rate': round(attendance_rate, 1)
+            }
+        }
+        
+        return render(request, 'lecturer/attendance_detail.html', context)
+        
+    except Lecturer.DoesNotExist:
+        messages.error(request, "Lecturer profile not found.")
+        return redirect('lecturer_dashboard')
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('lecturer_attendance_dashboard')
+
+
+@login_required
+def student_attendance_history(request):
+    """Student view of their attendance history"""
+    try:
+        student = get_object_or_404(Student, user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            messages.error(request, "No active semester found.")
+            return redirect('student_dashboard')
+        
+        # Get student's attendance records for current semester
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            attendance_session__semester=current_semester
+        ).select_related(
+            'timetable_slot__course',
+            'attendance_session'
+        ).order_by('-marked_at')
+        
+        # Get attendance summary by course
+        course_attendance = {}
+        enrolled_courses = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course')
+        
+        for enrollment in enrolled_courses:
+            course_records = attendance_records.filter(
+                timetable_slot__course=enrollment.course
+            )
+            
+            total_sessions = AttendanceSession.objects.filter(
+                timetable_slot__course=enrollment.course,
+                semester=current_semester
+            ).count()
+            
+            present_count = course_records.filter(status='present').count()
+            late_count = course_records.filter(status='late').count()
+            absent_count = total_sessions - course_records.count()
+            
+            attendance_rate = (present_count / total_sessions * 100) if total_sessions > 0 else 0
+            
+            course_attendance[enrollment.course.id] = {
+                'course': enrollment.course,
+                'total_sessions': total_sessions,
+                'present_count': present_count,
+                'late_count': late_count,
+                'absent_count': absent_count,
+                'attendance_rate': round(attendance_rate, 1),
+                'records': course_records
+            }
+        
+        context = {
+            'student': student,
+            'current_semester': current_semester,
+            'attendance_records': attendance_records,
+            'course_attendance': course_attendance,
+        }
+        
+        return render(request, 'student/attendance_history.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('student_dashboard')
