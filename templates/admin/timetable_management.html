@@ -3,7 +3,9 @@
 
 {% block title %}Timetable Management{% endblock %}
 
-{% block extra_css %}
+
+{% block content %}
+
 <style>
     .timetable-container {
         min-height: 600px;
@@ -190,9 +192,7 @@
         margin: 10px 0;
     }
 </style>
-{% endblock %}
 
-{% block content %}
 <div class="container-fluid mt-4">
     <!-- Header -->
     <div class="row mb-4">
@@ -472,7 +472,7 @@ class TimetableManager {
         this.showCoursesLoading();
         
         try {
-            const response = await fetch(`/admin/get-programme-courses/${this.currentProgramme.id}/?year=${year}`);
+            const response = await fetch(`/admin-get-programme-courses/${this.currentProgramme.id}/?year=${year}`);
             const data = await response.json();
             
             if (data.success) {
@@ -488,7 +488,7 @@ class TimetableManager {
     
     async loadTimetableForYear(year) {
         try {
-            const response = await fetch(`/admin/get-programme-timetable/${this.currentProgramme.id}/?year=${year}`);
+            const response = await fetch(`/admin-get-programme-timetable/${this.currentProgramme.id}/?year=${year}`);
             const data = await response.json();
             
             if (data.success) {
@@ -619,7 +619,7 @@ class TimetableManager {
         
         // Load available lecturers
         try {
-            const response = await fetch(`/admin/get-available-lecturers/?course_id=${this.pendingEntry.courseId}`);
+            const response = await fetch(`/admin-get-available-lecturers/?course_id=${this.pendingEntry.courseId}`);
             const data = await response.json();
             
             if (data.success) {
@@ -662,7 +662,7 @@ class TimetableManager {
         };
         
         try {
-            const response = await fetch('/admin/save-timetable-entry/', {
+            const response = await fetch('/admin-save-timetable-entry/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
