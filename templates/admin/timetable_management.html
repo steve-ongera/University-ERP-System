@@ -1,0 +1,932 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Timetable Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timetable-container {
+        min-height: 600px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .course-item {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 8px;
+        cursor: grab;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        user-select: none;
+    }
+    
+    .course-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .course-item.dragging {
+        opacity: 0.5;
+        transform: rotate(5deg);
+    }
+    
+    .course-code {
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .course-name {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-top: 4px;
+    }
+    
+    .course-details {
+        font-size: 11px;
+        opacity: 0.8;
+        margin-top: 4px;
+    }
+    
+    .time-slot {
+        min-height: 80px;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        margin: 5px 0;
+        padding: 10px;
+        background: white;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .time-slot.drag-over {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+        transform: scale(1.02);
+    }
+    
+    .time-slot.occupied {
+        border: 2px solid #28a745;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    }
+    
+    .timetable-entry {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        position: relative;
+        margin: 2px 0;
+    }
+    
+    .timetable-entry .delete-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+        cursor: pointer;
+        display: none;
+    }
+    
+    .timetable-entry:hover .delete-btn {
+        display: block;
+    }
+    
+    .day-header {
+        background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+        color: white;
+        text-align: center;
+        font-weight: bold;
+        padding: 15px;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .time-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+        color: white;
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        border-radius: 8px;
+        margin: 5px 0;
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .programme-selector {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .year-tabs .nav-link {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        color: #495057;
+        font-weight: 500;
+        margin-right: 5px;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .year-tabs .nav-link.active {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .courses-sidebar {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .success-animation {
+        animation: pulse 0.6s ease-in-out;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .conflict-warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold text-primary">
+                        <i class="bi bi-calendar3 me-2"></i>Timetable Management
+                    </h2>
+                    <p class="text-muted mb-0">Create and manage class timetables</p>
+                </div>
+                <div class="text-end">
+                    <div class="badge bg-primary fs-6">{{ current_academic_year.year }}</div>
+                    <div class="badge bg-info fs-6 ms-2">Semester {{ current_semester.semester_number }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Selector -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="programme-selector">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Select Programme:</label>
+                        <select id="programmeSelect" class="form-select form-select-lg">
+                            <option value="">Choose a programme...</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}" data-name="{{ programme.name }}" data-code="{{ programme.code }}">
+                                {{ programme.name }} ({{ programme.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div id="programmeInfo" class="d-none">
+                            <h5 id="programmeName" class="text-primary mb-1"></h5>
+                            <p id="programmeCode" class="text-muted mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="timetableContent" class="d-none">
+        <!-- Year Tabs -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <ul class="nav nav-tabs year-tabs" id="yearTabs" role="tablist">
+                    {% for year in years_range %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if year == 1 %}active{% endif %}" 
+                                id="year{{ year }}-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#year{{ year }}" 
+                                type="button" 
+                                role="tab"
+                                data-year="{{ year }}">
+                            Year {{ year }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Courses Sidebar -->
+            <div class="col-md-3">
+                <div class="courses-sidebar">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-book me-2"></i>Available Courses
+                    </h5>
+                    
+                    <div class="loading-spinner" id="coursesLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading courses...</p>
+                    </div>
+                    
+                    <div id="coursesList"></div>
+                    
+                    <div class="empty-state d-none" id="coursesEmpty">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-3">No courses available for this year</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timetable Grid -->
+            <div class="col-md-9">
+                <div class="tab-content" id="yearTabsContent">
+                    {% for year in years_range %}
+                    <div class="tab-pane fade {% if year == 1 %}show active{% endif %}" 
+                         id="year{{ year }}" 
+                         role="tabpanel" 
+                         data-year="{{ year }}">
+                        
+                        <div class="timetable-container">
+                            <div class="row">
+                                <div class="col-1">
+                                    <div class="time-header" style="visibility: hidden;">Time</div>
+                                </div>
+                                {% for day in days_of_week %}
+                                <div class="col">
+                                    <div class="day-header">{{ day.label }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            {% for slot in time_slots %}
+                            <div class="row">
+                                <div class="col-1">
+                                    <div class="time-header">
+                                        <small>{{ slot.label }}</small>
+                                    </div>
+                                </div>
+                                {% for day in days_of_week %}
+                                <div class="col">
+                                    <div class="time-slot" 
+                                         data-day="{{ day.key }}" 
+                                         data-start="{{ slot.start }}" 
+                                         data-end="{{ slot.end }}"
+                                         data-year="{{ year }}">
+                                        <div class="slot-content"></div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="text-center py-5">
+        <i class="bi bi-calendar-plus display-1 text-muted"></i>
+        <h4 class="text-muted mt-3">Select a Programme</h4>
+        <p class="text-muted">Choose a programme to start creating timetables</p>
+    </div>
+</div>
+
+<!-- Lecturer Selection Modal -->
+<div class="modal fade" id="lecturerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Lecturer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Course:</label>
+                    <p id="modalCourseName" class="fw-bold text-primary"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lecturer:</label>
+                    <select id="lecturerSelect" class="form-select">
+                        <option value="">Loading lecturers...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Venue:</label>
+                    <input type="text" id="venueInput" class="form-control" placeholder="Enter venue (e.g., LH 101)">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Class Type:</label>
+                    <select id="classTypeSelect" class="form-select">
+                        <option value="lecture">Lecture</option>
+                        <option value="tutorial">Tutorial</option>
+                        <option value="practical">Practical</option>
+                        <option value="seminar">Seminar</option>
+                        <option value="fieldwork">Field Work</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTimetableEntry">Save Entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class TimetableManager {
+    constructor() {
+        this.currentProgramme = null;
+        this.currentYear = 1;
+        this.courses = [];
+        this.timetableData = {};
+        this.draggedCourse = null;
+        this.pendingEntry = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.initializeModal();
+    }
+    
+    bindEvents() {
+        // Programme selection
+        document.getElementById('programmeSelect').addEventListener('change', (e) => {
+            this.onProgrammeChange(e.target.value);
+        });
+        
+        // Year tab changes
+        document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', (e) => {
+                const year = parseInt(e.target.dataset.year);
+                this.onYearChange(year);
+            });
+        });
+        
+        // Save timetable entry
+        document.getElementById('saveTimetableEntry').addEventListener('click', () => {
+            this.saveTimetableEntry();
+        });
+    }
+    
+    async onProgrammeChange(programmeId) {
+        if (!programmeId) {
+            this.hideTimetableContent();
+            return;
+        }
+        
+        const option = document.querySelector(`option[value="${programmeId}"]`);
+        this.currentProgramme = {
+            id: programmeId,
+            name: option.dataset.name,
+            code: option.dataset.code
+        };
+        
+        this.showProgrammeInfo();
+        this.showTimetableContent();
+        await this.loadCoursesForYear(this.currentYear);
+        await this.loadTimetableForYear(this.currentYear);
+    }
+    
+    async onYearChange(year) {
+        this.currentYear = year;
+        if (this.currentProgramme) {
+            await this.loadCoursesForYear(year);
+            await this.loadTimetableForYear(year);
+        }
+    }
+    
+    showProgrammeInfo() {
+        const info = document.getElementById('programmeInfo');
+        document.getElementById('programmeName').textContent = this.currentProgramme.name;
+        document.getElementById('programmeCode').textContent = `Code: ${this.currentProgramme.code}`;
+        info.classList.remove('d-none');
+    }
+    
+    showTimetableContent() {
+        document.getElementById('emptyState').classList.add('d-none');
+        document.getElementById('timetableContent').classList.remove('d-none');
+    }
+    
+    hideTimetableContent() {
+        document.getElementById('emptyState').classList.remove('d-none');
+        document.getElementById('timetableContent').classList.add('d-none');
+        document.getElementById('programmeInfo').classList.add('d-none');
+    }
+    
+    async loadCoursesForYear(year) {
+        this.showCoursesLoading();
+        
+        try {
+            const response = await fetch(`/admin/get-programme-courses/${this.currentProgramme.id}/?year=${year}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.courses = data.courses;
+                this.renderCourses();
+            } else {
+                this.showCoursesError(data.error);
+            }
+        } catch (error) {
+            this.showCoursesError('Failed to load courses');
+        }
+    }
+    
+    async loadTimetableForYear(year) {
+        try {
+            const response = await fetch(`/admin/get-programme-timetable/${this.currentProgramme.id}/?year=${year}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.timetableData[year] = data.timetable;
+                this.renderTimetable(year);
+            }
+        } catch (error) {
+            console.error('Failed to load timetable:', error);
+        }
+    }
+    
+    showCoursesLoading() {
+        document.getElementById('coursesLoading').style.display = 'block';
+        document.getElementById('coursesList').innerHTML = '';
+        document.getElementById('coursesEmpty').classList.add('d-none');
+    }
+    
+    hideCoursesLoading() {
+        document.getElementById('coursesLoading').style.display = 'none';
+    }
+    
+    showCoursesError(message) {
+        this.hideCoursesLoading();
+        document.getElementById('coursesList').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>${message}
+            </div>
+        `;
+    }
+    
+    renderCourses() {
+        this.hideCoursesLoading();
+        
+        if (this.courses.length === 0) {
+            document.getElementById('coursesEmpty').classList.remove('d-none');
+            return;
+        }
+        
+        const coursesHtml = this.courses.map(course => `
+            <div class="course-item" 
+                 draggable="true" 
+                 data-course-id="${course.id}"
+                 data-course-code="${course.code}"
+                 data-course-name="${course.name}">
+                <div class="course-code">${course.code}</div>
+                <div class="course-name">${course.name}</div>
+                <div class="course-details">
+                    <i class="bi bi-person me-1"></i>${course.lecturer.name}
+                    <br><i class="bi bi-building me-1"></i>${course.department}
+                    <br><i class="bi bi-clock me-1"></i>${course.credit_hours} Credits
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('coursesList').innerHTML = coursesHtml;
+        
+        // Add drag event listeners
+        this.addDragEventListeners();
+    }
+    
+    addDragEventListeners() {
+        // Course drag events
+        document.querySelectorAll('.course-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                this.draggedCourse = {
+                    id: item.dataset.courseId,
+                    code: item.dataset.courseCode,
+                    name: item.dataset.courseName
+                };
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+                this.draggedCourse = null;
+            });
+        });
+        
+        // Time slot drop events
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                slot.classList.add('drag-over');
+            });
+            
+            slot.addEventListener('dragleave', (e) => {
+                slot.classList.remove('drag-over');
+            });
+            
+            slot.addEventListener('drop', (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                
+                if (this.draggedCourse && !slot.classList.contains('occupied')) {
+                    this.handleCourseDrop(slot);
+                }
+            });
+        });
+    }
+    
+    handleCourseDrop(slot) {
+        // Check if slot is already occupied
+        if (slot.querySelector('.timetable-entry')) {
+            this.showMessage('Time slot is already occupied', 'warning');
+            return;
+        }
+        
+        this.pendingEntry = {
+            courseId: this.draggedCourse.id,
+            courseName: this.draggedCourse.name,
+            courseCode: this.draggedCourse.code,
+            day: slot.dataset.day,
+            startTime: slot.dataset.start,
+            endTime: slot.dataset.end,
+            year: slot.dataset.year,
+            slot: slot
+        };
+        
+        // Show lecturer selection modal
+        this.showLecturerModal();
+    }
+    
+    async showLecturerModal() {
+        document.getElementById('modalCourseName').textContent = 
+            `${this.pendingEntry.courseCode} - ${this.pendingEntry.courseName}`;
+        
+        // Load available lecturers
+        try {
+            const response = await fetch(`/admin/get-available-lecturers/?course_id=${this.pendingEntry.courseId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const lecturerSelect = document.getElementById('lecturerSelect');
+                lecturerSelect.innerHTML = data.lecturers.map(lecturer => `
+                    <option value="${lecturer.id}" ${lecturer.preferred ? 'selected' : ''}>
+                        ${lecturer.name} (${lecturer.rank}) - ${lecturer.department}
+                        ${lecturer.preferred ? ' ⭐' : ''}
+                    </option>
+                `).join('');
+                
+                const modal = new bootstrap.Modal(document.getElementById('lecturerModal'));
+                modal.show();
+            }
+        } catch (error) {
+            this.showMessage('Failed to load lecturers', 'error');
+        }
+    }
+    
+    async saveTimetableEntry() {
+        const lecturerId = document.getElementById('lecturerSelect').value;
+        const venue = document.getElementById('venueInput').value || 'TBA';
+        const classType = document.getElementById('classTypeSelect').value;
+        
+        if (!lecturerId) {
+            this.showMessage('Please select a lecturer', 'warning');
+            return;
+        }
+        
+        const entryData = {
+            course_id: this.pendingEntry.courseId,
+            programme_id: this.currentProgramme.id,
+            year: this.pendingEntry.year,
+            day_of_week: this.pendingEntry.day,
+            start_time: this.pendingEntry.startTime,
+            end_time: this.pendingEntry.endTime,
+            lecturer_id: lecturerId,
+            venue: venue,
+            class_type: classType
+        };
+        
+        try {
+            const response = await fetch('/admin/save-timetable-entry/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify(entryData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.addTimetableEntryToSlot(this.pendingEntry.slot, data.entry);
+                this.showMessage('Timetable entry saved successfully', 'success');
+                
+                // Close modal and reset
+                bootstrap.Modal.getInstance(document.getElementById('lecturerModal')).hide();
+                this.resetModal();
+                this.pendingEntry = null;
+                
+                // Add success animation
+                this.pendingEntry.slot.classList.add('success-animation');
+                setTimeout(() => {
+                    this.pendingEntry.slot.classList.remove('success-animation');
+                }, 600);
+                
+            } else {
+                if (data.conflicts) {
+                    this.showConflictWarning(data.conflicts);
+                } else {
+                    this.showMessage(data.error || 'Failed to save entry', 'error');
+                }
+            }
+        } catch (error) {
+            this.showMessage('Network error occurred', 'error');
+        }
+    }
+    
+    addTimetableEntryToSlot(slot, entry) {
+        const entryHtml = `
+            <div class="timetable-entry" data-entry-id="${entry.id}">
+                <button class="delete-btn" onclick="timetableManager.deleteEntry(${entry.id})">×</button>
+                <div class="fw-bold">${entry.course_code}</div>
+                <div style="font-size: 10px;">${entry.course_name}</div>
+                <div style="font-size: 10px;">
+                    <i class="bi bi-person me-1"></i>${entry.lecturer_name}
+                </div>
+                <div style="font-size: 10px;">
+                    <i class="bi bi-geo-alt me-1"></i>${entry.venue}
+                </div>
+                <div style="font-size: 10px;">
+                    <i class="bi bi-clock me-1"></i>${entry.start_time} - ${entry.end_time}
+                </div>
+            </div>
+        `;
+        
+        slot.querySelector('.slot-content').innerHTML = entryHtml;
+        slot.classList.add('occupied');
+    }
+    
+    renderTimetable(year) {
+        // Clear all slots for this year
+        const yearTab = document.querySelector(`#year${year}`);
+        yearTab.querySelectorAll('.time-slot').forEach(slot => {
+            slot.querySelector('.slot-content').innerHTML = '';
+            slot.classList.remove('occupied');
+        });
+        
+        // Populate with timetable data
+        const entries = this.timetableData[year] || [];
+        entries.forEach(entry => {
+            const slot = yearTab.querySelector(
+                `[data-day="${entry.day_of_week}"][data-start="${entry.start_time}"]`
+            );
+            
+            if (slot) {
+                this.addTimetableEntryToSlot(slot, entry);
+            }
+        });
+    }
+    
+    async deleteEntry(entryId) {
+        if (!confirm('Are you sure you want to delete this timetable entry?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/admin/delete-timetable-entry/${entryId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Find and remove the entry from UI
+                const entryElement = document.querySelector(`[data-entry-id="${entryId}"]`);
+                if (entryElement) {
+                    const slot = entryElement.closest('.time-slot');
+                    slot.querySelector('.slot-content').innerHTML = '';
+                    slot.classList.remove('occupied');
+                }
+                
+                this.showMessage('Entry deleted successfully', 'success');
+            } else {
+                this.showMessage(data.error || 'Failed to delete entry', 'error');
+            }
+        } catch (error) {
+            this.showMessage('Network error occurred', 'error');
+        }
+    }
+    
+    showConflictWarning(conflicts) {
+        const conflictHtml = conflicts.map(c => 
+            `${c.course__code}: ${c.start_time} - ${c.end_time}`
+        ).join('<br>');
+        
+        const warningHtml = `
+            <div class="conflict-warning">
+                <strong>Time Conflict Detected!</strong><br>
+                Conflicting courses:<br>${conflictHtml}
+            </div>
+        `;
+        
+        document.querySelector('.modal-body').insertAdjacentHTML('afterbegin', warningHtml);
+        
+        setTimeout(() => {
+            document.querySelector('.conflict-warning')?.remove();
+        }, 5000);
+    }
+    
+    showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'warning' ? 'alert-warning' : 'alert-danger';
+        
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            document.querySelector('.alert:last-of-type')?.remove();
+        }, 3000);
+    }
+    
+    resetModal() {
+        document.getElementById('lecturerSelect').innerHTML = '';
+        document.getElementById('venueInput').value = '';
+        document.getElementById('classTypeSelect').value = 'lecture';
+        document.querySelectorAll('.conflict-warning').forEach(w => w.remove());
+    }
+    
+    initializeModal() {
+        // Reset modal on close
+        document.getElementById('lecturerModal').addEventListener('hidden.bs.modal', () => {
+            this.resetModal();
+            this.pendingEntry = null;
+        });
+    }
+    
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+               document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+               '{{ csrf_token }}';
+    }
+}
+
+// Initialize the timetable manager when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.timetableManager = new TimetableManager();
+});
+
+// Add some additional utility functions
+function printTimetable() {
+    const currentYear = document.querySelector('.nav-link.active').dataset.year;
+    const programmeName = document.getElementById('programmeName').textContent;
+    
+    const printContent = document.querySelector(`#year${currentYear}`).cloneNode(true);
+    
+    // Create print window
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Timetable - ${programmeName} Year ${currentYear}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .timetable-entry { background: #f8f9fa !important; color: #000 !important; border: 1px solid #dee2e6; }
+                .delete-btn { display: none !important; }
+                .day-header, .time-header { background: #343a40 !important; color: white !important; }
+                @media print {
+                    .delete-btn { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">
+                <h2 class="text-center mb-4">${programmeName} - Year ${currentYear} Timetable</h2>
+                <div class="timetable-container">
+                    ${printContent.innerHTML}
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// Export timetable as CSV
+function exportTimetableCSV() {
+    const currentYear = document.querySelector('.nav-link.active').dataset.year;
+    const programmeName = document.getElementById('programmeName').textContent;
+    
+    let csvContent = "Day,Time,Course Code,Course Name,Lecturer,Venue,Class Type\n";
+    
+    const entries = document.querySelectorAll(`#year${currentYear} .timetable-entry`);
+    entries.forEach(entry => {
+        const slot = entry.closest('.time-slot');
+        const day = slot.dataset.day;
+        const time = `${slot.dataset.start}-${slot.dataset.end}`;
+        const courseCode = entry.querySelector('.fw-bold').textContent;
+        const courseName = entry.children[2].textContent;
+        const lecturer = entry.children[3].textContent.replace('👤', '').trim();
+        const venue = entry.children[4].textContent.replace('📍', '').trim();
+        const classType = 'Lecture'; // You might want to extract this from data
+        
+        csvContent += `${day},${time},${courseCode},"${courseName}","${lecturer}",${venue},${classType}\n`;
+    });
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `${programmeName}_Year${currentYear}_Timetable.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+</script>
+
+<!-- Add floating action buttons -->
+<div class="position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;">
+    <div class="btn-group-vertical">
+        <button class="btn btn-primary btn-lg mb-2" onclick="printTimetable()" title="Print Timetable">
+            <i class="bi bi-printer"></i>
+        </button>
+        <button class="btn btn-success btn-lg" onclick="exportTimetableCSV()" title="Export as CSV">
+            <i class="bi bi-download"></i>
+        </button>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}

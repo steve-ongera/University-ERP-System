@@ -5694,3 +5694,357 @@ def custom_permission_denied(request, exception=None):
 def custom_bad_request(request, exception=None):
     """ Custom 400 error handler """
     return render(request, '400.html', status=400)
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views.generic import View
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from datetime import datetime, time
+import json
+
+from .models import (
+    Programme, Course, Lecturer, Semester, AcademicYear, 
+    Timetable, ProgrammeCourse, User
+)
+
+@login_required
+def timetable_management(request):
+    """Main timetable management view"""
+    if not request.user.user_type == 'admin':
+        messages.error(request, "Access denied. Admin privileges required.")
+        return redirect('home')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all active programmes
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    
+    # Time slots - default university schedule
+    time_slots = [
+        {'start': '07:00', 'end': '10:00', 'label': '7:00 AM - 10:00 AM'},
+        {'start': '10:00', 'end': '13:00', 'label': '10:00 AM - 1:00 PM'},
+        {'start': '14:00', 'end': '17:00', 'label': '2:00 PM - 5:00 PM'},
+        {'start': '17:00', 'end': '19:00', 'label': '5:00 PM - 7:00 PM'},
+    ]
+    
+    days_of_week = [
+        {'key': 'monday', 'label': 'Monday'},
+        {'key': 'tuesday', 'label': 'Tuesday'},
+        {'key': 'wednesday', 'label': 'Wednesday'},
+        {'key': 'thursday', 'label': 'Thursday'},
+        {'key': 'friday', 'label': 'Friday'},
+    ]
+    
+    context = {
+        'programmes': programmes,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'time_slots': time_slots,
+        'days_of_week': days_of_week,
+        'years_range': range(1, 5),  # Assuming max 4 years
+    }
+    
+    return render(request, 'admin/timetable_management.html', context)
+
+@login_required
+def get_programme_courses(request, programme_id):
+    """Get courses for a specific programme and year"""
+    if not request.user.user_type == 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+        year = request.GET.get('year', 1)
+        
+        current_semester = Semester.objects.filter(is_current=True).first()
+        if not current_semester:
+            return JsonResponse({'error': 'No current semester found'}, status=400)
+        
+        # Get programme courses for the specified year and current semester
+        programme_courses = ProgrammeCourse.objects.filter(
+            programme=programme,
+            year=year,
+            semester=current_semester.semester_number,
+            is_active=True
+        ).select_related('course', 'course__department')
+        
+        courses = []
+        for pc in programme_courses:
+            # Get assigned lecturer (if any)
+            lecturer = None
+            timetable_entry = Timetable.objects.filter(
+                course=pc.course,
+                programme=programme,
+                year=year,
+                semester=current_semester,
+                is_active=True
+            ).first()
+            
+            if timetable_entry:
+                lecturer = timetable_entry.lecturer
+            
+            courses.append({
+                'id': pc.course.id,
+                'code': pc.course.code,
+                'name': pc.course.name,
+                'credit_hours': pc.course.credit_hours,
+                'course_type': pc.course.get_course_type_display(),
+                'department': pc.course.department.name,
+                'lecturer': {
+                    'id': lecturer.id if lecturer else None,
+                    'name': lecturer.user.get_full_name() if lecturer else 'Not Assigned',
+                    'rank': lecturer.academic_rank if lecturer else ''
+                }
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'courses': courses,
+            'programme': {
+                'id': programme.id,
+                'name': programme.name,
+                'code': programme.code
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_programme_timetable(request, programme_id):
+    """Get existing timetable for a programme"""
+    if not request.user.user_type == 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+        year = request.GET.get('year', 1)
+        
+        current_semester = Semester.objects.filter(is_current=True).first()
+        if not current_semester:
+            return JsonResponse({'error': 'No current semester found'}, status=400)
+        
+        # Get timetable entries
+        timetable_entries = Timetable.objects.filter(
+            programme=programme,
+            year=year,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course', 'lecturer', 'lecturer__user')
+        
+        timetable_data = []
+        for entry in timetable_entries:
+            timetable_data.append({
+                'id': entry.id,
+                'course_id': entry.course.id,
+                'course_code': entry.course.code,
+                'course_name': entry.course.name,
+                'lecturer_name': entry.lecturer.user.get_full_name(),
+                'day_of_week': entry.day_of_week,
+                'start_time': entry.start_time.strftime('%H:%M'),
+                'end_time': entry.end_time.strftime('%H:%M'),
+                'venue': entry.venue,
+                'class_type': entry.class_type,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'timetable': timetable_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@login_required
+def save_timetable_entry(request):
+    """Save a timetable entry via AJAX"""
+    if not request.user.user_type == 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        
+        course_id = data.get('course_id')
+        programme_id = data.get('programme_id')
+        year = data.get('year')
+        day_of_week = data.get('day_of_week')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        venue = data.get('venue', 'TBA')
+        class_type = data.get('class_type', 'lecture')
+        
+        # Validate required fields
+        if not all([course_id, programme_id, year, day_of_week, start_time, end_time]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Get objects
+        course = get_object_or_404(Course, id=course_id)
+        programme = get_object_or_404(Programme, id=programme_id)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            return JsonResponse({'error': 'No current semester found'}, status=400)
+        
+        # Get a lecturer for the course (preferably from the same department)
+        lecturer = Lecturer.objects.filter(
+            department=course.department,
+            is_active=True
+        ).first()
+        
+        if not lecturer:
+            # Get any available lecturer
+            lecturer = Lecturer.objects.filter(is_active=True).first()
+        
+        if not lecturer:
+            return JsonResponse({'error': 'No lecturer available'}, status=400)
+        
+        # Parse time strings
+        start_time_obj = datetime.strptime(start_time, '%H:%M').time()
+        end_time_obj = datetime.strptime(end_time, '%H:%M').time()
+        
+        with transaction.atomic():
+            # Check for conflicts
+            conflicts = Timetable.objects.filter(
+                programme=programme,
+                year=year,
+                semester=current_semester,
+                day_of_week=day_of_week,
+                start_time__lt=end_time_obj,
+                end_time__gt=start_time_obj,
+                is_active=True
+            ).exclude(course=course)
+            
+            if conflicts.exists():
+                return JsonResponse({
+                    'error': 'Time slot conflict detected',
+                    'conflicts': list(conflicts.values('course__code', 'start_time', 'end_time'))
+                }, status=400)
+            
+            # Check if entry already exists and update, otherwise create
+            timetable_entry, created = Timetable.objects.update_or_create(
+                course=course,
+                programme=programme,
+                year=year,
+                semester=current_semester,
+                defaults={
+                    'lecturer': lecturer,
+                    'day_of_week': day_of_week,
+                    'start_time': start_time_obj,
+                    'end_time': end_time_obj,
+                    'venue': venue,
+                    'class_type': class_type,
+                    'semester_number': current_semester.semester_number,
+                    'is_active': True
+                }
+            )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Timetable entry saved successfully',
+            'entry': {
+                'id': timetable_entry.id,
+                'course_code': course.code,
+                'course_name': course.name,
+                'lecturer_name': lecturer.user.get_full_name(),
+                'day_of_week': day_of_week,
+                'start_time': start_time,
+                'end_time': end_time,
+                'venue': venue,
+                'class_type': class_type,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@login_required
+def delete_timetable_entry(request, entry_id):
+    """Delete a timetable entry"""
+    if not request.user.user_type == 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        entry = get_object_or_404(Timetable, id=entry_id)
+        entry.is_active = False  # Soft delete
+        entry.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Timetable entry deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_available_lecturers(request):
+    """Get available lecturers for a course"""
+    if not request.user.user_type == 'admin':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        course_id = request.GET.get('course_id')
+        if not course_id:
+            return JsonResponse({'error': 'Course ID required'}, status=400)
+        
+        course = get_object_or_404(Course, id=course_id)
+        
+        # Get lecturers from the same department first, then others
+        department_lecturers = Lecturer.objects.filter(
+            department=course.department,
+            is_active=True
+        ).select_related('user')
+        
+        other_lecturers = Lecturer.objects.filter(
+            is_active=True
+        ).exclude(
+            department=course.department
+        ).select_related('user')
+        
+        lecturers_data = []
+        
+        # Add department lecturers first
+        for lecturer in department_lecturers:
+            lecturers_data.append({
+                'id': lecturer.id,
+                'name': lecturer.user.get_full_name(),
+                'rank': lecturer.academic_rank,
+                'department': lecturer.department.name,
+                'preferred': True
+            })
+        
+        # Add other lecturers
+        for lecturer in other_lecturers:
+            lecturers_data.append({
+                'id': lecturer.id,
+                'name': lecturer.user.get_full_name(),
+                'rank': lecturer.academic_rank,
+                'department': lecturer.department.name,
+                'preferred': False
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'lecturers': lecturers_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
