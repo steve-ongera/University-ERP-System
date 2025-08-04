@@ -152,5 +152,14 @@ urlpatterns = [
     path('student/timetable/', views.student_timetable_view, name='student_timetable'),
     path('lecturer/timetable/', views.lecturer_timetable_view, name='lecturer_timetable'),
 
+    # Lecturer Attendance URLs
+    path('lecturer/attendance/', views.lecturer_attendance_dashboard, name='lecturer_attendance_dashboard'),
+    path('lecturer/attendance/generate/<int:timetable_id>/', views.lecturer_generate_qr_attendance, name='lecturer_generate_qr_attendance'),
+    path('lecturer/attendance/detail/<int:session_id>/', views.lecturer_attendance_detail, name='lecturer_attendance_detail'),
+    
+    # Student Attendance URLs
+    path('attendance/mark/<str:token>/', views.mark_attendance_qr, name='mark_attendance_qr'),
+    path('student/attendance/history/', views.student_attendance_history, name='student_attendance_history'),
+
 
 ]

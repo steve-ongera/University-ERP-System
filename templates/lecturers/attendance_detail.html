@@ -1,0 +1,311 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-list-check me-2 text-primary"></i>Attendance Details
+                        </h2>
+                        <div class="mt-3">
+                            <h5 class="text-primary">{{ attendance_session.timetable_slot.course.code }} - {{ attendance_session.timetable_slot.course.name }}</h5>
+                            <p class="text-muted mb-1">
+                                <i class="bi bi-calendar me-1"></i>Week {{ attendance_session.week_number }} - {{ attendance_session.session_date|date:"F d, Y" }}
+                            </p>
+                            <p class="text-muted mb-1">
+                                <i class="bi bi-clock me-1"></i>{{ attendance_session.timetable_slot.get_day_of_week_display }} 
+                                {{ attendance_session.timetable_slot.start_time|time:"H:i" }} - {{ attendance_session.timetable_slot.end_time|time:"H:i" }}
+                            </p>
+                            <p class="text-muted mb-1">
+                                <i class="bi bi-geo-alt me-1"></i>{{ attendance_session.timetable_slot.venue }}
+                            </p>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-mortarboard me-1"></i>{{ attendance_session.timetable_slot.programme.code }} - Year {{ attendance_session.timetable_slot.year }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group-vertical">
+                            <a href="{% url 'lecturer_attendance_dashboard' %}" class="btn btn-outline-primary mb-2">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            {% if attendance_session.qr_code_data %}
+                            <button class="btn btn-outline-success mb-2" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#qrModal">
+                                <i class="bi bi-qr-code"></i> View QR Code
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-success">
+                <div class="card-body">
+                    <i class="bi bi-person-check fs-3 text-success"></i>
+                    <h4 class="text-success mt-2">{{ stats.present_count }}</h4>
+                    <p class="text-muted mb-0">Present</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-danger">
+                <div class="card-body">
+                    <i class="bi bi-person-x fs-3 text-danger"></i>
+                    <h4 class="text-danger mt-2">{{ stats.absent_count }}</h4>
+                    <p class="text-muted mb-0">Absent</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-warning">
+                <div class="card-body">
+                    <i class="bi bi-clock fs-3 text-warning"></i>
+                    <h4 class="text-warning mt-2">{{ stats.late_count }}</h4>
+                    <p class="text-muted mb-0">Late</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm border-primary">
+                <div class="card-body">
+                    <i class="bi bi-percent fs-3 text-primary"></i>
+                    <h4 class="text-primary mt-2">{{ stats.attendance_rate }}%</h4>
+                    <p class="text-muted mb-0">Attendance Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <!-- Present Students -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-check me-2"></i>Present Students ({{ stats.present_count }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if attendance_records %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Time Marked</th>
+                                    <th>Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in attendance_records %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ record.student.student_id }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ record.student.user.first_name }} {{ record.student.user.last_name }}
+                                    </td>
+                                    <td>
+                                        {% if record.status == 'present' %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% elif record.status == 'late' %}
+                                            <span class="badge bg-warning">Late</span>
+                                        {% elif record.status == 'excused' %}
+                                            <span class="badge bg-info">Excused</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ record.marked_at|time:"H:i" }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ record.marked_at|timesince }} ago</small>
+                                    </td>
+                                    <td>
+                                        {% if record.marked_via_qr %}
+                                            <i class="bi bi-qr-code text-success" title="QR Code"></i>
+                                        {% else %}
+                                            <i class="bi bi-pencil text-primary" title="Manual"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-person-check fs-3"></i>
+                        <p class="mt-2">No students have marked attendance yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Absent Students -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-x me-2"></i>Absent Students ({{ stats.absent_count }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if absent_students %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in absent_students %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ student.student_id }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ student.user.first_name }} {{ student.user.last_name }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">Absent</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-success py-4">
+                        <i class="bi bi-check-circle fs-3"></i>
+                        <p class="mt-2">All students have marked attendance!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Session Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Session Details</h6>
+                            <p class="mb-1"><strong>Token:</strong> <code>{{ attendance_session.session_token }}</code></p>
+                            <p class="mb-1"><strong>Created:</strong> {{ attendance_session.created_at|date:"M d, Y H:i" }}</p>
+                            <p class="mb-1"><strong>Expires:</strong> {{ attendance_session.expires_at|date:"M d, Y H:i" }}</p>
+                            <p class="mb-1">
+                                <strong>Status:</strong> 
+                                {% if attendance_session.is_active and not attendance_session.is_expired %}
+                                    <span class="badge bg-success">Active</span>
+                                    ({{ attendance_session.expires_at|timeuntil }} remaining)
+                                {% elif attendance_session.is_expired %}
+                                    <span class="badge bg-danger">Expired</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Course Information</h6>
+                            <p class="mb-1"><strong>Course:</strong> {{ attendance_session.timetable_slot.course.code }} - {{ attendance_session.timetable_slot.course.name }}</p>
+                            <p class="mb-1"><strong>Programme:</strong> {{ attendance_session.timetable_slot.programme.name }}</p>
+                            <p class="mb-1"><strong>Year:</strong> {{ attendance_session.timetable_slot.year }}</p>
+                            <p class="mb-1"><strong>Semester:</strong> {{ attendance_session.semester.name }}</p>
+                            <p class="mb-1"><strong>Total Enrolled:</strong> {{ stats.total_enrolled }} students</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+{% if attendance_session.qr_code_data %}
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-qr-code me-2"></i>QR Code - Week {{ attendance_session.week_number }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="{{ attendance_session.qr_code_image_url }}" 
+                     alt="QR Code" 
+                     class="img-fluid mb-3" 
+                     style="max-width: 300px;">
+                
+                <div class="alert alert-info">
+                    <strong>Session Details:</strong><br>
+                    Course: {{ attendance_session.timetable_slot.course.code }}<br>
+                    Week: {{ attendance_session.week_number }}<br>
+                    Date: {{ attendance_session.session_date|date:"M d, Y" }}<br>
+                    {% if attendance_session.is_active and not attendance_session.is_expired %}
+                        Status: Active (Expires in {{ attendance_session.expires_at|timeuntil }})
+                    {% else %}
+                        Status: Expired
+                    {% endif %}
+                </div>
+                
+                <p class="text-muted">
+                    <small>Students can scan this QR code to mark their attendance.</small>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-close alerts after 5 seconds
+    setTimeout(function() {
+        $('.alert').fadeOut('slow');
+    }, 5000);
+</script>
+{% endblock %}

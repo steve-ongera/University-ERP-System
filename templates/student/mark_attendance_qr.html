@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0">
+                        <i class="bi bi-qr-code-scan me-2"></i>Mark Attendance
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Course Information -->
+                    <div class="text-center mb-4">
+                        <h4 class="text-primary">{{ course.code }} - {{ course.name }}</h4>
+                        <div class="mt-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">
+                                        <i class="bi bi-person me-1"></i>
+                                        <strong>Lecturer:</strong> {{ lecturer.user.first_name }} {{ lecturer.user.last_name }}
+                                    </p>
+                                    <p class="text-muted mb-1">
+                                        <i class="bi bi-calendar-week me-1"></i>
+                                        <strong>Week:</strong> {{ week_number }}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">
+                                        <i class="bi bi-calendar-date me-1"></i>
+                                        <strong>Date:</strong> {{ attendance_session.session_date|date:"M d, Y" }}
+                                    </p>
+                                    <p class="text-muted mb-1">
+                                        <i class="bi bi-clock me-1"></i>
+                                        <strong>Expires:</strong> {{ expires_at|date:"H:i" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Session Status -->
+                    <div class="text-center mb-4">
+                        {% if attendance_session.is_active and not attendance_session.is_expired %}
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle fs-5 me-2"></i>
+                                <strong>Session Active</strong>
+                                <br>
+                                <small>This session expires in {{ expires_at|timeuntil }}</small>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle fs-5 me-2"></i>
+                                <strong>Session Expired</strong>
+                                <br>
+                                <small>This attendance session is no longer active</small>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Mark Attendance Form -->
+                    {% if attendance_session.is_active and not attendance_session.is_expired %}
+                        {% if user.is_authenticated %}
+                            <div class="text-center">
+                                <button id="markAttendanceBtn" class="btn btn-success btn-lg px-5">
+                                    <i class="bi bi-check-circle me-2"></i>Mark My Attendance
+                                </button>
+                                
+                                <div id="loadingSpinner" class="d-none mt-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Processing your attendance...</p>
+                                </div>
+
+                                <div id="successMessage" class="d-none mt-3">
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-check-circle fs-5 me-2"></i>
+                                        <strong>Attendance Marked Successfully!</strong>
+                                        <br>
+                                        <small>You have been marked present for this session.</small>
+                                    </div>
+                                    <a href="{% url 'student_attendance_history' %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-list-check me-2"></i>View My Attendance History
+                                    </a>
+                                </div>
+
+                                <div id="errorMessage" class="d-none mt-3">
+                                    <div class="alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle fs-5 me-2"></i>
+                                        <strong>Error!</strong>
+                                        <span id="errorText"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle fs-5 me-2"></i>
+                                    <strong>Login Required</strong>
+                                    <br>
+                                    <small>Please log in to mark your attendance</small>
+                                </div>
+                                <a href="{% url 'login' %}?next={{ request.get_full_path }}" class="btn btn-primary">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Login to Continue
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle fs-5 me-2"></i>
+                                <strong>Session Unavailable</strong>
+                                <br>
+                                <small>This attendance session is no longer available for marking</small>
+                            </div>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-house me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <!-- Additional Information -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <i class="bi bi-shield-check text-success fs-4"></i>
+                                <p class="small text-muted mt-2">Secure attendance tracking</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-geo-alt text-info fs-4"></i>
+                                <p class="small text-muted mt-2">Location-based verification</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-clock-history text-warning fs-4"></i>
+                                <p class="small text-muted mt-2">Time-limited sessions</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include CSRF token for AJAX requests -->
+{% csrf_token %}
+
+<!-- JavaScript for AJAX attendance marking -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const markBtn = document.getElementById('markAttendanceBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+
+    if (markBtn) {
+        markBtn.addEventListener('click', function() {
+            // Disable button and show loading
+            markBtn.disabled = true;
+            loadingSpinner.classList.remove('d-none');
+            successMessage.classList.add('d-none');
+            errorMessage.classList.add('d-none');
+
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Make AJAX request
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingSpinner.classList.add('d-none');
+                
+                if (data.success) {
+                    markBtn.classList.add('d-none');
+                    successMessage.classList.remove('d-none');
+                } else {
+                    markBtn.disabled = false;
+                    errorText.textContent = data.message;
+                    errorMessage.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingSpinner.classList.add('d-none');
+                markBtn.disabled = false;
+                errorText.textContent = 'An unexpected error occurred. Please try again.';
+                errorMessage.classList.remove('d-none');
+            });
+        });
+    }
+
+    // Auto-refresh page if session expires
+    const expiresAt = new Date('{{ expires_at|date:"c" }}');
+    const now = new Date();
+    const timeToExpiry = expiresAt.getTime() - now.getTime();
+    
+    if (timeToExpiry > 0 && timeToExpiry < 3600000) { // If expires within 1 hour
+        setTimeout(function() {
+            location.reload();
+        }, timeToExpiry + 1000); // Refresh 1 second after expiry
+    }
+});
+</script>
+
+{% endblock %}

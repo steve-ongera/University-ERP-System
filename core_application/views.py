@@ -6379,7 +6379,7 @@ def lecturer_generate_qr_attendance(request, timetable_id):
             'week_choices': AttendanceSession.WEEK_CHOICES,
         }
         
-        return render(request, 'lecturer/generate_qr_attendance.html', context)
+        return render(request, 'lecturers/generate_qr_attendance.html', context)
         
     except Lecturer.DoesNotExist:
         messages.error(request, "Lecturer profile not found.")
@@ -6476,7 +6476,7 @@ def lecturer_attendance_dashboard(request):
             }
         }
         
-        return render(request, 'lecturer/attendance_dashboard.html', context)
+        return render(request, 'lecturers/attendance_dashboard.html', context)
         
     except Lecturer.DoesNotExist:
         messages.error(request, "Lecturer profile not found.")
@@ -6636,7 +6636,7 @@ def lecturer_attendance_detail(request, session_id):
             }
         }
         
-        return render(request, 'lecturer/attendance_detail.html', context)
+        return render(request, 'lecturers/attendance_detail.html', context)
         
     except Lecturer.DoesNotExist:
         messages.error(request, "Lecturer profile not found.")

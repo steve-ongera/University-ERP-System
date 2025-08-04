@@ -1,0 +1,445 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-qr-code me-2 text-success"></i>Attendance Management
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-success">{{ lecturer.employee_number }}</span> | 
+                            <span class="badge bg-info">{{ lecturer.get_academic_rank_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person me-1"></i>{{ lecturer.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ current_semester.academic_year.year }} - Semester {{ current_semester.semester_number }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Teaching Courses</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">{{ stats.total_sessions }}</h5>
+                            <p class="small text-muted mb-0">Total Sessions</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-info">{{ stats.active_sessions }}</h5>
+                            <p class="small text-muted mb-0">Active Sessions</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-warning">{{ course_attendance|length }}</h5>
+                            <p class="small text-muted mb-0">Course Summaries</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Selection for QR Generation -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>Generate QR Code for Attendance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for slot in timetable_slots %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-start border-4 border-primary">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ slot.course.code }} - {{ slot.course.name }}</h6>
+                                    <p class="card-text small text-muted">
+                                        <i class="bi bi-calendar me-1"></i>{{ slot.get_day_of_week_display }} {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
+                                        <br>
+                                        <i class="bi bi-geo-alt me-1"></i>{{ slot.venue }}
+                                        <br>
+                                        <i class="bi bi-mortarboard me-1"></i>{{ slot.programme.code }} - Year {{ slot.year }}
+                                        <br>
+                                        <i class="bi bi-bookmark me-1"></i>{{ slot.get_class_type_display }}
+                                    </p>
+                                    <div class="d-grid">
+                                        <a href="{% url 'lecturer_generate_qr_attendance' slot.id %}" class="btn btn-success btn-sm">
+                                            <i class="bi bi-qr-code me-1"></i>Generate QR Code
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-x display-4 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Classes Scheduled</h5>
+                                <p class="text-muted">You don't have any classes scheduled for this semester.</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Attendance Summary -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Attendance Summary by Course
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if course_attendance %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Programme</th>
+                                    <th>Sessions</th>
+                                    <th>Attendance Rate</th>
+                                    <th>Total Possible</th>
+                                    <th>Actual Attendance</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in course_attendance %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ attendance.course.code }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ attendance.course.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ attendance.timetable_slot.programme.code }}</span>
+                                        <br>
+                                        <small class="text-muted">Year {{ attendance.timetable_slot.year }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ attendance.sessions_count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if attendance.attendance_rate >= 75 %}
+                                            <span class="badge bg-success">{{ attendance.attendance_rate }}%</span>
+                                        {% elif attendance.attendance_rate >= 50 %}
+                                            <span class="badge bg-warning">{{ attendance.attendance_rate }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ attendance.attendance_rate }}%</span>
+                                        {% endif %}
+                                        <br>
+                                        <div class="progress mt-1" style="height: 5px;">
+                                            <div class="progress-bar 
+                                                {% if attendance.attendance_rate >= 75 %}bg-success
+                                                {% elif attendance.attendance_rate >= 50 %}bg-warning
+                                                {% else %}bg-danger{% endif %}"
+                                                style="width: {{ attendance.attendance_rate }}%">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ attendance.total_possible }}</td>
+                                    <td>{{ attendance.actual_attendance }}</td>
+                                    <td>
+                                        <a href="{% url 'lecturer_generate_qr_attendance' attendance.timetable_slot.id %}" 
+                                           class="btn btn-sm btn-outline-success" title="Generate QR">
+                                            <i class="bi bi-qr-code"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-graph-up display-4 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Attendance Data</h5>
+                        <p class="text-muted">Start generating QR codes to see attendance summaries.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Attendance Sessions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Recent Attendance Sessions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if attendance_sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Week</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Attendance</th>
+                                    <th>QR Code</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in attendance_sessions %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ session.timetable_slot.course.code }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ session.timetable_slot.course.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">Week {{ session.week_number }}</span>
+                                    </td>
+                                    <td>
+                                        {{ session.session_date|date:"M d, Y" }}
+                                        <br>
+                                        <small class="text-muted">{{ session.created_at|timesince }} ago</small>
+                                    </td>
+                                    <td>
+                                        {% if session.is_active and not session.is_expired %}
+                                            <span class="badge bg-success">Active</span>
+                                            <br>
+                                            <small class="text-muted">Expires: {{ session.expires_at|timeuntil }}</small>
+                                        {% elif session.is_expired %}
+                                            <span class="badge bg-danger">Expired</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="badge bg-success">{{ session.present_count }} Present</span>
+                                                {% if session.late_count > 0 %}
+                                                <span class="badge bg-warning">{{ session.late_count }} Late</span>
+                                                {% endif %}
+                                                {% if session.absent_count > 0 %}
+                                                <span class="badge bg-danger">{{ session.absent_count }} Absent</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Total: {{ session.total_attendance }}</small>
+                                    </td>
+                                    <td>
+                                        {% if session.qr_code_data %}
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#qrModal{{ session.id }}">
+                                                <i class="bi bi-qr-code"></i> View QR
+                                            </button>
+                                        {% else %}
+                                            <span class="text-muted">No QR</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'lecturer_attendance_detail' session.id %}" 
+                                               class="btn btn-outline-info" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if session.is_active and not session.is_expired %}
+                                            <button class="btn btn-outline-warning" 
+                                                    onclick="copyToClipboard('{{ request.build_absolute_uri }}{% url 'mark_attendance_qr' session.session_token %}')"
+                                                    title="Copy Link">
+                                                <i class="bi bi-link-45deg"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- QR Code Modal -->
+                                {% if session.qr_code_data %}
+                                <div class="modal fade" id="qrModal{{ session.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">QR Code - {{ session.timetable_slot.course.code }} Week {{ session.week_number }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body text-center">
+                                                <img src="{{ session.qr_code_image_url }}" 
+                                                     alt="QR Code" 
+                                                     class="img-fluid mb-3" 
+                                                     style="max-width: 300px;">
+                                                <p class="text-muted">
+                                                    Students can scan this QR code to mark their attendance.
+                                                </p>
+                                                <div class="alert alert-info">
+                                                    <strong>Session Details:</strong><br>
+                                                    Date: {{ session.session_date|date:"M d, Y" }}<br>
+                                                    {% if session.is_active and not session.is_expired %}
+                                                        Status: Active (Expires in {{ session.expires_at|timeuntil }})
+                                                    {% else %}
+                                                        Status: {% if session.is_expired %}Expired{% else %}Inactive{% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="button" class="btn btn-primary" 
+                                                        onclick="copyToClipboard('{{ request.build_absolute_uri }}{% url 'mark_attendance_qr' session.session_token %}')">
+                                                    <i class="bi bi-link-45deg"></i> Copy Link
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if attendance_sessions.has_other_pages %}
+                    <nav aria-label="Attendance sessions pagination">
+                        <ul class="pagination justify-content-center mt-3">
+                            {% if attendance_sessions.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">&laquo; First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ attendance_sessions.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in attendance_sessions.paginator.page_range %}
+                                {% if attendance_sessions.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > attendance_sessions.number|add:'-3' and num < attendance_sessions.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if attendance_sessions.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ attendance_sessions.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ attendance_sessions.paginator.num_pages }}">Last &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-clock-history display-4 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Attendance Sessions</h5>
+                        <p class="text-muted">You haven't created any attendance sessions yet.</p>
+                        <a href="#" class="btn btn-primary" onclick="document.querySelector('.card-header.bg-primary').scrollIntoView();">
+                            <i class="bi bi-plus-circle me-1"></i>Generate Your First QR Code
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Create a temporary toast notification
+            const toast = document.createElement('div');
+            toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed';
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-check-circle me-2"></i>Link copied to clipboard!
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            // Remove the toast after it's hidden
+            toast.addEventListener('hidden.bs.toast', function() {
+                document.body.removeChild(toast);
+            });
+        }).catch(function(err) {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy link to clipboard');
+        });
+    } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy link to clipboard');
+        }
+        document.body.removeChild(textArea);
+    }
+}
+</script>
+
+{% endblock %}
