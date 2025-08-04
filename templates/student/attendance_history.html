@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary mb-0">
+                        <i class="bi bi-list-check me-2"></i>My Attendance History
+                    </h2>
+                    <p class="text-muted">{{ current_semester.name }} - {{ current_semester.academic_year }}</p>
+                </div>
+                <div>
+                    <span class="badge bg-info fs-6">
+                        <i class="bi bi-person me-1"></i>{{ student.user.first_name }} {{ student.user.last_name }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Attendance Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Attendance Summary by Course
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if course_attendance %}
+                        <div class="row">
+                            {% for course_id, data in course_attendance.items %}
+                            <div class="col-lg-6 col-xl-4 mb-4">
+                                <div class="card h-100 border-start border-4 {% if data.attendance_rate >= 80 %}border-success{% elif data.attendance_rate >= 60 %}border-warning{% else %}border-danger{% endif %}">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-truncate" title="{{ data.course.name }}">
+                                            {{ data.course.code }} - {{ data.course.name }}
+                                        </h6>
+                                        
+                                        <!-- Attendance Rate Circle -->
+                                        <div class="text-center mb-3">
+                                            <div class="position-relative d-inline-block">
+                                                <svg width="80" height="80" class="{% if data.attendance_rate >= 80 %}text-success{% elif data.attendance_rate >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                                                    <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" stroke-width="3" opacity="0.3"></circle>
+                                                    <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" stroke-width="3" 
+                                                            stroke-dasharray="{{ data.attendance_rate|floatformat:0 }}, 100" 
+                                                            stroke-dashoffset="25" transform="rotate(-90 40 40)"></circle>
+                                                </svg>
+                                                <div class="position-absolute top-50 start-50 translate-middle">
+                                                    <strong class="fs-6">{{ data.attendance_rate }}%</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Statistics -->
+                                        <div class="row text-center small">
+                                            <div class="col-3">
+                                                <div class="text-success">
+                                                    <i class="bi bi-check-circle"></i>
+                                                    <div>{{ data.present_count }}</div>
+                                                    <small class="text-muted">Present</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="text-warning">
+                                                    <i class="bi bi-clock"></i>
+                                                    <div>{{ data.late_count }}</div>
+                                                    <small class="text-muted">Late</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="text-danger">
+                                                    <i class="bi bi-x-circle"></i>
+                                                    <div>{{ data.absent_count }}</div>
+                                                    <small class="text-muted">Absent</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-3">
+                                                <div class="text-info">
+                                                    <i class="bi bi-calendar3"></i>
+                                                    <div>{{ data.total_sessions }}</div>
+                                                    <small class="text-muted">Total</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Attendance Status Badge -->
+                                        <div class="text-center mt-2">
+                                            {% if data.attendance_rate >= 80 %}
+                                                <span class="badge bg-success">Excellent</span>
+                                            {% elif data.attendance_rate >= 75 %}
+                                                <span class="badge bg-primary">Good</span>
+                                            {% elif data.attendance_rate >= 60 %}
+                                                <span class="badge bg-warning">Warning</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Critical</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Course Enrollment Found</h5>
+                            <p class="text-muted">You are not enrolled in any courses for this semester.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Attendance Records -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table me-2"></i>Detailed Attendance Records
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-light" id="filterAll">All</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" id="filterPresent">Present</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" id="filterLate">Late</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" id="filterAbsent">Absent</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if attendance_records %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="attendanceTable">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Week</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Marked At</th>
+                                        <th>Method</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in attendance_records %}
+                                    <tr class="attendance-row" data-status="{{ record.status }}">
+                                        <td>
+                                            <strong>{{ record.timetable_slot.course.code }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ record.timetable_slot.course.name }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">Week {{ record.week_number }}</span>
+                                        </td>
+                                        <td>{{ record.attendance_session.session_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            {% if record.status == 'present' %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Present
+                                                </span>
+                                            {% elif record.status == 'late' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-clock me-1"></i>Late
+                                                </span>
+                                            {% elif record.status == 'absent' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>Absent
+                                                </span>
+                                            {% elif record.status == 'excused' %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-shield-check me-1"></i>Excused
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ record.marked_at|date:"M d, Y H:i" }}
+                                            <br>
+                                            <small class="text-muted">{{ record.marked_at|timesince }} ago</small>
+                                        </td>
+                                        <td>
+                                            {% if record.marked_via_qr %}
+                                                <span class="badge bg-primary">
+                                                    <i class="bi bi-qr-code me-1"></i>QR Code
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-person-check me-1"></i>Manual
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if record.remarks %}
+                                                <small>{{ record.remarks }}</small>
+                                            {% else %}
+                                                <small class="text-muted">-</small>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-calendar-x display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Attendance Records</h5>
+                            <p class="text-muted">No attendance has been marked yet for this semester.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Statistics Summary -->
+    {% if attendance_records %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Overall Statistics</h6>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="bg-success bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-check-circle text-success fs-4"></i>
+                                <h5 class="mt-2 mb-0">{{ attendance_records|length }}</h5>
+                                <small class="text-muted">Total Records</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-qr-code text-primary fs-4"></i>
+                                <h5 class="mt-2 mb-0">{{ attendance_records|length }}</h5>
+                                <small class="text-muted">QR Scans</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-calendar-week text-info fs-4"></i>
+                                <h5 class="mt-2 mb-0">{{ current_semester.name }}</h5>
+                                <small class="text-muted">Current Semester</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-mortarboard text-warning fs-4"></i>
+                                <h5 class="mt-2 mb-0">{{ course_attendance|length }}</h5>
+                                <small class="text-muted">Enrolled Courses</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter functionality
+    const filterButtons = ['filterAll', 'filterPresent', 'filterLate', 'filterAbsent'];
+    const attendanceRows = document.querySelectorAll('.attendance-row');
+
+    filterButtons.forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                filterButtons.forEach(btnId => {
+                    document.getElementById(btnId).classList.remove('active');
+                });
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+
+                // Show/hide rows based on filter
+                const filterStatus = buttonId.replace('filter', '').toLowerCase();
+                
+                attendanceRows.forEach(row => {
+                    if (filterStatus === 'all') {
+                        row.style.display = '';
+                    } else {
+                        const rowStatus = row.getAttribute('data-status');
+                        row.style.display = rowStatus === filterStatus ? '' : 'none';
+                    }
+                });
+            });
+        }
+    });
+
+    // Set 'All' as default active filter
+    document.getElementById('filterAll').classList.add('active');
+
+    // Animate progress circles
+    const circles = document.querySelectorAll('circle[stroke-dasharray]');
+    circles.forEach(circle => {
+        const dashArray = circle.getAttribute('stroke-dasharray');
+        const percentage = parseFloat(dashArray.split(',')[0]);
+        const circumference = 2 * Math.PI * 35; // radius = 35
+        const offset = circumference - (percentage / 100) * circumference;
+        
+        circle.style.strokeDashoffset = circumference;
+        setTimeout(() => {
+            circle.style.strokeDashoffset = offset;
+            circle.style.transition = 'stroke-dashoffset 1s ease-in-out';
+        }, 100);
+    });
+});
+</script>
+
+<style>
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.attendance-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.btn-outline-light:hover,
+.btn-outline-light.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+circle {
+    transition: stroke-dashoffset 1s ease-in-out;
+}
+
+.card {
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+
+{% endblock %}

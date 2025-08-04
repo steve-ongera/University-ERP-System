@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0">
+                        <i class="bi bi-camera me-2"></i>Scan QR Code for Attendance
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <!-- Camera Section -->
+                    <div class="text-center mb-4">
+                        <div id="cameraSection">
+                            <div id="loadingCamera" class="mb-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading camera...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Initializing camera...</p>
+                            </div>
+                            
+                            <!-- Camera Preview -->
+                            <div id="cameraPreview" class="d-none mb-3">
+                                <video id="video" width="100%" height="300" style="max-width: 500px; border-radius: 10px; border: 3px solid #0d6efd;" autoplay muted playsinline></video>
+                                <canvas id="canvas" style="display: none;"></canvas>
+                            </div>
+                            
+                            <!-- Camera Controls -->
+                            <div id="cameraControls" class="d-none mb-3">
+                                <button id="startScanBtn" class="btn btn-success btn-lg me-2">
+                                    <i class="bi bi-play-circle me-2"></i>Start Scanning
+                                </button>
+                                <button id="stopScanBtn" class="btn btn-danger btn-lg me-2 d-none">
+                                    <i class="bi bi-stop-circle me-2"></i>Stop Scanning
+                                </button>
+                                <button id="switchCameraBtn" class="btn btn-outline-secondary">
+                                    <i class="bi bi-camera-reels me-2"></i>Switch Camera
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Manual Input Section -->
+                        <div class="mt-4 pt-3 border-top">
+                            <h5 class="text-muted">Or enter token manually:</h5>
+                            <div class="row justify-content-center">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <input type="text" id="manualToken" class="form-control" placeholder="Enter attendance token">
+                                        <button id="submitTokenBtn" class="btn btn-outline-primary" type="button">
+                                            <i class="bi bi-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Messages -->
+                    <div id="scanStatus" class="text-center d-none">
+                        <div class="alert alert-info">
+                            <i class="bi bi-qr-code-scan fs-5 me-2"></i>
+                            <strong>Scanning...</strong>
+                            <br>
+                            <small>Point your camera at the QR code</small>
+                        </div>
+                    </div>
+
+                    <div id="successMessage" class="d-none">
+                        <div class="alert alert-success text-center">
+                            <i class="bi bi-check-circle fs-5 me-2"></i>
+                            <strong>QR Code Detected!</strong>
+                            <br>
+                            <small>Redirecting to attendance page...</small>
+                        </div>
+                    </div>
+
+                    <div id="errorMessage" class="d-none">
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle fs-5 me-2"></i>
+                            <strong>Error!</strong>
+                            <span id="errorText"></span>
+                        </div>
+                    </div>
+
+                    <!-- Camera Permission Error -->
+                    <div id="cameraError" class="d-none">
+                        <div class="alert alert-warning text-center">
+                            <i class="bi bi-camera-video-off fs-5 me-2"></i>
+                            <strong>Camera Access Required</strong>
+                            <br>
+                            <small>Please allow camera access to scan QR codes. You can also enter the token manually below.</small>
+                        </div>
+                    </div>
+
+                    <!-- Information Section -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <i class="bi bi-shield-check text-success fs-4"></i>
+                                <p class="small text-muted mt-2">Secure QR scanning</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-camera text-info fs-4"></i>
+                                <p class="small text-muted mt-2">Real-time detection</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-lightning-charge text-warning fs-4"></i>
+                                <p class="small text-muted mt-2">Fast processing</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Back Button -->
+                    <div class="text-center mt-4">
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Scanner JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const loadingCamera = document.getElementById('loadingCamera');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraControls = document.getElementById('cameraControls');
+    const cameraError = document.getElementById('cameraError');
+    const startScanBtn = document.getElementById('startScanBtn');
+    const stopScanBtn = document.getElementById('stopScanBtn');
+    const switchCameraBtn = document.getElementById('switchCameraBtn');
+    const scanStatus = document.getElementById('scanStatus');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const manualToken = document.getElementById('manualToken');
+    const submitTokenBtn = document.getElementById('submitTokenBtn');
+
+    let qrScanner = null;
+    let isScanning = false;
+
+    // Initialize camera
+    async function initializeCamera() {
+        try {
+            // Check if QrScanner is supported
+            if (!QrScanner.hasCamera()) {
+                throw new Error('No camera found on this device');
+            }
+
+            // Create QR scanner instance
+            qrScanner = new QrScanner(video, result => {
+                console.log('QR Code detected:', result.data);
+                handleQRCodeDetected(result.data);
+            }, {
+                returnDetailedScanResult: true,
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+            });
+
+            // Start camera
+            await qrScanner.start();
+            
+            // Hide loading, show camera
+            loadingCamera.classList.add('d-none');
+            cameraPreview.classList.remove('d-none');
+            cameraControls.classList.remove('d-none');
+
+        } catch (error) {
+            console.error('Camera initialization error:', error);
+            loadingCamera.classList.add('d-none');
+            cameraError.classList.remove('d-none');
+            showError('Failed to access camera: ' + error.message);
+        }
+    }
+
+    // Handle QR code detection
+    function handleQRCodeDetected(qrData) {
+        console.log('Processing QR data:', qrData);
+        
+        try {
+            // Stop scanning
+            stopScanning();
+            
+            // Show success message
+            successMessage.classList.remove('d-none');
+            scanStatus.classList.add('d-none');
+            
+            // Extract token from URL or use as token directly
+            let token = extractTokenFromQRData(qrData);
+            
+            if (token) {
+                // Redirect to attendance marking page
+                setTimeout(() => {
+                    window.location.href = `/attendance/mark/${token}/`;
+                }, 1500);
+            } else {
+                throw new Error('Invalid QR code format');
+            }
+            
+        } catch (error) {
+            console.error('QR processing error:', error);
+            showError('Invalid QR code: ' + error.message);
+            // Allow scanning to continue for invalid codes
+            setTimeout(() => {
+                successMessage.classList.add('d-none');
+                errorMessage.classList.add('d-none');
+            }, 3000);
+        }
+    }
+
+    // Extract token from QR data
+    function extractTokenFromQRData(qrData) {
+        try {
+            // Case 1: Full URL (http://domain.com/attendance/mark/token/)
+            const urlMatch = qrData.match(/\/attendance\/mark\/([^\/]+)\/?/);
+            if (urlMatch) {
+                return urlMatch[1];
+            }
+            
+            // Case 2: Just the token
+            const tokenRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+            if (tokenRegex.test(qrData)) {
+                return qrData;
+            }
+            
+            // Case 3: Token with some prefix/suffix
+            const tokenInString = qrData.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+            if (tokenInString) {
+                return tokenInString[1];
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Token extraction error:', error);
+            return null;
+        }
+    }
+
+    // Start scanning
+    function startScanning() {
+        if (qrScanner && !isScanning) {
+            qrScanner.start();
+            isScanning = true;
+            startScanBtn.classList.add('d-none');
+            stopScanBtn.classList.remove('d-none');
+            scanStatus.classList.remove('d-none');
+            errorMessage.classList.add('d-none');
+            successMessage.classList.add('d-none');
+        }
+    }
+
+    // Stop scanning
+    function stopScanning() {
+        if (qrScanner && isScanning) {
+            qrScanner.stop();
+            isScanning = false;
+            startScanBtn.classList.remove('d-none');
+            stopScanBtn.classList.add('d-none');
+            scanStatus.classList.add('d-none');
+        }
+    }
+
+    // Switch camera
+    async function switchCamera() {
+        if (qrScanner) {
+            try {
+                const cameras = await QrScanner.listCameras(true);
+                if (cameras.length > 1) {
+                    const currentCamera = await qrScanner.getCamera();
+                    const currentIndex = cameras.findIndex(camera => camera.id === currentCamera.id);
+                    const nextIndex = (currentIndex + 1) % cameras.length;
+                    await qrScanner.setCamera(cameras[nextIndex].id);
+                }
+            } catch (error) {
+                console.error('Switch camera error:', error);
+                showError('Failed to switch camera');
+            }
+        }
+    }
+
+    // Show error message
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.classList.remove('d-none');
+        setTimeout(() => {
+            errorMessage.classList.add('d-none');
+        }, 5000);
+    }
+
+    // Handle manual token submission
+    function submitManualToken() {
+        const token = manualToken.value.trim();
+        if (token) {
+            // Validate token format (basic UUID check)
+            const tokenRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+            if (tokenRegex.test(token)) {
+                window.location.href = `/attendance/mark/${token}/`;
+            } else {
+                showError('Please enter a valid attendance token');
+            }
+        } else {
+            showError('Please enter an attendance token');
+        }
+    }
+
+    // Event listeners
+    startScanBtn.addEventListener('click', startScanning);
+    stopScanBtn.addEventListener('click', stopScanning);
+    switchCameraBtn.addEventListener('click', switchCamera);
+    submitTokenBtn.addEventListener('click', submitManualToken);
+    
+    // Handle Enter key in manual input
+    manualToken.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            submitManualToken();
+        }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (qrScanner) {
+            qrScanner.destroy();
+        }
+    });
+
+    // Initialize camera on page load
+    initializeCamera();
+});
+</script>
+
+{% endblock %}

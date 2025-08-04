@@ -157,7 +157,8 @@ urlpatterns = [
     path('lecturer/attendance/generate/<int:timetable_id>/', views.lecturer_generate_qr_attendance, name='lecturer_generate_qr_attendance'),
     path('lecturer/attendance/detail/<int:session_id>/', views.lecturer_attendance_detail, name='lecturer_attendance_detail'),
     
-    # Student Attendance URLs
+    # Student Attendance URLS
+    path('attendance/scan/', views.scan_attendance_qr, name='scan_attendance_qr'),
     path('attendance/mark/<str:token>/', views.mark_attendance_qr, name='mark_attendance_qr'),
     path('student/attendance/history/', views.student_attendance_history, name='student_attendance_history'),
 

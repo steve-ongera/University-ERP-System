@@ -6715,3 +6715,10 @@ def student_attendance_history(request):
     except Exception as e:
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect('student_dashboard')
+
+def scan_attendance_qr(request):
+    """View to scan QR code for attendance"""
+    context = {
+        'page_title': 'Scan QR Code for Attendance',
+    }
+    return render(request, 'student/scan_attendance_qr.html', context)
