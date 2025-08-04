@@ -6209,16 +6209,10 @@ def lecturer_timetable_view(request):
         
         # Define time slots
         time_slots = [
-            {'start': time(8, 0), 'end': time(9, 0), 'label': '8:00 - 9:00 AM'},
-            {'start': time(9, 0), 'end': time(10, 0), 'label': '9:00 - 10:00 AM'},
-            {'start': time(10, 0), 'end': time(11, 0), 'label': '10:00 - 11:00 AM'},
-            {'start': time(11, 0), 'end': time(12, 0), 'label': '11:00 - 12:00 PM'},
-            {'start': time(12, 0), 'end': time(13, 0), 'label': '12:00 - 1:00 PM'},
-            {'start': time(13, 0), 'end': time(14, 0), 'label': '1:00 - 2:00 PM'},
-            {'start': time(14, 0), 'end': time(15, 0), 'label': '2:00 - 3:00 PM'},
-            {'start': time(15, 0), 'end': time(16, 0), 'label': '3:00 - 4:00 PM'},
-            {'start': time(16, 0), 'end': time(17, 0), 'label': '4:00 - 5:00 PM'},
-            {'start': time(17, 0), 'end': time(18, 0), 'label': '5:00 - 6:00 PM'},
+            {'start': time(7, 0), 'end': time(10, 0), 'label': '7:00 - 10:00 AM'},
+            {'start': time(10, 0), 'end': time(13, 0), 'label': '10:00 - 1:00 PM'},
+            {'start': time(14, 0), 'end': time(17, 0), 'label': '2:00 - 5:00 PM'},
+            {'start': time(17, 0), 'end': time(19, 0), 'label': '5:00 - 7:00 PM'},
         ]
         
         # Days of the week
