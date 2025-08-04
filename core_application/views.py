@@ -6048,3 +6048,245 @@ def get_available_lecturers(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.db.models import Q
+from collections import defaultdict
+from datetime import time
+from .models import (
+    Student, Lecturer, Timetable, AcademicYear, Semester, 
+    Enrollment, Course, Programme
+)
+
+@login_required
+def student_timetable_view(request):
+    """View for students to see their timetable"""
+    try:
+        # Get student profile
+        student = get_object_or_404(Student, user=request.user)
+        
+        # Get current academic year and semester
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_academic_year or not current_semester:
+            context = {
+                'error': 'No active academic year or semester found.',
+                'student': student,
+            }
+            return render(request, 'students/student_timetable.html', context)
+        
+        # Get student's enrolled courses for current semester
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course', 'lecturer')
+        
+        if not enrollments.exists():
+            context = {
+                'error': 'No course enrollments found for current semester.',
+                'student': student,
+                'current_academic_year': current_academic_year,
+                'current_semester': current_semester,
+            }
+            return render(request, 'students/student_timetable.html', context)
+        
+        # Get course codes for enrolled courses
+        enrolled_courses = [enrollment.course for enrollment in enrollments]
+        
+        # Get timetable entries for enrolled courses
+        timetable_entries = Timetable.objects.filter(
+            course__in=enrolled_courses,
+            semester=current_semester,
+            programme=student.programme,
+            year=student.current_year,
+            is_active=True
+        ).select_related('course', 'lecturer', 'lecturer__user').order_by('day_of_week', 'start_time')
+        
+        # Define time slots (you can customize these)
+        time_slots = [
+            {'start': time(7, 0), 'end': time(10, 0), 'label': '7:00 - 10:00 AM'},
+            {'start': time(10, 0), 'end': time(13, 0), 'label': '10:00 - 1:00 PM'},
+            {'start': time(14, 0), 'end': time(17, 0), 'label': '2:00 - 5:00 PM'},
+            {'start': time(17, 0), 'end': time(19, 0), 'label': '5:00 - 7:00 PM'},
+        ]
+        
+        # Days of the week
+        days_of_week = [
+            {'key': 'monday', 'label': 'Monday'},
+            {'key': 'tuesday', 'label': 'Tuesday'},
+            {'key': 'wednesday', 'label': 'Wednesday'},
+            {'key': 'thursday', 'label': 'Thursday'},
+            {'key': 'friday', 'label': 'Friday'},
+            {'key': 'saturday', 'label': 'Saturday'},
+        ]
+        
+        # Organize timetable data
+        timetable_grid = defaultdict(lambda: defaultdict(list))
+        
+        for entry in timetable_entries:
+            # Find matching time slot
+            for slot in time_slots:
+                if entry.start_time >= slot['start'] and entry.start_time < slot['end']:
+                    timetable_grid[entry.day_of_week][slot['start']].append(entry)
+                    break
+        
+        # Calculate statistics
+        total_courses = len(enrolled_courses)
+        total_classes = timetable_entries.count()
+        total_credit_hours = sum(course.credit_hours for course in enrolled_courses)
+        
+        context = {
+            'student': student,
+            'programme': student.programme,
+            'current_academic_year': current_academic_year,
+            'current_semester': current_semester,
+            'timetable_grid': dict(timetable_grid),
+            'time_slots': time_slots,
+            'days_of_week': days_of_week,
+            'enrolled_courses': enrolled_courses,
+            'enrollments': enrollments,
+            'stats': {
+                'total_courses': total_courses,
+                'total_classes': total_classes,
+                'total_credit_hours': total_credit_hours,
+            }
+        }
+        
+        return render(request, 'student/student_timetable.html', context)
+        
+    except Student.DoesNotExist:
+        context = {
+            'error': 'Student profile not found.',
+        }
+        return render(request, 'student/student_timetable.html', context)
+    
+    except Exception as e:
+        context = {
+            'error': f'An error occurred: {str(e)}',
+        }
+        return render(request, 'student/student_timetable.html', context)
+
+
+
+@login_required
+def lecturer_timetable_view(request):
+    """View for lecturers to see their teaching schedule"""
+    try:
+        # Get lecturer profile
+        lecturer = get_object_or_404(Lecturer, user=request.user)
+        
+        # Get current academic year and semester
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_academic_year or not current_semester:
+            context = {
+                'error': 'No active academic year or semester found.',
+                'lecturer': lecturer,
+            }
+            return render(request, 'lecturers/lecturer_timetable.html', context)
+        
+        # Get lecturer's teaching assignments for current semester
+        timetable_entries = Timetable.objects.filter(
+            lecturer=lecturer,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course', 'programme').order_by('day_of_week', 'start_time')
+        
+        if not timetable_entries.exists():
+            context = {
+                'error': 'No teaching assignments found for current semester.',
+                'lecturer': lecturer,
+                'current_academic_year': current_academic_year,
+                'current_semester': current_semester,
+            }
+            return render(request, 'lecturers/lecturer_timetable.html', context)
+        
+        # Define time slots
+        time_slots = [
+            {'start': time(8, 0), 'end': time(9, 0), 'label': '8:00 - 9:00 AM'},
+            {'start': time(9, 0), 'end': time(10, 0), 'label': '9:00 - 10:00 AM'},
+            {'start': time(10, 0), 'end': time(11, 0), 'label': '10:00 - 11:00 AM'},
+            {'start': time(11, 0), 'end': time(12, 0), 'label': '11:00 - 12:00 PM'},
+            {'start': time(12, 0), 'end': time(13, 0), 'label': '12:00 - 1:00 PM'},
+            {'start': time(13, 0), 'end': time(14, 0), 'label': '1:00 - 2:00 PM'},
+            {'start': time(14, 0), 'end': time(15, 0), 'label': '2:00 - 3:00 PM'},
+            {'start': time(15, 0), 'end': time(16, 0), 'label': '3:00 - 4:00 PM'},
+            {'start': time(16, 0), 'end': time(17, 0), 'label': '4:00 - 5:00 PM'},
+            {'start': time(17, 0), 'end': time(18, 0), 'label': '5:00 - 6:00 PM'},
+        ]
+        
+        # Days of the week
+        days_of_week = [
+            {'key': 'monday', 'label': 'Monday'},
+            {'key': 'tuesday', 'label': 'Tuesday'},
+            {'key': 'wednesday', 'label': 'Wednesday'},
+            {'key': 'thursday', 'label': 'Thursday'},
+            {'key': 'friday', 'label': 'Friday'},
+            {'key': 'saturday', 'label': 'Saturday'},
+        ]
+        
+        # Organize timetable data - group multiple courses in same time slot
+        timetable_grid = defaultdict(lambda: defaultdict(list))
+        
+        for entry in timetable_entries:
+            # Find matching time slot
+            for slot in time_slots:
+                if entry.start_time >= slot['start'] and entry.start_time < slot['end']:
+                    timetable_grid[entry.day_of_week][slot['start']].append(entry)
+                    break
+        
+        # Get unique courses and programmes
+        unique_courses = timetable_entries.values_list('course__code', 'course__name').distinct()
+        unique_programmes = timetable_entries.values_list('programme__code', 'programme__name').distinct()
+        
+        # Calculate statistics
+        total_courses = len(unique_courses)
+        total_classes = timetable_entries.count()
+        total_programmes = len(unique_programmes)
+        
+        # Get weekly teaching hours
+        weekly_hours = 0
+        for entry in timetable_entries:
+            # Calculate duration in hours
+            start_datetime = entry.start_time
+            end_datetime = entry.end_time
+            duration = (end_datetime.hour - start_datetime.hour) + (end_datetime.minute - start_datetime.minute) / 60.0
+            weekly_hours += duration
+        
+        context = {
+            'lecturer': lecturer,
+            'current_academic_year': current_academic_year,
+            'current_semester': current_semester,
+            'timetable_grid': dict(timetable_grid),
+            'time_slots': time_slots,
+            'days_of_week': days_of_week,
+            'timetable_entries': timetable_entries,
+            'unique_courses': unique_courses,
+            'unique_programmes': unique_programmes,
+            'stats': {
+                'total_courses': total_courses,
+                'total_classes': total_classes,
+                'total_programmes': total_programmes,
+                'weekly_hours': round(weekly_hours, 1),
+            }
+        }
+        
+        return render(request, 'lecturers/lecturer_timetable.html', context)
+        
+    except Lecturer.DoesNotExist:
+        context = {
+            'error': 'Lecturer profile not found.',
+        }
+        return render(request, 'lecturers/lecturer_timetable.html', context)
+    
+    except Exception as e:
+        context = {
+            'error': f'An error occurred: {str(e)}',
+        }
+        return render(request, 'lecturers/lecturer_timetable.html', context)

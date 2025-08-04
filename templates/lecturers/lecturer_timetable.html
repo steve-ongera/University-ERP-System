@@ -1,0 +1,377 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-calendar-check me-2 text-success"></i>My Teaching Schedule
+                        </h2>
+                        {% if lecturer %}
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-success">{{ lecturer.employee_number }}</span> | 
+                            <span class="badge bg-info">{{ lecturer.get_academic_rank_display }}</span> |
+                            <span class="badge bg-primary">{{ lecturer.department.code }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person me-1"></i>{{ lecturer.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ lecturer.department.faculty.name }} - {{ lecturer.department.name }}
+                        </p>
+                        {% endif %}
+                        {% if current_academic_year and current_semester %}
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ current_academic_year.year }} - Semester {{ current_semester.semester_number }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <!-- Error State -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle display-1 text-warning"></i>
+                <h4 class="text-muted mt-3">{{ error }}</h4>
+                <p class="text-muted">Please contact the academic office if this problem persists.</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Teaching Courses</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">{{ stats.total_classes }}</h5>
+                            <p class="small text-muted mb-0">Weekly Classes</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-info">{{ stats.weekly_hours }}</h5>
+                            <p class="small text-muted mb-0">Weekly Hours</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-warning">{{ stats.total_programmes }}</h5>
+                            <p class="small text-muted mb-0">Programmes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timetable Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table me-2"></i>Weekly Teaching Schedule
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width: 120px;">Time</th>
+                                    {% for day in days_of_week %}
+                                    <th class="text-center">{{ day.label }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for slot in time_slots %}
+                                <tr>
+                                    <td class="text-center fw-bold bg-light">
+                                        {{ slot.label }}
+                                    </td>
+                                    {% for day in days_of_week %}
+                                    <td class="position-relative p-1" style="height: 80px; vertical-align: top;">
+                                        {% if timetable_grid|get_item:day.key|get_item:slot.start %}
+                                            {% for entry in timetable_grid|get_item:day.key|get_item:slot.start %}
+                                            <div class="class-entry mb-1 p-2 rounded border-start border-3 
+                                                {% cycle 'border-primary bg-primary bg-opacity-10' 'border-success bg-success bg-opacity-10' 'border-warning bg-warning bg-opacity-10' 'border-info bg-info bg-opacity-10' %}"
+                                                 style="font-size: 0.85em;">
+                                                <div class="fw-bold text-truncate">
+                                                    {{ entry.course.code }}
+                                                </div>
+                                                <div class="text-muted small text-truncate">
+                                                    {{ entry.course.name }}
+                                                </div>
+                                                <div class="text-muted small">
+                                                    <i class="bi bi-mortarboard me-1"></i>{{ entry.programme.code }} - Year {{ entry.year }}
+                                                </div>
+                                                {% if entry.room %}
+                                                <div class="text-muted small">
+                                                    <i class="bi bi-geo-alt me-1"></i>{{ entry.room }}
+                                                </div>
+                                                {% endif %}
+                                                <div class="text-muted small">
+                                                    <i class="bi bi-clock me-1"></i>{{ entry.start_time|time:"H:i" }} - {{ entry.end_time|time:"H:i" }}
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                        <div class="text-center text-muted small pt-3">
+                                            Free
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Details -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-book me-2"></i>Teaching Courses
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if unique_courses %}
+                    <div class="list-group list-group-flush">
+                        {% for course_code, course_name in unique_courses %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ course_code }}</h6>
+                                    <p class="mb-1 text-muted">{{ course_name }}</p>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">
+                                    {{ timetable_entries|filter_by_course:course_code|length }} classes
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No courses assigned</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="bi bi-diagram-3 me-2"></i>Teaching Programmes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if unique_programmes %}
+                    <div class="list-group list-group-flush">
+                        {% for programme_code, programme_name in unique_programmes %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ programme_code }}</h6>
+                                    <p class="mb-1 text-muted">{{ programme_name }}</p>
+                                </div>
+                                <span class="badge bg-warning text-dark rounded-pill">
+                                    {{ timetable_entries|filter_by_programme:programme_code|length }} classes
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No programmes assigned</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>Legend
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="border-start border-3 border-primary bg-primary bg-opacity-10 p-2 me-2" style="width: 20px; height: 20px;"></div>
+                                <small>Course Block 1</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="border-start border-3 border-success bg-success bg-opacity-10 p-2 me-2" style="width: 20px; height: 20px;"></div>
+                                <small>Course Block 2</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="border-start border-3 border-warning bg-warning bg-opacity-10 p-2 me-2" style="width: 20px; height: 20px;"></div>
+                                <small>Course Block 3</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="border-start border-3 border-info bg-info bg-opacity-10 p-2 me-2" style="width: 20px; height: 20px;"></div>
+                                <small>Course Block 4</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-lightbulb me-1"></i>
+                                <strong>Tips:</strong> Use the print button to generate a PDF copy of your teaching schedule. 
+                                Contact the academic office if you notice any discrepancies in your timetable.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Custom Styles for Print -->
+<style>
+@media print {
+    .btn-group, .alert {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    
+    .class-entry {
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    .table th, .table td {
+        border: 1px solid #000 !important;
+    }
+}
+
+.class-entry {
+    transition: all 0.2s ease;
+}
+
+.class-entry:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table td {
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8em;
+    }
+    
+    .class-entry {
+        font-size: 0.75em !important;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 5px;
+    }
+}
+</style>
+
+<!-- Custom Template Filters (Add to your templatetags) -->
+{% load custom_filters %}
+
+<script>
+// Add some interactivity for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to timetable cells
+    const clasEntries = document.querySelectorAll('.class-entry');
+    
+    classEntries.forEach(entry => {
+        entry.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.zIndex = '10';
+        });
+        
+        entry.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.zIndex = '1';
+        });
+    });
+    
+    // Print functionality enhancement
+    window.addEventListener('beforeprint', function() {
+        document.title = 'Teaching Schedule - {{ lecturer.user.get_full_name }}';
+    });
+});
+</script>
+
+{% endblock %}

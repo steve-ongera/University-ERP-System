@@ -148,5 +148,9 @@ urlpatterns = [
     path('admin-delete-timetable-entry/<int:entry_id>/', views.delete_timetable_entry, name='delete_timetable_entry'),
     path('admin-get-available-lecturers/', views.get_available_lecturers, name='get_available_lecturers'),
 
+    #timetable URL
+    path('student/timetable/', views.student_timetable_view, name='student_timetable'),
+    path('lecturer/timetable/', views.lecturer_timetable_view, name='lecturer_timetable'),
+
 
 ]
