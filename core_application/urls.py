@@ -167,9 +167,8 @@ urlpatterns = [
 
     # Lecturer Grade Entry URLs
     path('grade-entry/', views.grade_entry, name='grade_entry'),
-    path('get-student-enrollments/', views.get_student_enrollments, name='get_student_enrollments'),
-    path('save-grades/', views.save_grades, name='save_grades'),
-    path('get-semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
-
+    path('lecturer/get-student-enrollments/', views.get_student_enrollments, name='get_student_enrollments'),
+    path('lecturer/save-grades/', views.save_grades, name='save_grades'),
+    path('lecturer/get-semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
 
 ]
