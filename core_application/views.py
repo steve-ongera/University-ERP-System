@@ -7647,3 +7647,291 @@ def generate_qr_attendance(request, course_id, semester_id):
         'expires_at': attendance_session.expires_at.strftime('%Y-%m-%d %H:%M:%S'),
         'week_number': week_number
     })
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Q, Avg
+from django.http import JsonResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+from calendar import month_name
+import json
+
+from .models import (
+    Hostel, Room, Bed, HostelBooking, HostelPayment, 
+    HostelIncident, AcademicYear, Student
+)
+
+@login_required
+def hostel_dashboard(request):
+    """
+    Hostel warden dashboard view with comprehensive statistics and charts
+    """
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_date = timezone.now().date()
+    
+    # Get hostels managed by current user (warden)
+    managed_hostels = Hostel.objects.filter(
+        warden=request.user,
+        is_active=True
+    )
+    
+    if not managed_hostels.exists():
+        # If user doesn't manage any hostels, show all (for admin)
+        managed_hostels = Hostel.objects.filter(is_active=True)
+    
+    # Basic Statistics
+    total_hostels = managed_hostels.count()
+    total_rooms = Room.objects.filter(
+        hostel__in=managed_hostels,
+        is_active=True
+    ).count()
+    
+    # Bed statistics
+    total_beds = Bed.objects.filter(
+        room__hostel__in=managed_hostels,
+        academic_year=current_academic_year
+    ).count()
+    
+    occupied_beds = Bed.objects.filter(
+        room__hostel__in=managed_hostels,
+        academic_year=current_academic_year,
+        is_available=False
+    ).count()
+    
+    available_beds = total_beds - occupied_beds
+    occupancy_rate = (occupied_beds / total_beds * 100) if total_beds > 0 else 0
+    
+    # Booking statistics
+    total_bookings = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year
+    ).count()
+    
+    active_bookings = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year,
+        booking_status__in=['approved', 'checked_in']
+    ).count()
+    
+    pending_bookings = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year,
+        booking_status='pending'
+    ).count()
+    
+    # Financial statistics
+    total_revenue = HostelPayment.objects.filter(
+        booking__bed__room__hostel__in=managed_hostels,
+        booking__academic_year=current_academic_year
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    today_payments = HostelPayment.objects.filter(
+        booking__bed__room__hostel__in=managed_hostels,
+        payment_date=current_date
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    pending_payments = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year,
+        payment_status__in=['pending', 'partial']
+    ).aggregate(balance=Sum('booking_fee') - Sum('amount_paid'))['balance'] or 0
+    
+    # Recent activities
+    recent_bookings = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year
+    ).select_related('student', 'bed__room__hostel').order_by('-booking_date')[:5]
+    
+    recent_payments = HostelPayment.objects.filter(
+        booking__bed__room__hostel__in=managed_hostels
+    ).select_related('booking__student').order_by('-payment_date')[:5]
+    
+    recent_incidents = HostelIncident.objects.filter(
+        booking__bed__room__hostel__in=managed_hostels
+    ).select_related('booking__student', 'booking__bed__room__hostel').order_by('-incident_date')[:5]
+    
+    # Chart Data Preparation
+    
+    # 1. Gender Distribution (Donut Chart)
+    gender_data = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year,
+        booking_status__in=['approved', 'checked_in']
+    ).values('student__user__gender').annotate(
+        count=Count('id')
+    ).order_by('student__user__gender')
+    
+    gender_chart_data = {
+        'labels': [item['student__user__gender'].title() if item['student__user__gender'] else 'Not Specified' for item in gender_data],
+        'data': [item['count'] for item in gender_data],
+        'colors': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+    }
+    
+    # 2. Hostel Occupancy (Bar Chart)
+    hostel_occupancy = []
+    for hostel in managed_hostels:
+        total_hostel_beds = Bed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_academic_year
+        ).count()
+        occupied_hostel_beds = Bed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_academic_year,
+            is_available=False
+        ).count()
+        
+        hostel_occupancy.append({
+            'name': hostel.name,
+            'total': total_hostel_beds,
+            'occupied': occupied_hostel_beds,
+            'rate': (occupied_hostel_beds / total_hostel_beds * 100) if total_hostel_beds > 0 else 0
+        })
+    
+    hostel_chart_data = {
+        'labels': [item['name'] for item in hostel_occupancy],
+        'data': [item['rate'] for item in hostel_occupancy],
+        'occupied': [item['occupied'] for item in hostel_occupancy],
+        'total': [item['total'] for item in hostel_occupancy]
+    }
+    
+    # 3. Monthly Payment Trend (Line Chart)
+    monthly_payments = []
+    for i in range(12):
+        month_start = (current_date.replace(day=1) - timedelta(days=30*i)).replace(day=1)
+        month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        
+        month_total = HostelPayment.objects.filter(
+            booking__bed__room__hostel__in=managed_hostels,
+            payment_date__range=[month_start, month_end]
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        monthly_payments.append({
+            'month': month_name[month_start.month][:3],
+            'amount': float(month_total)
+        })
+    
+    monthly_payments.reverse()
+    payment_trend_data = {
+        'labels': [item['month'] for item in monthly_payments],
+        'data': [item['amount'] for item in monthly_payments]
+    }
+    
+    # 4. Booking Status Distribution (Pie Chart)
+    booking_status_data = HostelBooking.objects.filter(
+        bed__room__hostel__in=managed_hostels,
+        academic_year=current_academic_year
+    ).values('booking_status').annotate(
+        count=Count('id')
+    ).order_by('booking_status')
+    
+    status_colors = {
+        'pending': '#FFA726',
+        'approved': '#66BB6A',
+        'rejected': '#EF5350',
+        'cancelled': '#BDBDBD',
+        'checked_in': '#42A5F5',
+        'checked_out': '#AB47BC'
+    }
+    
+    booking_status_chart_data = {
+        'labels': [item['booking_status'].replace('_', ' ').title() for item in booking_status_data],
+        'data': [item['count'] for item in booking_status_data],
+        'colors': [status_colors.get(item['booking_status'], '#78909C') for item in booking_status_data]
+    }
+    
+    # 5. Incident Trends (Bar Chart)
+    incident_monthly = []
+    for i in range(6):
+        month_start = (current_date.replace(day=1) - timedelta(days=30*i)).replace(day=1)
+        month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        
+        month_incidents = HostelIncident.objects.filter(
+            booking__bed__room__hostel__in=managed_hostels,
+            incident_date__range=[month_start, month_end]
+        ).count()
+        
+        incident_monthly.append({
+            'month': month_name[month_start.month][:3],
+            'count': month_incidents
+        })
+    
+    incident_monthly.reverse()
+    incident_trend_data = {
+        'labels': [item['month'] for item in incident_monthly],
+        'data': [item['count'] for item in incident_monthly]
+    }
+    
+    # 6. Room Utilization by Floor (Horizontal Bar)
+    floor_utilization = Room.objects.filter(
+        hostel__in=managed_hostels,
+        is_active=True
+    ).values('floor').annotate(
+        total_beds=Count('beds', filter=Q(beds__academic_year=current_academic_year)),
+        occupied_beds=Count('beds', filter=Q(
+            beds__academic_year=current_academic_year,
+            beds__is_available=False
+        ))
+    ).order_by('floor')
+    
+    floor_chart_data = {
+        'labels': [f'Floor {item["floor"]}' for item in floor_utilization],
+        'data': [(item['occupied_beds'] / item['total_beds'] * 100) if item['total_beds'] > 0 else 0 for item in floor_utilization]
+    }
+    
+    # 7. Payment Method Distribution
+    payment_methods = HostelPayment.objects.filter(
+        booking__bed__room__hostel__in=managed_hostels,
+        booking__academic_year=current_academic_year
+    ).values('payment_method').annotate(
+        count=Count('id'),
+        amount=Sum('amount')
+    ).order_by('-amount')
+    
+    payment_method_chart_data = {
+        'labels': [item['payment_method'].replace('_', ' ').title() for item in payment_methods],
+        'data': [float(item['amount']) for item in payment_methods],
+        'colors': ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+    }
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_date': current_date,
+        'managed_hostels': managed_hostels,
+        
+        # Basic stats
+        'total_hostels': total_hostels,
+        'total_rooms': total_rooms,
+        'total_beds': total_beds,
+        'occupied_beds': occupied_beds,
+        'available_beds': available_beds,
+        'occupancy_rate': round(occupancy_rate, 1),
+        
+        # Booking stats
+        'total_bookings': total_bookings,
+        'active_bookings': active_bookings,
+        'pending_bookings': pending_bookings,
+        
+        # Financial stats
+        'total_revenue': total_revenue,
+        'today_payments': today_payments,
+        'pending_payments': pending_payments,
+        
+        # Recent activities
+        'recent_bookings': recent_bookings,
+        'recent_payments': recent_payments,
+        'recent_incidents': recent_incidents,
+        
+        # Chart data (JSON serialized for JavaScript)
+        'gender_chart_data': json.dumps(gender_chart_data),
+        'hostel_chart_data': json.dumps(hostel_chart_data),
+        'payment_trend_data': json.dumps(payment_trend_data),
+        'booking_status_chart_data': json.dumps(booking_status_chart_data),
+        'incident_trend_data': json.dumps(incident_trend_data),
+        'floor_chart_data': json.dumps(floor_chart_data),
+        'payment_method_chart_data': json.dumps(payment_method_chart_data),
+    }
+    
+    return render(request, 'hostels/hostel_dashboard.html', context)

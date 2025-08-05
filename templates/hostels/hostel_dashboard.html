@@ -1,0 +1,355 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Dashboard - University{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <h1 class="fw-bold card-title text-start">Hostel Management Dashboard</h1>
+                <p class="text-muted">Academic Year: {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %} | Hostels Managed: {{ total_hostels }}</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="text-end">
+                    <span class="fw-bold text-muted">Today is {{ current_date|date:"l, F d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row p-2">
+        <!-- Total Beds Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Beds</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_beds }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ occupied_beds }} occupied</span> | 
+                                <span class="text-info">{{ available_beds }} available</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bed fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Occupancy Rate Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Occupancy Rate</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ occupancy_rate }}%</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ active_bookings }} active bookings</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Bookings Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending Bookings</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ pending_bookings }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-info">Awaiting approval</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total Revenue</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">KES {{ total_revenue|floatformat:0 }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">KES {{ today_payments|floatformat:0 }} today</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row p-2">
+        <!-- Gender Distribution (Donut Chart) -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Student Gender Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="genderChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hostel Occupancy (Bar Chart) -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Hostel Occupancy Rates</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hostelChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row p-2">
+        <!-- Payment Trends (Line Chart) -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Monthly Payment Trends (Last 12 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentTrendChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Status (Pie Chart) -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Booking Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="bookingStatusChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="row p-2">
+        <!-- Floor Utilization (Horizontal Bar) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Floor Utilization</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="floorChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Incident Trends (Bar Chart) -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Incident Trends (Last 6 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="incidentChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row p-2">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Hostel Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Hostel Overview</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">Manage Hostels</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Hostels</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_hostels }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Rooms</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_rooms }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Total Bookings</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_bookings }}</div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-4">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Incidents</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ recent_incidents|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Bookings -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Recent Bookings</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for booking in recent_bookings %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div class="d-flex">
+                                    <i class="fas fa-user-graduate text-primary me-3 mt-1"></i>
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">{{ booking.student.user.get_full_name }}</h6>
+                                        <p class="mb-1 small">{{ booking.bed.room.hostel.name }} - Room {{ booking.bed.room.room_number }}</p>
+                                        <small class="text-muted">{{ booking.booking_date|date:"M d, Y" }}</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-{% if booking.booking_status == 'approved' %}success{% elif booking.booking_status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                    {{ booking.get_booking_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent bookings
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method Distribution Chart -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Payment Method Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentMethodChart" width="800" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Financial Summary -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Collected</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ total_revenue|floatformat:0 }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending</div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">{{ pending_payments|floatformat:0 }}</div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-semibold primary-text mb-3">Recent Payments</h6>
+                    <div class="list-group list-group-flush">
+                        {% for payment in recent_payments %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold">{{ payment.booking.student.student_id }}</h6>
+                                    <small class="text-muted">{{ payment.payment_method|title }}</small>
+                                </div>
+                                <span class="text-success fw-bold">{{ payment.amount|floatformat:0 }}</span>
+                            </div>
+                            <small class="text-muted">{{ payment.payment_date|date:"M d, Y" }}</small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent payments
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Incidents -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Recent Incidents</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for incident in recent_incidents %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold
