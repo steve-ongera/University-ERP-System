@@ -1,0 +1,383 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <!-- Static alert example -->
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>
+            Curriculum updated successfully
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Curriculum Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Advanced Computer Science Curriculum</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">CS-501</span> | 
+                            <span class="badge bg-danger">Core Course</span> |
+                            <span class="badge bg-info">4 Credit Hours</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>Faculty of Engineering - Computer Science Department
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>Dr. Sarah Johnson (Professor)
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>2023 - Semester 2
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">14 Weeks</h4>
+                            <small class="text-muted">Total Duration</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="#" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Courses
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Curriculum
+                            </button>
+                            <a href="#" class="btn btn-primary">
+                                <i class="bi bi-pencil-square"></i> Edit Curriculum
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Curriculum Stats -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">14</h5>
+                            <p class="small text-muted mb-0">Weekly Modules</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">5</h5>
+                            <p class="small text-muted mb-0">Assignments</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning">2</h5>
+                            <p class="small text-muted mb-0">Examinations</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-info">7</h5>
+                            <p class="small text-muted mb-0">Learning Resources</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Curriculum Content -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- Course Description -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text me-2"></i>Course Description
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>This course covers advanced topics in computer science including algorithms, data structures, and computational theory. Students will develop practical skills through hands-on projects and theoretical understanding through rigorous analysis.</p>
+                    
+                    <h6 class="fw-bold mt-4">Learning Outcomes</h6>
+                    <ul>
+                        <li>Analyze and compare algorithm complexity</li>
+                        <li>Design efficient data structures for specific problems</li>
+                        <li>Apply computational theory to real-world scenarios</li>
+                        <li>Develop optimized solutions for complex problems</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Weekly Schedule -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-week me-2"></i>Weekly Schedule
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="weeklySchedule">
+                        <!-- Week 1 -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="week1Heading">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#week1">
+                                    Week 1: Introduction to Advanced Algorithms
+                                </button>
+                            </h2>
+                            <div id="week1" class="accordion-collapse collapse show" data-bs-parent="#weeklySchedule">
+                                <div class="accordion-body">
+                                    <h6>Topics Covered:</h6>
+                                    <ul>
+                                        <li>Course overview and expectations</li>
+                                        <li>Review of fundamental algorithms</li>
+                                        <li>Complexity analysis refresher</li>
+                                    </ul>
+                                    <h6 class="mt-3">Activities:</h6>
+                                    <ul>
+                                        <li>Lecture: 2 hours</li>
+                                        <li>Tutorial: Problem-solving session</li>
+                                        <li>Reading: Chapters 1-3</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Week 2 -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="week2Heading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#week2">
+                                    Week 2: Advanced Data Structures
+                                </button>
+                            </h2>
+                            <div id="week2" class="accordion-collapse collapse" data-bs-parent="#weeklySchedule">
+                                <div class="accordion-body">
+                                    <h6>Topics Covered:</h6>
+                                    <ul>
+                                        <li>Self-balancing trees</li>
+                                        <li>Graph representations</li>
+                                        <li>Hash table optimizations</li>
+                                    </ul>
+                                    <h6 class="mt-3">Activities:</h6>
+                                    <ul>
+                                        <li>Lecture: 2 hours</li>
+                                        <li>Lab: Implementing advanced structures</li>
+                                        <li>Assignment 1 released</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Week 3 -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="week3Heading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#week3">
+                                    Week 3: Algorithm Design Techniques
+                                </button>
+                            </h2>
+                            <div id="week3" class="accordion-collapse collapse" data-bs-parent="#weeklySchedule">
+                                <div class="accordion-body">
+                                    <h6>Topics Covered:</h6>
+                                    <ul>
+                                        <li>Divide and conquer</li>
+                                        <li>Dynamic programming</li>
+                                        <li>Greedy algorithms</li>
+                                    </ul>
+                                    <h6 class="mt-3">Activities:</h6>
+                                    <ul>
+                                        <li>Lecture: 3 hours</li>
+                                        <li>Tutorial: Problem-solving</li>
+                                        <li>Reading: Chapters 4-5</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Assessment Breakdown -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clipboard-check me-2"></i>Assessment Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Assignments (5)
+                            <span class="badge bg-primary rounded-pill">40%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Midterm Exam
+                            <span class="badge bg-primary rounded-pill">20%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Final Exam
+                            <span class="badge bg-primary rounded-pill">30%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Class Participation
+                            <span class="badge bg-primary rounded-pill">10%</span>
+                        </li>
+                    </ul>
+                    
+                    <h6 class="mt-4 fw-bold">Grading Scale</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td>A+</td>
+                            <td>90-100%</td>
+                        </tr>
+                        <tr>
+                            <td>A</td>
+                            <td>85-89%</td>
+                        </tr>
+                        <tr>
+                            <td>B+</td>
+                            <td>80-84%</td>
+                        </tr>
+                        <tr>
+                            <td>B</td>
+                            <td>75-79%</td>
+                        </tr>
+                        <tr>
+                            <td>C+</td>
+                            <td>70-74%</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Resources -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-book me-2"></i>Required Resources
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold">Textbooks</h6>
+                    <ul>
+                        <li>Introduction to Algorithms (Cormen)</li>
+                        <li>Algorithm Design Manual (Skiena)</li>
+                    </ul>
+                    
+                    <h6 class="fw-bold mt-3">Software</h6>
+                    <ul>
+                        <li>Python 3.x</li>
+                        <li>Visual Studio Code</li>
+                        <li>Git Version Control</li>
+                    </ul>
+                    
+                    <h6 class="fw-bold mt-3">Online Resources</h6>
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">Course Website</a>
+                        <a href="#" class="btn btn-sm btn-outline-success">Learning Platform</a>
+                        <a href="#" class="btn btn-sm btn-outline-info">Discussion Forum</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Policies Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-megaphone me-2"></i>Course Policies
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="fw-bold">Attendance</h6>
+                            <p>Students are expected to attend all lectures and tutorials. More than 3 unexcused absences may affect the participation grade.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="fw-bold">Late Submissions</h6>
+                            <p>Assignments submitted late will be penalized 10% per day up to 3 days. After 3 days, no submissions will be accepted.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="fw-bold">Academic Integrity</h6>
+                            <p>All work must be your own. Plagiarism or cheating will result in disciplinary action according to university policy.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .accordion-button::after {
+        display: none !important;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: transparent !important;
+    }
+    
+    .accordion-collapse {
+        display: block !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.card-header.bg-primary, 
+.card-header.bg-success,
+.card-header.bg-info,
+.card-header.bg-warning {
+    color: white;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize accordions
+    const accordions = document.querySelectorAll('.accordion-button');
+    accordions.forEach(accordion => {
+        accordion.addEventListener('click', function() {
+            this.classList.toggle('collapsed');
+            const target = document.querySelector(this.getAttribute('data-bs-target'));
+            target.classList.toggle('show');
+        });
+    });
+});
+</script>
+
+{% endblock %}

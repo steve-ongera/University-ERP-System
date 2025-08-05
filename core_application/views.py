@@ -6900,3 +6900,6 @@ def lecturer_support(request):
 
 def lecturer_training(request):
     return render( request, 'lecturers/lecturer_training.html')
+
+def curriculum(request):
+    return render( request, 'lecturers/curriculum.html')
