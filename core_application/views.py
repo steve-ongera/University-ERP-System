@@ -6893,3 +6893,10 @@ def scan_attendance_qr(request):
         'page_title': 'Scan QR Code for Attendance',
     }
     return render(request, 'student/scan_attendance_qr.html', context)
+
+
+def lecturer_support(request):
+    return render( request, 'lecturers/support.html')
+
+def lecturer_training(request):
+    return render( request, 'lecturers/lecturer_training.html')

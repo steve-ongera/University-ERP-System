@@ -213,13 +213,12 @@
                     <i class="dropdown-caret ri-arrow-right-s-line"></i>
                 </a>
                 <ul>
-                    <li class="sub-item"><a id="training" href="#">Training</a></li>
-                    <li class="sub-item"><a id="certifications" href="#">Certs</a></li>
-                    <li class="sub-item"><a id="workshops" href="#">Workshops</a></li>
+                    <li class="sub-item"><a id="training" href="{% url 'lecturer_training'%}">Training</a></li>
+              
                 </ul>
             </li>
             <li class="menu-link" id="support">
-                <a class="menu_sub" href="#"><i class="ri-customer-service-2-line"></i><span>Support</span></a>
+                <a class="menu_sub" href="{% url 'lecturer_support'%}"><i class="ri-customer-service-2-line"></i><span>Support</span></a>
             </li>
         </ul>
         <div class="brand-footer">

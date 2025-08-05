@@ -161,6 +161,8 @@ urlpatterns = [
     path('attendance/scan/', views.scan_attendance_qr, name='scan_attendance_qr'),
     path('attendance/mark/<str:token>/', views.mark_attendance_qr, name='mark_attendance_qr'),
     path('student/attendance/history/', views.student_attendance_history, name='student_attendance_history'),
+    path('lecturer_support/', views.lecturer_support, name='lecturer_support'),
+    path('lecturer_training/', views.lecturer_training, name='lecturer_training'),
 
 
 ]

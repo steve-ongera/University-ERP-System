@@ -1,0 +1,320 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <!-- Message alerts would appear here -->
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Support Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Lecturer Support Center</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">Academic Resources</span> | 
+                            <span class="badge bg-success">Teaching Tools</span> |
+                            <span class="badge bg-info">Support Services</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-info-circle me-1"></i>Comprehensive resources for teaching excellence
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">Support</h4>
+                            <small class="text-muted">Available 24/7</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="#" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Access Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-4">Quick Access</h5>
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <i class="bi bi-journal-text display-4 text-primary mb-3"></i>
+                                    <h5>Course Materials</h5>
+                                    <p class="small text-muted">Upload and manage your teaching resources</p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Access</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card h-100 border-success">
+                                <div class="card-body">
+                                    <i class="bi bi-people display-4 text-success mb-3"></i>
+                                    <h5>Student Management</h5>
+                                    <p class="small text-muted">View and communicate with your students</p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="#" class="btn btn-sm btn-outline-success">Access</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card h-100 border-warning">
+                                <div class="card-body">
+                                    <i class="bi bi-clipboard-check display-4 text-warning mb-3"></i>
+                                    <h5>Grading Tools</h5>
+                                    <p class="small text-muted">Efficient grading and feedback systems</p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="#" class="btn btn-sm btn-outline-warning">Access</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card h-100 border-info">
+                                <div class="card-body">
+                                    <i class="bi bi-question-circle display-4 text-info mb-3"></i>
+                                    <h5>Help Desk</h5>
+                                    <p class="small text-muted">Get assistance with technical issues</p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="#" class="btn btn-sm btn-outline-info">Access</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Resources -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Teaching Resources</h5>
+                    
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Course Development Guidelines</h6>
+                                <small class="text-muted">PDF</small>
+                            </div>
+                            <p class="mb-1 small">Best practices for creating effective course materials</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Assessment Strategies</h6>
+                                <small class="text-muted">Video</small>
+                            </div>
+                            <p class="mb-1 small">Innovative approaches to student evaluation</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Classroom Technology Guide</h6>
+                                <small class="text-muted">PDF</small>
+                            </div>
+                            <p class="mb-1 small">Using educational technology effectively</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Academic Integrity Policy</h6>
+                                <small class="text-muted">Link</small>
+                            </div>
+                            <p class="mb-1 small">Institutional policies on academic honesty</p>
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6 class="fw-bold">Upcoming Training Sessions</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Online Teaching Workshop
+                                <span class="badge bg-primary rounded-pill">Jun 15</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                New LMS Features
+                                <span class="badge bg-primary rounded-pill">Jul 2</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Inclusive Teaching Strategies
+                                <span class="badge bg-primary rounded-pill">Aug 10</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Support Contacts</h5>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Technical Support</h6>
+                            <p class="card-text small">
+                                <i class="bi bi-envelope me-2"></i> techsupport@university.edu<br>
+                                <i class="bi bi-telephone me-2"></i> Ext. 4357 (HELP)
+                            </p>
+                            <p class="card-text small text-muted">
+                                Available Mon-Fri, 8am-6pm
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Teaching Center</h6>
+                            <p class="card-text small">
+                                <i class="bi bi-envelope me-2"></i> teachingcenter@university.edu<br>
+                                <i class="bi bi-telephone me-2"></i> Ext. 2231
+                            </p>
+                            <p class="card-text small text-muted">
+                                Pedagogical support and consultations
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Emergency IT</h6>
+                            <p class="card-text small">
+                                <i class="bi bi-telephone me-2"></i> 24/7 Hotline: 555-0100
+                            </p>
+                            <p class="card-text small text-muted">
+                                For urgent classroom technology issues
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6 class="fw-bold">Quick Links</h6>
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-earmark-text me-1"></i> Syllabus Templates
+                            </a>
+                            <a href="#" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-calendar-event me-1"></i> Academic Calendar
+                            </a>
+                            <a href="#" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-book me-1"></i> Faculty Handbook
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title fw-bold mb-0">
+                        <i class="bi bi-question-circle-fill me-2"></i>Frequently Asked Questions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                    How do I reset my LMS password?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Visit the university password reset portal at password.university.edu and follow the instructions. You'll need your faculty ID and access to your registered email.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                    Where can I find grade submission deadlines?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Grade submission deadlines are listed in the academic calendar available on the faculty portal. You'll also receive email reminders as deadlines approach.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                    How do I request classroom technology?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Submit a technology request through the Classroom Services portal at least 72 hours before your class. For urgent requests, contact the IT help desk.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: rgba(0, 123, 255, 0.1);
+    color: #0d6efd;
+}
+
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+{% endblock %}

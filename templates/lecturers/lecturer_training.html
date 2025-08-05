@@ -1,0 +1,451 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Training Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Lecturer Training & Development</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">Professional Growth</span> | 
+                            <span class="badge bg-success">Teaching Excellence</span> |
+                            <span class="badge bg-info">Skill Enhancement</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>Center for Teaching and Learning
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{% now "Y" %} Training Program
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">12</h4>
+                            <small class="text-muted">Available Courses</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Training Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Statistics -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">4</h5>
+                            <p class="small text-muted mb-0">Completed Trainings</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">3</h5>
+                            <p class="small text-muted mb-0">In Progress</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning">5</h5>
+                            <p class="small text-muted mb-0">Upcoming</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-info">12</h5>
+                            <p class="small text-muted mb-0">Total Hours This Semester</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Training Content -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- Mandatory Training Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-circle me-2"></i>Mandatory Training
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">Academic Integrity Policy</h6>
+                                    <small class="text-muted">Annual Requirement</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-success">Completed</span>
+                                    <small class="text-muted ms-2">Jun 15, 2023</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">Data Protection & Privacy</h6>
+                                    <small class="text-muted">GDPR Compliance</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-success">Completed</span>
+                                    <small class="text-muted ms-2">May 2, 2023</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">Diversity & Inclusion</h6>
+                                    <small class="text-muted">Due by Sep 30</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-warning">In Progress</span>
+                                    <a href="#" class="btn btn-sm btn-outline-primary ms-2">Continue</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommended Training Section -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>Recommended For You
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Active Learning Strategies</h6>
+                                    <p class="card-text small text-muted">Enhance student engagement with proven techniques</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-secondary">2 hours</span>
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Enroll</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">LMS Advanced Features</h6>
+                                    <p class="card-text small text-muted">Master all learning management system tools</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-secondary">3 hours</span>
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Enroll</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Assessment Design</h6>
+                                    <p class="card-text small text-muted">Create effective evaluations aligned with outcomes</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-secondary">4 hours</span>
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Enroll</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Hybrid Teaching Methods</h6>
+                                    <p class="card-text small text-muted">Blend in-person and online instruction effectively</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-secondary">3 hours</span>
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Enroll</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Upcoming Events -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-event me-2"></i>Upcoming Training Events
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">New Faculty Orientation</h6>
+                                <small class="text-muted">Aug 15</small>
+                            </div>
+                            <p class="mb-1 small">9:00 AM - 12:00 PM</p>
+                            <small class="text-muted">Main Campus, Room 204</small>
+                        </div>
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Research Supervision</h6>
+                                <small class="text-muted">Sep 5</small>
+                            </div>
+                            <p class="mb-1 small">2:00 PM - 4:00 PM</p>
+                            <small class="text-muted">Online (Zoom)</small>
+                        </div>
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Academic Writing Workshop</h6>
+                                <small class="text-muted">Oct 12</small>
+                            </div>
+                            <p class="mb-1 small">10:00 AM - 1:00 PM</p>
+                            <small class="text-muted">Library Training Room</small>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-3">
+                        <a href="#" class="btn btn-outline-success">View Full Calendar</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Progress -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Your Training Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title">Annual Training Requirements</h6>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" style="width: 65%">65%</div>
+                    </div>
+                    <p class="small text-muted">7 of 12 hours completed</p>
+                    
+                    <h6 class="card-title mt-4">Departmental Goals</h6>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-info" style="width: 40%">40%</div>
+                    </div>
+                    <p class="small text-muted">2 of 5 trainings completed</p>
+                    
+                    <h6 class="card-title mt-4">Personal Development</h6>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-primary" style="width: 25%">25%</div>
+                    </div>
+                    <p class="small text-muted">1 of 4 courses completed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Resources -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="trainingTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="resources-tab" data-bs-toggle="tab" data-bs-target="#resources" type="button" role="tab">
+                                <i class="bi bi-collection me-1"></i>Training Resources
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="certificates-tab" data-bs-toggle="tab" data-bs-target="#certificates" type="button" role="tab">
+                                <i class="bi bi-award me-1"></i>Your Certificates
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                                <i class="bi bi-clock-history me-1"></i>Training History
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="trainingTabsContent">
+                        <!-- Resources Tab -->
+                        <div class="tab-pane fade show active" id="resources" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Teaching Excellence Guide</h6>
+                                            <p class="card-text small text-muted">Comprehensive manual for effective pedagogy</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-secondary">PDF</span>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                                    <button class="btn btn-sm btn-outline-success">Download</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Technology Integration</h6>
+                                            <p class="card-text small text-muted">Video series on educational technology</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-secondary">Video</span>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Course Design Templates</h6>
+                                            <p class="card-text small text-muted">Ready-to-use syllabus and lesson templates</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-secondary">ZIP</span>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-outline-success">Download</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Certificates Tab -->
+                        <div class="tab-pane fade" id="certificates" role="tabpanel">
+                            <div class="text-center py-5">
+                                <i class="bi bi-award display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">Your Training Certificates</h5>
+                                <p class="text-muted">Certificates you've earned will appear here</p>
+                                <button class="btn btn-primary">View All Certificates</button>
+                            </div>
+                        </div>
+                        
+                        <!-- History Tab -->
+                        <div class="tab-pane fade" id="history" role="tabpanel">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Training</th>
+                                        <th>Date</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Academic Integrity Policy</td>
+                                        <td>Jun 15, 2023</td>
+                                        <td>2 hours</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Data Protection</td>
+                                        <td>May 2, 2023</td>
+                                        <td>1.5 hours</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Diversity & Inclusion</td>
+                                        <td>In Progress</td>
+                                        <td>3 hours</td>
+                                        <td><span class="badge bg-warning">65%</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+        });
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.card-header.bg-primary, 
+.card-header.bg-success,
+.card-header.bg-info,
+.card-header.bg-warning {
+    color: white;
+}
+
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+</style>
+
+{% endblock %}
