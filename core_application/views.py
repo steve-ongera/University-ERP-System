@@ -6953,7 +6953,7 @@ def grade_entry(request):
         'lecturer_assignments': lecturer_assignments,
     }
     
-    return render(request, 'lecturer/grade_entry.html', context)
+    return render(request, 'lecturers/grade_entry.html', context)
 
 
 @login_required

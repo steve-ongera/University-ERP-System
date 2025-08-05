@@ -165,5 +165,11 @@ urlpatterns = [
     path('lecturer_training/', views.lecturer_training, name='lecturer_training'),
     path('curriculum/', views.curriculum, name='curriculum'),
 
+    # Lecturer Grade Entry URLs
+    path('grade-entry/', views.grade_entry, name='grade_entry'),
+    path('get-student-enrollments/', views.get_student_enrollments, name='get_student_enrollments'),
+    path('save-grades/', views.save_grades, name='save_grades'),
+    path('get-semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
+
 
 ]

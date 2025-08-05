@@ -1,0 +1,735 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Grade Entry Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Student Grade Entry</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">Academic Records</span> | 
+                            <span class="badge bg-success">Grade Management</span> |
+                            <span class="badge bg-info">Assessment</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-badge me-1"></i>{{ lecturer.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ lecturer.department.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ lecturer_assignments.count }}</h4>
+                            <small class="text-muted">Assigned Courses</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Grades
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Search Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-search me-2"></i>Student Grade Entry
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="studentSearchForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="studentRegNumber" class="form-label">Student Registration Number</label>
+                                <input type="text" class="form-control" id="studentRegNumber" 
+                                       placeholder="Enter Reg. Number" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="academicYear" class="form-label">Academic Year</label>
+                                <select class="form-select" id="academicYear" required>
+                                    {% for year in academic_years %}
+                                    <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                        {{ year.year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="semester" class="form-label">Semester</label>
+                                <select class="form-select" id="semester" required>
+                                    {% if current_semester %}
+                                    <option value="{{ current_semester.id }}" selected>
+                                        Semester {{ current_semester.semester_number }}
+                                    </option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-search me-1"></i>Search Student
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="row p-3" id="loadingSpinner" style="display: none;">
+        <div class="col-md-12 text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading student data...</p>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    <div class="row p-3" id="errorAlert" style="display: none;">
+        <div class="col-md-12">
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <span id="errorMessage"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Information and Grade Entry -->
+    <div class="row p-3" id="gradeEntrySection" style="display: none;">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person me-2"></i>Student Information & Grade Entry
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Student Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Student Details</h6>
+                                    <p class="mb-1"><strong>Name:</strong> <span id="studentName"></span></p>
+                                    <p class="mb-1"><strong>Registration No:</strong> <span id="studentRegNo"></span></p>
+                                    <p class="mb-1"><strong>Programme:</strong> <span id="studentProgramme"></span></p>
+                                    <p class="mb-0"><strong>Current Year/Semester:</strong> <span id="studentYearSem"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Academic Period</h6>
+                                    <p class="mb-1"><strong>Academic Year:</strong> <span id="selectedAcademicYear"></span></p>
+                                    <p class="mb-0"><strong>Semester:</strong> <span id="selectedSemester"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grade Entry Form -->
+                    <form id="gradeEntryForm">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="gradeTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Course Code</th>
+                                        <th>Course Name</th>
+                                        <th>Credit Hours</th>
+                                        <th>CAT (40%)</th>
+                                        <th>Final Exam (60%)</th>
+                                        <th>Practical</th>
+                                        <th>Project</th>
+                                        <th>Total</th>
+                                        <th>Grade</th>
+                                        <th>Points</th>
+                                        <th>Status</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gradeTableBody">
+                                    <!-- Dynamic content will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-12 text-end">
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="clearGrades()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear All
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-save me-1"></i>Save Grades
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="successModalLabel">
+                    <i class="bi bi-check-circle me-2"></i>Success
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="successMessage"></div>
+                <div id="gradesSummary" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="errorModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Error
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorModalMessage"></div>
+                <div id="errorsList" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Initialize
+    loadSemestersForYear();
+    
+    // Academic year change handler
+    document.getElementById('academicYear').addEventListener('change', function() {
+        loadSemestersForYear();
+    });
+
+    // Student search form handler
+    document.getElementById('studentSearchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        searchStudent();
+    });
+
+    // Grade entry form handler
+    document.getElementById('gradeEntryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveGrades();
+    });
+
+    function loadSemestersForYear() {
+        const academicYearId = document.getElementById('academicYear').value;
+        if (!academicYearId) return;
+
+        fetch(`/lecturer/get-semesters-by-year/?academic_year_id=${academicYearId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const semesterSelect = document.getElementById('semester');
+                    semesterSelect.innerHTML = '';
+                    
+                    data.semesters.forEach(semester => {
+                        const option = document.createElement('option');
+                        option.value = semester.id;
+                        option.textContent = `Semester ${semester.semester_number}`;
+                        semesterSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading semesters:', error);
+            });
+    }
+
+    function searchStudent() {
+        const studentRegNumber = document.getElementById('studentRegNumber').value.trim();
+        const academicYearId = document.getElementById('academicYear').value;
+        const semesterId = document.getElementById('semester').value;
+
+        if (!studentRegNumber || !academicYearId || !semesterId) {
+            showError('Please fill in all required fields');
+            return;
+        }
+
+        // Show loading spinner
+        document.getElementById('loadingSpinner').style.display = 'block';
+        document.getElementById('gradeEntrySection').style.display = 'none';
+        document.getElementById('errorAlert').style.display = 'none';
+
+        fetch('/lecturer/get-student-enrollments/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken || getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                student_reg_number: studentRegNumber,
+                academic_year_id: academicYearId,
+                semester_id: semesterId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            
+            if (data.success) {
+                displayStudentData(data);
+            } else {
+                showError(data.error || 'Failed to load student data');
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            showError('Network error: ' + error.message);
+        });
+    }
+
+    function displayStudentData(data) {
+        // Display student information
+        document.getElementById('studentName').textContent = data.student.name;
+        document.getElementById('studentRegNo').textContent = data.student.student_id;
+        document.getElementById('studentProgramme').textContent = data.student.programme;
+        document.getElementById('studentYearSem').textContent = `Year ${data.student.current_year}, Semester ${data.student.current_semester}`;
+        document.getElementById('selectedAcademicYear').textContent = data.academic_year;
+        document.getElementById('selectedSemester').textContent = data.semester;
+
+        // Clear and populate grade table
+        const tableBody = document.getElementById('gradeTableBody');
+        tableBody.innerHTML = '';
+
+        data.enrollments.forEach(enrollment => {
+            const row = createGradeRow(enrollment);
+            tableBody.appendChild(row);
+        });
+
+        // Show grade entry section
+        document.getElementById('gradeEntrySection').style.display = 'block';
+    }
+
+    function createGradeRow(enrollment) {
+        const row = document.createElement('tr');
+        const grade = enrollment.grade_data;
+        
+        row.innerHTML = `
+            <td class="fw-bold">${enrollment.course_code}</td>
+            <td>${enrollment.course_name}</td>
+            <td class="text-center">${enrollment.credit_hours}</td>
+            <td>
+                <input type="number" class="form-control form-control-sm grade-input" 
+                       name="continuous_assessment_${enrollment.enrollment_id}" 
+                       value="${grade.continuous_assessment}" 
+                       min="0" max="40" step="0.01" 
+                       data-enrollment-id="${enrollment.enrollment_id}">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm grade-input" 
+                       name="final_exam_${enrollment.enrollment_id}" 
+                       value="${grade.final_exam}" 
+                       min="0" max="60" step="0.01" 
+                       data-enrollment-id="${enrollment.enrollment_id}">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm grade-input" 
+                       name="practical_marks_${enrollment.enrollment_id}" 
+                       value="${grade.practical_marks}" 
+                       min="0" max="100" step="0.01" 
+                       data-enrollment-id="${enrollment.enrollment_id}">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm grade-input" 
+                       name="project_marks_${enrollment.enrollment_id}" 
+                       value="${grade.project_marks}" 
+                       min="0" max="100" step="0.01" 
+                       data-enrollment-id="${enrollment.enrollment_id}">
+            </td>
+            <td class="text-center">
+                <span class="total-marks" data-enrollment-id="${enrollment.enrollment_id}">
+                    ${grade.total_marks || ''}
+                </span>
+            </td>
+            <td class="text-center">
+                <span class="grade-letter fw-bold" data-enrollment-id="${enrollment.enrollment_id}">
+                    ${grade.grade || ''}
+                </span>
+            </td>
+            <td class="text-center">
+                <span class="grade-points" data-enrollment-id="${enrollment.enrollment_id}">
+                    ${grade.grade_points || ''}
+                </span>
+            </td>
+            <td class="text-center">
+                <span class="pass-status" data-enrollment-id="${enrollment.enrollment_id}">
+                    ${grade.is_passed ? '<span class="badge bg-success">Pass</span>' : 
+                      (grade.grade ? '<span class="badge bg-danger">Fail</span>' : '')}
+                </span>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       name="remarks_${enrollment.enrollment_id}" 
+                       value="${grade.remarks}" 
+                       placeholder="Optional remarks"
+                       data-enrollment-id="${enrollment.enrollment_id}">
+            </td>
+        `;
+        
+        // Add event listeners to grade inputs for real-time calculation
+        const inputs = row.querySelectorAll('.grade-input');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                calculateGrade(enrollment.enrollment_id);
+            });
+        });
+        
+        return row;
+    }
+
+    function calculateGrade(enrollmentId) {
+        const catInput = document.querySelector(`input[name="continuous_assessment_${enrollmentId}"]`);
+        const examInput = document.querySelector(`input[name="final_exam_${enrollmentId}"]`);
+        const practicalInput = document.querySelector(`input[name="practical_marks_${enrollmentId}"]`);
+        const projectInput = document.querySelector(`input[name="project_marks_${enrollmentId}"]`);
+        
+        const totalSpan = document.querySelector(`.total-marks[data-enrollment-id="${enrollmentId}"]`);
+        const gradeSpan = document.querySelector(`.grade-letter[data-enrollment-id="${enrollmentId}"]`);
+        const pointsSpan = document.querySelector(`.grade-points[data-enrollment-id="${enrollmentId}"]`);
+        const statusSpan = document.querySelector(`.pass-status[data-enrollment-id="${enrollmentId}"]`);
+        
+        const cat = parseFloat(catInput.value) || 0;
+        const exam = parseFloat(examInput.value) || 0;
+        const practical = parseFloat(practicalInput.value) || 0;
+        const project = parseFloat(projectInput.value) || 0;
+        
+        if (cat > 0 || exam > 0) {
+            let total = (cat * 0.4) + (exam * 0.6);
+            
+            // Add practical and project if provided
+            if (practical > 0) total += (practical * 0.1);
+            if (project > 0) total += (project * 0.1);
+            
+            total = Math.round(total * 100) / 100; // Round to 2 decimal places
+            
+            // Determine grade and points
+            let grade = '';
+            let points = 0;
+            let isPassed = false;
+            
+            if (total >= 90) { grade = 'A+'; points = 4.0; isPassed = true; }
+            else if (total >= 80) { grade = 'A'; points = 4.0; isPassed = true; }
+            else if (total >= 75) { grade = 'A-'; points = 3.7; isPassed = true; }
+            else if (total >= 70) { grade = 'B+'; points = 3.3; isPassed = true; }
+            else if (total >= 65) { grade = 'B'; points = 3.0; isPassed = true; }
+            else if (total >= 60) { grade = 'B-'; points = 2.7; isPassed = true; }
+            else if (total >= 55) { grade = 'C+'; points = 2.3; isPassed = true; }
+            else if (total >= 50) { grade = 'C'; points = 2.0; isPassed = true; }
+            else if (total >= 45) { grade = 'C-'; points = 1.7; isPassed = true; }
+            else if (total >= 40) { grade = 'D+'; points = 1.3; isPassed = false; }
+            else if (total >= 35) { grade = 'D'; points = 1.0; isPassed = false; }
+            else { grade = 'F'; points = 0.0; isPassed = false; }
+            
+            // Update display
+            totalSpan.textContent = total.toFixed(2);
+            gradeSpan.textContent = grade;
+            pointsSpan.textContent = points.toFixed(1);
+            statusSpan.innerHTML = isPassed ? 
+                '<span class="badge bg-success">Pass</span>' : 
+                '<span class="badge bg-danger">Fail</span>';
+        } else {
+            // Clear display if no marks entered
+            totalSpan.textContent = '';
+            gradeSpan.textContent = '';
+            pointsSpan.textContent = '';
+            statusSpan.innerHTML = '';
+        }
+    }
+
+    function saveGrades() {
+        const gradeData = [];
+        const tableBody = document.getElementById('gradeTableBody');
+        const rows = tableBody.querySelectorAll('tr');
+        
+        rows.forEach(row => {
+            const enrollmentId = row.querySelector('.grade-input').dataset.enrollmentId;
+            const catInput = row.querySelector(`input[name="continuous_assessment_${enrollmentId}"]`);
+            const examInput = row.querySelector(`input[name="final_exam_${enrollmentId}"]`);
+            const practicalInput = row.querySelector(`input[name="practical_marks_${enrollmentId}"]`);
+            const projectInput = row.querySelector(`input[name="project_marks_${enrollmentId}"]`);
+            const remarksInput = row.querySelector(`input[name="remarks_${enrollmentId}"]`);
+            
+            // Only include courses with at least one mark entered
+            const cat = catInput.value.trim();
+            const exam = examInput.value.trim();
+            const practical = practicalInput.value.trim();
+            const project = projectInput.value.trim();
+            
+            if (cat || exam || practical || project) {
+                gradeData.push({
+                    enrollment_id: enrollmentId,
+                    continuous_assessment: cat || null,
+                    final_exam: exam || null,
+                    practical_marks: practical || null,
+                    project_marks: project || null,
+                    remarks: remarksInput.value.trim()
+                });
+            }
+        });
+        
+        if (gradeData.length === 0) {
+            showError('Please enter at least one grade before saving');
+            return;
+        }
+        
+        // Show loading state
+        const saveButton = document.querySelector('#gradeEntryForm button[type="submit"]');
+        const originalText = saveButton.innerHTML;
+        saveButton.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Saving...';
+        saveButton.disabled = true;
+        
+        fetch('/lecturer/save-grades/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken || getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                grades: gradeData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Restore button state
+            saveButton.innerHTML = originalText;
+            saveButton.disabled = false;
+            
+            if (data.success) {
+                showSuccessModal(data.message, data.saved_grades);
+            } else {
+                showErrorModal(data.errors || ['Failed to save grades']);
+            }
+        })
+        .catch(error => {
+            // Restore button state
+            saveButton.innerHTML = originalText;
+            saveButton.disabled = false;
+            showError('Network error: ' + error.message);
+        });
+    }
+
+    function clearGrades() {
+        if (confirm('Are you sure you want to clear all entered grades? This action cannot be undone.')) {
+            const inputs = document.querySelectorAll('#gradeTableBody input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+            
+            // Clear calculated fields
+            document.querySelectorAll('.total-marks').forEach(span => span.textContent = '');
+            document.querySelectorAll('.grade-letter').forEach(span => span.textContent = '');
+            document.querySelectorAll('.grade-points').forEach(span => span.textContent = '');
+            document.querySelectorAll('.pass-status').forEach(span => span.innerHTML = '');
+        }
+    }
+
+    function showSuccessModal(message, savedGrades) {
+        document.getElementById('successMessage').textContent = message;
+        
+        // Display saved grades summary
+        let summaryHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Course</th><th>Total</th><th>Grade</th><th>Points</th><th>Status</th></tr></thead><tbody>';
+        
+        savedGrades.forEach(grade => {
+            summaryHtml += `
+                <tr>
+                    <td>${grade.course_code}</td>
+                    <td>${grade.total_marks.toFixed(2)}</td>
+                    <td class="fw-bold">${grade.grade}</td>
+                    <td>${grade.grade_points.toFixed(1)}</td>
+                    <td>${grade.is_passed ? '<span class="badge bg-success">Pass</span>' : '<span class="badge bg-danger">Fail</span>'}</td>
+                </tr>
+            `;
+        });
+        
+        summaryHtml += '</tbody></table></div>';
+        document.getElementById('gradesSummary').innerHTML = summaryHtml;
+        
+        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        successModal.show();
+    }
+
+    function showErrorModal(errors) {
+        document.getElementById('errorModalMessage').textContent = 'The following errors occurred while saving grades:';
+        
+        let errorHtml = '<ul class="list-unstyled mt-2">';
+        errors.forEach(error => {
+            errorHtml += `<li><i class="bi bi-x-circle text-danger me-2"></i>${error}</li>`;
+        });
+        errorHtml += '</ul>';
+        
+        document.getElementById('errorsList').innerHTML = errorHtml;
+        
+        const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+        errorModal.show();
+    }
+
+    function showError(message) {
+        document.getElementById('errorMessage').textContent = message;
+        document.getElementById('errorAlert').style.display = 'block';
+        
+        // Scroll to error
+        document.getElementById('errorAlert').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Helper function to get CSRF cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .form-control, .card-header {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    #gradeTable {
+        font-size: 12px;
+    }
+    
+    .table td, .table th {
+        padding: 0.25rem;
+    }
+}
+
+.grade-input {
+    width: 80px;
+}
+
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.total-marks, .grade-letter, .grade-points {
+    font-weight: bold;
+}
+
+.grade-letter {
+    font-size: 1rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.form-control-sm {
+    font-size: 0.875rem;
+}
+
+.table th {
+    background-color: #343a40;
+    color: white;
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+</style>
+
+{% endblock %}
