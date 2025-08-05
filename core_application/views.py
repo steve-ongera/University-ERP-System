@@ -7200,3 +7200,450 @@ def get_semesters_by_year(request):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db import transaction
+from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_http_methods
+from django.db.models import Count, Q, Avg
+from django.utils import timezone
+from datetime import datetime, timedelta
+import json
+
+from .models import (
+    Student, Lecturer, AcademicYear, Semester, Enrollment, 
+    LecturerCourseAssignment, Course, Timetable, AttendanceSession, 
+    Attendance
+)
+
+@login_required
+def my_students(request):
+    """Main view showing lecturer's assigned courses and students"""
+    # Ensure user is a lecturer
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, "Access denied. Only lecturers can access this page.")
+        return redirect('lecturer_dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all academic years and semesters for the dropdown
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    semesters = Semester.objects.all().order_by('-academic_year__year', '-semester_number')
+    
+    # Get lecturer's course assignments for current semester
+    lecturer_assignments = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        is_active=True
+    ).select_related('course', 'academic_year', 'semester').prefetch_related(
+        'course__enrollments__student__user'
+    )
+    
+    # Get course statistics
+    course_stats = []
+    for assignment in lecturer_assignments:
+        # Get enrolled students for this course in this semester
+        enrolled_students = Enrollment.objects.filter(
+            course=assignment.course,
+            semester=assignment.semester,
+            is_active=True
+        ).select_related('student__user')
+        
+        # Get attendance sessions for this course
+        attendance_sessions = AttendanceSession.objects.filter(
+            timetable_slot__course=assignment.course,
+            semester=assignment.semester,
+            lecturer=lecturer
+        ).count()
+        
+        # Calculate average attendance
+        total_sessions = attendance_sessions
+        if total_sessions > 0:
+            total_possible_attendance = enrolled_students.count() * total_sessions
+            present_count = Attendance.objects.filter(
+                timetable_slot__course=assignment.course,
+                attendance_session__semester=assignment.semester,
+                status__in=['present', 'late']
+            ).count()
+            attendance_percentage = round((present_count / total_possible_attendance * 100), 1) if total_possible_attendance > 0 else 0
+        else:
+            attendance_percentage = 0
+        
+        course_stats.append({
+            'assignment': assignment,
+            'student_count': enrolled_students.count(),
+            'attendance_sessions': total_sessions,
+            'attendance_percentage': attendance_percentage,
+            'students': enrolled_students
+        })
+    
+    context = {
+        'lecturer': lecturer,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'course_stats': course_stats,
+        'total_courses': lecturer_assignments.count(),
+        'total_students': sum(stat['student_count'] for stat in course_stats),
+    }
+    
+    return render(request, 'lecturers/my_students.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def get_course_students(request):
+    """AJAX view to get students for a specific course and their attendance"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        course_id = data.get('course_id')
+        academic_year_id = data.get('academic_year_id')
+        semester_id = data.get('semester_id')
+        
+        if not all([course_id, academic_year_id, semester_id]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Get course assignment
+        try:
+            assignment = LecturerCourseAssignment.objects.get(
+                lecturer=lecturer,
+                course_id=course_id,
+                academic_year_id=academic_year_id,
+                semester_id=semester_id,
+                is_active=True
+            )
+        except LecturerCourseAssignment.DoesNotExist:
+            return JsonResponse({'error': 'Course assignment not found'}, status=404)
+        
+        # Get enrolled students
+        enrollments = Enrollment.objects.filter(
+            course=assignment.course,
+            semester=assignment.semester,
+            is_active=True
+        ).select_related('student__user', 'student__programme').order_by('student__student_id')
+        
+        # Get attendance sessions for this course
+        attendance_sessions = AttendanceSession.objects.filter(
+            timetable_slot__course=assignment.course,
+            semester=assignment.semester,
+            lecturer=lecturer
+        ).order_by('week_number', 'session_date')
+        
+        # Prepare student data with attendance records
+        students_data = []
+        for enrollment in enrollments:
+            student = enrollment.student
+            
+            # Get attendance records for this student
+            attendance_records = Attendance.objects.filter(
+                student=student,
+                timetable_slot__course=assignment.course,
+                attendance_session__semester=assignment.semester
+            ).order_by('week_number')
+            
+            # Create attendance summary
+            attendance_summary = {}
+            total_sessions = attendance_sessions.count()
+            present_count = 0
+            
+            for record in attendance_records:
+                attendance_summary[record.week_number] = {
+                    'status': record.status,
+                    'marked_at': record.marked_at.strftime('%Y-%m-%d %H:%M'),
+                    'marked_via_qr': record.marked_via_qr,
+                    'remarks': record.remarks
+                }
+                if record.status in ['present', 'late']:
+                    present_count += 1
+            
+            # Calculate attendance percentage
+            attendance_percentage = round((present_count / total_sessions * 100), 1) if total_sessions > 0 else 0
+            
+            students_data.append({
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'email': student.user.email,
+                'phone': student.user.phone,
+                'programme': student.programme.name,
+                'year': student.current_year,
+                'semester': student.current_semester,
+                'attendance_summary': attendance_summary,
+                'attendance_percentage': attendance_percentage,
+                'total_present': present_count,
+                'total_sessions': total_sessions
+            })
+        
+        # Prepare attendance sessions data
+        sessions_data = []
+        for session in attendance_sessions:
+            sessions_data.append({
+                'week_number': session.week_number,
+                'session_date': session.session_date.strftime('%Y-%m-%d'),
+                'day_of_week': session.timetable_slot.day_of_week.title(),
+                'start_time': session.timetable_slot.start_time.strftime('%H:%M'),
+                'end_time': session.timetable_slot.end_time.strftime('%H:%M'),
+                'venue': session.timetable_slot.venue,
+                'is_active': session.is_active,
+                'is_expired': session.is_expired
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'course': {
+                'code': assignment.course.code,
+                'name': assignment.course.name,
+                'credit_hours': assignment.course.credit_hours,
+                'course_type': assignment.course.get_course_type_display()
+            },
+            'academic_info': {
+                'academic_year': assignment.academic_year.year,
+                'semester': f"Semester {assignment.semester.semester_number}"
+            },
+            'students': students_data,
+            'attendance_sessions': sessions_data,
+            'summary': {
+                'total_students': len(students_data),
+                'total_sessions': len(sessions_data),
+                'average_attendance': round(sum(s['attendance_percentage'] for s in students_data) / len(students_data), 1) if students_data else 0
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_attendance(request):
+    """AJAX view to manually update student attendance"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        student_id_number = data.get('student_id')
+        course_id = data.get('course_id')
+        semester_id = data.get('semester_id')
+        week_number = data.get('week_number')
+        status = data.get('status')
+        remarks = data.get('remarks', '')
+        
+        if not all([student_id_number, course_id, semester_id, week_number, status]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Get student
+        try:
+            student = Student.objects.get(student_id=student_id_number)
+        except Student.DoesNotExist:
+            return JsonResponse({'error': 'Student not found'}, status=404)
+        
+        # Verify lecturer has permission
+        assignment = LecturerCourseAssignment.objects.filter(
+            lecturer=lecturer,
+            course_id=course_id,
+            semester_id=semester_id,
+            is_active=True
+        ).first()
+        
+        if not assignment:
+            return JsonResponse({'error': 'No permission to update attendance for this course'}, status=403)
+        
+        # Get or create attendance session
+        timetable_slot = Timetable.objects.filter(
+            course_id=course_id,
+            lecturer=lecturer,
+            semester_id=semester_id
+        ).first()
+        
+        if not timetable_slot:
+            return JsonResponse({'error': 'No timetable slot found for this course'}, status=404)
+        
+        attendance_session, created = AttendanceSession.objects.get_or_create(
+            timetable_slot=timetable_slot,
+            lecturer=lecturer,
+            semester_id=semester_id,
+            week_number=week_number,
+            defaults={
+                'session_date': timezone.now().date(),
+                'expires_at': timezone.now() + timedelta(hours=3)
+            }
+        )
+        
+        # Update or create attendance record
+        attendance, created = Attendance.objects.update_or_create(
+            student=student,
+            attendance_session=attendance_session,
+            timetable_slot=timetable_slot,
+            week_number=week_number,
+            defaults={
+                'status': status,
+                'remarks': remarks,
+                'marked_via_qr': False,
+                'ip_address': request.META.get('REMOTE_ADDR')
+            }
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Attendance updated for {student.user.get_full_name()}',
+            'attendance': {
+                'status': attendance.status,
+                'marked_at': attendance.marked_at.strftime('%Y-%m-%d %H:%M'),
+                'remarks': attendance.remarks
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def export_attendance(request, course_id, semester_id):
+    """Export attendance data for a course"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, "Access denied.")
+        return redirect('my_students')
+    
+    # Verify lecturer has permission
+    assignment = get_object_or_404(
+        LecturerCourseAssignment,
+        lecturer=lecturer,
+        course_id=course_id,
+        semester_id=semester_id,
+        is_active=True
+    )
+    
+    # Get enrolled students and attendance data
+    enrollments = Enrollment.objects.filter(
+        course=assignment.course,
+        semester=assignment.semester,
+        is_active=True
+    ).select_related('student__user').order_by('student__student_id')
+    
+    attendance_sessions = AttendanceSession.objects.filter(
+        timetable_slot__course=assignment.course,
+        semester=assignment.semester,
+        lecturer=lecturer
+    ).order_by('week_number')
+    
+    # Create CSV response
+    import csv
+    from django.http import HttpResponse
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{assignment.course.code}_attendance.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write headers
+    headers = ['Student ID', 'Student Name', 'Programme']
+    for session in attendance_sessions:
+        headers.append(f'Week {session.week_number} ({session.session_date})')
+    headers.extend(['Total Present', 'Total Sessions', 'Attendance %'])
+    
+    writer.writerow(headers)
+    
+    # Write student data
+    for enrollment in enrollments:
+        student = enrollment.student
+        row = [student.student_id, student.user.get_full_name(), student.programme.name]
+        
+        present_count = 0
+        for session in attendance_sessions:
+            attendance = Attendance.objects.filter(
+                student=student,
+                attendance_session=session
+            ).first()
+            
+            if attendance:
+                row.append(attendance.status.title())
+                if attendance.status in ['present', 'late']:
+                    present_count += 1
+            else:
+                row.append('Absent')
+        
+        total_sessions = attendance_sessions.count()
+        attendance_percentage = round((present_count / total_sessions * 100), 1) if total_sessions > 0 else 0
+        
+        row.extend([present_count, total_sessions, f"{attendance_percentage}%"])
+        writer.writerow(row)
+    
+    return response
+
+
+@login_required
+def generate_qr_attendance(request, course_id, semester_id):
+    """Generate QR code for attendance"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    # Verify lecturer has permission
+    assignment = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        course_id=course_id,
+        semester_id=semester_id,
+        is_active=True
+    ).first()
+    
+    if not assignment:
+        return JsonResponse({'error': 'Course assignment not found'}, status=404)
+    
+    # Get current week number (you may need to adjust this logic)
+    from datetime import datetime
+    current_date = datetime.now().date()
+    semester_start = assignment.semester.start_date
+    week_number = ((current_date - semester_start).days // 7) + 1
+    week_number = max(1, min(week_number, 12))  # Ensure week is between 1-12
+    
+    # Get timetable slot
+    timetable_slot = Timetable.objects.filter(
+        course=assignment.course,
+        lecturer=lecturer,
+        semester=assignment.semester
+    ).first()
+    
+    if not timetable_slot:
+        return JsonResponse({'error': 'No timetable slot found'}, status=404)
+    
+    # Create or get attendance session
+    attendance_session, created = AttendanceSession.objects.get_or_create(
+        timetable_slot=timetable_slot,
+        lecturer=lecturer,
+        semester=assignment.semester,
+        week_number=week_number,
+        session_date=current_date,
+        defaults={
+            'expires_at': timezone.now() + timedelta(hours=3)
+        }
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'session_id': attendance_session.id,
+        'qr_code_url': attendance_session.qr_code_image_url,
+        'session_token': attendance_session.session_token,
+        'expires_at': attendance_session.expires_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'week_number': week_number
+    })

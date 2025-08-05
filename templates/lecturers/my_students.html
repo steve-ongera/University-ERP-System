@@ -1,0 +1,913 @@
+{% extends 'lecturer_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">My Students & Attendance</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">Course Management</span> | 
+                            <span class="badge bg-success">Attendance Tracking</span> |
+                            <span class="badge bg-info">Student Records</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-badge me-1"></i>{{ lecturer.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ lecturer.department.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="bg-light rounded p-2 text-center">
+                                    <h5 class="mb-1 text-primary">{{ total_courses }}</h5>
+                                    <small class="text-muted">Courses</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light rounded p-2 text-center">
+                                    <h5 class="mb-1 text-success">{{ total_students }}</h5>
+                                    <small class="text-muted">Students</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'lecturer_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Period Selector -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar3 me-2"></i>Academic Period
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="academicYear" class="form-label">Academic Year</label>
+                            <select class="form-select" id="academicYear">
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                    {{ year.year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="semester" class="form-label">Semester</label>
+                            <select class="form-select" id="semester">
+                                {% if current_semester %}
+                                <option value="{{ current_semester.id }}" selected>
+                                    Semester {{ current_semester.semester_number }}
+                                </option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-success w-100" onclick="refreshData()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-book me-2"></i>My Assigned Courses
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="courseCards">
+                        {% for stat in course_stats %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100 course-card" data-course-id="{{ stat.assignment.course.id }}" 
+                                 data-semester-id="{{ stat.assignment.semester.id }}"
+                                 data-academic-year-id="{{ stat.assignment.academic_year.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title fw-bold">{{ stat.assignment.course.code }}</h6>
+                                        <span class="badge bg-secondary">{{ stat.assignment.course.credit_hours }} CH</span>
+                                    </div>
+                                    <p class="card-text small">{{ stat.assignment.course.name }}</p>
+                                    
+                                    <div class="row text-center mb-3">
+                                        <div class="col-4">
+                                            <div class="border-end">
+                                                <h6 class="text-primary mb-0">{{ stat.student_count }}</h6>
+                                                <small class="text-muted">Students</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="border-end">
+                                                <h6 class="text-success mb-0">{{ stat.attendance_sessions }}</h6>
+                                                <small class="text-muted">Sessions</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <h6 class="text-info mb-0">{{ stat.attendance_percentage }}%</h6>
+                                            <small class="text-muted">Attendance</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="progress mb-3" style="height: 6px;">
+                                        <div class="progress-bar bg-success" style="width: {{ stat.attendance_percentage }}%"></div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary btn-sm view-students-btn">
+                                            <i class="bi bi-people me-1"></i>View Students
+                                        </button>
+                                        <div class="btn-group">
+                                            <button class="btn btn-outline-success btn-sm generate-qr-btn">
+                                                <i class="bi bi-qr-code me-1"></i>QR Code
+                                            </button>
+                                            <a href="{% url 'export_attendance' stat.assignment.course.id stat.assignment.semester.id %}" 
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="bi bi-download me-1"></i>Export
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5">
+                            <i class="bi bi-book display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Course Assignments</h5>
+                            <p class="text-muted">You have no course assignments for the selected academic period.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="studentsModalLabel">
+                        <i class="bi bi-people me-2"></i>Students & Attendance
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Course Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <h6 class="mb-1" id="modalCourseInfo"></h6>
+                                    <small class="text-muted" id="modalAcademicInfo"></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body py-2 text-center">
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <small class="text-muted">Students</small>
+                                            <div class="fw-bold" id="modalTotalStudents">0</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Sessions</small>
+                                            <div class="fw-bold" id="modalTotalSessions">0</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Avg Attendance</small>
+                                            <div class="fw-bold text-success" id="modalAvgAttendance">0%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading Spinner -->
+                    <div id="modalLoadingSpinner" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading student data...</p>
+                    </div>
+
+                    <!-- Students Table -->
+                    <div id="studentsTableContainer" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="studentsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Programme</th>
+                                        <th>Year</th>
+                                        <th class="text-center">Attendance %</th>
+                                        <th class="text-center">Present/Total</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="exportModalBtn">
+                        <i class="bi bi-download me-1"></i>Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Detail Modal -->
+    <div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="attendanceModalLabel">
+                        <i class="bi bi-calendar-check me-2"></i>Attendance Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <h6 class="mb-1" id="attendanceStudentInfo"></h6>
+                                    <small class="text-muted" id="attendanceCourseInfo"></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-end">
+                                <button class="btn btn-outline-primary btn-sm" id="refreshAttendanceBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Sessions Grid -->
+                    <div id="attendanceGrid">
+                        <div class="row" id="attendanceWeeksContainer">
+                            <!-- Dynamic content for weeks -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Attendance Update -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Update Attendance</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="attendanceUpdateForm">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="weekSelect" class="form-label">Week</label>
+                                        <select class="form-select" id="weekSelect" required>
+                                            <option value="">Select Week</option>
+                                            {% for i in "123456789abc" %}
+                                            <option value="{{ forloop.counter }}">Week {{ forloop.counter }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="statusSelect" class="form-label">Status</label>
+                                        <select class="form-select" id="statusSelect" required>
+                                            <option value="">Select Status</option>
+                                            <option value="present">Present</option>
+                                            <option value="absent">Absent</option>
+                                            <option value="late">Late</option>
+                                            <option value="excused">Excused</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="remarksInput" class="form-label">Remarks (Optional)</label>
+                                        <input type="text" class="form-control" id="remarksInput" placeholder="Add remarks">
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="bi bi-check-circle"></i> Update
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="qrCodeModalLabel">
+                        <i class="bi bi-qr-code me-2"></i>QR Code Attendance
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="qrCodeLoadingSpinner" class="text-center py-3">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Generating QR Code...</span>
+                        </div>
+                        <p class="mt-2">Generating QR Code...</p>
+                    </div>
+
+                    <div id="qrCodeContainer" style="display: none;">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body py-2">
+                                <h6 class="mb-1" id="qrCourseInfo"></h6>
+                                <small class="text-muted" id="qrWeekInfo"></small>
+                            </div>
+                        </div>
+
+                        <div class="qr-code-display mb-3">
+                            <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid" style="max-width: 300px;">
+                        </div>
+
+                        <div class="alert alert-info">
+                            <small>
+                                <i class="bi bi-info-circle me-1"></i>
+                                Students can scan this QR code to mark their attendance. 
+                                <strong>Valid for 3 hours.</strong>
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Session Token:</small>
+                                <div class="font-monospace small" id="sessionToken"></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Expires at:</small>
+                                <div class="small" id="expiresAt"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="printQRBtn" style="display: none;">
+                        <i class="bi bi-printer me-1"></i>Print QR Code
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS -->
+<style>
+    .course-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+
+    .course-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .attendance-week-card {
+        border: 2px solid #e9ecef;
+        transition: all 0.2s;
+    }
+
+    .attendance-week-card.present {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+
+    .attendance-week-card.absent {
+        border-color: #dc3545;
+        background-color: #fff8f8;
+    }
+
+    .attendance-week-card.late {
+        border-color: #ffc107;
+        background-color: #fffdf7;
+    }
+
+    .attendance-week-card.excused {
+        border-color: #17a2b8;
+        background-color: #f7feff;
+    }
+
+    .attendance-status-badge {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 0.7rem;
+    }
+
+    @media print {
+        .onprintContainer .btn, .modal, .no-print {
+            display: none !important;
+        }
+        
+        .onprintContainer {
+            margin: 0;
+            padding: 0;
+        }
+    }
+
+    .table th {
+        background-color: #f8f9fa;
+        border-top: none;
+    }
+
+    .badge {
+        font-size: 0.75em;
+    }
+
+    .progress {
+        height: 8px;
+    }
+
+    .qr-code-display {
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+</style>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Global variables
+    let currentCourseId = null;
+    let currentSemesterId = null;
+    let currentAcademicYearId = null;
+    let currentStudentId = null;
+    let studentsData = [];
+
+    // Event listeners
+    document.querySelectorAll('.view-students-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const card = this.closest('.course-card');
+            currentCourseId = card.dataset.courseId;
+            currentSemesterId = card.dataset.semesterId;
+            currentAcademicYearId = card.dataset.academicYearId;
+            
+            showStudentsModal();
+        });
+    });
+
+    document.querySelectorAll('.generate-qr-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const card = this.closest('.course-card');
+            currentCourseId = card.dataset.courseId;
+            currentSemesterId = card.dataset.semesterId;
+            
+            generateQRCode();
+        });
+    });
+
+    // Attendance update form
+    document.getElementById('attendanceUpdateForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        updateAttendance();
+    });
+
+    // Export modal button
+    document.getElementById('exportModalBtn').addEventListener('click', function() {
+        if (currentCourseId && currentSemesterId) {
+            window.open(`/lecturer/export-attendance/${currentCourseId}/${currentSemesterId}/`, '_blank');
+        }
+    });
+
+    // Print QR code button
+    document.getElementById('printQRBtn').addEventListener('click', function() {
+        const qrImage = document.getElementById('qrCodeImage').src;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head><title>QR Code - Attendance</title></head>
+                <body style="text-align: center; padding: 20px;">
+                    <h3>${document.getElementById('qrCourseInfo').textContent}</h3>
+                    <p>${document.getElementById('qrWeekInfo').textContent}</p>
+                    <img src="${qrImage}" style="max-width: 400px;">
+                    <p><small>Scan this QR code to mark attendance</small></p>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    });
+
+    // Functions
+    function showStudentsModal() {
+        const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+        modal.show();
+        
+        // Show loading spinner
+        document.getElementById('modalLoadingSpinner').style.display = 'block';
+        document.getElementById('studentsTableContainer').style.display = 'none';
+        
+        loadStudentsData();
+    }
+
+    function loadStudentsData() {
+        fetch('/lecturer/get-course-students/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                course_id: currentCourseId,
+                academic_year_id: currentAcademicYearId,
+                semester_id: currentSemesterId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                studentsData = data.students;
+                displayStudentsData(data);
+            } else {
+                showAlert('Error loading student data: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while loading student data', 'error');
+        })
+        .finally(() => {
+            document.getElementById('modalLoadingSpinner').style.display = 'none';
+            document.getElementById('studentsTableContainer').style.display = 'block';
+        });
+    }
+
+    function displayStudentsData(data) {
+        // Update modal header info
+        document.getElementById('modalCourseInfo').textContent = 
+            `${data.course.code} - ${data.course.name} (${data.course.credit_hours} Credit Hours)`;
+        document.getElementById('modalAcademicInfo').textContent = 
+            `${data.academic_info.academic_year} - ${data.academic_info.semester}`;
+        
+        // Update summary
+        document.getElementById('modalTotalStudents').textContent = data.summary.total_students;
+        document.getElementById('modalTotalSessions').textContent = data.summary.total_sessions;
+        document.getElementById('modalAvgAttendance').textContent = data.summary.average_attendance + '%';
+
+        // Populate students table
+        const tbody = document.getElementById('studentsTableBody');
+        tbody.innerHTML = '';
+
+        data.students.forEach(student => {
+            const row = document.createElement('tr');
+            
+            // Determine attendance status color
+            let attendanceColor = 'text-muted';
+            if (student.attendance_percentage >= 75) attendanceColor = 'text-success';
+            else if (student.attendance_percentage >= 60) attendanceColor = 'text-warning';
+            else if (student.attendance_percentage > 0) attendanceColor = 'text-danger';
+
+            row.innerHTML = `
+                <td><strong>${student.student_id}</strong></td>
+                <td>
+                    <div>${student.name}</div>
+                    <small class="text-muted">${student.email}</small>
+                </td>
+                <td>
+                    <div>${student.programme}</div>
+                    <small class="text-muted">Year ${student.year}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-secondary">${student.year}</span>
+                </td>
+                <td class="text-center">
+                    <span class="fw-bold ${attendanceColor}">${student.attendance_percentage}%</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-light text-dark">${student.total_present}/${student.total_sessions}</span>
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewStudentAttendance('${student.student_id}')">
+                        <i class="bi bi-eye"></i> View
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    }
+
+    function generateQRCode() {
+        const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+        modal.show();
+        
+        // Show loading spinner
+        document.getElementById('qrCodeLoadingSpinner').style.display = 'block';
+        document.getElementById('qrCodeContainer').style.display = 'none';
+        document.getElementById('printQRBtn').style.display = 'none';
+
+        fetch(`/lecturer/generate-qr-attendance/${currentCourseId}/${currentSemesterId}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayQRCode(data);
+            } else {
+                showAlert('Error generating QR code: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while generating QR code', 'error');
+        })
+        .finally(() => {
+            document.getElementById('qrCodeLoadingSpinner').style.display = 'none';
+        });
+    }
+
+    function displayQRCode(data) {
+        // Find course info from the current course cards
+        const currentCard = document.querySelector(`[data-course-id="${currentCourseId}"]`);
+        const courseCode = currentCard.querySelector('.card-title').textContent;
+        const courseName = currentCard.querySelector('.card-text').textContent;
+
+        document.getElementById('qrCourseInfo').textContent = `${courseCode} - ${courseName}`;
+        document.getElementById('qrWeekInfo').textContent = `Week ${data.week_number} - Attendance Session`;
+        document.getElementById('qrCodeImage').src = data.qr_code_url;
+        document.getElementById('sessionToken').textContent = data.session_token;
+        document.getElementById('expiresAt').textContent = new Date(data.expires_at).toLocaleString();
+
+        document.getElementById('qrCodeContainer').style.display = 'block';
+        document.getElementById('printQRBtn').style.display = 'inline-block';
+    }
+
+    window.viewStudentAttendance = function(studentId) {
+        currentStudentId = studentId;
+        const student = studentsData.find(s => s.student_id === studentId);
+        
+        if (student) {
+            const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+            modal.show();
+            
+            // Update student info
+            document.getElementById('attendanceStudentInfo').textContent = 
+                `${student.name} (${student.student_id})`;
+            document.getElementById('attendanceCourseInfo').textContent = 
+                `${document.getElementById('modalCourseInfo').textContent}`;
+            
+            displayAttendanceWeeks(student);
+        }
+    }
+
+    function displayAttendanceWeeks(student) {
+        const container = document.getElementById('attendanceWeeksContainer');
+        container.innerHTML = '';
+
+        // Create attendance grid for 12 weeks
+        for (let week = 1; week <= 12; week++) {
+            const col = document.createElement('div');
+            col.className = 'col-md-2 col-sm-3 col-4 mb-3';
+            
+            const attendance = student.attendance_summary[week];
+            let statusClass = '';
+            let statusText = 'Not Marked';
+            let statusIcon = 'bi-question-circle';
+            let badgeClass = 'bg-secondary';
+
+            if (attendance) {
+                switch (attendance.status) {
+                    case 'present':
+                        statusClass = 'present';
+                        statusText = 'Present';
+                        statusIcon = 'bi-check-circle-fill';
+                        badgeClass = 'bg-success';
+                        break;
+                    case 'absent':
+                        statusClass = 'absent';
+                        statusText = 'Absent';
+                        statusIcon = 'bi-x-circle-fill';
+                        badgeClass = 'bg-danger';
+                        break;
+                    case 'late':
+                        statusClass = 'late';
+                        statusText = 'Late';
+                        statusIcon = 'bi-clock-fill';
+                        badgeClass = 'bg-warning';
+                        break;
+                    case 'excused':
+                        statusClass = 'excused';
+                        statusText = 'Excused';
+                        statusIcon = 'bi-shield-check';
+                        badgeClass = 'bg-info';
+                        break;
+                }
+            }
+
+            col.innerHTML = `
+                <div class="card attendance-week-card ${statusClass} h-100">
+                    <div class="card-body text-center p-2 position-relative">
+                        <span class="badge ${badgeClass} attendance-status-badge">
+                            <i class="${statusIcon}"></i>
+                        </span>
+                        <h6 class="card-title mb-1">Week ${week}</h6>
+                        <small class="text-muted d-block">${statusText}</small>
+                        ${attendance ? `
+                            <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                                ${new Date(attendance.marked_at).toLocaleDateString()}
+                            </small>
+                            ${attendance.remarks ? `
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                    "${attendance.remarks}"
+                                </small>
+                            ` : ''}
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(col);
+        }
+    }
+
+    function updateAttendance() {
+        const week = document.getElementById('weekSelect').value;
+        const status = document.getElementById('statusSelect').value;
+        const remarks = document.getElementById('remarksInput').value;
+
+        if (!week || !status) {
+            showAlert('Please select both week and status', 'warning');
+            return;
+        }
+
+        fetch('/lecturer/update-attendance/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                student_id: currentStudentId,
+                course_id: currentCourseId,
+                semester_id: currentSemesterId,
+                week_number: parseInt(week),
+                status: status,
+                remarks: remarks
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                
+                // Update the student's attendance data
+                const student = studentsData.find(s => s.student_id === currentStudentId);
+                if (student) {
+                    if (!student.attendance_summary[week]) {
+                        student.attendance_summary[week] = {};
+                    }
+                    student.attendance_summary[week] = {
+                        status: status,
+                        marked_at: new Date().toISOString(),
+                        marked_via_qr: false,
+                        remarks: remarks
+                    };
+                    
+                    // Recalculate attendance percentage
+                    let presentCount = 0;
+                    Object.values(student.attendance_summary).forEach(att => {
+                        if (att.status === 'present' || att.status === 'late') {
+                            presentCount++;
+                        }
+                    });
+                    student.attendance_percentage = Math.round((presentCount / student.total_sessions) * 100);
+                    student.total_present = presentCount;
+                    
+                    // Refresh the attendance display
+                    displayAttendanceWeeks(student);
+                }
+                
+                // Clear form
+                document.getElementById('attendanceUpdateForm').reset();
+            } else {
+                showAlert('Error updating attendance: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while updating attendance', 'error');
+        });
+    }
+
+    function refreshData() {
+        const academicYear = document.getElementById('academicYear').value;
+        const semester = document.getElementById('semester').value;
+        
+        if (academicYear && semester) {
+            window.location.href = `?academic_year=${academicYear}&semester=${semester}`;
+        } else {
+            window.location.reload();
+        }
+    }
+
+    function showAlert(message, type) {
+        const alertContainer = document.querySelector('.container .row:first-child .col-md-12');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        alertContainer.appendChild(alertDiv);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Make refreshData globally available
+    window.refreshData = refreshData;
+});
+</script>
+
+{% endblock %}

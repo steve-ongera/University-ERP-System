@@ -171,4 +171,13 @@ urlpatterns = [
     path('lecturer/save-grades/', views.save_grades, name='save_grades'),
     path('lecturer/get-semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
 
+    # Students and Attendance Management
+    path('my-students/', views.my_students, name='my_students'),
+    path('get-course-students/', views.get_course_students, name='get_course_students'),
+    path('update-attendance/', views.update_attendance, name='update_attendance'),
+    path('export-attendance/<int:course_id>/<int:semester_id>/', views.export_attendance, name='export_attendance'),
+    
+    # QR Code Attendance
+    path('generate-qr-attendance/<int:course_id>/<int:semester_id>/', views.generate_qr_attendance, name='generate_qr_attendance'),
+
 ]
