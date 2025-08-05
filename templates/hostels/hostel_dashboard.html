@@ -1,4 +1,4 @@
-{% extends 'admin_base.html' %}
+{% extends 'hostel_base.html' %}
 {% load static %}
 
 {% block title %}Hostel Dashboard - University{% endblock %}
@@ -426,11 +426,11 @@
                             </div>
                             <div class="col-4">
                                 <small class="text-muted">Total Beds</small>
-                                <div class="fw-bold">{{ hostel.get_total_beds_count:current_academic_year }}</div>
+                                <div class="fw-bold">{% comment %}{{ hostel.get_total_beds_count:current_academic_year }}{% endcomment%}</div>
                             </div>
                             <div class="col-4">
                                 <small class="text-muted">Occupied</small>
-                                <div class="fw-bold">{{ hostel.get_occupied_beds_count:current_academic_year }}</div>
+                                <div class="fw-bold">{% comment %}{{ hostel.get_occupied_beds_count:current_academic_year }} {% endcomment%}</div>
                             </div>
                         </div>
                     </div>
@@ -464,7 +464,6 @@
     </div>
 </div>
 
-{% block scripts %}
 <!-- Bootstrap JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
@@ -890,8 +889,5 @@
     window.addEventListener('resize', handleResize);
 </script>
 
-<!-- Additional custom scripts -->
-<script src="{% static 'js/admin_dashboard.js' %}"></script>
-{% endblock scripts %}
 
 {% endblock content %}

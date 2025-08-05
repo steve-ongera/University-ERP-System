@@ -37,6 +37,7 @@ AUTH_USER_MODEL='core_application.User'
 CSRF_TRUSTED_ORIGINS = [
     "https://6493f9542099.ngrok-free.app"
 ]
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000  # or a higher number as needed
 
 
 MIDDLEWARE = [

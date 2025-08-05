@@ -1188,7 +1188,7 @@ class HostelPayment(models.Model):
         ordering = ['-payment_date']
     
     def __str__(self):
-        return f"{self.booking.student.registration_number} - {self.amount} ({self.payment_date})"
+        return f"{self.booking.student.student_id } - {self.amount} ({self.payment_date})"
     
     def save(self, *args, **kwargs):
         if not self.receipt_number:
@@ -1266,7 +1266,7 @@ class HostelIncident(models.Model):
         ordering = ['-incident_date']
     
     def __str__(self):
-        return f"{self.booking.student.registration_number} - {self.get_incident_type_display()} ({self.incident_date.date()})"
+        return f"{self.booking.student.student_id} - {self.get_incident_type_display()} ({self.incident_date.date()})"
 
 
 class Examination(models.Model):
