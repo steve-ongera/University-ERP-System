@@ -6903,3 +6903,300 @@ def lecturer_training(request):
 
 def curriculum(request):
     return render( request, 'lecturers/curriculum.html')
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db import transaction
+from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_http_methods
+import json
+
+from .models import (
+    Student, Lecturer, AcademicYear, Semester, Enrollment, 
+    Grade, LecturerCourseAssignment, Course
+)
+
+@login_required
+def grade_entry(request):
+    """Main grade entry page for lecturers"""
+    # Ensure user is a lecturer
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, "Access denied. Only lecturers can access this page.")
+        return redirect('lecturer_dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all academic years and semesters for the dropdown
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    semesters = Semester.objects.all().order_by('-academic_year__year', '-semester_number')
+    
+    # Get lecturer's assigned courses for current semester
+    lecturer_assignments = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        is_active=True
+    ).select_related('course', 'academic_year', 'semester')
+    
+    context = {
+        'lecturer': lecturer,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'lecturer_assignments': lecturer_assignments,
+    }
+    
+    return render(request, 'lecturer/grade_entry.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def get_student_enrollments(request):
+    """AJAX view to get student enrollments for a specific academic year and semester"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        student_reg_number = data.get('student_reg_number', '').strip()
+        academic_year_id = data.get('academic_year_id')
+        semester_id = data.get('semester_id')
+        
+        if not all([student_reg_number, academic_year_id, semester_id]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Get student
+        try:
+            student = Student.objects.get(student_id=student_reg_number)
+        except Student.DoesNotExist:
+            return JsonResponse({'error': 'Student not found'}, status=404)
+        
+        # Get academic year and semester
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+        semester = get_object_or_404(Semester, id=semester_id)
+        
+        # Get lecturer's assigned courses for this semester
+        lecturer_courses = LecturerCourseAssignment.objects.filter(
+            lecturer=lecturer,
+            academic_year=academic_year,
+            semester=semester,
+            is_active=True
+        ).values_list('course_id', flat=True)
+        
+        if not lecturer_courses:
+            return JsonResponse({'error': 'You have no course assignments for this academic year and semester'}, status=403)
+        
+        # Get student enrollments for courses assigned to this lecturer
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester=semester,
+            course_id__in=lecturer_courses,
+            is_active=True
+        ).select_related('course', 'lecturer').prefetch_related('grade')
+        
+        if not enrollments:
+            return JsonResponse({'error': 'No enrollments found for this student in your assigned courses'}, status=404)
+        
+        # Prepare enrollment data with existing grades
+        enrollment_data = []
+        for enrollment in enrollments:
+            # Get existing grade if any
+            try:
+                grade = enrollment.grade
+                grade_data = {
+                    'continuous_assessment': float(grade.continuous_assessment) if grade.continuous_assessment else '',
+                    'final_exam': float(grade.final_exam) if grade.final_exam else '',
+                    'practical_marks': float(grade.practical_marks) if grade.practical_marks else '',
+                    'project_marks': float(grade.project_marks) if grade.project_marks else '',
+                    'total_marks': float(grade.total_marks) if grade.total_marks else '',
+                    'grade': grade.grade or '',
+                    'grade_points': float(grade.grade_points) if grade.grade_points else '',
+                    'is_passed': grade.is_passed,
+                    'remarks': grade.remarks or ''
+                }
+            except Grade.DoesNotExist:
+                grade_data = {
+                    'continuous_assessment': '',
+                    'final_exam': '',
+                    'practical_marks': '',
+                    'project_marks': '',
+                    'total_marks': '',
+                    'grade': '',
+                    'grade_points': '',
+                    'is_passed': False,
+                    'remarks': ''
+                }
+            
+            enrollment_data.append({
+                'enrollment_id': enrollment.id,
+                'course_code': enrollment.course.code,
+                'course_name': enrollment.course.name,
+                'credit_hours': enrollment.course.credit_hours,
+                'course_type': enrollment.course.get_course_type_display(),
+                'is_repeat': enrollment.is_repeat,
+                'grade_data': grade_data
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'student': {
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'current_year': student.current_year,
+                'current_semester': student.current_semester
+            },
+            'academic_year': academic_year.year,
+            'semester': f"Semester {semester.semester_number}",
+            'enrollments': enrollment_data
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def save_grades(request):
+    """AJAX view to save/update student grades"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        grades_data = data.get('grades', [])
+        
+        if not grades_data:
+            return JsonResponse({'error': 'No grade data provided'}, status=400)
+        
+        saved_grades = []
+        errors = []
+        
+        with transaction.atomic():
+            for grade_item in grades_data:
+                try:
+                    enrollment_id = grade_item.get('enrollment_id')
+                    enrollment = get_object_or_404(Enrollment, id=enrollment_id)
+                    
+                    # Verify lecturer has permission to grade this enrollment
+                    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+                        lecturer=lecturer,
+                        course=enrollment.course,
+                        academic_year=enrollment.semester.academic_year,
+                        semester=enrollment.semester,
+                        is_active=True
+                    ).first()
+                    
+                    if not lecturer_assignment:
+                        errors.append(f"No permission to grade {enrollment.course.code}")
+                        continue
+                    
+                    # Get or create grade object
+                    grade, created = Grade.objects.get_or_create(
+                        enrollment=enrollment,
+                        defaults={'exam_date': enrollment.semester.end_date}
+                    )
+                    
+                    # Update grade fields
+                    continuous_assessment = grade_item.get('continuous_assessment')
+                    final_exam = grade_item.get('final_exam')
+                    practical_marks = grade_item.get('practical_marks')
+                    project_marks = grade_item.get('project_marks')
+                    remarks = grade_item.get('remarks', '')
+                    
+                    # Validate and set marks
+                    if continuous_assessment is not None and continuous_assessment != '':
+                        if 0 <= float(continuous_assessment) <= 40:
+                            grade.continuous_assessment = float(continuous_assessment)
+                        else:
+                            errors.append(f"{enrollment.course.code}: CAT marks must be between 0-40")
+                            continue
+                    
+                    if final_exam is not None and final_exam != '':
+                        if 0 <= float(final_exam) <= 60:
+                            grade.final_exam = float(final_exam)
+                        else:
+                            errors.append(f"{enrollment.course.code}: Final exam marks must be between 0-60")
+                            continue
+                    
+                    if practical_marks is not None and practical_marks != '':
+                        if 0 <= float(practical_marks) <= 100:
+                            grade.practical_marks = float(practical_marks)
+                        else:
+                            errors.append(f"{enrollment.course.code}: Practical marks must be between 0-100")
+                            continue
+                    
+                    if project_marks is not None and project_marks != '':
+                        if 0 <= float(project_marks) <= 100:
+                            grade.project_marks = float(project_marks)
+                        else:
+                            errors.append(f"{enrollment.course.code}: Project marks must be between 0-100")
+                            continue
+                    
+                    grade.remarks = remarks
+                    grade.save()  # This will trigger the grade calculation in the model
+                    
+                    saved_grades.append({
+                        'course_code': enrollment.course.code,
+                        'total_marks': float(grade.total_marks) if grade.total_marks else 0,
+                        'grade': grade.grade,
+                        'grade_points': float(grade.grade_points) if grade.grade_points else 0,
+                        'is_passed': grade.is_passed
+                    })
+                    
+                except ValueError as e:
+                    errors.append(f"{enrollment.course.code}: Invalid numeric value")
+                except Exception as e:
+                    errors.append(f"{enrollment.course.code}: {str(e)}")
+        
+        if errors:
+            return JsonResponse({
+                'success': False,
+                'errors': errors,
+                'saved_grades': saved_grades
+            }, status=400)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully saved grades for {len(saved_grades)} courses',
+            'saved_grades': saved_grades
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_semesters_by_year(request):
+    """AJAX view to get semesters for a specific academic year"""
+    academic_year_id = request.GET.get('academic_year_id')
+    
+    if not academic_year_id:
+        return JsonResponse({'error': 'Academic year ID required'}, status=400)
+    
+    try:
+        semesters = Semester.objects.filter(
+            academic_year_id=academic_year_id
+        ).order_by('semester_number').values('id', 'semester_number', 'start_date', 'end_date')
+        
+        return JsonResponse({
+            'success': True,
+            'semesters': list(semesters)
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
