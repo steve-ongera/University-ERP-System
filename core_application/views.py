@@ -21,6 +21,8 @@ def student_login(request):
                 return redirect('student_dashboard')
             elif user.user_type == 'lecturer':
                 return redirect('lecturer_dashboard')
+            elif user.user_type == 'hostel_warden':
+                return redirect('hostel_dashboard')
             else:
                 messages.error(request, 'Unauthorized user type.')
         else:

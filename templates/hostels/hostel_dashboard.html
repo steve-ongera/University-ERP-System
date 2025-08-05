@@ -352,4 +352,546 @@
                         <div class="list-group-item list-group-item-action border-0 px-0 py-2">
                             <div class="d-flex w-100 justify-content-between">
                                 <div>
-                                    <h6 class="mb-1 small fw-semibold
+                                    <h6 class="mb-1 small fw-semibold">{{ incident.booking.student.user.get_full_name }}</h6>
+                                    <p class="mb-1 small text-muted">{{ incident.get_incident_type_display }}</p>
+                                    <small class="text-muted">{{ incident.incident_date|date:"M d, Y" }}</small>
+                                </div>
+                                <span class="badge bg-{% if incident.severity == 'high' %}danger{% elif incident.severity == 'medium' %}warning{% else %}info{% endif %}">
+                                    {{ incident.get_severity_display }}
+                                </span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No recent incidents
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i> New Booking
+                        </a>
+                        <a href="#" class="btn btn-success btn-sm">
+                            <i class="fas fa-money-bill me-1"></i> Record Payment
+                        </a>
+                        <a href="#" class="btn btn-info btn-sm">
+                            <i class="fas fa-bed me-1"></i> Manage Beds
+                        </a>
+                        <a href="#" class="btn btn-warning btn-sm">
+                            <i class="fas fa-exclamation-triangle me-1"></i> Report Incident
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Hostel Information Row -->
+    <div class="row p-2">
+        <!-- Hostel Details -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Hostel Details</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">Manage</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% for hostel in managed_hostels %}
+                    <div class="mb-4 p-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="fw-semibold">{{ hostel.name }}</h6>
+                            <span class="badge bg-{% if hostel.hostel_type == 'boys' %}primary{% else %}info{% endif %}">
+                                {{ hostel.get_hostel_type_display }}
+                            </span>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small class="text-muted">Rooms</small>
+                                <div class="fw-bold">{{ hostel.total_rooms }}</div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Total Beds</small>
+                                <div class="fw-bold">{{ hostel.get_total_beds_count:current_academic_year }}</div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Occupied</small>
+                                <div class="fw-bold">{{ hostel.get_occupied_beds_count:current_academic_year }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-3">
+                        No hostels assigned
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Status -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Bed Maintenance Status</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<!-- Bootstrap JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    Chart.defaults.plugins.legend.position = 'bottom';
+
+    // Gender Distribution Donut Chart
+    const genderData = {{ gender_chart_data|safe }};
+    const genderCtx = document.getElementById('genderChart').getContext('2d');
+    new Chart(genderCtx, {
+        type: 'doughnut',
+        data: {
+            labels: genderData.labels,
+            datasets: [{
+                data: genderData.data,
+                backgroundColor: genderData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '60%'
+        }
+    });
+
+    // Hostel Occupancy Bar Chart
+    const hostelData = {{ hostel_chart_data|safe }};
+    const hostelCtx = document.getElementById('hostelChart').getContext('2d');
+    new Chart(hostelCtx, {
+        type: 'bar',
+        data: {
+            labels: hostelData.labels,
+            datasets: [{
+                label: 'Occupancy Rate (%)',
+                data: hostelData.data,
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            return `Occupied: ${hostelData.occupied[index]}/${hostelData.total[index]} beds`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Payment Trend Line Chart
+    const paymentTrendData = {{ payment_trend_data|safe }};
+    const paymentTrendCtx = document.getElementById('paymentTrendChart').getContext('2d');
+    new Chart(paymentTrendCtx, {
+        type: 'line',
+        data: {
+            labels: paymentTrendData.labels,
+            datasets: [{
+                label: 'Payment Amount (KES)',
+                data: paymentTrendData.data,
+                borderColor: 'rgba(39, 174, 96, 1)',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(39, 174, 96, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Booking Status Pie Chart
+    const bookingStatusData = {{ booking_status_chart_data|safe }};
+    const bookingStatusCtx = document.getElementById('bookingStatusChart').getContext('2d');
+    new Chart(bookingStatusCtx, {
+        type: 'pie',
+        data: {
+            labels: bookingStatusData.labels,
+            datasets: [{
+                data: bookingStatusData.data,
+                backgroundColor: bookingStatusData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // Floor Utilization Horizontal Bar Chart
+    const floorData = {{ floor_chart_data|safe }};
+    const floorCtx = document.getElementById('floorChart').getContext('2d');
+    new Chart(floorCtx, {
+        type: 'bar',
+        data: {
+            labels: floorData.labels,
+            datasets: [{
+                label: 'Utilization Rate (%)',
+                data: floorData.data,
+                backgroundColor: 'rgba(155, 89, 182, 0.8)',
+                borderColor: 'rgba(155, 89, 182, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Incident Trends Bar Chart
+    const incidentData = {{ incident_trend_data|safe }};
+    const incidentCtx = document.getElementById('incidentChart').getContext('2d');
+    new Chart(incidentCtx, {
+        type: 'bar',
+        data: {
+            labels: incidentData.labels,
+            datasets: [{
+                label: 'Number of Incidents',
+                data: incidentData.data,
+                backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                borderColor: 'rgba(231, 76, 60, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Payment Method Distribution Chart
+    const paymentMethodData = {{ payment_method_chart_data|safe }};
+    const paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+    new Chart(paymentMethodCtx, {
+        type: 'doughnut',
+        data: {
+            labels: paymentMethodData.labels,
+            datasets: [{
+                data: paymentMethodData.data,
+                backgroundColor: paymentMethodData.colors,
+                borderWidth: 2,                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '60%'
+        }
+    });
+
+    // Maintenance Status Chart
+    const maintenanceData = {{ maintenance_chart_data|safe }};
+    const maintenanceCtx = document.getElementById('maintenanceChart').getContext('2d');
+    new Chart(maintenanceCtx, {
+        type: 'bar',
+        data: {
+            labels: maintenanceData.labels,
+            datasets: [
+                {
+                    label: 'Pending',
+                    data: maintenanceData.pending,
+                    backgroundColor: 'rgba(241, 196, 15, 0.8)',
+                    borderColor: 'rgba(241, 196, 15, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'In Progress',
+                    data: maintenanceData.in_progress,
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Completed',
+                    data: maintenanceData.completed,
+                    backgroundColor: 'rgba(39, 174, 96, 0.8)',
+                    borderColor: 'rgba(39, 174, 96, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // Dark mode toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', function() {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+                
+                // Update charts for dark mode
+                updateChartsForDarkMode(document.body.classList.contains('dark-mode'));
+            });
+
+            // Check for saved dark mode preference
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+                updateChartsForDarkMode(true);
+            }
+        }
+
+        function updateChartsForDarkMode(isDarkMode) {
+            const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDarkMode ? '#fff' : '#666';
+            
+            // Update all charts
+            Chart.getChart('genderChart').options.scales = {
+                ...Chart.getChart('genderChart').options.scales,
+                x: { grid: { color: gridColor }, ticks: { color: textColor } },
+                y: { grid: { color: gridColor }, ticks: { color: textColor } }
+            };
+            Chart.getChart('genderChart').update();
+            
+            // Repeat for other charts...
+            [hostelCtx, paymentTrendCtx, bookingStatusCtx, floorCtx, incidentCtx, paymentMethodCtx, maintenanceCtx].forEach(chart => {
+                if (Chart.getChart(chart)) {
+                    Chart.getChart(chart).options.scales = {
+                        ...Chart.getChart(chart).options.scales,
+                        x: { grid: { color: gridColor }, ticks: { color: textColor } },
+                        y: { grid: { color: gridColor }, ticks: { color: textColor } }
+                    };
+                    Chart.getChart(chart).update();
+                }
+            });
+        }
+    });
+
+    // Print functionality
+    document.getElementById('printBtn').addEventListener('click', function() {
+        window.print();
+    });
+
+    // Responsive adjustments
+    function handleResize() {
+        const charts = [
+            'genderChart', 'hostelChart', 'paymentTrendChart', 
+            'bookingStatusChart', 'floorChart', 'incidentChart',
+            'paymentMethodChart', 'maintenanceChart'
+        ];
+        
+        charts.forEach(chartId => {
+            const chart = Chart.getChart(chartId);
+            if (chart) {
+                chart.resize();
+            }
+        });
+    }
+
+    window.addEventListener('resize', handleResize);
+</script>
+
+<!-- Additional custom scripts -->
+<script src="{% static 'js/admin_dashboard.js' %}"></script>
+{% endblock scripts %}
+
+{% endblock content %}

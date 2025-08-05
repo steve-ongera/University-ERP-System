@@ -52,6 +52,7 @@ urlpatterns = [
     path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('hostel-dashboard/', views.hostel_dashboard, name='hostel_dashboard'),
 
     path('students/', views.student_list, name='student_list'),
     path('students/create/', views.student_create, name='student_create'),
