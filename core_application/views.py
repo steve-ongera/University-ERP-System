@@ -8256,3 +8256,388 @@ def get_fee_structure(request):
     
     from django.http import JsonResponse
     return JsonResponse(data)
+
+
+# views.py - Student Services Views
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponse, Http404
+from django.db.models import Q
+from django.core.paginator import Paginator
+from django.utils import timezone
+from django.http import FileResponse
+from .models import *
+from .forms import *  # You'll need to create these forms
+
+
+# Exam Repository Views
+@login_required
+def exam_repository(request):
+    """Display exam materials for student's programme"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    # Get materials for student's programme
+    materials = ExamRepository.objects.filter(
+        programme=student.programme,
+        is_public=True
+    ).select_related('course', 'academic_year')
+    
+    # Filter by course if specified
+    course_id = request.GET.get('course')
+    if course_id:
+        materials = materials.filter(course_id=course_id)
+    
+    # Filter by material type if specified
+    material_type = request.GET.get('type')
+    if material_type:
+        materials = materials.filter(material_type=material_type)
+    
+    # Get courses for filtering
+    courses = Course.objects.filter(
+        course_programmes__programme=student.programme
+    ).distinct()
+    
+    # Pagination
+    paginator = Paginator(materials, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'courses': courses,
+        'selected_course': course_id,
+        'selected_type': material_type,
+        'material_types': ExamRepository.MATERIAL_TYPES,
+    }
+    return render(request, 'student/exam_repository.html', context)
+
+@login_required
+def download_exam_material(request, material_id):
+    """Download exam material and track the download"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    material = get_object_or_404(ExamRepository, id=material_id, is_public=True)
+    
+    # Check if student's programme has access to this material
+    if material.programme != student.programme:
+        messages.error(request, "You don't have access to this material.")
+        return redirect('exam_repository')
+    
+    # Track the download
+    ExamMaterialDownload.objects.create(
+        exam_material=material,
+        student=student,
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    # Increment download count
+    material.download_count += 1
+    material.save()
+    
+    # Serve the file
+    try:
+        return FileResponse(
+            material.material_file.open(),
+            as_attachment=True,
+            filename=material.material_file.name
+        )
+    except Exception as e:
+        messages.error(request, "Error downloading file.")
+        return redirect('exam_repository')
+
+# Special Exam Application Views
+@login_required
+def special_exam_applications(request):
+    """List student's special exam applications"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    applications = SpecialExamApplication.objects.filter(
+        student=student
+    ).select_related('course', 'semester')
+    
+    context = {
+        'applications': applications,
+    }
+    return render(request, 'student/special_exam_list.html', context)
+
+@login_required
+def apply_special_exam(request):
+    """Apply for special exam"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    if request.method == 'POST':
+        form = SpecialExamApplicationForm(request.POST, request.FILES)
+        if form.is_valid():
+            application = form.save(commit=False)
+            application.student = student
+            application.save()
+            messages.success(request, "Special exam application submitted successfully!")
+            return redirect('special_exam_applications')
+    else:
+        form = SpecialExamApplicationForm()
+    
+    # Get courses student is enrolled in current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    enrolled_courses = []
+    if current_semester:
+        enrolled_courses = Course.objects.filter(
+            enrollments__student=student,
+            enrollments__semester=current_semester
+        )
+    
+    context = {
+        'form': form,
+        'enrolled_courses': enrolled_courses,
+    }
+    return render(request, 'student/apply_special_exam.html', context)
+
+# Deferment Application Views
+@login_required
+def deferment_applications(request):
+    """List student's deferment applications"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    applications = DefermentApplication.objects.filter(student=student)
+    
+    context = {
+        'applications': applications,
+    }
+    return render(request, 'student/deferment_list.html', context)
+
+@login_required
+def apply_deferment(request):
+    """Apply for academic deferment"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    if request.method == 'POST':
+        form = DefermentApplicationForm(request.POST, request.FILES)
+        if form.is_valid():
+            application = form.save(commit=False)
+            application.student = student
+            application.save()
+            messages.success(request, "Deferment application submitted successfully!")
+            return redirect('deferment_applications')
+    else:
+        form = DefermentApplicationForm()
+    
+    context = {
+        'form': form,
+    }
+    return render(request, 'student/apply_deferment.html', context)
+
+# Clearance Views
+@login_required
+def clearance_requests(request):
+    """List student's clearance requests"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    requests = ClearanceRequest.objects.filter(student=student)
+    
+    context = {
+        'clearance_requests': requests,
+    }
+    return render(request, 'student/clearance_list.html', context)
+
+@login_required
+def request_clearance(request):
+    """Request clearance"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    if request.method == 'POST':
+        form = ClearanceRequestForm(request.POST)
+        if form.is_valid():
+            clearance_request = form.save(commit=False)
+            clearance_request.student = student
+            clearance_request.save()
+            messages.success(request, "Clearance request submitted successfully!")
+            return redirect('clearance_requests')
+    else:
+        form = ClearanceRequestForm()
+    
+    context = {
+        'form': form,
+    }
+    return render(request, 'student/request_clearance.html', context)
+
+# Messaging Views
+@login_required
+def messages_inbox(request):
+    """Student's message inbox"""
+    messages_list = Message.objects.filter(
+        recipient=request.user,
+        is_deleted_by_recipient=False
+    ).select_related('sender')
+    
+    # Search functionality
+    search = request.GET.get('search')
+    if search:
+        messages_list = messages_list.filter(
+            Q(subject__icontains=search) | 
+            Q(message__icontains=search) |
+            Q(sender__first_name__icontains=search) |
+            Q(sender__last_name__icontains=search)
+        )
+    
+    # Filter by read/unread
+    filter_type = request.GET.get('filter')
+    if filter_type == 'unread':
+        messages_list = messages_list.filter(is_read=False)
+    elif filter_type == 'starred':
+        messages_list = messages_list.filter(is_starred=True)
+    
+    # Pagination
+    paginator = Paginator(messages_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'filter_type': filter_type,
+    }
+    return render(request, 'student/messages_inbox.html', context)
+
+@login_required
+def message_detail(request, message_id):
+    """View message details"""
+    message = get_object_or_404(
+        Message, 
+        id=message_id,
+        recipient=request.user,
+        is_deleted_by_recipient=False
+    )
+    
+    # Mark as read
+    message.mark_as_read()
+    
+    # Get replies
+    replies = Message.objects.filter(
+        parent_message=message,
+        is_deleted_by_recipient=False
+    ).select_related('sender')
+    
+    context = {
+        'message': message,
+        'replies': replies,
+    }
+    return render(request, 'student/message_detail.html', context)
+
+@login_required
+def compose_message(request):
+    """Compose new message"""
+    if request.method == 'POST':
+        form = MessageForm(request.POST, request.FILES)
+        if form.is_valid():
+            message = form.save(commit=False)
+            message.sender = request.user
+            message.save()
+            messages.success(request, "Message sent successfully!")
+            return redirect('messages_inbox')
+    else:
+        form = MessageForm()
+    
+    # Get possible recipients (lecturers, staff, admins)
+    recipients = User.objects.filter(
+        Q(user_type__in=['lecturer', 'staff', 'admin', 'hod', 'dean']) |
+        Q(is_staff=True)
+    ).exclude(id=request.user.id)
+    
+    context = {
+        'form': form,
+        'recipients': recipients,
+    }
+    return render(request, 'student/compose_message.html', context)
+
+@login_required
+def reply_message(request, message_id):
+    """Reply to a message"""
+    parent_message = get_object_or_404(
+        Message,
+        id=message_id,
+        recipient=request.user
+    )
+    
+    if request.method == 'POST':
+        form = MessageReplyForm(request.POST, request.FILES)
+        if form.is_valid():
+            reply = form.save(commit=False)
+            reply.sender = request.user
+            reply.recipient = parent_message.sender
+            reply.parent_message = parent_message
+            reply.subject = f"Re: {parent_message.subject}"
+            reply.save()
+            messages.success(request, "Reply sent successfully!")
+            return redirect('message_detail', message_id=parent_message.id)
+    else:
+        form = MessageReplyForm()
+    
+    context = {
+        'form': form,
+        'parent_message': parent_message,
+    }
+    return render(request, 'student/reply_message.html', context)
+
+@login_required
+def sent_messages(request):
+    """View sent messages"""
+    messages_list = Message.objects.filter(
+        sender=request.user,
+        is_deleted_by_sender=False
+    ).select_related('recipient')
+    
+    # Pagination
+    paginator = Paginator(messages_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+    }
+    return render(request, 'student/sent_messages.html', context)
+
+@login_required
+def notifications(request):
+    """View student notifications"""
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    notifications_list = StudentNotification.objects.filter(student=student)
+    
+    # Mark all as read when viewing
+    unread_notifications = notifications_list.filter(is_read=False)
+    for notification in unread_notifications:
+        notification.is_read = True
+        notification.read_date = timezone.now()
+    StudentNotification.objects.bulk_update(unread_notifications, ['is_read', 'read_date'])
+    
+    # Pagination
+    paginator = Paginator(notifications_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+    }
+    return render(request, 'student/student_notifications.html', context)

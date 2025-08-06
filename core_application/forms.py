@@ -384,3 +384,120 @@ class LecturerForm(forms.ModelForm):
             'consultation_hours': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+# forms.py - Student Services Forms
+from django import forms
+from django.contrib.auth.models import User
+from .models import *
+
+class SpecialExamApplicationForm(forms.ModelForm):
+    class Meta:
+        model = SpecialExamApplication
+        fields = [
+            'course', 'application_type', 'reason', 'original_exam_date',
+            'supporting_document'
+        ]
+        widgets = {
+            'reason': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Provide detailed reason for your special exam application...'
+            }),
+            'original_exam_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            'course': forms.Select(attrs={'class': 'form-control'}),
+            'application_type': forms.Select(attrs={'class': 'form-control'}),
+            'supporting_document': forms.FileInput(attrs={'class': 'form-control'})
+        }
+        labels = {
+            'supporting_document': 'Supporting Document (Medical certificate, etc.)'
+        }
+
+class DefermentApplicationForm(forms.ModelForm):
+    class Meta:
+        model = DefermentApplication
+        fields = [
+            'deferment_type', 'reason', 'requested_start_date',
+            'requested_duration_months', 'supporting_document'
+        ]
+        widgets = {
+            'reason': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Provide detailed reason for your deferment request...'
+            }),
+            'requested_start_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            'deferment_type': forms.Select(attrs={'class': 'form-control'}),
+            'requested_duration_months': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '24'
+            }),
+            'supporting_document': forms.FileInput(attrs={'class': 'form-control'})
+        }
+        labels = {
+            'supporting_document': 'Supporting Document (Medical certificate, financial documents, etc.)'
+        }
+
+class ClearanceRequestForm(forms.ModelForm):
+    class Meta:
+        model = ClearanceRequest
+        fields = ['clearance_type', 'reason']
+        widgets = {
+            'clearance_type': forms.Select(attrs={'class': 'form-control'}),
+            'reason': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Explain why you need this clearance...',
+                'class': 'form-control'
+            })
+        }
+
+class MessageForm(forms.ModelForm):
+    recipient = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    class Meta:
+        model = Message
+        fields = ['recipient', 'subject', 'message', 'message_type', 'priority', 'attachment']
+        widgets = {
+            'subject': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter message subject...'
+            }),
+            'message': forms.Textarea(attrs={
+                'rows': 6,
+                'class': 'form-control',
+                'placeholder': 'Type your message here...'
+            }),
+            'message_type': forms.Select(attrs={'class': 'form-control'}),
+            'priority': forms.Select(attrs={'class': 'form-control'}),
+            'attachment': forms.FileInput(attrs={'class': 'form-control'})
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set recipients to staff, lecturers, admins
+        from django.db.models import Q
+        self.fields['recipient'].queryset = User.objects.filter(
+            Q(user_type__in=['lecturer', 'staff', 'admin', 'hod', 'dean']) |
+            Q(is_staff=True)
+        )
+
+class MessageReplyForm(forms.ModelForm):
+    class Meta:
+        model = Message
+        fields = ['message', 'attachment']
+        widgets = {
+            'message': forms.Textarea(attrs={
+                'rows': 6,
+                'class': 'form-control',
+                'placeholder': 'Type your reply here...'
+            }),
+            'attachment': forms.FileInput(attrs={'class': 'form-control'})
+        }
