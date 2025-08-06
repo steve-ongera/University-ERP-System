@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-pause-circle me-2"></i>Academic Deferment Application
+                        </h2>
+                        <p class="text-muted mb-1">Apply to temporarily suspend your academic studies</p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ user.student_profile.student_id }} - {{ user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-mortarboard me-1"></i>{{ user.student_profile.programme.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ user.student_profile.programme.department.faculty.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ user.student_profile.current_year }}</h4>
+                            <small class="text-muted">Current Year</small>
+                            <br><small class="text-muted">Semester {{ user.student_profile.current_semester }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'deferment_applications' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-list"></i> View Applications
+                            </a>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>Deferment Request Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="defermentForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Deferment Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.deferment_type.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-tags me-1"></i>Deferment Type
+                                </label>
+                                <select name="{{ form.deferment_type.name }}" id="{{ form.deferment_type.id_for_label }}" class="form-select" required>
+                                    <option value="">Select Type</option>
+                                    <option value="medical" {% if form.deferment_type.value == 'medical' %}selected{% endif %}>Medical Reasons</option>
+                                    <option value="financial" {% if form.deferment_type.value == 'financial' %}selected{% endif %}>Financial Difficulties</option>
+                                    <option value="family" {% if form.deferment_type.value == 'family' %}selected{% endif %}>Family Emergency</option>
+                                    <option value="work" {% if form.deferment_type.value == 'work' %}selected{% endif %}>Work Commitments</option>
+                                    <option value="personal" {% if form.deferment_type.value == 'personal' %}selected{% endif %}>Personal Reasons</option>
+                                    <option value="other" {% if form.deferment_type.value == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                                {% if form.deferment_type.errors %}
+                                <div class="text-danger small">{{ form.deferment_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Duration -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.requested_duration_months.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-clock me-1"></i>Duration (Months)
+                                </label>
+                                <select name="{{ form.requested_duration_months.name }}" id="{{ form.requested_duration_months.id_for_label }}" class="form-select" required>
+                                    <option value="">Select Duration</option>
+                                    {% for month in "123456789012345678901234"|make_list %}
+                                        {% if forloop.counter <= 24 %}
+                                        <option value="{{ forloop.counter }}" {% if form.requested_duration_months.value == forloop.counter %}selected{% endif %}>
+                                            {{ forloop.counter }} month{% if forloop.counter != 1 %}s{% endif %}
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.requested_duration_months.errors %}
+                                <div class="text-danger small">{{ form.requested_duration_months.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">Maximum 24 months allowed</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Start Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.requested_start_date.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-calendar-event me-1"></i>Requested Start Date
+                                </label>
+                                <input type="date" name="{{ form.requested_start_date.name }}" id="{{ form.requested_start_date.id_for_label }}" 
+                                       class="form-control" value="{{ form.requested_start_date.value|default:'' }}" required>
+                                {% if form.requested_start_date.errors %}
+                                <div class="text-danger small">{{ form.requested_start_date.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">When you want the deferment to begin</small>
+                            </div>
+
+                            <!-- Supporting Document -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.supporting_document.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-file-earmark-arrow-up me-1"></i>Supporting Document
+                                </label>
+                                <input type="file" name="{{ form.supporting_document.name }}" id="{{ form.supporting_document.id_for_label }}" 
+                                       class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                {% if form.supporting_document.errors %}
+                                <div class="text-danger small">{{ form.supporting_document.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">Upload relevant documentation (Required for medical/family reasons)</small>
+                            </div>
+                        </div>
+
+                        <!-- Reason -->
+                        <div class="mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label fw-bold">
+                                <i class="bi bi-chat-text me-1"></i>Detailed Reason for Deferment
+                            </label>
+                            <textarea name="{{ form.reason.name }}" id="{{ form.reason.id_for_label }}" 
+                                      class="form-control" rows="6" required 
+                                      placeholder="Provide comprehensive explanation for your deferment request including circumstances, timeline, and how this affects your studies...">{{ form.reason.value|default:'' }}</textarea>
+                            {% if form.reason.errors %}
+                            <div class="text-danger small">{{ form.reason.errors.0 }}</div>
+                            {% endif %}
+                            <small class="text-muted">Be thorough and honest in your explanation. This will be reviewed by the academic committee.</small>
+                        </div>
+
+                        <!-- Impact Assessment -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-graph-down me-1"></i>Impact on Academic Progress
+                            </label>
+                            <div class="alert alert-warning">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Current Status:</strong>
+                                        <ul class="mt-2 mb-0">
+                                            <li>Year {{ user.student_profile.current_year }}, Semester {{ user.student_profile.current_semester }}</li>
+                                            <li>Expected Graduation: {{ user.student_profile.expected_graduation_date|date:"Y" }}</li>
+                                            <li>Programme Duration: {{ user.student_profile.programme.duration_years }} years</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>After Deferment:</strong>
+                                        <ul class="mt-2 mb-0">
+                                            <li>Graduation will be delayed by the deferment period</li>
+                                            <li>You may need to re-apply for student services</li>
+                                            <li>Financial aid may be affected</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                            Deferment applications are reviewed by the academic committee
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-outline-secondary me-2" onclick="history.back()">
+                                            <i class="bi bi-x-circle me-1"></i>Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-send me-1"></i>Submit Application
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guidelines & Requirements -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-square me-2"></i>Deferment Guidelines & Requirements
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="fw-bold text-primary">Required Documents</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Medical Certificate (Medical reasons)</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Financial statements (Financial difficulties)</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Official letters (Family/Work reasons)</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Any other relevant documentation</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="fw-bold text-primary">Processing Information</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-clock text-info me-2"></i>Processing time: 10-14 working days</li>
+                                <li><i class="bi bi-people text-info me-2"></i>Reviewed by Academic Committee</li>
+                                <li><i class="bi bi-envelope text-info me-2"></i>Decision communicated via email</li>
+                                <li><i class="bi bi-telephone text-info me-2"></i>Follow-up available via registry</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="fw-bold text-primary">Important Notes</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-exclamation-triangle text-warning me-2"></i>Application must be submitted before semester end</li>
+                                <li><i class="bi bi-exclamation-triangle text-warning me-2"></i>Supporting documents are mandatory</li>
+                                <li><i class="bi bi-exclamation-triangle text-warning me-2"></i>Deferment affects graduation timeline</li>
+                                <li><i class="bi bi-exclamation-triangle text-warning me-2"></i>May require re-registration upon return</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-lightbulb me-2"></i>Before Applying</h6>
+                        <p class="mb-0">Consider speaking with your academic advisor, programme coordinator, or student counselor to explore alternative solutions that might not require deferment of your studies.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('defermentForm');
+    const startDateInput = document.getElementById('{{ form.requested_start_date.id_for_label }}');
+    const durationSelect = document.getElementById('{{ form.requested_duration_months.id_for_label }}');
+    const typeSelect = document.getElementById('{{ form.deferment_type.id_for_label }}');
+    const fileInput = document.getElementById('{{ form.supporting_document.id_for_label }}');
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    startDateInput.min = today;
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const reason = document.getElementById('{{ form.reason.id_for_label }}').value.trim();
+        const type = typeSelect.value;
+        const hasFile = fileInput.files.length > 0;
+        
+        // Check reason length
+        if (reason.length < 100) {
+            e.preventDefault();
+            alert('Please provide a comprehensive reason (at least 100 characters).');
+            return false;
+        }
+        
+        // Check for supporting document for certain types
+        if (['medical', 'family', 'financial'].includes(type) && !hasFile) {
+            e.preventDefault();
+            alert('Supporting document is required for ' + typeSelect.options[typeSelect.selectedIndex].text);
+            return false;
+        }
+        
+        // Confirm submission
+        if (!confirm('Are you sure you want to submit this deferment application? This is a serious academic decision that will affect your graduation timeline.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // File upload validation
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file && file.size > 10 * 1024 * 1024) { // 10MB limit
+                alert('File size should not exceed 10MB');
+                this.value = '';
+            }
+        });
+    }
+    
+    // Duration and start date validation
+    function calculateEndDate() {
+        const startDate = startDateInput.value;
+        const duration = parseInt(durationSelect.value);
+        
+        if (startDate && duration) {
+            const start = new Date(startDate);
+            const end = new Date(start);
+            end.setMonth(start.getMonth() + duration);
+            
+            const endDateDiv = document.getElementById('calculatedEndDate');
+            if (endDateDiv) {
+                endDateDiv.innerHTML = `<small class="text-info"><i class="bi bi-calendar-check me-1"></i>Expected return date: ${end.toLocaleDateString()}</small>`;
+            }
+        }
+    }
+    
+    startDateInput.addEventListener('change', calculateEndDate);
+    durationSelect.addEventListener('change', calculateEndDate);
+});
+</script>
+
+<style>
+@media print {
+    .btn, .alert, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.form-label {
+    color: #495057;
+}
+
+.alert-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+    border-left: 4px solid #17a2b8;
+}
+
+.list-unstyled li {
+    padding: 2px 0;
+}
+</style>
+
+{% endblock %}

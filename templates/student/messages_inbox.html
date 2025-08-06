@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-envelope me-2"></i>Messages Inbox
+                        </h2>
+                        <p class="text-muted mb-1">Manage your communications with university staff and faculty</p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ user.student_profile.student_id }} - {{ user.get_full_name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'compose_message' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Compose Message
+                            </a>
+                            <a href="{% url 'sent_messages' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-send me-1"></i>Sent Messages
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" name="search" class="form-control" 
+                                       placeholder="Search messages..." value="{{ search|default:'' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="filter" class="form-select">
+                                <option value="">All Messages</option>
+                                <option value="unread" {% if filter_type == 'unread' %}selected{% endif %}>Unread Messages</option>
+                                <option value="starred" {% if filter_type == 'starred' %}selected{% endif %}>Starred Messages</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            {% if search or filter_type %}
+                            <a href="{% url 'messages_inbox' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Clear Filters
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages Statistics -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ page_obj.paginator.count }}</h5>
+                            <p class="small text-muted mb-0">Total Messages</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">{{ page_obj.object_list|length }}</h5>
+                            <p class="small text-muted mb-0">Current Page</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning">
+                                {% for msg in page_obj %}
+                                    {% if not msg.is_read %}{{ forloop.counter0|add:1 }}{% endif %}
+                                {% endfor %}
+                            </h5>
+                            <p class="small text-muted mb-0">Unread</p>
+                        </div>
+                        <div class="col-md-3">

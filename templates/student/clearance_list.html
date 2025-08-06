@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-check-square me-2"></i>Clearance Request
+                        </h2>
+                        <p class="text-muted mb-1">Request clearance from various university departments</p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ user.student_profile.student_id }} - {{ user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-mortarboard me-1"></i>{{ user.student_profile.programme.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ user.student_profile.programme.department.faculty.name }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ user.student_profile.get_status_display }}</h4>
+                            <small class="text-muted">Current Status</small>
+                            <br><small class="text-muted">Year {{ user.student_profile.current_year }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'clearance_requests' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-list"></i> View Requests
+                            </a>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clearance Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>Clearance Request Form
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="clearanceForm">
+                        {% csrf_token %}
+                        
+                        <!-- Clearance Type Selection -->
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <label for="{{ form.clearance_type.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-building me-1"></i>Department/Section for Clearance
+                                </label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="card clearance-option" data-value="library">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-book display-4 text-primary mb-2"></i>
+                                                <h6>Library Clearance</h6>
+                                                <small class="text-muted">Return books & clear library dues</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card clearance-option" data-value="finance">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-cash-coin display-4 text-success mb-2"></i>
+                                                <h6>Finance Clearance</h6>
+                                                <small class="text-muted">Clear outstanding fees & dues</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card clearance-option" data-value="accommodation">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-house display-4 text-warning mb-2"></i>
+                                                <h6>Accommodation</h6>
+                                                <small class="text-muted">Hostel/residence clearance</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-3">
+                                        <div class="card clearance-option" data-value="department">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-mortarboard display-4 text-info mb-2"></i>
+                                                <h6>Department</h6>
+                                                <small class="text-muted">Academic department clearance</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card clearance-option" data-value="registry">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-file-earmark-text display-4 text-secondary mb-2"></i>
+                                                <h6>Registry</h6>
+                                                <small class="text-muted">Academic records clearance</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card clearance-option" data-value="student_affairs">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-people display-4 text-purple mb-2"></i>
+                                                <h6>Student Affairs</h6>
+                                                <small class="text-muted">Student services clearance</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card clearance-option" data-value="graduation">
+                                            <div class="card-body text-center">
+                                                <i class="bi bi-trophy display-4 text-gold mb-2"></i>
+                                                <h6>Graduation</h6>
+                                                <small class="text-muted">Final graduation clearance</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <select name="{{ form.clearance_type.name }}" id="{{ form.clearance_type.id_for_label }}" class="form-select d-none" required>
+                                    <option value="">Select Clearance Type</option>
+                                    <option value="library">Library Clearance</option>
+                                    <option value="finance">Finance Clearance</option>
+                                    <option value="accommodation">Accommodation Clearance</option>
+                                    <option value="department">Department Clearance</option>
+                                    <option value="registry">Registry Clearance</option>
+                                    <option value="student_affairs">Student Affairs Clearance</option>
+                                    <option value="graduation">Graduation Clearance</option>
+                                    <option value="transfer">Transfer Clearance</option>
+                                </select>
+                                {% if form.clearance_type.errors %}
+                                <div class="text-danger small mt-2">{{ form.clearance_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Selected Clearance Info -->
+                        <div class="row" id="selectedClearanceInfo" style="display: none;">
+                            <div class="col-md-12 mb-3">
+                                <div class="alert alert-info">
+                                    <h6 class="mb-2"><i class="bi bi-info-circle me-2"></i><span id="selectedClearanceTitle">Clearance Requirements</span></h6>
+                                    <div id="clearanceRequirements"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reason for Clearance -->
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.reason.id_for_label }}" class="form-label fw-bold">
+                                    <i class="bi bi-chat-text me-1"></i>Reason for Clearance Request
+                                </label>
+                                <textarea name="{{ form.reason.name }}" id="{{ form.reason.id_for_label }}" 
+                                          class="form-control" rows="4" required 
+                                          placeholder="Explain why you need this clearance (e.g., graduation, transfer, completion of studies, etc.)...">{{ form.reason.value|default:'' }}</textarea>
+                                {% if form.reason.errors %}
+                                <div class="text-danger small">{{ form.reason.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">Provide specific details about your clearance needs</small>
+                            </div>
+                        </div>
+
+                        <!-- Current Status Check -->
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold mb-3">
+                                            <i class="bi bi-clipboard-check me-2"></i>Current Account Status
+                                        </h6>
+                                        <div class="row text-center">
+                                            <div class="col-md-3">
+                                                <div class="border-end">
+                                                    <h5 class="text-success">{{ user.student_profile.total_credit_hours }}</h5>
+                                                    <small class="text-muted">Credits Completed</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="border-end">
+                                                    <h5 class="text-primary">{{ user.student_profile.cumulative_gpa|default:"N/A" }}</h5>
+                                                    <small class="text-muted">Current GPA</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="border-end">
+                                                    <h5 class="text-warning">{{ user.student_profile.current_year }}</h5>
+                                                    <small class="text-muted">Current Year</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <h5 class="text-info">Active</h5>
+                                                <small class="text-muted">Student Status</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                            Ensure you have fulfilled all requirements before requesting clearance
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-outline-secondary me-2" onclick="history.back()">
+                                            <i class="bi bi-x-circle me-1"></i>Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-send me-1"></i>Submit Request
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clearance Process Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-square me-2"></i>Clearance Process Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">Processing Steps</h6>
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <i class="bi bi-1-circle text-primary"></i>
+                                    <span>Submit clearance request online</span>
+                                </div>
+                                <div class="timeline-item">
+                                    <i class="bi bi-2-circle text-info"></i>
+                                    <span>Department reviews your request</span>
+                                </div>
+                                <div class="timeline-item">
+                                    <i class="bi bi-3-circle text-warning"></i>
+                                    <span>Complete any outstanding requirements</span>
+                                </div>
+                                <div class="timeline-item">
+                                    <i class="bi bi-4-circle text-success"></i>
+                                    <span>Receive clearance approval</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">Important Reminders</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="bi bi-clock text-info me-2"></i>
+                                    Processing time: 3-5 working days
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                                    Complete all outstanding obligations first
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-envelope text-primary me-2"></i>
+                                    Updates will be sent via email and portal
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-telephone text-success me-2"></i>
+                                    Contact respective departments for urgent matters
+                                </li>
+                            </ul>
+                            
+                            <h6 class="fw-bold text-primary mt-4">Need Help?</h6>
+                            <p class="small text-muted mb-0">
+                                If you're unsure about requirements or have questions, contact the Student Services Office 
+                                at <strong>studentservices@university.ac.ke</strong> or visit the registry office.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const clearanceOptions = document.querySelectorAll('.clearance-option');
+    const selectElement = document.getElementById('{{ form.clearance_type.id_for_label }}');
+    const infoDiv = document.getElementById('selectedClearanceInfo');
+    const titleSpan = document.getElementById('selectedClearanceTitle');
+    const requirementsDiv = document.getElementById('clearanceRequirements');
+    
+    const clearanceInfo = {
+        library: {
+            title: 'Library Clearance Requirements',
+            requirements: [
+                'Return all borrowed books',
+                'Pay any outstanding library fines',
+                'Clear any equipment borrowed from library',
+                'Return library cards and access materials'
+            ]
+        },
+        finance: {
+            title: 'Finance Clearance Requirements',
+            requirements: [
+                'Pay all outstanding tuition fees',
+                'Clear any accommodation fees',
+                'Settle examination fees',
+                'Pay any penalties or fines'
+            ]
+        },
+        accommodation: {
+            title: 'Accommodation Clearance Requirements',
+            requirements: [
+                'Return room keys',
+                'Pay any damage charges',
+                'Clear outstanding accommodation fees',
+                'Complete room inspection'
+            ]
+        },
+        department: {
+            title: 'Department Clearance Requirements',
+            requirements: [
+                'Complete all coursework',
+                'Submit final projects/thesis',
+                'Return department equipment/materials',
+                'Clear with academic supervisor'
+            ]
+        },
+        registry: {
+            title: 'Registry Clearance Requirements',
+            requirements: [
+                'Complete all academic requirements',
+                'Ensure transcripts are up to date',
+                'Clear any academic holds',
+                'Verify graduation requirements'
+            ]
+        },
+        student_affairs: {
+            title: 'Student Affairs Clearance Requirements',
+            requirements: [
+                'Return student ID card',
+                'Clear any disciplinary issues',
+                'Complete exit interview if required',
+                'Return any student organization materials'
+            ]
+        },
+        graduation: {
+            title: 'Graduation Clearance Requirements',
+            requirements: [
+                'Complete all degree requirements',
+                'Clear all financial obligations',
+                'Obtain all departmental clearances',
+                'Submit graduation application'
+            ]
+        }
+    };
+    
+    clearanceOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Remove active class from all options
+            clearanceOptions.forEach(opt => opt.classList.remove('active'));
+            
+            // Add active class to clicked option
+            this.classList.add('active');
+            
+            // Set select value
+            const value = this.dataset.value;
+            selectElement.value = value;
+            
+            // Show requirements
+            if (clearanceInfo[value]) {
+                titleSpan.textContent = clearanceInfo[value].title;
+                requirementsDiv.innerHTML = '<ul class="mb-0">' + 
+                    clearanceInfo[value].requirements.map(req => `<li>${req}</li>`).join('') + 
+                    '</ul>';
+                infoDiv.style.display = 'block';
+            }
+        });
+    });
+    
+    // Form validation
+    document.getElementById('clearanceForm').addEventListener('submit', function(e) {
+        const reason = document.getElementById('{{ form.reason.id_for_label }}').value.trim();
+        const clearanceType = selectElement.value;
+        
+        if (!clearanceType) {
+            e.preventDefault();
+            alert('Please select a clearance type.');
+            return false;
+        }
+        
+        if (reason.length < 20) {
+            e.preventDefault();
+            alert('Please provide a detailed reason (at least 20 characters).');
+            return false;
+        }
+        
+        // Confirm submission
+        if (!confirm('Are you sure you want to submit this clearance request?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .alert, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.clearance-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+}
+
+.clearance-option:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.1);
+}
+
+.clearance-option.active {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.timeline-item i {
+    margin-right: 10px;
+    font-size: 1.2em;
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}
+
+.text-gold {
+    color: #ffc107 !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.border-end {
+    border-right: 1px solid #dee2e6 !important;
+}
+
+@media (max-width: 768px) {
+    .border-end {
+        border-right: none !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+}
+</style>
+
+{% endblock %}
