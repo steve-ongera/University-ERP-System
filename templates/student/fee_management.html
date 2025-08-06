@@ -1,0 +1,510 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Student Fee Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Fee Management</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ student.student_id }}</span> | 
+                            <span class="badge bg-info">{{ student.programme.name }}</span> |
+                            <span class="badge bg-secondary">{{ student.get_status_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ student.user.get_full_name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ student.programme.department.faculty.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>Joined: {{ student.admission_date|date:"M d, Y" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-{% if stats.overall_balance > 0 %}danger{% else %}success{% endif %} text-white rounded p-3">
+                            <h4 class="mb-1">KES {{ stats.overall_balance|floatformat:2 }}</h4>
+                            <small>
+                                {% if stats.overall_balance > 0 %}
+                                Outstanding Balance
+                                {% else %}
+                                Account Status: Clear
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Statement
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">KES {{ stats.total_fees_charged|floatformat:2 }}</h5>
+                            <p class="small text-muted mb-0">Total Fees Charged</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">KES {{ stats.total_fees_paid|floatformat:2 }}</h5>
+                            <p class="small text-muted mb-0">Total Paid</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-{% if stats.overall_balance > 0 %}danger{% else %}success{% endif %}">
+                                KES {{ stats.overall_balance|floatformat:2 }}
+                            </h5>
+                            <p class="small text-muted mb-0">Balance</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-info">{{ stats.total_payments }}</h5>
+                            <p class="small text-muted mb-0">Total Payments</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments Overview -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Recent Payments</h5>
+                    {% if recent_payments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Receipt No.</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_payments %}
+                                <tr>
+                                    <td><strong>{{ payment.receipt_number }}</strong></td>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>KES {{ payment.amount_paid|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if payment.payment_status == 'completed' %}success{% elif payment.payment_status == 'pending' %}warning{% else %}danger{% endif %}">
+                                            {{ payment.get_payment_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if payment.mpesa_receipt %}
+                                        {{ payment.mpesa_receipt }}
+                                        {% elif payment.transaction_reference %}
+                                        {{ payment.transaction_reference }}
+                                        {% elif payment.bank_slip_number %}
+                                        {{ payment.bank_slip_number }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted">No payments recorded yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Years Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="academicYearTabs" role="tablist">
+                        {% for year_data in years_data %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                    id="year-{{ year_data.academic_year.id }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#year-{{ year_data.academic_year.id }}" 
+                                    type="button" role="tab">
+                                <i class="bi bi-calendar me-1"></i>{{ year_data.academic_year.year }}
+                                {% if year_data.year_balance > 0 %}
+                                <span class="badge bg-danger ms-1">{{ year_data.year_balance|floatformat:0 }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="academicYearTabsContent">
+                        {% for year_data in years_data %}
+                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                             id="year-{{ year_data.academic_year.id }}" role="tabpanel">
+                            
+                            <!-- Year Summary -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ year_data.academic_year.year }} Summary</h5>
+                                            <div class="row text-center">
+                                                <div class="col-md-4">
+                                                    <h6 class="text-primary">KES {{ year_data.year_total_charged|floatformat:2 }}</h6>
+                                                    <p class="small text-muted mb-0">Total Charged</p>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <h6 class="text-success">KES {{ year_data.year_total_paid|floatformat:2 }}</h6>
+                                                    <p class="small text-muted mb-0">Total Paid</p>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <h6 class="text-{% if year_data.year_balance > 0 %}danger{% else %}success{% endif %}">
+                                                        KES {{ year_data.year_balance|floatformat:2 }}
+                                                    </h6>
+                                                    <p class="small text-muted mb-0">Balance</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Semesters Sub-tabs -->
+                            {% if year_data.semesters %}
+                            <ul class="nav nav-pills mb-3" id="semester-{{ year_data.academic_year.id }}-tabs" role="tablist">
+                                {% for semester_data in year_data.semesters %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                            id="sem-{{ year_data.academic_year.id }}-{{ semester_data.semester.semester_number }}-tab"
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#sem-{{ year_data.academic_year.id }}-{{ semester_data.semester.semester_number }}"
+                                            type="button" role="tab">
+                                        Semester {{ semester_data.semester.semester_number }}
+                                        {% if semester_data.semester_balance > 0 %}
+                                        <span class="badge bg-danger ms-1">{{ semester_data.semester_balance|floatformat:0 }}</span>
+                                        {% endif %}
+                                    </button>
+                                </li>
+                                {% endfor %}
+                            </ul>
+
+                            <div class="tab-content" id="semester-{{ year_data.academic_year.id }}-content">
+                                {% for semester_data in year_data.semesters %}
+                                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                     id="sem-{{ year_data.academic_year.id }}-{{ semester_data.semester.semester_number }}" role="tabpanel">
+                                    
+                                    <!-- Semester Fee Breakdown -->
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">Fee Breakdown - Semester {{ semester_data.semester.semester_number }}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    {% if semester_data.fee_structure %}
+                                                    <table class="table table-sm">
+                                                        <tr>
+                                                            <td>Tuition Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.tuition_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Registration Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.registration_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Examination Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.examination_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Other Fees:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.other_fees|floatformat:2 }}</td>
+                                                        </tr>
+                                                        <tr class="table-light">
+                                                            <td><strong>Total Fee:</strong></td>
+                                                            <td class="text-end"><strong>KES {{ semester_data.fee_structure.total_fee|floatformat:2 }}</strong></td>
+                                                        </tr>
+                                                        {% if semester_data.fee_structure.government_subsidy > 0 %}
+                                                        <tr class="text-success">
+                                                            <td>Government Subsidy:</td>
+                                                            <td class="text-end">-KES {{ semester_data.fee_structure.government_subsidy|floatformat:2 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                        {% if semester_data.fee_structure.scholarship_amount > 0 %}
+                                                        <tr class="text-success">
+                                                            <td>Scholarship:</td>
+                                                            <td class="text-end">-KES {{ semester_data.fee_structure.scholarship_amount|floatformat:2 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                        <tr class="table-primary">
+                                                            <td><strong>Net Fee:</strong></td>
+                                                            <td class="text-end"><strong>KES {{ semester_data.fee_structure.net_fee|floatformat:2 }}</strong></td>
+                                                        </tr>
+                                                    </table>
+                                                    {% else %}
+                                                    <p class="text-muted">No fee structure defined for this semester.</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6">
+                                            <div class="card h-100">
+                                                <div class="card-header d-flex justify-content-between">
+                                                    <h6 class="mb-0">Payment Summary</h6>
+                                                    <span class="badge bg-{% if semester_data.semester_balance > 0 %}danger{% else %}success{% endif %}">
+                                                        Balance: KES {{ semester_data.semester_balance|floatformat:2 }}
+                                                    </span>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row text-center mb-3">
+                                                        <div class="col-6">
+                                                            <h6 class="text-info">KES {{ semester_data.semester_fee|floatformat:2 }}</h6>
+                                                            <p class="small text-muted mb-0">Required</p>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <h6 class="text-success">KES {{ semester_data.semester_paid|floatformat:2 }}</h6>
+                                                            <p class="small text-muted mb-0">Paid</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Payment Progress -->
+                                                    <div class="progress mb-3" style="height: 20px;">
+                                                        {% if semester_data.semester_fee > 0 %}
+                                                        {% widthratio semester_data.semester_paid semester_data.semester_fee 100 as progress %}
+                                                        <div class="progress-bar bg-{% if progress >= 100 %}success{% elif progress >= 50 %}warning{% else %}danger{% endif %}" 
+                                                             style="width: {% if progress > 100 %}100{% else %}{{ progress }}{% endif %}%">
+                                                            {% if progress > 100 %}100{% else %}{{ progress }}{% endif %}%
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <small class="text-muted">
+                                                        {% if semester_data.semester_balance <= 0 %}
+                                                        <i class="bi bi-check-circle text-success"></i> Fully Paid
+                                                        {% else %}
+                                                        <i class="bi bi-exclamation-triangle text-warning"></i> 
+                                                        KES {{ semester_data.semester_balance|floatformat:2 }} remaining
+                                                        {% endif %}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Payments for this semester -->
+                                    {% if semester_data.payments %}
+                                    <div class="row mt-4">
+                                        <div class="col-md-12">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">Payment History - Semester {{ semester_data.semester.semester_number }}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover table-sm">
+                                                            <thead class="table-light">
+                                                                <tr>
+                                                                    <th>Receipt No.</th>
+                                                                    <th>Date</th>
+                                                                    <th>Amount</th>
+                                                                    <th>Method</th>
+                                                                    <th>Reference</th>
+                                                                    <th>Processed By</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for payment in semester_data.payments %}
+                                                                <tr>
+                                                                    <td><strong>{{ payment.receipt_number }}</strong></td>
+                                                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                                                    <td>KES {{ payment.amount_paid|floatformat:2 }}</td>
+                                                                    <td>
+                                                                        <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                                                    </td>
+                                                                    <td>
+                                                                        {% if payment.mpesa_receipt %}
+                                                                        {{ payment.mpesa_receipt }}
+                                                                        {% elif payment.transaction_reference %}
+                                                                        {{ payment.transaction_reference }}
+                                                                        {% elif payment.bank_slip_number %}
+                                                                        {{ payment.bank_slip_number }}
+                                                                        {% else %}
+                                                                        -
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    <td>{{ payment.processed_by.get_full_name|default:"-" }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <div class="row mt-4">
+                                        <div class="col-md-12">
+                                            <div class="card">
+                                                <div class="card-body text-center py-4">
+                                                    <i class="bi bi-credit-card display-4 text-muted"></i>
+                                                    <h6 class="text-muted mt-3">No Payments Yet</h6>
+                                                    <p class="text-muted">No payments have been made for this semester.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-x display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Semesters Found</h5>
+                                <p class="text-muted">No semester data available for this academic year.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs and pills
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"], button[data-bs-toggle="pill"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+        });
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .nav-pills, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .tab-content > .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.border-end {
+    border-right: 1px solid #dee2e6 !important;
+}
+
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.text-primary { color: #0d6efd !important; }
+.text-success { color: #198754 !important; }
+.text-danger { color: #dc3545 !important; }
+.text-warning { color: #ffc107 !important; }
+.text-info { color: #0dcaf0 !important; }
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.table td {
+    font-size: 0.875rem;
+}
+
+.display-1 {
+    font-size: 6rem;
+}
+
+.display-4 {
+    font-size: 2.5rem;
+}
+</style>
+
+{% endblock %}

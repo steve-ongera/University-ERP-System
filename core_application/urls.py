@@ -180,4 +180,11 @@ urlpatterns = [
     # QR Code Attendance
     path('lecturer/generate-qr-attendance/<int:course_id>/<int:semester_id>/', views.generate_qr_attendance, name='generate_qr_attendance'),
 
+    #  Fee Management
+    path('student/fees/', views.student_fee_management, name='student_fee_management'),
+    path('admin-fee-payment/', views.admin_fee_payment, name='admin_fee_payment'),
+    path('admin-ajax/student-info/', views.get_student_info, name='get_student_info'),
+    path('admin-ajax/fee-structure/', views.get_fee_structure, name='get_fee_structure')
+
+
 ]

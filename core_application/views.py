@@ -7937,3 +7937,322 @@ def hostel_dashboard(request):
     }
     
     return render(request, 'hostels/hostel_dashboard.html', context)
+
+# views.py - Student Fee Management
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
+from django.db.models import Sum, Q
+from django.http import HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from decimal import Decimal
+import uuid
+from datetime import datetime
+
+from .models import (
+    Student, AcademicYear, Semester, FeeStructure, 
+    FeePayment, User
+)
+
+@login_required
+def student_fee_management(request):
+    """
+    View for students to manage and view their fee payments
+    """
+    try:
+        student = request.user.student_profile
+    except:
+        messages.error(request, "You don't have a student profile.")
+        return redirect('login')
+    
+    # Get all academic years since the student joined
+    admission_year = student.admission_date.year
+    academic_years = AcademicYear.objects.filter(
+        start_date__year__gte=admission_year
+    ).order_by('-year')
+    
+    # Calculate overall statistics
+    total_fees_charged = 0
+    total_fees_paid = 0
+    overall_balance = 0
+    
+    # Prepare data for each academic year
+    years_data = []
+    
+    for academic_year in academic_years:
+        # Get semesters for this academic year
+        semesters = Semester.objects.filter(
+            academic_year=academic_year
+        ).order_by('semester_number')
+        
+        year_data = {
+            'academic_year': academic_year,
+            'semesters': [],
+            'year_total_charged': 0,
+            'year_total_paid': 0,
+            'year_balance': 0
+        }
+        
+        for semester in semesters:
+            # Get fee structure for this semester
+            try:
+                fee_structure = FeeStructure.objects.get(
+                    programme=student.programme,
+                    academic_year=academic_year,
+                    year=student.current_year,  # You might want to calculate actual year for the semester
+                    semester=semester.semester_number
+                )
+                semester_fee = fee_structure.net_fee()
+            except FeeStructure.DoesNotExist:
+                semester_fee = Decimal('0.00')
+            
+            # Get payments for this semester
+            payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure__academic_year=academic_year,
+                fee_structure__semester=semester.semester_number,
+                payment_status='completed'
+            )
+            
+            semester_paid = payments.aggregate(
+                total=Sum('amount_paid')
+            )['total'] or Decimal('0.00')
+            
+            semester_balance = semester_fee - semester_paid
+            
+            semester_data = {
+                'semester': semester,
+                'fee_structure': fee_structure if 'fee_structure' in locals() else None,
+                'semester_fee': semester_fee,
+                'semester_paid': semester_paid,
+                'semester_balance': semester_balance,
+                'payments': payments.order_by('-payment_date')
+            }
+            
+            year_data['semesters'].append(semester_data)
+            year_data['year_total_charged'] += semester_fee
+            year_data['year_total_paid'] += semester_paid
+        
+        year_data['year_balance'] = year_data['year_total_charged'] - year_data['year_total_paid']
+        years_data.append(year_data)
+        
+        # Add to overall totals
+        total_fees_charged += year_data['year_total_charged']
+        total_fees_paid += year_data['year_total_paid']
+    
+    overall_balance = total_fees_charged - total_fees_paid
+    
+    # Get recent payments for quick overview
+    recent_payments = FeePayment.objects.filter(
+        student=student,
+        payment_status='completed'
+    ).order_by('-payment_date')[:5]
+    
+    # Calculate statistics
+    stats = {
+        'total_fees_charged': total_fees_charged,
+        'total_fees_paid': total_fees_paid,
+        'overall_balance': overall_balance,
+        'total_payments': FeePayment.objects.filter(
+            student=student, 
+            payment_status='completed'
+        ).count(),
+        'payment_methods_used': FeePayment.objects.filter(
+            student=student,
+            payment_status='completed'
+        ).values('payment_method').distinct().count()
+    }
+    
+    context = {
+        'student': student,
+        'years_data': years_data,
+        'recent_payments': recent_payments,
+        'stats': stats,
+        'current_year': timezone.now().year
+    }
+    
+    return render(request, 'student/fee_management.html', context)
+
+
+@staff_member_required
+def admin_fee_payment(request):
+    """
+    View for admin to process student fee payments
+    """
+    receipt_data = None
+    student = None
+    fee_structure = None
+    
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        academic_year_id = request.POST.get('academic_year_id')
+        semester_number = request.POST.get('semester_number')
+        student_year = request.POST.get('student_year', 1)
+        amount_paid = request.POST.get('amount_paid')
+        payment_method = request.POST.get('payment_method')
+        payment_date = request.POST.get('payment_date')
+        transaction_reference = request.POST.get('transaction_reference', '')
+        mpesa_receipt = request.POST.get('mpesa_receipt', '')
+        bank_slip_number = request.POST.get('bank_slip_number', '')
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            # Get student
+            student = Student.objects.get(student_id=student_id)
+            
+            # Get academic year and fee structure
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+            fee_structure = FeeStructure.objects.get(
+                programme=student.programme,
+                academic_year=academic_year,
+                year=int(student_year),
+                semester=int(semester_number)
+            )
+            
+            # Generate receipt number
+            receipt_number = f"RCT-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            
+            # Create payment record
+            payment = FeePayment.objects.create(
+                student=student,
+                fee_structure=fee_structure,
+                receipt_number=receipt_number,
+                amount_paid=Decimal(amount_paid),
+                payment_date=payment_date,
+                payment_method=payment_method,
+                payment_status='completed',
+                transaction_reference=transaction_reference,
+                mpesa_receipt=mpesa_receipt,
+                bank_slip_number=bank_slip_number,
+                remarks=remarks,
+                processed_by=request.user
+            )
+            
+            # Calculate totals for receipt
+            previous_payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+            
+            balance = fee_structure.net_fee() - previous_payments
+            
+            receipt_data = {
+                'payment': payment,
+                'student': student,
+                'fee_structure': fee_structure,
+                'academic_year': academic_year,
+                'total_fee': fee_structure.net_fee(),
+                'total_paid': previous_payments,
+                'balance': balance,
+                'payment_date': payment_date
+            }
+            
+            messages.success(request, f'Payment recorded successfully. Receipt: {receipt_number}')
+            
+        except Student.DoesNotExist:
+            messages.error(request, 'Student not found.')
+        except FeeStructure.DoesNotExist:
+            messages.error(request, 'Fee structure not found for the selected criteria.')
+        except Exception as e:
+            messages.error(request, f'Error processing payment: {str(e)}')
+    
+    # Get data for form
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    payment_methods = FeePayment.PAYMENT_METHODS
+    
+    context = {
+        'academic_years': academic_years,
+        'payment_methods': payment_methods,
+        'receipt_data': receipt_data,
+        'student': student,
+        'fee_structure': fee_structure
+    }
+    
+    return render(request, 'admin/fee_payment.html', context)
+
+
+@staff_member_required
+def get_student_info(request):
+    """
+    AJAX view to get student information
+    """
+    student_id = request.GET.get('student_id')
+    
+    try:
+        student = Student.objects.get(student_id=student_id)
+        data = {
+            'success': True,
+            'student': {
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'current_year': student.current_year,
+                'current_semester': student.current_semester,
+                'status': student.status
+            }
+        }
+    except Student.DoesNotExist:
+        data = {
+            'success': False,
+            'message': 'Student not found'
+        }
+    
+    from django.http import JsonResponse
+    return JsonResponse(data)
+
+
+@staff_member_required
+def get_fee_structure(request):
+    """
+    AJAX view to get fee structure information
+    """
+    student_id = request.GET.get('student_id')
+    academic_year_id = request.GET.get('academic_year_id')
+    semester_number = request.GET.get('semester_number')
+    student_year = request.GET.get('student_year', 1)
+    
+    try:
+        student = Student.objects.get(student_id=student_id)
+        academic_year = AcademicYear.objects.get(id=academic_year_id)
+        
+        fee_structure = FeeStructure.objects.get(
+            programme=student.programme,
+            academic_year=academic_year,
+            year=int(student_year),
+            semester=int(semester_number)
+        )
+        
+        # Calculate payments and balance
+        payments = FeePayment.objects.filter(
+            student=student,
+            fee_structure=fee_structure,
+            payment_status='completed'
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        
+        balance = fee_structure.net_fee() - payments
+        
+        data = {
+            'success': True,
+            'fee_structure': {
+                'total_fee': str(fee_structure.total_fee()),
+                'net_fee': str(fee_structure.net_fee()),
+                'total_paid': str(payments),
+                'balance': str(balance),
+                'tuition_fee': str(fee_structure.tuition_fee),
+                'registration_fee': str(fee_structure.registration_fee),
+                'examination_fee': str(fee_structure.examination_fee),
+                'other_fees': str(fee_structure.other_fees),
+                'government_subsidy': str(fee_structure.government_subsidy),
+                'scholarship_amount': str(fee_structure.scholarship_amount)
+            }
+        }
+    except (Student.DoesNotExist, AcademicYear.DoesNotExist, FeeStructure.DoesNotExist):
+        data = {
+            'success': False,
+            'message': 'Required data not found'
+        }
+    
+    from django.http import JsonResponse
+    return JsonResponse(data)

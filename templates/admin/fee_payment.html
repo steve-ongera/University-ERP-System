@@ -1,0 +1,1111 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Student Fee Payment Processing</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-shield-check me-1"></i>Admin Fee Management System
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ "now"|date:"F d, Y" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'admin:index' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Admin
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not receipt_data %}
+    <!-- Payment Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-credit-card me-2"></i>Process Student Fee Payment</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Student Information Section -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card bg-light mb-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Student Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Student ID *</label>
+                                            <input type="text" class="form-control" name="student_id" id="student_id" 
+                                                   placeholder="Enter student ID" required>
+                                            <div class="form-text">Enter student ID to load information</div>
+                                        </div>
+                                        
+                                        <div id="studentInfo" class="d-none">
+                                            <div class="alert alert-info">
+                                                <h6 class="alert-heading">Student Details</h6>
+                                                <p class="mb-1"><strong>Name:</strong> <span id="studentName"></span></p>
+                                                <p class="mb-1"><strong>Programme:</strong> <span id="studentProgramme"></span></p>
+                                                <p class="mb-1"><strong>Current Year:</strong> <span id="studentYear"></span></p>
+                                                <p class="mb-0"><strong>Status:</strong> <span id="studentStatus"></span></p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="studentError" class="d-none">
+                                            <div class="alert alert-danger">
+                                                <h6 class="alert-heading">Error</h6>
+                                                <p class="mb-0" id="studentErrorMessage"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Academic Period Section -->
+                            <div class="col-md-6">
+                                <div class="card bg-light mb-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Academic Period</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-12 mb-3">
+                                                <label class="form-label fw-bold">Academic Year *</label>
+                                                <select class="form-select" name="academic_year_id" id="academic_year_id" required>
+                                                    <option value="">Select Academic Year</option>
+                                                    {% for year in academic_years %}
+                                                    <option value="{{ year.id }}">{{ year.year }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold">Student Year *</label>
+                                                <select class="form-select" name="student_year" id="student_year" required>
+                                                    <option value="">Select Year</option>
+                                                    <option value="1">Year 1</option>
+                                                    <option value="2">Year 2</option>
+                                                    <option value="3">Year 3</option>
+                                                    <option value="4">Year 4</option>
+                                                    <option value="5">Year 5</option>
+                                                    <option value="6">Year 6</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold">Semester *</label>
+                                                <select class="form-select" name="semester_number" id="semester_number" required>
+                                                    <option value="">Select Semester</option>
+                                                    <option value="1">Semester 1</option>
+                                                    <option value="2">Semester 2</option>
+                                                    <option value="3">Semester 3</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fee Structure Information -->
+                        <div class="row" id="feeStructureSection" style="display: none;">
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0">Fee Structure & Balance</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row" id="feeStructureInfo">
+                                            <!-- Fee structure info will be loaded here -->
+                                        </div>
+                                        
+                                        <div class="row mt-3" id="feeBreakdown" style="display: none;">
+                                            <div class="col-md-12">
+                                                <h6 class="mb-3">Fee Breakdown</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered">
+                                                        <tbody id="feeBreakdownTable">
+                                                            <!-- Fee breakdown will be loaded here -->
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Details Section -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Payment Details</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Amount Paid *</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">KES</span>
+                                                <input type="number" class="form-control" name="amount_paid" id="amount_paid" 
+                                                       step="0.01" min="1" placeholder="0.00" required>
+                                            </div>
+                                            <div class="form-text">Enter the amount being paid</div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Payment Date *</label>
+                                            <input type="date" class="form-control" name="payment_date" id="payment_date" 
+                                                   value="{{ 'now'|date:'Y-m-d' }}" required>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Payment Method *</label>
+                                            <select class="form-select" name="payment_method" id="payment_method" required>
+                                                <option value="">Select Payment Method</option>
+                                                {% for method_code, method_name in payment_methods %}
+                                                <option value="{{ method_code }}">{{ method_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Transaction References</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3" id="mpesa_receipt_div" style="display: none;">
+                                            <label class="form-label">M-Pesa Receipt Code</label>
+                                            <input type="text" class="form-control" name="mpesa_receipt" id="mpesa_receipt" 
+                                                   placeholder="e.g., QEW4R5T6Y7">
+                                        </div>
+                                        
+                                        <div class="mb-3" id="bank_slip_div" style="display: none;">
+                                            <label class="form-label">Bank Slip Number</label>
+                                            <input type="text" class="form-control" name="bank_slip_number" id="bank_slip_number" 
+                                                   placeholder="Bank slip reference">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Transaction Reference</label>
+                                            <input type="text" class="form-control" name="transaction_reference" id="transaction_reference" 
+                                                   placeholder="Optional reference number">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Remarks</label>
+                                            <textarea class="form-control" name="remarks" id="remarks" rows="3" 
+                                                    placeholder="Optional payment remarks"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="reset" class="btn btn-outline-secondary" id="resetBtn">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset Form
+                                    </button>
+                                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                                        <i class="bi bi-credit-card"></i> Process Payment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if receipt_data %}
+    <!-- Receipt Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Payment Receipt</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-light btn-sm" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Print Receipt
+                        </button>
+                        <a href="{% url 'admin_fee_payment' %}" class="btn btn-light btn-sm">
+                            <i class="bi bi-plus"></i> New Payment
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- University Header -->
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold">UNIVERSITY NAME</h3>
+                        <p class="mb-1">University Address, City, Country</p>
+                        <p class="mb-1">Tel: +254-XXX-XXXXXX | Email: finance@university.edu</p>
+                        <hr>
+                        <h4 class="text-primary">OFFICIAL RECEIPT</h4>
+                    </div>
+
+                    <!-- Receipt Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Receipt No:</strong></td>
+                                    <td>{{ receipt_data.payment.receipt_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Date:</strong></td>
+                                    <td>{{ receipt_data.payment_date|date:"F d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Academic Year:</strong></td>
+                                    <td>{{ receipt_data.academic_year.year }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Payment Method:</strong></td>
+                                    <td>{{ receipt_data.payment.get_payment_method_display }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Student ID:</strong></td>
+                                    <td>{{ receipt_data.student.student_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Student Name:</strong></td>
+                                    <td>{{ receipt_data.student.user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Programme:</strong></td>
+                                    <td>{{ receipt_data.student.programme.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Year/Semester:</strong></td>
+                                    <td>Year {{ receipt_data.fee_structure.year }} - Semester {{ receipt_data.fee_structure.semester }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Payment Breakdown -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold mb-3">Payment Breakdown</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Fee Component</th>
+                                            <th class="text-end">Amount (KES)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Tuition Fee</td>
+                                            <td class="text-end">{{ receipt_data.fee_structure.tuition_fee|floatformat:2 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Registration Fee</td>
+                                            <td class="text-end">{{ receipt_data.fee_structure.registration_fee|floatformat:2 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Examination Fee</td>
+                                            <td class="text-end">{{ receipt_data.fee_structure.examination_fee|floatformat:2 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Other Fees</td>
+                                            <td class="text-end">{{ receipt_data.fee_structure.other_fees|floatformat:2 }}</td>
+                                        </tr>
+                                        <tr class="table-secondary">
+                                            <td><strong>Total Fee for Semester</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.total_fee|floatformat:2 }}</strong></td>
+                                        </tr>
+                                        {% if receipt_data.fee_structure.government_subsidy > 0 %}
+                                        <tr class="text-success">
+                                            <td>Less: Government Subsidy</td>
+                                            <td class="text-end">-{{ receipt_data.fee_structure.government_subsidy|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% if receipt_data.fee_structure.scholarship_amount > 0 %}
+                                        <tr class="text-success">
+                                            <td>Less: Scholarship</td>
+                                            <td class="text-end">-{{ receipt_data.fee_structure.scholarship_amount|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr class="table-primary">
+                                            <td><strong>Net Amount Payable</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.fee_structure.net_fee|floatformat:2 }}</strong></td>
+                                        </tr>
+                                        <tr class="table-warning">
+                                            <td><strong>Previous Payments</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.total_paid|add:receipt_data.payment.amount_paid|floatformat:2 }}</strong></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td><strong>Amount Paid Today</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.payment.amount_paid|floatformat:2 }}</strong></td>
+                                        </tr>
+                                        <tr class="table-{% if receipt_data.balance <= 0 %}success{% else %}danger{% endif %}">
+                                            <td><strong>Balance</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.balance|floatformat:2 }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Details -->
+                    {% if receipt_data.payment.mpesa_receipt or receipt_data.payment.transaction_reference or receipt_data.payment.bank_slip_number %}
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold mb-3">Payment Reference Details</h6>
+                            <div class="alert alert-info">
+                                {% if receipt_data.payment.mpesa_receipt %}
+                                <p class="mb-1"><strong>M-Pesa Receipt:</strong> {{ receipt_data.payment.mpesa_receipt }}</p>
+                                {% endif %}
+                                {% if receipt_data.payment.transaction_reference %}
+                                <p class="mb-1"><strong>Transaction Reference:</strong> {{ receipt_data.payment.transaction_reference }}</p>
+                                {% endif %}
+                                {% if receipt_data.payment.bank_slip_number %}
+                                <p class="mb-1"><strong>Bank Slip Number:</strong> {{ receipt_data.payment.bank_slip_number }}</p>
+                                {% endif %}
+                                {% if receipt_data.payment.remarks %}
+                                <p class="mb-0"><strong>Remarks:</strong> {{ receipt_data.payment.remarks }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Footer -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="small text-muted">
+                                <strong>Processed by:</strong> {{ receipt_data.payment.processed_by.get_full_name }}<br>
+                                <strong>Date & Time:</strong> {{ receipt_data.payment.payment_date|date:"F d, Y H:i" }}
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="border-top pt-3 mt-3">
+                                <p class="mb-0">Authorized Signature</p>
+                                <br><br>
+                                <p class="small text-muted">Finance Office</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-warning">
+                                <h6 class="alert-heading">Important Notes:</h6>
+                                <ul class="mb-0">
+                                    <li>This is an official receipt issued by the University Finance Office</li>
+                                    <li>Keep this receipt safe for your records</li>
+                                    <li>For any queries, contact the Finance Office during working hours</li>
+                                    {% if receipt_data.balance > 0 %}
+                                    <li class="text-danger"><strong>Outstanding balance: KES {{ receipt_data.balance|floatformat:2 }}</strong></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="text-center text-white">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    let studentData = null;
+    let feeStructureData = null;
+    
+    // Utility function to show loading
+    function showLoading() {
+        $('#loadingOverlay').show();
+    }
+    
+    // Utility function to hide loading
+    function hideLoading() {
+        $('#loadingOverlay').hide();
+    }
+    
+    // Utility function to format currency
+    function formatCurrency(amount) {
+        return parseFloat(amount).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    // Load student information when student ID is entered
+    $('#student_id').on('blur', function() {
+        const studentId = $(this).val().trim();
+        if (studentId) {
+            loadStudentInfo(studentId);
+        } else {
+            clearStudentInfo();
+        }
+    });
+    
+    function loadStudentInfo(studentId) {
+        showLoading();
+        $.get('{% url "get_student_info" %}', {student_id: studentId})
+            .done(function(data) {
+                if (data.success) {
+                    studentData = data.student;
+                    displayStudentInfo(data.student);
+                    // Auto-populate defaults
+                    $('#student_year').val(data.student.current_year);
+                    $('#semester_number').val(data.student.current_semester);
+                } else {
+                    clearStudentInfo();
+                    showStudentError(data.message);
+                }
+            })
+            .fail(function(xhr) {
+                clearStudentInfo();
+                showStudentError('Error loading student information. Please try again.');
+                console.error('Student info error:', xhr);
+            })
+            .always(function() {
+                hideLoading();
+            });
+    }
+    
+    function displayStudentInfo(student) {
+        $('#studentName').text(student.name);
+        $('#studentProgramme').text(student.programme);
+        $('#studentYear').text('Year ' + student.current_year);
+        $('#studentStatus').text(student.status);
+        $('#studentInfo').removeClass('d-none');
+        $('#studentError').addClass('d-none');
+    }
+    
+    function clearStudentInfo() {
+        studentData = null;
+        $('#studentInfo').addClass('d-none');
+        $('#studentError').addClass('d-none');
+        clearFeeStructure();
+    }
+    
+    function showStudentError(message) {
+        $('#studentErrorMessage').text(message);
+        $('#studentError').removeClass('d-none');
+        $('#studentInfo').addClass('d-none');
+    }
+    
+    // Load fee structure when academic details change
+    $('#academic_year_id, #semester_number, #student_year').on('change', function() {
+        loadFeeStructure();
+    });
+    
+    function loadFeeStructure() {
+        const studentId = $('#student_id').val().trim();
+        const academicYearId = $('#academic_year_id').val();
+        const semesterNumber = $('#semester_number').val();
+        const studentYear = $('#student_year').val();
+        
+        if (studentId && academicYearId && semesterNumber && studentYear) {
+            showLoading();
+            $.get('{% url "get_fee_structure" %}', {
+                student_id: studentId,
+                academic_year_id: academicYearId,
+                semester_number: semesterNumber,
+                student_year: studentYear
+            })
+                .done(function(data) {
+                    if (data.success) {
+                        feeStructureData = data.fee_structure;
+                        displayFeeStructure(data.fee_structure);
+                    } else {
+                        clearFeeStructure();
+                        showAlert('error', data.message);
+                    }
+                })
+                .fail(function(xhr) {
+                    clearFeeStructure();
+                    showAlert('error', 'Error loading fee structure. Please try again.');
+                    console.error('Fee structure error:', xhr);
+                })
+                .always(function() {
+                    hideLoading();
+                });
+        } else {
+            clearFeeStructure();
+        }
+    }
+    
+    function displayFeeStructure(fee) {
+        const balance = parseFloat(fee.balance);
+        const balanceClass = balance > 0 ? 'text-danger' : 'text-success';
+        const balanceStatus = balance > 0 ? 'Outstanding' : 'Paid Up';
+        
+        const feeHtml = `
+            <div class="col-md-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <h5 class="text-primary mb-1">KES ${formatCurrency(fee.net_fee)}</h5>
+                    <p class="small text-muted mb-0">Net Fee</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <h5 class="text-success mb-1">KES ${formatCurrency(fee.total_paid)}</h5>
+                    <p class="small text-muted mb-0">Total Paid</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <h5 class="${balanceClass} mb-1">KES ${formatCurrency(fee.balance)}</h5>
+                    <p class="small text-muted mb-0">Balance (${balanceStatus})</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-2 w-100" onclick="payFullBalance()">
+                        <i class="bi bi-credit-card"></i> Pay Balance
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="toggleFeeBreakdown()">
+                        <i class="bi bi-list-ul"></i> View Details
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        $('#feeStructureInfo').html(feeHtml);
+        $('#feeStructureSection').show();
+        
+        // Generate fee breakdown table
+        generateFeeBreakdown(fee);
+        
+        // Validate amount input against balance
+        validateAmountInput();
+    }
+    
+    function generateFeeBreakdown(fee) {
+        const breakdownHtml = `
+            <tr>
+                <td><strong>Tuition Fee</strong></td>
+                <td class="text-end">KES ${formatCurrency(fee.tuition_fee)}</td>
+            </tr>
+            <tr>
+                <td><strong>Registration Fee</strong></td>
+                <td class="text-end">KES ${formatCurrency(fee.registration_fee)}</td>
+            </tr>
+            <tr>
+                <td><strong>Examination Fee</strong></td>
+                <td class="text-end">KES ${formatCurrency(fee.examination_fee)}</td>
+            </tr>
+            <tr>
+                <td><strong>Other Fees</strong></td>
+                <td class="text-end">KES ${formatCurrency(fee.other_fees)}</td>
+            </tr>
+            <tr class="table-secondary">
+                <td><strong>Total Fee</strong></td>
+                <td class="text-end"><strong>KES ${formatCurrency(fee.total_fee)}</strong></td>
+            </tr>
+            ${parseFloat(fee.government_subsidy) > 0 ? `
+            <tr class="text-success">
+                <td>Less: Government Subsidy</td>
+                <td class="text-end">-KES ${formatCurrency(fee.government_subsidy)}</td>
+            </tr>
+            ` : ''}
+            ${parseFloat(fee.scholarship_amount) > 0 ? `
+            <tr class="text-success">
+                <td>Less: Scholarship</td>
+                <td class="text-end">-KES ${formatCurrency(fee.scholarship_amount)}</td>
+            </tr>
+            ` : ''}
+            <tr class="table-primary">
+                <td><strong>Net Amount Payable</strong></td>
+                <td class="text-end"><strong>KES ${formatCurrency(fee.net_fee)}</strong></td>
+            </tr>
+            <tr class="table-warning">
+                <td><strong>Previous Payments</strong></td>
+                <td class="text-end"><strong>KES ${formatCurrency(fee.total_paid)}</strong></td>
+            </tr>
+            <tr class="table-${parseFloat(fee.balance) > 0 ? 'danger' : 'success'}">
+                <td><strong>Outstanding Balance</strong></td>
+                <td class="text-end"><strong>KES ${formatCurrency(fee.balance)}</strong></td>
+            </tr>
+        `;
+        
+        $('#feeBreakdownTable').html(breakdownHtml);
+    }
+    
+    function clearFeeStructure() {
+        feeStructureData = null;
+        $('#feeStructureSection').hide();
+        $('#feeBreakdown').hide();
+    }
+    
+    // Global functions for button actions
+    window.payFullBalance = function() {
+        if (feeStructureData) {
+            const balance = parseFloat(feeStructureData.balance);
+            if (balance > 0) {
+                $('#amount_paid').val(balance.toFixed(2));
+                $('#amount_paid').focus();
+            } else {
+                showAlert('info', 'No outstanding balance to pay.');
+            }
+        }
+    };
+    
+    window.toggleFeeBreakdown = function() {
+        $('#feeBreakdown').toggle();
+    };
+    
+    // Payment method change handler
+    $('#payment_method').on('change', function() {
+        const paymentMethod = $(this).val();
+        
+        // Hide all payment-specific fields
+        $('#mpesa_receipt_div, #bank_slip_div').hide();
+        
+        // Show relevant fields based on payment method
+        if (paymentMethod === 'mpesa') {
+            $('#mpesa_receipt_div').show();
+            $('#mpesa_receipt').prop('required', true);
+        } else if (paymentMethod === 'bank') {
+            $('#bank_slip_div').show();
+            $('#bank_slip_number').prop('required', true);
+        } else {
+            $('#mpesa_receipt, #bank_slip_number').prop('required', false);
+        }
+    });
+    
+    // Amount validation
+    $('#amount_paid').on('input', function() {
+        validateAmountInput();
+    });
+    
+    function validateAmountInput() {
+        if (!feeStructureData) return;
+        
+        const amountPaid = parseFloat($('#amount_paid').val()) || 0;
+        const balance = parseFloat(feeStructureData.balance);
+        const amountInput = $('#amount_paid');
+        
+        // Remove previous validation classes
+        amountInput.removeClass('is-valid is-invalid');
+        
+        if (amountPaid > 0) {
+            if (amountPaid > balance && balance > 0) {
+                amountInput.addClass('is-invalid');
+                showAmountWarning(`Amount exceeds outstanding balance of KES ${formatCurrency(balance)}`);
+            } else {
+                amountInput.addClass('is-valid');
+                hideAmountWarning();
+            }
+        }
+    }
+    
+    function showAmountWarning(message) {
+        $('#amount_paid').next('.invalid-feedback').remove();
+        $('#amount_paid').after(`<div class="invalid-feedback">${message}</div>`);
+    }
+    
+    function hideAmountWarning() {
+        $('#amount_paid').next('.invalid-feedback').remove();
+    }
+    
+    // Form validation before submission
+    $('#paymentForm').on('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Show confirmation dialog
+        const amountPaid = parseFloat($('#amount_paid').val());
+        const studentName = studentData ? studentData.name : $('#student_id').val();
+        
+        if (!confirm(`Confirm payment of KES ${formatCurrency(amountPaid)} for ${studentName}?`)) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Disable submit button to prevent double submission
+        $('#submitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Processing...');
+    });
+    
+    function validateForm() {
+        let isValid = true;
+        const requiredFields = [
+            '#student_id',
+            '#academic_year_id', 
+            '#student_year',
+            '#semester_number',
+            '#amount_paid',
+            '#payment_date',
+            '#payment_method'
+        ];
+        
+        // Clear previous validation
+        $('.is-invalid').removeClass('is-invalid');
+        
+        // Check required fields
+        requiredFields.forEach(function(field) {
+            const $field = $(field);
+            if (!$field.val() || !$field.val().trim()) {
+                $field.addClass('is-invalid');
+                isValid = false;
+            }
+        });
+        
+        // Validate student data is loaded
+        if (!studentData) {
+            $('#student_id').addClass('is-invalid');
+            showAlert('error', 'Please enter a valid student ID and load student information.');
+            isValid = false;
+        }
+        
+        // Validate fee structure is loaded
+        if (!feeStructureData) {
+            showAlert('error', 'Please select academic year, student year, and semester to load fee structure.');
+            isValid = false;
+        }
+        
+        // Validate amount
+        const amountPaid = parseFloat($('#amount_paid').val()) || 0;
+        if (amountPaid <= 0) {
+            $('#amount_paid').addClass('is-invalid');
+            showAlert('error', 'Please enter a valid payment amount greater than 0.');
+            isValid = false;
+        }
+        
+        // Validate payment method specific fields
+        const paymentMethod = $('#payment_method').val();
+        if (paymentMethod === 'mpesa' && !$('#mpesa_receipt').val().trim()) {
+            $('#mpesa_receipt').addClass('is-invalid');
+            showAlert('error', 'M-Pesa receipt code is required for M-Pesa payments.');
+            isValid = false;
+        }
+        
+        if (paymentMethod === 'bank' && !$('#bank_slip_number').val().trim()) {
+            $('#bank_slip_number').addClass('is-invalid');
+            showAlert('error', 'Bank slip number is required for bank payments.');
+            isValid = false;
+        }
+        
+        return isValid;
+    }
+    
+    // Reset form handler
+    $('#resetBtn').on('click', function() {
+        if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
+            resetForm();
+        }
+    });
+    
+    function resetForm() {
+        $('#paymentForm')[0].reset();
+        clearStudentInfo();
+        clearFeeStructure();
+        $('.is-invalid, .is-valid').removeClass('is-invalid is-valid');
+        $('#mpesa_receipt_div, #bank_slip_div').hide();
+        $('#submitBtn').prop('disabled', false).html('<i class="bi bi-credit-card"></i> Process Payment');
+    }
+    
+    // Utility function to show alerts
+    function showAlert(type, message) {
+        const alertClass = type === 'error' ? 'danger' : type;
+        const iconClass = type === 'error' ? 'bi-exclamation-triangle' : 'bi-info-circle';
+        
+        const alertHtml = `
+            <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
+                <i class="bi ${iconClass} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Remove existing alerts
+        $('.alert').remove();
+        
+        // Add new alert at the top
+        $('.container').prepend(alertHtml);
+        
+        // Auto-dismiss after 5 seconds for non-error alerts
+        if (type !== 'error') {
+            setTimeout(function() {
+                $('.alert').fadeOut();
+            }, 5000);
+        }
+    }
+    
+    // Auto-save form data to prevent loss (using sessionStorage alternative)
+    let formData = {};
+    
+    function saveFormData() {
+        formData = {
+            student_id: $('#student_id').val(),
+            academic_year_id: $('#academic_year_id').val(),
+            student_year: $('#student_year').val(),
+            semester_number: $('#semester_number').val(),
+            amount_paid: $('#amount_paid').val(),
+            payment_date: $('#payment_date').val(),
+            payment_method: $('#payment_method').val(),
+            transaction_reference: $('#transaction_reference').val(),
+            mpesa_receipt: $('#mpesa_receipt').val(),
+            bank_slip_number: $('#bank_slip_number').val(),
+            remarks: $('#remarks').val()
+        };
+    }
+    
+    function restoreFormData() {
+        if (Object.keys(formData).length > 0) {
+            Object.keys(formData).forEach(function(key) {
+                if (formData[key]) {
+                    $(`#${key}`).val(formData[key]);
+                }
+            });
+        }
+    }
+    
+    // Save form data on input changes (debounced)
+    let saveTimeout;
+    $('#paymentForm input, #paymentForm select, #paymentForm textarea').on('input change', function() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveFormData, 1000);
+    });
+    
+    // Handle browser back button
+    window.addEventListener('beforeunload', function(e) {
+        if (formHasData()) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return e.returnValue;
+        }
+    });
+    
+    function formHasData() {
+        return $('#student_id').val() || 
+               $('#amount_paid').val() || 
+               $('#academic_year_id').val() ||
+               $('#transaction_reference').val() ||
+               $('#remarks').val();
+    }
+    
+    // Initialize form
+    function initializeForm() {
+        // Set today's date as default
+        const today = new Date().toISOString().split('T')[0];
+        $('#payment_date').val(today);
+        
+        // Focus on student ID field
+        $('#student_id').focus();
+        
+        // Restore any saved form data
+        restoreFormData();
+    }
+    
+    // Call initialization
+    initializeForm();
+    
+    // Print functionality enhancement
+    window.addEventListener('beforeprint', function() {
+        // Hide non-essential elements when printing
+        $('.btn, .alert, .form-text').hide();
+    });
+    
+    window.addEventListener('afterprint', function() {
+        // Show elements after printing
+        $('.btn, .alert, .form-text').show();
+    });
+});
+
+// Additional utility functions
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('Copied to clipboard');
+        });
+    }
+}
+
+function showToast(message) {
+    // Simple toast notification
+    const toast = $(`
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div class="toast show" role="alert">
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        </div>
+    `);
+    
+    $('body').append(toast);
+    
+    setTimeout(function() {
+        toast.fadeOut(function() {
+            toast.remove();
+        });
+    }, 3000);
+}
+</script>
+
+<style>
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .btn, .alert {
+        display: none !important;
+    }
+}
+
+/* Loading overlay styles */
+#loadingOverlay {
+    backdrop-filter: blur(2px);
+}
+
+/* Form validation styles */
+.is-invalid {
+    border-color: #dc3545 !important;
+}
+
+.is-valid {
+    border-color: #198754 !important;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 10px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Enhanced styling for better UX */
+.card {
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.form-control:focus, .form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Table styling improvements */
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+/* Alert styling */
+.alert {
+    border: none;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    border-left-color: #198754;
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+}
+
+.alert-info {
+    border-left-color: #0dcaf0;
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+}
+</style>
+
+{% endblock %}
