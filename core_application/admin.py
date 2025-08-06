@@ -769,6 +769,75 @@ class AssignmentAnnouncementAdmin(admin.ModelAdmin):
     search_fields = ('title', 'message', 'assignment__title')
     autocomplete_fields = ('assignment',)
 
+from django.contrib import admin
+from .models import (
+    ExamRepository, SpecialExamApplication, DefermentApplication,
+    ClearanceRequest, Message, MessageThread, ExamMaterialDownload,
+    StudentNotification
+)
+
+@admin.register(ExamRepository)
+class ExamRepositoryAdmin(admin.ModelAdmin):
+    list_display = ('title', 'course', 'programme', 'material_type', 'academic_year', 'semester', 'uploaded_by', 'uploaded_date', 'download_count')
+    search_fields = ('title', 'course__code', 'programme__name')
+    list_filter = ('material_type', 'academic_year', 'semester', 'is_public')
+    readonly_fields = ('uploaded_date', 'download_count')
+
+
+@admin.register(SpecialExamApplication)
+class SpecialExamApplicationAdmin(admin.ModelAdmin):
+    list_display = ('student', 'course', 'application_type', 'status', 'application_date', 'processed_by', 'scheduled_exam_date')
+    search_fields = ('student__student_id', 'course__code')
+    list_filter = ('application_type', 'status', 'semester')
+    readonly_fields = ('application_date', 'processed_date')
+
+
+@admin.register(DefermentApplication)
+class DefermentApplicationAdmin(admin.ModelAdmin):
+    list_display = ('student', 'deferment_type', 'status', 'requested_start_date', 'requested_duration_months', 'application_date')
+    search_fields = ('student__student_id',)
+    list_filter = ('deferment_type', 'status')
+    readonly_fields = ('application_date', 'processed_date')
+
+
+@admin.register(ClearanceRequest)
+class ClearanceRequestAdmin(admin.ModelAdmin):
+    list_display = ('student', 'clearance_type', 'status', 'request_date', 'processed_by')
+    search_fields = ('student__student_id',)
+    list_filter = ('clearance_type', 'status')
+    readonly_fields = ('request_date', 'processed_date')
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'sender', 'recipient', 'message_type', 'priority', 'sent_date', 'is_read')
+    search_fields = ('subject', 'sender__username', 'recipient__username')
+    list_filter = ('message_type', 'priority', 'is_read')
+    readonly_fields = ('sent_date', 'read_date')
+
+
+@admin.register(MessageThread)
+class MessageThreadAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'created_date', 'last_message_date', 'is_active')
+    search_fields = ('subject',)
+    readonly_fields = ('created_date', 'last_message_date')
+
+
+@admin.register(ExamMaterialDownload)
+class ExamMaterialDownloadAdmin(admin.ModelAdmin):
+    list_display = ('exam_material', 'student', 'downloaded_date', 'ip_address')
+    search_fields = ('exam_material__title', 'student__student_id')
+    readonly_fields = ('downloaded_date',)
+
+
+@admin.register(StudentNotification)
+class StudentNotificationAdmin(admin.ModelAdmin):
+    list_display = ('student', 'title', 'notification_type', 'created_date', 'is_read')
+    search_fields = ('student__student_id', 'title')
+    list_filter = ('notification_type', 'is_read')
+    readonly_fields = ('created_date', 'read_date')
+
+
 # Update admin site header for additional models
 admin.site.site_header = "University Management System - Complete"
 admin.site.site_title = "UMS Admin Portal"
