@@ -764,6 +764,315 @@ class AssignmentAnnouncement(models.Model):
     
     def __str__(self):
         return f"{self.assignment.title} - {self.title}"
+    
+# Add these models to your existing models.py file
+
+class ExamRepository(models.Model):
+    """Repository for past papers and revision materials"""
+    MATERIAL_TYPES = (
+        ('past_paper', 'Past Paper'),
+        ('revision_notes', 'Revision Notes'),
+        ('marking_scheme', 'Marking Scheme'),
+        ('sample_questions', 'Sample Questions'),
+        ('study_guide', 'Study Guide'),
+        ('reference_material', 'Reference Material'),
+    )
+    
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='exam_materials')
+    programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='exam_materials')
+    title = models.CharField(max_length=200)
+    material_type = models.CharField(max_length=20, choices=MATERIAL_TYPES)
+    description = models.TextField(blank=True)
+    
+    # File details
+    material_file = models.FileField(upload_to='exam_repository/')
+    file_size = models.IntegerField(null=True, blank=True)
+    
+    # Academic details
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+    exam_date = models.DateField(null=True, blank=True)
+    
+    # Access control
+    is_public = models.BooleanField(default=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    uploaded_date = models.DateTimeField(auto_now_add=True)
+    download_count = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-uploaded_date']
+    
+    def __str__(self):
+        return f"{self.course.code} - {self.title} ({self.material_type})"
+
+
+class SpecialExamApplication(models.Model):
+    """Applications for special exams (missed or failed exams)"""
+    APPLICATION_TYPES = (
+        ('missed_exam', 'Missed Exam'),
+        ('failed_exam', 'Failed Exam Retake'),
+        ('sick_exam', 'Sick During Exam'),
+        ('technical_issue', 'Technical Issues'),
+        ('other', 'Other Reasons'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('scheduled', 'Exam Scheduled'),
+        ('completed', 'Completed'),
+    )
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='special_exam_applications')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='special_exam_applications')
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+    
+    # Application details
+    application_type = models.CharField(max_length=20, choices=APPLICATION_TYPES)
+    reason = models.TextField(help_text="Detailed reason for special exam application")
+    original_exam_date = models.DateField(help_text="Date of the original exam")
+    
+    # Supporting documents
+    supporting_document = models.FileField(upload_to='special_exam_docs/', null=True, blank=True,
+                                         help_text="Medical certificate, etc.")
+    
+    # Application processing
+    application_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='processed_special_exams')
+    processed_date = models.DateTimeField(null=True, blank=True)
+    admin_remarks = models.TextField(blank=True)
+    
+    # Exam scheduling (if approved)
+    scheduled_exam_date = models.DateTimeField(null=True, blank=True)
+    exam_venue = models.CharField(max_length=100, blank=True)
+    exam_duration = models.IntegerField(null=True, blank=True, help_text="Duration in minutes")
+    
+    # Fee payment
+    application_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    fee_paid = models.BooleanField(default=False)
+    payment_reference = models.CharField(max_length=100, blank=True)
+    
+    class Meta:
+        ordering = ['-application_date']
+    
+    def __str__(self):
+        return f"{self.student.student_id} - {self.course.code} Special Exam"
+
+
+class DefermentApplication(models.Model):
+    """Online applications for academic deferment"""
+    DEFERMENT_TYPES = (
+        ('medical', 'Medical Reasons'),
+        ('financial', 'Financial Difficulties'),
+        ('family', 'Family Emergency'),
+        ('work', 'Work Commitments'),
+        ('personal', 'Personal Reasons'),
+        ('other', 'Other'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('under_review', 'Under Review'),
+    )
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='deferment_applications')
+    
+    # Deferment details
+    deferment_type = models.CharField(max_length=20, choices=DEFERMENT_TYPES)
+    reason = models.TextField(help_text="Detailed reason for deferment")
+    requested_start_date = models.DateField(help_text="When you want deferment to start")
+    requested_duration_months = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(24)],
+                                                   help_text="Duration in months")
+    
+    # Supporting documents
+    supporting_document = models.FileField(upload_to='deferment_docs/', null=True, blank=True,
+                                         help_text="Medical certificate, financial documents, etc.")
+    
+    # Application processing
+    application_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='processed_deferments')
+    processed_date = models.DateTimeField(null=True, blank=True)
+    admin_remarks = models.TextField(blank=True)
+    
+    # If approved
+    approved_start_date = models.DateField(null=True, blank=True)
+    approved_end_date = models.DateField(null=True, blank=True)
+    conditions = models.TextField(blank=True, help_text="Any conditions for the deferment")
+    
+    class Meta:
+        ordering = ['-application_date']
+    
+    def __str__(self):
+        return f"{self.student.student_id} - Deferment Application ({self.deferment_type})"
+
+
+class ClearanceRequest(models.Model):
+    """Student clearance requests for various departments"""
+    CLEARANCE_TYPES = (
+        ('library', 'Library Clearance'),
+        ('finance', 'Finance Clearance'),
+        ('accommodation', 'Accommodation Clearance'),
+        ('department', 'Department Clearance'),
+        ('registry', 'Registry Clearance'),
+        ('student_affairs', 'Student Affairs Clearance'),
+        ('graduation', 'Graduation Clearance'),
+        ('transfer', 'Transfer Clearance'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('requires_action', 'Requires Action'),
+    )
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='clearance_requests')
+    clearance_type = models.CharField(max_length=20, choices=CLEARANCE_TYPES)
+    reason = models.TextField(help_text="Reason for clearance request")
+    
+    # Request details
+    request_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Processing
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='processed_clearances')
+    processed_date = models.DateTimeField(null=True, blank=True)
+    remarks = models.TextField(blank=True)
+    
+    # Requirements check
+    outstanding_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    items_to_return = models.TextField(blank=True, help_text="Books, equipment, etc.")
+    additional_requirements = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-request_date']
+    
+    def __str__(self):
+        return f"{self.student.student_id} - {self.clearance_type} Clearance"
+
+
+class Message(models.Model):
+    """Messaging system between users"""
+    MESSAGE_TYPES = (
+        ('personal', 'Personal Message'),
+        ('academic', 'Academic Query'),
+        ('administrative', 'Administrative'),
+        ('announcement', 'Announcement'),
+        ('complaint', 'Complaint'),
+    )
+    
+    PRIORITY_LEVELS = (
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    )
+    
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    
+    # Message content
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default='personal')
+    priority = models.CharField(max_length=10, choices=PRIORITY_LEVELS, default='normal')
+    
+    # Attachments
+    attachment = models.FileField(upload_to='message_attachments/', null=True, blank=True)
+    
+    # Message tracking
+    sent_date = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    read_date = models.DateTimeField(null=True, blank=True)
+    is_starred = models.BooleanField(default=False)
+    is_deleted_by_sender = models.BooleanField(default=False)
+    is_deleted_by_recipient = models.BooleanField(default=False)
+    
+    # Reply tracking
+    parent_message = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='replies')
+    
+    class Meta:
+        ordering = ['-sent_date']
+    
+    def __str__(self):
+        return f"From {self.sender.username} to {self.recipient.username}: {self.subject}"
+    
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_date = timezone.now()
+            self.save()
+
+
+class MessageThread(models.Model):
+    """Group related messages into threads"""
+    subject = models.CharField(max_length=200)
+    participants = models.ManyToManyField(User, related_name='message_threads')
+    created_date = models.DateTimeField(auto_now_add=True)
+    last_message_date = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['-last_message_date']
+    
+    def __str__(self):
+        return f"Thread: {self.subject}"
+
+
+class ExamMaterialDownload(models.Model):
+    """Track downloads of exam materials"""
+    exam_material = models.ForeignKey(ExamRepository, on_delete=models.CASCADE, related_name='downloads')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='exam_downloads')
+    downloaded_date = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-downloaded_date']
+    
+    def __str__(self):
+        return f"{self.student.student_id} downloaded {self.exam_material.title}"
+
+
+class StudentNotification(models.Model):
+    """Notifications for students"""
+    NOTIFICATION_TYPES = (
+        ('exam_schedule', 'Exam Schedule'),
+        ('assignment_due', 'Assignment Due'),
+        ('grade_posted', 'Grade Posted'),
+        ('message_received', 'Message Received'),
+        ('application_status', 'Application Status Update'),
+        ('clearance_update', 'Clearance Update'),
+        ('general', 'General Notification'),
+    )
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='general')
+    
+    # Tracking
+    created_date = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    read_date = models.DateTimeField(null=True, blank=True)
+    
+    # Optional links
+    related_url = models.URLField(blank=True, help_text="Link to related page")
+    
+    class Meta:
+        ordering = ['-created_date']
+    
+    def __str__(self):
+        return f"Notification for {self.student.student_id}: {self.title}"
+    
 # Fee Management Models (Updated for University)
 class FeeStructure(models.Model):
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='fee_structures')
