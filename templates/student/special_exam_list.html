@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Messages -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-file-medical text-warning me-2"></i>
+                                Special Exam Applications
+                            </h2>
+                            <p class="text-muted">Manage your special exam applications for missed or failed exams</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'apply_special_exam' %}" class="btn btn-primary me-2">
+                                <i class="bi bi-plus-circle"></i> New Application
+                            </a>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Applications List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Applications</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if applications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Application Type</th>
+                                    <th>Original Exam Date</th>
+                                    <th>Application Date</th>
+                                    <th>Status</th>
+                                    <th>Fee Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in applications %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ application.course.code }}</strong><br>
+                                        <small class="text-muted">{{ application.course.name|truncatechars:30 }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if application.application_type == 'missed_exam' %}primary{% elif application.application_type == 'failed_exam' %}warning{% else %}secondary{% endif %}">
+                                            {{ application.get_application_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ application.original_exam_date|date:"M d, Y" }}</td>
+                                    <td>{{ application.application_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if application.status == 'approved' %}success{% elif application.status == 'rejected' %}danger{% elif application.status == 'scheduled' %}info{% else %}warning{% endif %}">
+                                            {{ application.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if application.fee_paid %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Paid
+                                        </span>
+                                        {% elif application.application_fee > 0 %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> Unpaid
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Fee</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-info" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#applicationModal{{ application.id }}">
+                                                <i class="bi bi-eye"></i> View
+                                            </button>
+                                            {% if application.status == 'pending' %}
+                                            <button class="btn btn-outline-warning" disabled>
+                                                <i class="bi bi-clock"></i> Pending
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Application Details Modal -->
+                                <div class="modal fade" id="applicationModal{{ application.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Application Details</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <h6>Course Information</h6>
+                                                        <p><strong>Course:</strong> {{ application.course.code }} - {{ application.course.name }}</p>
+                                                        <p><strong>Semester:</strong> {{ application.semester.academic_year.year }} S{{ application.semester.semester_number }}</p>
+                                                        <p><strong>Original Exam Date:</strong> {{ application.original_exam_date|date:"M d, Y" }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6>Application Details</h6>
+                                                        <p><strong>Type:</strong> {{ application.get_application_type_display }}</p>
+                                                        <p><strong>Status:</strong> 
+                                                            <span class="badge bg-{% if application.status == 'approved' %}success{% elif application.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                                                {{ application.get_status_display }}
+                                                            </span>
+                                                        </p>
+                                                        <p><strong>Application Date:</strong> {{ application.application_date|date:"M d, Y H:i" }}</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <hr>
+                                                <h6>Reason</h6>
+                                                <p>{{ application.reason }}</p>
+                                                
+                                                {% if application.supporting_document %}
+                                                <h6>Supporting Document</h6>
+                                                <p>
+                                                    <a href="{{ application.supporting_document.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                        <i class="bi bi-file-earmark"></i> View Document
+                                                    </a>
+                                                </p>
+                                                {% endif %}
+                                                
+                                                {% if application.status != 'pending' %}
+                                                <hr>
+                                                <h6>Processing Information</h6>
+                                                {% if application.processed_by %}
+                                                <p><strong>Processed By:</strong> {{ application.processed_by.get_full_name }}</p>
+                                                {% endif %}
+                                                {% if application.processed_date %}
+                                                <p><strong>Processed Date:</strong> {{ application.processed_date|date:"M d, Y H:i" }}</p>
+                                                {% endif %}
+                                                {% if application.admin_remarks %}
+                                                <p><strong>Admin Remarks:</strong> {{ application.admin_remarks }}</p>
+                                                {% endif %}
+                                                {% endif %}
+                                                
+                                                {% if application.status == 'scheduled' %}
+                                                <hr>
+                                                <h6>Exam Schedule</h6>
+                                                {% if application.scheduled_exam_date %}
+                                                <p><strong>Scheduled Date:</strong> {{ application.scheduled_exam_date|date:"M d, Y H:i" }}</p>
+                                                {% endif %}
+                                                {% if application.exam_venue %}
+                                                <p><strong>Venue:</strong> {{ application.exam_venue }}</p>
+                                                {% endif %}
+                                                {% if application.exam_duration %}
+                                                <p><strong>Duration:</strong> {{ application.exam_duration }} minutes</p>
+                                                {% endif %}
+                                                {% endif %}
+                                                
+                                                {% if application.application_fee > 0 %}
+                                                <hr>
+                                                <h6>Fee Information</h6>
+                                                <p><strong>Application Fee:</strong> KES {{ application.application_fee|floatformat:2 }}</p>
+                                                <p><strong>Payment Status:</strong> 
+                                                    {% if application.fee_paid %}
+                                                    <span class="badge bg-success">Paid</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger">Unpaid</span>
+                                                    {% endif %}
+                                                </p>
+                                                {% if application.payment_reference %}
+                                                <p><strong>Payment Reference:</strong> {{ application.payment_reference }}</p>
+                                                {% endif %}
+                                                {% endif %}
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-file-medical display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Applications</h5>
+                        <p class="text-muted">You haven't submitted any special exam applications yet.</p>
+                        <a href="{% url 'apply_special_exam' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Submit Your First Application
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

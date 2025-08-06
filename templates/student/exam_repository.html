@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Messages -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-archive text-primary me-2"></i>
+                                Exam Repository
+                            </h2>
+                            <p class="text-muted">Access past papers, revision notes, and study materials</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Filter by Course</label>
+                            <select name="course" class="form-select">
+                                <option value="">All Courses</option>
+                                {% for course in courses %}
+                                <option value="{{ course.id }}" {% if course.id|stringformat:"s" == selected_course %}selected{% endif %}>
+                                    {{ course.code }} - {{ course.name|truncatechars:40 }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Material Type</label>
+                            <select name="type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in material_types %}
+                                <option value="{{ type_code }}" {% if type_code == selected_type %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Materials List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Available Materials</h5>
+                    <span class="badge bg-primary">{{ page_obj.paginator.count }} total</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Downloads</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for material in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ material.course.code }}</strong><br>
+                                        <small class="text-muted">{{ material.course.name|truncatechars:30 }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ material.title }}</strong>
+                                        {% if material.description %}
+                                        <br><small class="text-muted">{{ material.description|truncatechars:50 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if material.material_type == 'past_paper' %}primary{% elif material.material_type == 'revision_notes' %}success{% elif material.material_type == 'marking_scheme' %}info{% else %}secondary{% endif %}">
+                                            {{ material.get_material_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ material.academic_year.year }}</td>
+                                    <td>Semester {{ material.semester.semester_number }}</td>
+                                    <td>
+                                        <span class="text-muted">
+                                            <i class="bi bi-download"></i> {{ material.download_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'download_exam_material' material.id %}" 
+                                               class="btn btn-outline-primary" 
+                                               title="Download">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            {% if material.exam_date %}
+                                            <button class="btn btn-outline-info" 
+                                                    title="Exam Date: {{ material.exam_date|date:'M d, Y' }}"
+                                                    data-bs-toggle="tooltip">
+                                                <i class="bi bi-calendar"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center p-3">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_course %}&course={{ selected_course }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-archive display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Materials Found</h5>
+                        <p class="text-muted">No exam materials are available for the selected filters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
+{% endblock %}

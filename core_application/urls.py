@@ -184,7 +184,33 @@ urlpatterns = [
     path('student/fees/', views.student_fee_management, name='student_fee_management'),
     path('admin-fee-payment/', views.admin_fee_payment, name='admin_fee_payment'),
     path('admin-ajax/student-info/', views.get_student_info, name='get_student_info'),
-    path('admin-ajax/fee-structure/', views.get_fee_structure, name='get_fee_structure')
+    path('admin-ajax/fee-structure/', views.get_fee_structure, name='get_fee_structure'),
+
+    # Exam Repository URLs
+    path('exam-repository/', views.exam_repository, name='exam_repository'),
+    path('exam-material/<int:material_id>/download/', views.download_exam_material, name='download_exam_material'),
+
+    # Special Exam Application URLs
+    path('special-exams/', views.special_exam_applications, name='special_exam_applications'),
+    path('special-exams/apply/', views.apply_special_exam, name='apply_special_exam'),
+    
+    # Deferment Application URLs
+    path('deferments/', views.deferment_applications, name='deferment_applications'),
+    path('deferments/apply/', views.apply_deferment, name='apply_deferment'),
+    
+    # Clearance URLs
+    path('clearances/', views.clearance_requests, name='clearance_requests'),
+    path('clearances/request/', views.request_clearance, name='request_clearance'),
+    
+    # Messaging URLs
+    path('messages/', views.messages_inbox, name='messages_inbox'),
+    path('messages/<int:message_id>/', views.message_detail, name='message_detail'),
+    path('messages/compose/', views.compose_message, name='compose_message'),
+    path('messages/<int:message_id>/reply/', views.reply_message, name='reply_message'),
+    path('messages/sent/', views.sent_messages, name='sent_messages'),
+    
+    # Notifications URL
+    path('notifications/', views.notifications, name='student_notifications'),
 
 
 ]

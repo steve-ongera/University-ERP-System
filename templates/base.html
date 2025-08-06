@@ -189,10 +189,10 @@
                         <a id="academicExamCard" href="{% url 'scan_attendance_qr'%}">Attendances </a> 
                     </li>
                     <li class="sub-item">
-                        <a id="academicSpecial" href="#">Special Exams</a>
+                        <a id="academicSpecial" href="{% url 'apply_special_exam'%}">Special Exams Apply</a>
                     </li>
                     <li class="sub-item">
-                        <a id="academicSupplementary" href="#">Supplementary Exams</a>
+                        <a id="academicSupplementary" href="{% url 'special_exam_applications'%}">Supplementary Exams</a>
                     </li>
                     <li class="sub-item">
                         <a id="academicReports" href="{% url 'student_transcript'%}">
@@ -202,7 +202,7 @@
                 </ul>
             </li>
             <li class="menu-link" id="repository">
-                <a class="menu_sub" href="#">
+                <a class="menu_sub" href="{% url 'exam_repository'%}">
                     <i class="ri-folder-open-line"></i>
                     <span>Repository</span>
                 </a>
