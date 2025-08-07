@@ -1,0 +1,520 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lecturer Profile - {{ request.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row mt-3 d-flex flex-row pb-3">
+        <div class="col-md-12 d-flex justify-content-between">
+            <h3 class="primary-text">Profile Settings</h3>
+        </div>
+    </div>
+
+    <div class="row bg-white shadow">
+        <!-- Left Side - Navigation -->
+        <div class="col-md-3">
+            <div class="card col-md-12">
+                <div class="card-body text-md-left ml-0">
+                    <div class="nav flex-column nav-tabs prof" id="v-tabs-tab" role="tablist" aria-orientation="vertical">
+                        <div class="mb-4 d-flex align-items-center flex-column">
+                            <div class="profile-pic mb-3 position-relative">
+                                {% if request.user.profile_picture %}
+                                    <img src="{{ request.user.profile_picture.url }}" id="profilePicture" class="img-fluid rounded-circle" alt="Profile Picture" />
+                                {% else %}
+                                    <img src="{% static 'avatar2.png' %}" id="profilePicture" class="img-fluid rounded-circle" alt="Default Profile" />
+                                {% endif %}
+                                <span class="position-absolute bottom-0 start-100 translate-middle badge border border-blue rounded-circle uploadIcon bg-white">
+                                    <span class="elementinput">
+                                        <i class="ri-upload-line profIconClick" data-bs-toggle="tooltip" data-bs-placement="right"
+                                           data-bs-custom-class="custom-tooltip" data-bs-title="Upload Profile Picture"></i>
+                                        <input class="profileInputFile" type="file" id="uploadedProf" accept="image/png, image/gif, image/jpeg, image/jpg">
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="sticky-top mb-2">
+                                <div class="p-1">
+                                    <button type="button" class="btn primary-outline-btn btn-md profileInputFile" id="profileUpload"><i class="ri-upload-line"></i> Upload</button>
+                                </div>
+                                <div>
+                                    <h6 class="mb-2">{{ request.user.get_full_name }}</h6>
+                                    <p class="text-muted small">{{ lecturer.employee_number }}</p>
+                                    <p class="text-muted small">{{ lecturer.get_academic_rank_display }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="nav flex-column prof">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active px-1" href="#" id="Lec-PersonalDetails-tab" data-bs-toggle="tab" data-bs-target="#Lec-PersonalDetails" role="tab" aria-controls="Lec-PersonalDetails" aria-selected="true"><i class="bi bi-person mx-3"></i><span>Personal Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Lec-ContactDetails-tab" data-bs-toggle="tab" data-bs-target="#Lec-ContactDetails" role="tab" aria-controls="Lec-ContactDetails" aria-selected="false"><i class="bi bi-telephone mx-3"></i><span>Contact Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Lec-ProfessionalDetails-tab" data-bs-toggle="tab" data-bs-target="#Lec-ProfessionalDetails" role="tab" aria-controls="Lec-ProfessionalDetails" aria-selected="false"><i class="bi bi-briefcase mx-3"></i><span>Professional Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Lec-AcademicDetails-tab" data-bs-toggle="tab" data-bs-target="#Lec-AcademicDetails" role="tab" aria-controls="Lec-AcademicDetails" aria-selected="false"><i class="bi bi-mortarboard mx-3"></i><span>Academic Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Lec-EmploymentDetails-tab" data-bs-toggle="tab" data-bs-target="#Lec-EmploymentDetails" role="tab" aria-controls="Lec-EmploymentDetails" aria-selected="false"><i class="bi bi-building mx-3"></i><span>Employment Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Password-tab" data-bs-toggle="tab" data-bs-target="#Password" role="tab" aria-controls="Password" aria-selected="false"><i class="bi bi-lock-fill mx-3"></i><span>Change Password</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Content -->
+        <div class="col-md-9 profile">
+            <!-- System Messages -->
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3">
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            
+            <div class="tab-content">
+                <!-- Personal Details Tab -->
+                <div id="Lec-PersonalDetails" class="container tab-pane show active" role="tabpanel" aria-labelledby="Lec-PersonalDetails-tab">
+                    <form method="post" action="{% url 'lecturer_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Employee Number</label>
+                                    <input type="text" class="form-control" disabled value="{{ lecturer.employee_number }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>First Name</label>
+                                    <input type="text" class="form-control" name="first_name" value="{{ request.user.first_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Last Name</label>
+                                    <input type="text" class="form-control" name="last_name" value="{{ request.user.last_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Gender</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.get_gender_display }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="form-control" disabled value="{{ request.user.date_of_birth|date:'Y-m-d' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>National ID</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.national_id }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Contact Details Tab -->
+                <div id="Lec-ContactDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Lec-ContactDetails-tab">
+                    <form method="post" action="{% url 'lecturer_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Personal Phone</label>
+                                    <input type="text" class="form-control" name="phone" value="{{ request.user.phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Office Phone</label>
+                                    <input type="text" class="form-control" name="office_phone" value="{{ lecturer.office_phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Office Location</label>
+                                    <input type="text" class="form-control" name="office_location" value="{{ lecturer.office_location }}">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Home Address</label>
+                                    <textarea class="form-control" name="address" rows="3">{{ request.user.address }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Consultation Hours</label>
+                                    <textarea class="form-control" name="consultation_hours" rows="3" placeholder="e.g., Monday-Friday: 2:00PM-4:00PM">{{ lecturer.consultation_hours }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Professional Details Tab -->
+                <div id="Lec-ProfessionalDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Lec-ProfessionalDetails-tab">
+                    <form method="post" action="{% url 'lecturer_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Academic Rank</label>
+                                    <select class="form-control" name="academic_rank">
+                                        {% for value, display in lecturer.ACADEMIC_RANKS %}
+                                            <option value="{{ value }}" {% if lecturer.academic_rank == value %}selected{% endif %}>{{ display }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Employment Type</label>
+                                    <select class="form-control" name="employment_type">
+                                        {% for value, display in lecturer.EMPLOYMENT_TYPES %}
+                                            <option value="{{ value }}" {% if lecturer.employment_type == value %}selected{% endif %}>{{ display }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Teaching Experience (Years)</label>
+                                    <input type="number" class="form-control" name="teaching_experience_years" value="{{ lecturer.teaching_experience_years }}" min="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Research Experience (Years)</label>
+                                    <input type="number" class="form-control" name="research_experience_years" value="{{ lecturer.research_experience_years }}" min="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Industry Experience (Years)</label>
+                                    <input type="number" class="form-control" name="industry_experience_years" value="{{ lecturer.industry_experience_years }}" min="0">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Professional Registration</label>
+                                    <input type="text" class="form-control" name="professional_registration" value="{{ lecturer.professional_registration }}" placeholder="e.g., Licensed Professional Engineer">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Research Interests</label>
+                                    <textarea class="form-control" name="research_interests" rows="4">{{ lecturer.research_interests }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Publications</label>
+                                    <textarea class="form-control" name="publications" rows="4">{{ lecturer.publications }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Academic Details Tab -->
+                <div id="Lec-AcademicDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Lec-AcademicDetails-tab">
+                    <form method="post" action="{% url 'lecturer_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Highest Qualification</label>
+                                    <input type="text" class="form-control" name="highest_qualification" value="{{ lecturer.highest_qualification }}" placeholder="e.g., PhD in Computer Science">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>University Graduated From</label>
+                                    <input type="text" class="form-control" name="university_graduated" value="{{ lecturer.university_graduated }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Graduation Year</label>
+                                    <input type="number" class="form-control" name="graduation_year" value="{{ lecturer.graduation_year }}" min="1950" max="2025">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Department</label>
+                                    <input type="text" class="form-control" disabled value="{{ lecturer.department.name }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Employment Details Tab -->
+                <div id="Lec-EmploymentDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Lec-EmploymentDetails-tab">
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Employee Number</label>
+                                <input type="text" class="form-control" disabled value="{{ lecturer.employee_number }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Faculty</label>
+                                <input type="text" class="form-control" disabled value="{{ lecturer.department.faculty.name }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Department</label>
+                                <input type="text" class="form-control" disabled value="{{ lecturer.department.name }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Joining Date</label>
+                                <input type="text" class="form-control" disabled value="{{ lecturer.joining_date|date:'Y-m-d' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Contract End Date</label>
+                                <input type="text" class="form-control" disabled value="{{ lecturer.contract_end_date|date:'Y-m-d'|default:'Permanent' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="md-form mb-3">
+                                <label>Employment Status</label>
+                                <input type="text" class="form-control" disabled value="{% if lecturer.is_active %}Active{% else %}Inactive{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password Tab -->
+                <div id="Password" class="container tab-pane fade" role="tabpanel" aria-labelledby="Password-tab">
+                    <form method="post" action="{% url 'lecturer_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Current Password</label>
+                                    <input type="password" class="form-control" name="current_password" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>New Password</label>
+                                    <input type="password" class="form-control" name="new_password1" required>
+                                    <small class="text-muted">Your password must contain at least 8 characters.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" class="form-control" name="new_password2" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                                <button type="submit" class="btn primary-btn btn-md light">Change Password</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Activate the first tab (Personal Details) by default if no hash is present
+    if (!window.location.hash) {
+        $('#Lec-PersonalDetails-tab').addClass('active');
+        $('#Lec-PersonalDetails').addClass('show active');
+    } else {
+        // If there's a hash, activate that tab
+        $('a[href="' + window.location.hash + '"]').tab('show');
+    }
+    
+    // Handle profile picture upload
+    $('#profileUpload').click(function() {
+        $('#uploadedProf').click();
+    });
+
+    $('#uploadedProf').change(function() {
+        if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            
+            reader.onload = function(e) {
+                $('#profilePicture').attr('src', e.target.result);
+                
+                // Upload the file via form submission
+                var formData = new FormData();
+                formData.append('profile_picture', $('#uploadedProf')[0].files[0]);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                $.ajax({
+                    url: '{% url "lecturer_profile" %}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        location.reload(); // Reload to show success message
+                    },
+                    error: function(xhr, errmsg, err) {
+                        alert('Error updating profile picture');
+                    }
+                });
+            }
+            
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        $('.alert').alert('close');
+    }, 5000);
+    
+    // Handle tab switching
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        window.location.hash = e.target.hash;
+        // Remove active class from all nav links
+        $('.nav-link').removeClass('active');
+        // Add active class to the clicked nav link
+        $(this).addClass('active');
+    });
+
+    // Form validation for numeric fields
+    $('input[type="number"]').on('input', function() {
+        var value = parseInt($(this).val());
+        var min = parseInt($(this).attr('min'));
+        var max = parseInt($(this).attr('max'));
+        
+        if (min !== undefined && value < min) {
+            $(this).addClass('is-invalid');
+        } else if (max !== undefined && value > max) {
+            $(this).addClass('is-invalid');
+        } else {
+            $(this).removeClass('is-invalid');
+        }
+    });
+
+    // Password strength indicator
+    $('input[name="new_password1"]').on('input', function() {
+        var password = $(this).val();
+        var strength = 0;
+        var feedback = [];
+
+        if (password.length >= 8) {
+            strength++;
+        } else {
+            feedback.push("At least 8 characters");
+        }
+
+        if (password.match(/[a-z]/)) {
+            strength++;
+        } else {
+            feedback.push("Lowercase letter");
+        }
+
+        if (password.match(/[A-Z]/)) {
+            strength++;
+        } else {
+            feedback.push("Uppercase letter");
+        }
+
+        if (password.match(/[0-9]/)) {
+            strength++;
+        } else {
+            feedback.push("Number");
+        }
+
+        if (password.match(/[^a-zA-Z0-9]/)) {
+            strength++;
+        } else {
+            feedback.push("Special character");
+        }
+
+        // Remove existing feedback
+        $(this).siblings('.password-feedback').remove();
+
+        // Add strength indicator
+        var strengthText = '';
+        var strengthClass = '';
+        
+        if (strength < 2) {
+            strengthText = 'Weak';
+            strengthClass = 'text-danger';
+        } else if (strength < 4) {
+            strengthText = 'Medium';
+            strengthClass = 'text-warning';
+        } else {
+            strengthText = 'Strong';
+            strengthClass = 'text-success';
+        }
+
+        if (password.length > 0) {
+            $(this).after('<small class="password-feedback ' + strengthClass + '">Password strength: ' + strengthText + '</small>');
+        }
+    });
+
+    // Confirm password validation
+    $('input[name="new_password2"]').on('input', function() {
+        var password1 = $('input[name="new_password1"]').val();
+        var password2 = $(this).val();
+        
+        $(this).siblings('.password-match-feedback').remove();
+        
+        if (password2.length > 0) {
+            if (password1 === password2) {
+                $(this).after('<small class="password-match-feedback text-success">Passwords match</small>');
+                $(this).removeClass('is-invalid').addClass('is-valid');
+            } else {
+                $(this).after('<small class="password-match-feedback text-danger">Passwords do not match</small>');
+                $(this).removeClass('is-valid').addClass('is-invalid');
+            }
+        } else {
+            $(this).removeClass('is-valid is-invalid');
+        }
+    });
+});
+</script>
+{% endblock %}

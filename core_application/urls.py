@@ -115,7 +115,10 @@ urlpatterns = [
     path('dashboard/remove-allocation/', views.remove_course_allocation, name='remove_course_allocation'),
 
     # Lecturer views
-    path('lecturer/unit//dashboard/', views.lecturer_unit_dashboard, name='lecturer_unit_dashboard'),
+    path('lecturer/unit/dashboard/', views.lecturer_unit_dashboard, name='lecturer_unit_dashboard'),
+    # Lecturer Profile URLs
+    path('lecturer/profile/', views.lecturer_profile, name='lecturer_profile'),
+    path('lecturer/profile/upload-picture/', views.lecturer_profile_picture_upload, name='lecturer_profile_picture_upload'),
     path('lecturer/course/<int:assignment_id>/', views.lecturer_course_detail, name='lecturer_course_detail'),
     path('lecturer/course/<int:assignment_id>/create-assignment/', views.create_assignment, name='create_assignment'),
     path('lecturer/course/<int:assignment_id>/create-notes/', views.create_course_notes, name='create_course_notes'),

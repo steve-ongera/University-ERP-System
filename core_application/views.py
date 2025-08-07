@@ -90,7 +90,7 @@ def student_profile(request):
         student = request.user.student_profile
     except:
         messages.error(request, 'Student profile not found.')
-        return redirect('dashboard')  # or wherever you want to redirect
+        return redirect('student_login')  # or wherever you want to redirect
     
     if request.method == 'POST':
         # Handle AJAX profile picture upload
@@ -8644,3 +8644,238 @@ def notifications(request):
 
 def course_evaluation(request):
     return render (request , 'student/course_evaluation.html')
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
+from .models import User, Lecturer, Department
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def lecturer_profile(request):
+    """
+    Handle lecturer profile view and updates
+    """
+    # Check if user is a lecturer
+    if request.user.user_type not in ['lecturer', 'professor']:
+        messages.error(request, "Access denied. This page is for lecturers only.")
+        return redirect('login')
+    
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, "Lecturer profile not found. Please contact the administrator.")
+        return redirect('lecturer_dashboard')
+    
+    if request.method == 'POST':
+        return handle_lecturer_profile_update(request, lecturer)
+    
+    context = {
+        'lecturer': lecturer,
+        'departments': Department.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'lecturers/lecturer_profile.html', context)
+
+
+def handle_lecturer_profile_update(request, lecturer):
+    """
+    Handle POST requests for lecturer profile updates
+    """
+    user = request.user
+    
+    # Handle profile picture upload
+    if 'profile_picture' in request.FILES:
+        profile_picture = request.FILES['profile_picture']
+        
+        # Validate file type
+        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif']
+        file_extension = profile_picture.name.split('.')[-1].lower()
+        
+        if file_extension not in allowed_extensions:
+            messages.error(request, "Invalid file type. Please upload JPG, JPEG, PNG, or GIF files only.")
+            return redirect('lecturer_profile')
+        
+        # Validate file size (5MB limit)
+        if profile_picture.size > 5 * 1024 * 1024:
+            messages.error(request, "File size too large. Please upload files smaller than 5MB.")
+            return redirect('lecturer_profile')
+        
+        # Delete old profile picture if exists
+        if user.profile_picture:
+            if default_storage.exists(user.profile_picture.name):
+                default_storage.delete(user.profile_picture.name)
+        
+        user.profile_picture = profile_picture
+        user.save()
+        messages.success(request, "Profile picture updated successfully!")
+        return redirect('lecturer_profile')
+    
+    # Handle personal details update
+    if any(field in request.POST for field in ['first_name', 'last_name', 'phone', 'email', 'address']):
+        try:
+            # Update user fields
+            if 'first_name' in request.POST:
+                user.first_name = request.POST.get('first_name', '').strip()
+            if 'last_name' in request.POST:
+                user.last_name = request.POST.get('last_name', '').strip()
+            if 'phone' in request.POST:
+                user.phone = request.POST.get('phone', '').strip()
+            if 'email' in request.POST:
+                email = request.POST.get('email', '').strip()
+                if email and User.objects.exclude(id=user.id).filter(email=email).exists():
+                    messages.error(request, "This email address is already in use.")
+                    return redirect('lecturer_profile')
+                user.email = email
+            if 'address' in request.POST:
+                user.address = request.POST.get('address', '').strip()
+            
+            user.save()
+            messages.success(request, "Personal details updated successfully!")
+            
+        except Exception as e:
+            messages.error(request, f"Error updating personal details: {str(e)}")
+    
+    # Handle professional details update
+    if any(field in request.POST for field in [
+        'academic_rank', 'employment_type', 'highest_qualification', 'university_graduated',
+        'graduation_year', 'research_interests', 'publications', 'professional_registration',
+        'teaching_experience_years', 'research_experience_years', 'industry_experience_years',
+        'office_location', 'office_phone', 'consultation_hours'
+    ]):
+        try:
+            # Update lecturer fields
+            if 'academic_rank' in request.POST:
+                lecturer.academic_rank = request.POST.get('academic_rank', lecturer.academic_rank)
+            if 'employment_type' in request.POST:
+                lecturer.employment_type = request.POST.get('employment_type', lecturer.employment_type)
+            if 'highest_qualification' in request.POST:
+                lecturer.highest_qualification = request.POST.get('highest_qualification', '').strip()
+            if 'university_graduated' in request.POST:
+                lecturer.university_graduated = request.POST.get('university_graduated', '').strip()
+            if 'graduation_year' in request.POST:
+                graduation_year = request.POST.get('graduation_year', '').strip()
+                lecturer.graduation_year = int(graduation_year) if graduation_year.isdigit() else lecturer.graduation_year
+            if 'research_interests' in request.POST:
+                lecturer.research_interests = request.POST.get('research_interests', '').strip()
+            if 'publications' in request.POST:
+                lecturer.publications = request.POST.get('publications', '').strip()
+            if 'professional_registration' in request.POST:
+                lecturer.professional_registration = request.POST.get('professional_registration', '').strip()
+            if 'teaching_experience_years' in request.POST:
+                teaching_exp = request.POST.get('teaching_experience_years', '0').strip()
+                lecturer.teaching_experience_years = int(teaching_exp) if teaching_exp.isdigit() else lecturer.teaching_experience_years
+            if 'research_experience_years' in request.POST:
+                research_exp = request.POST.get('research_experience_years', '0').strip()
+                lecturer.research_experience_years = int(research_exp) if research_exp.isdigit() else lecturer.research_experience_years
+            if 'industry_experience_years' in request.POST:
+                industry_exp = request.POST.get('industry_experience_years', '0').strip()
+                lecturer.industry_experience_years = int(industry_exp) if industry_exp.isdigit() else lecturer.industry_experience_years
+            if 'office_location' in request.POST:
+                lecturer.office_location = request.POST.get('office_location', '').strip()
+            if 'office_phone' in request.POST:
+                lecturer.office_phone = request.POST.get('office_phone', '').strip()
+            if 'consultation_hours' in request.POST:
+                lecturer.consultation_hours = request.POST.get('consultation_hours', '').strip()
+            
+            lecturer.save()
+            messages.success(request, "Professional details updated successfully!")
+            
+        except ValueError as e:
+            messages.error(request, "Invalid input for numeric fields. Please check your entries.")
+        except Exception as e:
+            messages.error(request, f"Error updating professional details: {str(e)}")
+    
+    # Handle password change
+    if all(field in request.POST for field in ['current_password', 'new_password1', 'new_password2']):
+        current_password = request.POST.get('current_password')
+        new_password1 = request.POST.get('new_password1')
+        new_password2 = request.POST.get('new_password2')
+        
+        # Validate current password
+        if not user.check_password(current_password):
+            messages.error(request, "Current password is incorrect.")
+            return redirect('lecturer_profile')
+        
+        # Validate new passwords match
+        if new_password1 != new_password2:
+            messages.error(request, "New passwords do not match.")
+            return redirect('lecturer_profile')
+        
+        # Validate password strength (basic validation)
+        if len(new_password1) < 8:
+            messages.error(request, "New password must be at least 8 characters long.")
+            return redirect('lecturer_profile')
+        
+        try:
+            user.set_password(new_password1)
+            user.save()
+            update_session_auth_hash(request, user)  # Keep user logged in
+            messages.success(request, "Password changed successfully!")
+        except Exception as e:
+            messages.error(request, f"Error changing password: {str(e)}")
+    
+    return redirect('lecturer_profile')
+
+
+# Alternative AJAX view for profile picture upload (optional)
+@login_required
+@require_http_methods(["POST"])
+def lecturer_profile_picture_upload(request):
+    """
+    Handle AJAX profile picture upload for lecturers
+    """
+    if request.user.user_type not in ['lecturer', 'professor']:
+        return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
+    
+    if 'profile_picture' not in request.FILES:
+        return JsonResponse({'success': False, 'error': 'No file uploaded'}, status=400)
+    
+    profile_picture = request.FILES['profile_picture']
+    
+    # Validate file type
+    allowed_extensions = ['jpg', 'jpeg', 'png', 'gif']
+    file_extension = profile_picture.name.split('.')[-1].lower()
+    
+    if file_extension not in allowed_extensions:
+        return JsonResponse({
+            'success': False, 
+            'error': 'Invalid file type. Please upload JPG, JPEG, PNG, or GIF files only.'
+        }, status=400)
+    
+    # Validate file size (5MB limit)
+    if profile_picture.size > 5 * 1024 * 1024:
+        return JsonResponse({
+            'success': False, 
+            'error': 'File size too large. Please upload files smaller than 5MB.'
+        }, status=400)
+    
+    try:
+        user = request.user
+        
+        # Delete old profile picture if exists
+        if user.profile_picture:
+            if default_storage.exists(user.profile_picture.name):
+                default_storage.delete(user.profile_picture.name)
+        
+        user.profile_picture = profile_picture
+        user.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'message': 'Profile picture updated successfully!',
+            'profile_picture_url': user.profile_picture.url if user.profile_picture else None
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
