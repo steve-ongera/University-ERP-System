@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-sm btn-outline-light me-3">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                        <div>
+                            <h5 class="mb-0 fw-bold">
+                                <i class="bi bi-bell-fill me-2"></i>Notifications
+                            </h5>
+                            <small class="opacity-75">Stay updated with your academic activities</small>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge bg-light text-dark fs-6">
+                            {{ page_obj.paginator.count }} total
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Stats -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-bell display-6 text-primary mb-2"></i>
+                                <h5 class="mb-0">{{ page_obj.paginator.count }}</h5>
+                                <small class="text-muted">Total Notifications</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-event display-6 text-success mb-2"></i>
+                                <h5 class="mb-0">
+                                    {{ page_obj.object_list|length }}
+                                </h5>
+                                <small class="text-muted">Recent</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-star display-6 text-warning mb-2"></i>
+                                <h5 class="mb-0">0</h5>
+                                <small class="text-muted">Important</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-journal-text display-6 text-info mb-2"></i>
+                                <h5 class="mb-0">0</h5>
+                                <small class="text-muted">Assignments</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-trophy display-6 text-success mb-2"></i>
+                                <h5 class="mb-0">0</h5>
+                                <small class="text-muted">Grades</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="stat-item">
+                                <i class="bi bi-chat display-6 text-secondary mb-2"></i>
+                                <h5 class="mb-0">0</h5>
+                                <small class="text-muted">Messages</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-list-ul me-2"></i>Your Notifications
+                        </h6>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary active" onclick="filterNotifications('all')">
+                                All
+                            </button>
+                            <button class="btn btn-outline-success" onclick="filterNotifications('exam_schedule')">
+                                Exams
+                            </button>
+                            <button class="btn btn-outline-info" onclick="filterNotifications('assignment_due')">
+                                Assignments
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="filterNotifications('grade_posted')">
+                                Grades
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="notifications-container">
+                            {% for notification in page_obj %}
+                            <div class="notification-item p-4 border-bottom position-relative" 
+                                 data-type="{{ notification.notification_type }}"
+                                 data-created="{{ notification.created_date|date:'Y-m-d' }}">
+                                
+                                <div class="d-flex align-items-start">
+                                    <!-- Notification Icon -->
+                                    <div class="notification-icon me-3">
+                                        <div class="icon-circle bg-gradient-{% if notification.notification_type == 'exam_schedule' %}danger{% elif notification.notification_type == 'assignment_due' %}warning{% elif notification.notification_type == 'grade_posted' %}success{% elif notification.notification_type == 'message_received' %}primary{% else %}info{% endif %} text-white d-flex align-items-center justify-content-center">
+                                            {% if notification.notification_type == 'exam_schedule' %}
+                                            <i class="bi bi-calendar-check-fill"></i>
+                                            {% elif notification.notification_type == 'assignment_due' %}
+                                            <i class="bi bi-journal-text"></i>
+                                            {% elif notification.notification_type == 'grade_posted' %}
+                                            <i class="bi bi-trophy-fill"></i>
+                                            {% elif notification.notification_type == 'message_received' %}
+                                            <i class="bi bi-chat-dots-fill"></i>
+                                            {% elif notification.notification_type == 'application_status' %}
+                                            <i class="bi bi-file-earmark-check"></i>
+                                            {% elif notification.notification_type == 'clearance_update' %}
+                                            <i class="bi bi-shield-check"></i>
+                                            {% else %}
+                                            <i class="bi bi-info-circle-fill"></i>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Notification Content -->
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="notification-title mb-0 fw-semibold">
+                                                {{ notification.title }}
+                                            </h6>
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-{% if notification.notification_type == 'exam_schedule' %}danger{% elif notification.notification_type == 'assignment_due' %}warning{% elif notification.notification_type == 'grade_posted' %}success{% elif notification.notification_type == 'message_received' %}primary{% else %}info{% endif %} badge-sm me-2">
+                                                    {{ notification.get_notification_type_display }}
+                                                </span>
+                                                <small class="text-muted time-ago">
+                                                    {{ notification.created_date|timesince }} ago
+                                                </small>
+                                            </div>
+                                        </div>
+                                        
+                                        <p class="notification-message mb-2 text-muted">
+                                            {{ notification.message }}
+                                        </p>
+                                        
+                                        <!-- Action Button -->
+                                        {% if notification.related_url %}
+                                        <div class="mt-2">
+                                            <a href="{{ notification.related_url }}" class="btn btn-sm btn-outline-{% if notification.notification_type == 'exam_schedule' %}danger{% elif notification.notification_type == 'assignment_due' %}warning{% elif notification.notification_type == 'grade_posted' %}success{% elif notification.notification_type == 'message_received' %}primary{% else %}info{% endif %}">
+                                                <i class="bi bi-arrow-right-circle me-1"></i>View Details
+                                            </a>
+                                        </div>

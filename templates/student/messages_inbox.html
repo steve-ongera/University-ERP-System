@@ -15,38 +15,186 @@
     </div>
 </div>
 
-<div class="container onprintContainer">
-    <!-- Page Header -->
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <h2 class="fw-bold">
-                            <i class="bi bi-envelope me-2"></i>Messages Inbox
-                        </h2>
-                        <p class="text-muted mb-1">Manage your communications with university staff and faculty</p>
-                        <p class="mb-0">
-                            <i class="bi bi-person-circle me-1"></i>{{ user.student_profile.student_id }} - {{ user.get_full_name }}
-                        </p>
+<div class="container-fluid onprintContainer" style="height: calc(100vh - 100px);">
+    <div class="row h-100">
+        <!-- Messages Sidebar -->
+        <div class="col-md-4 p-0">
+            <div class="card shadow-sm h-100 rounded-0">
+                <!-- WhatsApp Style Header -->
+                <div class="card-header bg-success text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-chat-dots-fill me-2"></i>Messages
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'compose_message' %}">
+                                    <i class="bi bi-plus-circle me-2"></i>New Message
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'sent_messages' %}">
+                                    <i class="bi bi-send me-2"></i>Sent Messages
+                                </a></li>
+                            </ul>
+                        </div>
                     </div>
-                    <div class="col-md-4 text-end">
-                        <div class="btn-group">
-                            <a href="{% url 'compose_message' %}" class="btn btn-primary">
-                                <i class="bi bi-plus-circle me-1"></i>Compose Message
+                    
+                    <!-- Search Bar -->
+                    <div class="mt-3">
+                        <form method="GET" class="d-flex">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-0">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control border-0" name="search" 
+                                       value="{{ search|default:'' }}" placeholder="Search messages..."
+                                       style="border-radius: 0 20px 20px 0;">
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Filter Tabs -->
+                    <div class="mt-3">
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <a href="?filter=all" class="btn btn-sm {% if not filter_type or filter_type == 'all' %}btn-light{% else %}btn-outline-light{% endif %}">
+                                All
                             </a>
-                            <a href="{% url 'sent_messages' %}" class="btn btn-outline-secondary">
-                                <i class="bi bi-send me-1"></i>Sent Messages
+                            <a href="?filter=unread" class="btn btn-sm {% if filter_type == 'unread' %}btn-light{% else %}btn-outline-light{% endif %}">
+                                Unread
+                            </a>
+                            <a href="?filter=starred" class="btn btn-sm {% if filter_type == 'starred' %}btn-light{% else %}btn-outline-light{% endif %}">
+                                Starred
                             </a>
                         </div>
                     </div>
                 </div>
                 
-                <div class="row mt-3">
-                    <div class="col-md-12">
-                        <div class="btn-group float-end">
-                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
-                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                <!-- Messages List -->
+                <div class="card-body p-0" style="overflow-y: auto; max-height: calc(100vh - 300px);">
+                    {% if page_obj %}
+                        {% for msg in page_obj %}
+                        <div class="message-item p-3 border-bottom {% if not msg.is_read %}bg-light border-start border-primary border-4{% endif %} position-relative" 
+                             onclick="window.location.href='{% url 'message_detail' msg.id %}'">
+                            
+                            <!-- Message Header -->
+                            <div class="d-flex align-items-start">
+                                <!-- Avatar -->
+                                <div class="me-3">
+                                    <div class="avatar bg-gradient-primary text-white d-flex align-items-center justify-content-center rounded-circle" 
+                                         style="width: 48px; height: 48px; font-size: 18px; font-weight: bold;">
+                                        {{ msg.sender.first_name|first|default:msg.sender.username|first|upper }}
+                                    </div>
+                                </div>
+                                
+                                <!-- Message Content -->
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0 fw-semibold text-truncate">
+                                            {{ msg.sender.get_full_name|default:msg.sender.username }}
+                                        </h6>
+                                        <div class="d-flex align-items-center">
+                                            {% if msg.is_starred %}
+                                            <i class="bi bi-star-fill text-warning me-1"></i>
+                                            {% endif %}
+                                            {% if msg.priority == 'urgent' %}
+                                            <i class="bi bi-exclamation-circle-fill text-danger me-1"></i>
+                                            {% endif %}
+                                            <small class="text-muted">{{ msg.sent_date|timesince }}</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="mb-1 fw-medium text-truncate" style="font-size: 0.95em;">
+                                        {{ msg.subject }}
+                                    </p>
+                                    
+                                    <p class="mb-0 text-muted text-truncate small">
+                                        {{ msg.message|truncatechars:60 }}
+                                    </p>
+                                    
+                                    <!-- Message Type Badge -->
+                                    <div class="mt-2">
+                                        <span class="badge bg-{% if msg.message_type == 'academic' %}info{% elif msg.message_type == 'administrative' %}warning{% elif msg.message_type == 'complaint' %}danger{% else %}secondary{% endif %} badge-sm">
+                                            {{ msg.get_message_type_display }}
+                                        </span>
+                                        {% if msg.attachment %}
+                                        <i class="bi bi-paperclip ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Unread Indicator -->
+                            {% if not msg.is_read %}
+                            <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                                <div class="bg-success rounded-circle" style="width: 12px; height: 12px;"></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-chat-dots display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Messages</h5>
+                            <p class="text-muted">You don't have any messages yet.</p>
+                            <a href="{% url 'compose_message' %}" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-2"></i>Send your first message
+                            </a>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <div class="p-3 border-top">
+                            <nav aria-label="Messages pagination">
+                                <ul class="pagination pagination-sm justify-content-center mb-0">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_type %}&filter={{ filter_type }}{% endif %}">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                                    </li>
+                                    
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if filter_type %}&filter={{ filter_type }}{% endif %}">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Welcome Message Area -->
+        <div class="col-md-8 p-0">
+            <div class="card shadow-sm h-100 rounded-0">
+                <div class="card-body d-flex align-items-center justify-content-center bg-light">
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <i class="bi bi-chat-heart display-1 text-success"></i>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-3">Welcome to Messages</h3>
+                        <p class="text-muted mb-4 lead">
+                            Select a conversation from the sidebar to start reading your messages.<br>
+                            Stay connected with your lecturers and academic staff.
+                        </p>
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="{% url 'compose_message' %}" class="btn btn-success btn-lg">
+                                <i class="bi bi-plus-circle me-2"></i>New Message
+                            </a>
+                            <a href="{% url 'sent_messages' %}" class="btn btn-outline-primary btn-lg">
+                                <i class="bi bi-send me-2"></i>Sent Messages
                             </a>
                         </div>
                     </div>
@@ -54,67 +202,132 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Search and Filter Bar -->
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-4">
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="bi bi-search"></i>
-                                </span>
-                                <input type="text" name="search" class="form-control" 
-                                       placeholder="Search messages..." value="{{ search|default:'' }}">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <select name="filter" class="form-select">
-                                <option value="">All Messages</option>
-                                <option value="unread" {% if filter_type == 'unread' %}selected{% endif %}>Unread Messages</option>
-                                <option value="starred" {% if filter_type == 'starred' %}selected{% endif %}>Starred Messages</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-outline-primary">
-                                <i class="bi bi-search me-1"></i>Search
-                            </button>
-                        </div>
-                        <div class="col-md-3 text-end">
-                            {% if search or filter_type %}
-                            <a href="{% url 'messages_inbox' %}" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle me-1"></i>Clear Filters
-                            </a>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+<style>
+.message-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+}
 
-    <!-- Messages Statistics -->
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3 border-end">
-                            <h5 class="text-primary">{{ page_obj.paginator.count }}</h5>
-                            <p class="small text-muted mb-0">Total Messages</p>
-                        </div>
-                        <div class="col-md-3 border-end">
-                            <h5 class="text-success">{{ page_obj.object_list|length }}</h5>
-                            <p class="small text-muted mb-0">Current Page</p>
-                        </div>
-                        <div class="col-md-3 border-end">
-                            <h5 class="text-warning">
-                                {% for msg in page_obj %}
-                                    {% if not msg.is_read %}{{ forloop.counter0|add:1 }}{% endif %}
-                                {% endfor %}
-                            </h5>
-                            <p class="small text-muted mb-0">Unread</p>
-                        </div>
-                        <div class="col-md-3">
+.message-item:hover {
+    background-color: #f8f9fa !important;
+    transform: translateX(2px);
+}
+
+.message-item.unread {
+    background-color: #f8f9ff;
+    border-left-color: #007bff;
+}
+
+.avatar {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    font-family: 'Arial', sans-serif;
+}
+
+.badge-sm {
+    font-size: 0.7em;
+    padding: 0.25em 0.5em;
+}
+
+.input-group-text {
+    background-color: rgba(255,255,255,0.9);
+}
+
+.card-header.bg-success {
+    background: linear-gradient(135deg, #25d366, #128c7e) !important;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        height: auto !important;
+    }
+    
+    .col-md-4, .col-md-8 {
+        height: auto;
+    }
+    
+    .card {
+        height: auto !important;
+    }
+}
+
+@media print {
+    .btn, .dropdown, .pagination {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+/* WhatsApp-like animations */
+.message-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Scroll styling */
+.card-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.card-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit search form on input
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.form.submit();
+            }, 500);
+        });
+    }
+    
+    // Add click animations
+    document.querySelectorAll('.message-item').forEach(item => {
+        item.addEventListener('click', function() {
+            this.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 150);
+        });
+    });
+});
+</script>
+
+{% endblock %}

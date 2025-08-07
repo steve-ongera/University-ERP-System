@@ -146,7 +146,7 @@
                 </ul>
             </li>
             <li class="menu-link messDiv" id="message">
-                <a class="menu_sub" href="#">
+                <a class="menu_sub" href="{% url 'messages_inbox'%}">
                     <i class="ri-message-2-line"></i>
                     <span>Message</span>
                 </a>
@@ -165,10 +165,10 @@
                         <a id="hostelbooking" href="{% url 'hostel_list'%}">Hostel Booking</a>
                     </li>
                     <li class="sub-item">
-                        <a id="clearance" href="#">Clearance</a>
+                        <a id="clearance" href="{% url 'clearance_requests'%}">Clearance</a>
                     </li>
                     <li class="sub-item">
-                        <a id="academicDeferment" href="#">Deferment</a>
+                        <a id="academicDeferment" href="{% url 'deferment_applications'%}">Deferment</a>
                     </li>
                 </ul>
             </li>

@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'messages_inbox' %}" class="btn btn-sm btn-outline-light me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-plus-circle me-2"></i>New Message
+                        </h5>
+                        <small class="opacity-75">Compose a new message to send</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compose Form -->
+    <div class="row p-3">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="composeForm">
+                        {% csrf_token %}
+                        
+                        <!-- Recipient Selection -->
+                        <div class="mb-4">
+                            <label for="recipient" class="form-label fw-semibold">
+                                <i class="bi bi-person-circle me-2 text-primary"></i>To:
+                            </label>
+                            <select class="form-select form-select-lg" name="recipient" id="recipient" required>
+                                <option value="">Select recipient...</option>
+                                {% for recipient in recipients %}
+                                <optgroup label="{{ recipient.get_user_type_display }}s">
+                                    <option value="{{ recipient.id }}" data-type="{{ recipient.user_type }}">
+                                        {{ recipient.get_full_name|default:recipient.username }}
+                                        {% if recipient.lecturer_profile %}
+                                        - {{ recipient.lecturer_profile.department.name }}
+                                        {% elif recipient.staff_profile %}
+                                        - {{ recipient.staff_profile.designation }}
+                                        {% endif %}
+                                    </option>
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Select a lecturer, staff member, or administrator to send your message to.
+                            </div>
+                        </div>
+                        
+                        <!-- Message Type -->
+                        <div class="mb-4">
+                            <label for="message_type" class="form-label fw-semibold">
+                                <i class="bi bi-tag me-2 text-info"></i>Message Type:
+                            </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select class="form-select" name="message_type" id="message_type" required>
+                                        <option value="">Select type...</option>
+                                        <option value="academic">📚 Academic Query</option>
+                                        <option value="administrative">📋 Administrative</option>
+                                        <option value="personal">💬 Personal Message</option>
+                                        <option value="complaint">⚠️ Complaint</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <select class="form-select" name="priority" id="priority">
+                                        <option value="normal">Normal Priority</option>
+                                        <option value="high">High Priority</option>
+                                        <option value="urgent">🚨 Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Subject -->
+                        <div class="mb-4">
+                            <label for="subject" class="form-label fw-semibold">
+                                <i class="bi bi-chat-quote me-2 text-warning"></i>Subject:
+                            </label>
+                            <input type="text" class="form-control form-control-lg" name="subject" id="subject" 
+                                   placeholder="Enter message subject..." required maxlength="200">
+                            <div class="form-text">
+                                <span id="subjectCounter">0</span>/200 characters
+                            </div>
+                        </div>
+                        
+                        <!-- Message Content -->
+                        <div class="mb-4">
+                            <label for="message" class="form-label fw-semibold">
+                                <i class="bi bi-chat-text me-2 text-success"></i>Message:
+                            </label>
+                            <div class="position-relative">
+                                <textarea class="form-control" name="message" id="message" rows="8" 
+                                          placeholder="Type your message here..." required></textarea>
+                                <div class="position-absolute bottom-0 end-0 p-2">
+                                    <small class="text-muted" id="messageCounter">0</small>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-lightbulb me-1"></i>
+                                Be clear and concise. Include all necessary details for your query.
+                            </div>
+                        </div>
+                        
+                        <!-- Attachment -->
+                        <div class="mb-4">
+                            <label for="attachment" class="form-label fw-semibold">
+                                <i class="bi bi-paperclip me-2 text-secondary"></i>Attachment (Optional):
+                            </label>
+                            <div class="input-group">
+                                <input type="file" class="form-control" name="attachment" id="attachment" accept="*/*">
+                                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('attachment').click()">
+                                    <i class="bi bi-folder2-open"></i> Browse
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Maximum file size: 10MB. Supported formats: PDF, DOC, DOCX, JPG, PNG, etc.
+                            </div>
+                            
+                            <!-- Attachment Preview -->
+                            <div id="attachmentPreview" class="mt-2" style="display: none;">
+                                <div class="alert alert-info py-2">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <i class="bi bi-file-earmark me-2"></i>
+                                            <span id="attachmentName"></span>
+                                            <small class="text-muted ms-2" id="attachmentSize"></small>
+                                        </div>
+                                        <button type="button" class="btn-close btn-sm" onclick="removeAttachment()"></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Templates -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-lightning me-2 text-primary"></i>Quick Templates:
+                            </label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="insertTemplate('academic')">
+                                    📚 Academic Query
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="insertTemplate('appointment')">
+                                    📅 Request Appointment
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="insertTemplate('clarification')">
+                                    ❓ Seek Clarification
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="insertTemplate('thank')">
+                                    🙏 Thank You
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'messages_inbox' %}" class="btn btn-light btn-lg">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary btn-lg ms-2" onclick="saveDraft()">
+                                    <i class="bi bi-save me-2"></i>Save Draft
+                                </button>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-lg" id="sendButton">
+                                <i class="bi bi-send-fill me-2"></i>Send Message
+                                <span class="spinner-border spinner-border-sm ms-2 d-none" id="sendSpinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tips Card -->
+    <div class="row p-3">
+        <div class="col-md-8 offset-md-2">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i>Tips for Effective Communication
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Use a clear, descriptive subject line</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Be polite and professional</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Include all necessary context</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled small">
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Check your message before sending</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Choose appropriate message type</li>
+                                <li><i class="bi bi-check-circle text-success me-2"></i>Attach relevant documents if needed</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.card {
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+#composeForm {
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.btn-outline-primary:hover,
+.btn-outline-info:hover,
+.btn-outline-warning:hover,
+.btn-outline-success:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+.alert {
+    border-left: 4px solid;
+}
+
+.alert-info {
+    border-left-color: #0dcaf0;
+}
+
+.form-label {
+    color: #495057;
+}
+
+@media (max-width: 768px) {
+    .col-md-8.offset-md-2 {
+        offset: 0;
+    }
+    
+    .btn-lg {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column;
+    }
+}
+
+@media print {
+    .btn, .card-header {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subjectInput = document.getElementById('subject');
+    const messageInput = document.getElementById('message');
+    const attachmentInput = document.getElementById('attachment');
+    const attachmentPreview = document.getElementById('attachmentPreview');
+    const attachmentName = document.getElementById('attachmentName');
+    const attachmentSize = document.getElementById('attachmentSize');
+    const subjectCounter = document.getElementById('subjectCounter');
+    const messageCounter = document.getElementById('messageCounter');
+    const sendButton = document.getElementById('sendButton');
+    const sendSpinner = document.getElementById('sendSpinner');
+    
+    // Character counters
+    subjectInput.addEventListener('input', function() {
+        subjectCounter.textContent = this.value.length;
+    });
+    
+    messageInput.addEventListener('input', function() {
+        messageCounter.textContent = this.value.length;
+    });
+    
+    // Auto-resize textarea
+    messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    });
+    
+    // Handle attachment selection
+    attachmentInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            attachmentName.textContent = file.name;
+            attachmentSize.textContent = '(' + formatFileSize(file.size) + ')';
+            attachmentPreview.style.display = 'block';
+        }
+    });
+    
+    // Remove attachment
+    window.removeAttachment = function() {
+        attachmentInput.value = '';
+        attachmentPreview.style.display = 'none';
+    };
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Form submission
+    document.getElementById('composeForm').addEventListener('submit', function(e) {
+        sendButton.disabled = true;
+        sendSpinner.classList.remove('d-none');
+        sendButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Sending... <span class="spinner-border spinner-border-sm ms-2"></span>';
+    });
+    
+    // Quick templates
+    window.insertTemplate = function(type) {
+        const templates = {
+            academic: "Dear [Lecturer's Name],\n\nI hope this message finds you well. I am writing to seek clarification regarding [specific topic/course/assignment].\n\n[Your specific question here]\n\nI would be grateful for your guidance on this matter.\n\nThank you for your time and consideration.\n\nBest regards,\n[Your Name]\n[Student ID]",
+            
+            appointment: "Dear [Lecturer's Name],\n\nI hope you are doing well. I would like to request an appointment to discuss [specific matter].\n\nI am available on the following days and times:\n- [Day 1]: [Time]\n- [Day 2]: [Time]\n- [Day 3]: [Time]\n\nPlease let me know which time works best for you.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]\n[Student ID]",
+            
+            clarification: "Dear [Lecturer's Name],\n\nI hope this message finds you well. I need some clarification on [specific topic/concept/assignment].\n\nSpecifically, I would like to understand:\n1. [Point 1]\n2. [Point 2]\n3. [Point 3]\n\nI have reviewed the course materials but would appreciate your further explanation.\n\nThank you for your assistance.\n\nBest regards,\n[Your Name]\n[Student ID]",
+            
+            thank: "Dear [Lecturer's Name],\n\nI hope you are doing well. I wanted to take a moment to thank you for [specific reason - help, guidance, support, etc.].\n\n[Elaborate on how their help made a difference]\n\nYour support means a lot to me, and I truly appreciate your dedication to helping students succeed.\n\nThank you once again.\n\nBest regards,\n[Your Name]\n[Student ID]"
+        };
+        
+        if (templates[type]) {
+            messageInput.value = templates[type];
+            messageInput.focus();
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+            messageCounter.textContent = messageInput.value.length;
+        }
+    };
+    
+    // Save draft function (placeholder)
+    window.saveDraft = function() {
+        // This would typically save to localStorage or send to server
+        alert('Draft saved! (This is a demo - actual implementation would save to server)');
+    };
+    
+    // Form validation
+    document.getElementById('composeForm').addEventListener('submit', function(e) {
+        const recipient = document.getElementById('recipient').value;
+        const messageType = document.getElementById('message_type').value;
+        const subject = document.getElementById('subject').value.trim();
+        const message = document.getElementById('message').value.trim();
+        
+        if (!recipient || !messageType || !subject || !message) {
+            e.preventDefault();
+            alert('Please fill in all required fields.');
+            sendButton.disabled = false;
+            sendSpinner.classList.add('d-none');
+            sendButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Send Message';
+        }
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }} alert-dismissible fade show">
+            <i class="bi {% if msg.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid onprintContainer" style="height: calc(100vh - 100px);">
+    <div class="row h-100">
+        <!-- Back Button for Mobile -->
+        <div class="col-12 d-md-none p-2">
+            <a href="{% url 'messages_inbox' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Messages
+            </a>
+        </div>
+        
+        <!-- Message Thread -->
+        <div class="col-12 p-0">
+            <div class="card shadow-sm h-100 rounded-0">
+                <!-- Chat Header -->
+                <div class="card-header bg-success text-white p-3">
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'messages_inbox' %}" class="btn btn-sm btn-outline-light me-3 d-none d-md-inline-block">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                        
+                        <!-- Sender Avatar -->
+                        <div class="me-3">
+                            <div class="avatar bg-white text-success d-flex align-items-center justify-content-center rounded-circle" 
+                                 style="width: 40px; height: 40px; font-size: 16px; font-weight: bold;">
+                                {{ message.sender.first_name|first|default:message.sender.username|first|upper }}
+                            </div>
+                        </div>
+                        
+                        <!-- Sender Info -->
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 fw-bold">{{ message.sender.get_full_name|default:message.sender.username }}</h6>
+                            <small class="opacity-75">
+                                {{ message.sender.get_user_type_display }} • 
+                                {% if message.sender.lecturer_profile %}
+                                    {{ message.sender.lecturer_profile.department.name }}
+                                {% elif message.sender.staff_profile %}
+                                    {{ message.sender.staff_profile.designation }}
+                                {% else %}
+                                    {{ message.sender.user_type|title }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'reply_message' message.id %}">
+                                    <i class="bi bi-reply me-2"></i>Reply
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-warning" href="#">
+                                    <i class="bi bi-star me-2"></i>{% if message.is_starred %}Unstar{% else %}Star{% endif %}
+                                </a></li>
+                                <li><a class="dropdown-item text-danger" href="#">
+                                    <i class="bi bi-trash me-2"></i>Delete
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Messages Area -->
+                <div class="card-body p-0 d-flex flex-column" style="height: calc(100vh - 200px); background: #f0f2f5;">
+                    <!-- Messages Container -->
+                    <div class="flex-grow-1 overflow-auto p-3" id="messagesContainer">
+                        <!-- Original Message -->
+                        <div class="message-bubble received mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <div class="avatar bg-gradient-primary text-white d-flex align-items-center justify-content-center rounded-circle" 
+                                         style="width: 36px; height: 36px; font-size: 14px;">
+                                        {{ message.sender.first_name|first|default:message.sender.username|first|upper }}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="message-content bg-white rounded-3 p-3 shadow-sm">
+                                        <!-- Message Header -->
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">{{ message.subject }}</h6>
+                                                <span class="badge bg-{% if message.message_type == 'academic' %}info{% elif message.message_type == 'administrative' %}warning{% elif message.message_type == 'complaint' %}danger{% else %}secondary{% endif %} badge-sm">
+                                                    {{ message.get_message_type_display }}
+                                                </span>
+                                                {% if message.priority == 'urgent' %}
+                                                <span class="badge bg-danger badge-sm ms-1">Urgent</span>
+                                                {% endif %}
+                                            </div>
+                                            <small class="text-muted">{{ message.sent_date|date:"M d, Y H:i" }}</small>
+                                        </div>
+                                        
+                                        <!-- Message Body -->
+                                        <div class="message-text">
+                                            {{ message.message|linebreaks }}
+                                        </div>
+                                        
+                                        <!-- Attachment -->
+                                        {% if message.attachment %}
+                                        <div class="attachment mt-3 p-2 bg-light rounded">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-paperclip text-primary me-2"></i>
+                                                <div class="flex-grow-1">
+                                                    <small class="fw-medium">{{ message.attachment.name }}</small><br>
+                                                    <small class="text-muted">{{ message.attachment.size|filesizeformat }}</small>
+                                                </div>
+                                                <a href="{{ message.attachment.url }}" class="btn btn-sm btn-outline-primary" download>
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Read Receipt -->
+                                        <div class="mt-2 text-end">
+                                            <small class="text-muted">
+                                                {% if message.is_read %}
+                                                <i class="bi bi-check2-all text-primary"></i> Read {{ message.read_date|timesince }} ago
+                                                {% else %}
+                                                <i class="bi bi-check2"></i> Delivered
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Replies -->
+                        {% for reply in replies %}
+                        <div class="message-bubble {% if reply.sender == request.user %}sent{% else %}received{% endif %} mb-3">
+                            <div class="d-flex {% if reply.sender == request.user %}justify-content-end{% endif %}">
+                                {% if reply.sender != request.user %}
+                                <div class="me-3">
+                                    <div class="avatar bg-gradient-secondary text-white d-flex align-items-center justify-content-center rounded-circle" 
+                                         style="width: 36px; height: 36px; font-size: 14px;">
+                                        {{ reply.sender.first_name|first|default:reply.sender.username|first|upper }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <div class="message-content {% if reply.sender == request.user %}bg-success text-white{% else %}bg-white{% endif %} rounded-3 p-3 shadow-sm" style="max-width: 70%;">
+                                    <!-- Reply Header -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="{% if reply.sender == request.user %}text-white-50{% else %}text-muted{% endif %}">
+                                            {{ reply.sender.get_full_name|default:reply.sender.username }}
+                                        </small>
+                                        <small class="{% if reply.sender == request.user %}text-white-50{% else %}text-muted{% endif %}">
+                                            {{ reply.sent_date|date:"M d, H:i" }}
+                                        </small>
+                                    </div>
+                                    
+                                    <!-- Reply Text -->
+                                    <div class="message-text">
+                                        {{ reply.message|linebreaks }}
+                                    </div>
+                                    
+                                    <!-- Reply Attachment -->
+                                    {% if reply.attachment %}
+                                    <div class="attachment mt-2 p-2 {% if reply.sender == request.user %}bg-success-light{% else %}bg-light{% endif %} rounded">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-paperclip me-2"></i>
+                                            <div class="flex-grow-1">
+                                                <small class="fw-medium">{{ reply.attachment.name }}</small>
+                                            </div>
+                                            <a href="{{ reply.attachment.url }}" class="btn btn-sm btn-outline-{% if reply.sender == request.user %}light{% else %}primary{% endif %}" download>
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Read Receipt for Sent Messages -->
+                                    {% if reply.sender == request.user %}
+                                    <div class="mt-1 text-end">
+                                        <small class="text-white-50">
+                                            {% if reply.is_read %}
+                                            <i class="bi bi-check2-all"></i> Read
+                                            {% else %}
+                                            <i class="bi bi-check2"></i> Delivered
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% if reply.sender == request.user %}
+                                <div class="ms-3">
+                                    <div class="avatar bg-gradient-success text-white d-flex align-items-center justify-content-center rounded-circle" 
+                                         style="width: 36px; height: 36px; font-size: 14px;">
+                                        {{ reply.sender.first_name|first|default:reply.sender.username|first|upper }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Reply Input Area -->
+                    <div class="border-top bg-white p-3">
+                        <div class="d-flex align-items-end gap-2">
+                            <div class="flex-grow-1">
+                                <form method="POST" action="{% url 'reply_message' message.id %}" enctype="multipart/form-data" id="replyForm">
+                                    {% csrf_token %}
+                                    <div class="input-group">
+                                        <textarea class="form-control border-0 bg-light" name="message" rows="1" 
+                                                placeholder="Type your reply..." id="replyInput" 
+                                                style="resize: none; border-radius: 20px;"></textarea>
+                                        <input type="file" name="attachment" id="attachmentInput" style="display: none;" accept="*/*">
+                                    </div>
+                                </form>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary rounded-circle" onclick="document.getElementById('attachmentInput').click()">
+                                <i class="bi bi-paperclip"></i>
+                            </button>
+                            <button type="button" class="btn btn-success rounded-circle" onclick="document.getElementById('replyForm').submit()">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Attachment Preview -->
+                        <div id="attachmentPreview" class="mt-2" style="display: none;">
+                            <div class="alert alert-info py-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <i class="bi bi-paperclip me-2"></i>
+                                        <span id="attachmentName"></span>
+                                    </div>
+                                    <button type="button" class="btn-close btn-sm" onclick="removeAttachment()"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.message-bubble {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-content {
+    position: relative;
+    word-wrap: break-word;
+}
+
+.message-bubble.sent .message-content::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    bottom: 20px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-left-color: #198754;
+    border-right: 0;
+    margin-top: -8px;
+}
+
+.message-bubble.received .message-content::after {
+    content: '';
+    position: absolute;
+    left: -8px;
+    bottom: 20px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right-color: #ffffff;
+    border-left: 0;
+    margin-top: -8px;
+}
+
+.badge-sm {
+    font-size: 0.7em;
+    padding: 0.25em 0.5em;
+}
+
+.attachment {
+    border: 1px dashed #dee2e6;
+}
+
+.bg-success-light {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+#replyInput {
+    max-height: 100px;
+}
+
+#messagesContainer {
+    scroll-behavior: smooth;
+}
+
+#messagesContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#messagesContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#messagesContainer::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#messagesContainer::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        height: auto !important;
+    }
+    
+    .card-body {
+        height: 60vh !important;
+    }
+    
+    .message-content {
+        max-width: 85% !important;
+    }
+}
+
+@media print {
+    .card-header, .border-top, .btn {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesContainer = document.getElementById('messagesContainer');
+    const replyInput = document.getElementById('replyInput');
+    const attachmentInput = document.getElementById('attachmentInput');
+    const attachmentPreview = document.getElementById('attachmentPreview');
+    const attachmentName = document.getElementById('attachmentName');
+    
+    // Scroll to bottom of messages
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Auto-resize textarea
+    replyInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+    
+    // Handle Enter key to send message
+    replyInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (this.value.trim()) {
+                document.getElementById('replyForm').submit();
+            }
+        }
+    });
+    
+    // Handle attachment selection
+    attachmentInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            attachmentName.textContent = file.name;
+            attachmentPreview.style.display = 'block';
+        }
+    });
+    
+    // Remove attachment
+    window.removeAttachment = function() {
+        attachmentInput.value = '';
+        attachmentPreview.style.display = 'none';
+    };
+    
+    // Mark message as read (if not already)
+    {% if not message.is_read %}
+    // This would typically be handled by the view when the page loads
+    {% endif %}
+});
+</script>
+
+{% endblock %}
