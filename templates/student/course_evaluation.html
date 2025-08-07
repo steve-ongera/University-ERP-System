@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <!-- Sample success message -->
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>
+            Your course evaluation has been submitted successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Course Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Introduction to Computer Science</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">CS101</span> | 
+                            <span class="badge bg-danger">
+                                Core Course
+                            </span> |
+                            <span class="badge bg-info">3 Credits</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>Faculty of Science - Computer Science Department
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>Dr. John Smith (Professor)
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>2023 - Semester 1
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">A</h4>
+                            <small class="text-muted">Final Grade</small>
+                            <br><small class="text-muted">4.0 GPA</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="#" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Course Evaluation</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <div class="mb-4">
+                            <h6 class="fw-bold">1. Course Content</h6>
+                            <div class="form-group mb-3">
+                                <label class="form-label">The course content was well organized</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="content_organized" id="content_organized5" value="5">
+                                    <label class="form-check-label" for="content_organized5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="content_organized" id="content_organized4" value="4">
+                                    <label class="form-check-label" for="content_organized4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="content_organized" id="content_organized3" value="3">
+                                    <label class="form-check-label" for="content_organized3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="content_organized" id="content_organized2" value="2">
+                                    <label class="form-check-label" for="content_organized2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="content_organized" id="content_organized1" value="1">
+                                    <label class="form-check-label" for="content_organized1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label">The course materials were relevant and useful</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="materials_relevant" id="materials_relevant5" value="5">
+                                    <label class="form-check-label" for="materials_relevant5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="materials_relevant" id="materials_relevant4" value="4">
+                                    <label class="form-check-label" for="materials_relevant4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="materials_relevant" id="materials_relevant3" value="3">
+                                    <label class="form-check-label" for="materials_relevant3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="materials_relevant" id="materials_relevant2" value="2">
+                                    <label class="form-check-label" for="materials_relevant2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="materials_relevant" id="materials_relevant1" value="1">
+                                    <label class="form-check-label" for="materials_relevant1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6 class="fw-bold">2. Instructor Evaluation</h6>
+                            <div class="form-group mb-3">
+                                <label class="form-label">The instructor was knowledgeable about the subject matter</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_knowledge" id="instructor_knowledge5" value="5">
+                                    <label class="form-check-label" for="instructor_knowledge5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_knowledge" id="instructor_knowledge4" value="4">
+                                    <label class="form-check-label" for="instructor_knowledge4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_knowledge" id="instructor_knowledge3" value="3">
+                                    <label class="form-check-label" for="instructor_knowledge3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_knowledge" id="instructor_knowledge2" value="2">
+                                    <label class="form-check-label" for="instructor_knowledge2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_knowledge" id="instructor_knowledge1" value="1">
+                                    <label class="form-check-label" for="instructor_knowledge1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label">The instructor was available for consultation outside class</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_available" id="instructor_available5" value="5">
+                                    <label class="form-check-label" for="instructor_available5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_available" id="instructor_available4" value="4">
+                                    <label class="form-check-label" for="instructor_available4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_available" id="instructor_available3" value="3">
+                                    <label class="form-check-label" for="instructor_available3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_available" id="instructor_available2" value="2">
+                                    <label class="form-check-label" for="instructor_available2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="instructor_available" id="instructor_available1" value="1">
+                                    <label class="form-check-label" for="instructor_available1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6 class="fw-bold">3. Assignments and Assessments</h6>
+                            <div class="form-group mb-3">
+                                <label class="form-label">The assignments were appropriate for the course level</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignments_appropriate" id="assignments_appropriate5" value="5">
+                                    <label class="form-check-label" for="assignments_appropriate5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignments_appropriate" id="assignments_appropriate4" value="4">
+                                    <label class="form-check-label" for="assignments_appropriate4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignments_appropriate" id="assignments_appropriate3" value="3">
+                                    <label class="form-check-label" for="assignments_appropriate3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignments_appropriate" id="assignments_appropriate2" value="2">
+                                    <label class="form-check-label" for="assignments_appropriate2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignments_appropriate" id="assignments_appropriate1" value="1">
+                                    <label class="form-check-label" for="assignments_appropriate1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label">The grading system was fair and transparent</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="grading_fair" id="grading_fair5" value="5">
+                                    <label class="form-check-label" for="grading_fair5">Strongly Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="grading_fair" id="grading_fair4" value="4">
+                                    <label class="form-check-label" for="grading_fair4">Agree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="grading_fair" id="grading_fair3" value="3">
+                                    <label class="form-check-label" for="grading_fair3">Neutral</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="grading_fair" id="grading_fair2" value="2">
+                                    <label class="form-check-label" for="grading_fair2">Disagree</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="grading_fair" id="grading_fair1" value="1">
+                                    <label class="form-check-label" for="grading_fair1">Strongly Disagree</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6 class="fw-bold">4. Overall Course Evaluation</h6>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Overall, I would rate this course as</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="overall_rating" id="overall_rating5" value="5">
+                                    <label class="form-check-label" for="overall_rating5">Excellent</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="overall_rating" id="overall_rating4" value="4">
+                                    <label class="form-check-label" for="overall_rating4">Very Good</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="overall_rating" id="overall_rating3" value="3">
+                                    <label class="form-check-label" for="overall_rating3">Good</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="overall_rating" id="overall_rating2" value="2">
+                                    <label class="form-check-label" for="overall_rating2">Fair</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="overall_rating" id="overall_rating1" value="1">
+                                    <label class="form-check-label" for="overall_rating1">Poor</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="comments" class="form-label">Additional comments or suggestions for improvement:</label>
+                                <textarea class="form-control" id="comments" rows="3"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send-check me-1"></i> Submit Evaluation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.form-check-label {
+    margin-left: 5px;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+</style>
+
+{% endblock %}

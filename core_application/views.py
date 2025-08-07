@@ -8641,3 +8641,6 @@ def notifications(request):
         'page_obj': page_obj,
     }
     return render(request, 'student/student_notifications.html', context)
+
+def course_evaluation(request):
+    return render (request , 'student/course_evaluation.html')

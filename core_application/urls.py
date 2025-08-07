@@ -16,6 +16,7 @@ urlpatterns = [
     path('course-details/<int:course_id>/', views.course_details_ajax, name='course_details'),
     path('reporting/', views.student_reporting, name='student_reporting'),
     path('news/', views.student_news, name='student_news'),
+    path('course_evaluation/', views.course_evaluation , name='course_evaluation'),
     # Events
     path('events/', views.student_events, name='student_events'),
     path('events/register/<int:event_id>/', views.register_event, name='register_event'),
