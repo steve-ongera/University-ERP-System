@@ -1,0 +1,1026 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Academic Year Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="fw-bold text-primary">
+                <i class="bi bi-calendar-event me-2"></i>Academic Year Management
+            </h2>
+            <p class="text-muted">Manage academic years, semesters, and registration periods</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addYearModal">
+                <i class="bi bi-plus-circle me-1"></i>Add Academic Year
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Messages Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Current Status Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-check display-4 mb-2"></i>
+                    <h5>Current Academic Year</h5>
+                    <h4 id="currentYearText">
+                        {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %}
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar2-week display-4 mb-2"></i>
+                    <h5>Current Semester</h5>
+                    <h4 id="currentSemesterText">
+                        {% if current_semester %}Semester {{ current_semester.semester_number }}{% else %}Not Set{% endif %}
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar3 display-4 mb-2"></i>
+                    <h5>Total Academic Years</h5>
+                    <h4 id="totalYearsText">{{ total_academic_years }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people display-4 mb-2"></i>
+                    <h5>Active Students</h5>
+                    <h4 id="activeStudentsText">{{ active_students }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Years Management -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0 fw-bold">Academic Years & Semesters</h5>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadAcademicYears()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading academic years...</p>
+            </div>
+
+            <!-- Academic Years Tabs -->
+            <div id="academicYearsContainer">
+                <ul class="nav nav-tabs" id="academicYearsTabs" role="tablist">
+                    <!-- Tabs will be populated by JavaScript -->
+                </ul>
+                <div class="tab-content mt-3" id="academicYearsTabsContent">
+                    <!-- Tab content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Academic Year Modal -->
+<div class="modal fade" id="addYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Academic Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addYearForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Academic Year</label>
+                            <input type="text" class="form-control" id="addYearName" placeholder="e.g., 2024/2025" required>
+                            <div class="form-text">Format: YYYY/YYYY</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="addYearStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="addYearEndDate" required>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="addYearIsCurrent">
+                                <label class="form-check-label" for="addYearIsCurrent">
+                                    Set as Current Academic Year
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Add Academic Year
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Academic Year Modal -->
+<div class="modal fade" id="editYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Academic Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editYearForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editYearId">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Academic Year</label>
+                            <input type="text" class="form-control" id="editYearName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="editYearStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="editYearEndDate" required>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editYearIsCurrent">
+                                <label class="form-check-label" for="editYearIsCurrent">
+                                    Set as Current Academic Year
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Update Academic Year
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Semester Modal -->
+<div class="modal fade" id="addSemesterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Semester</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addSemesterForm">
+                <div class="modal-body">
+                    <input type="hidden" id="addSemesterYearId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester Number</label>
+                            <select class="form-select" id="addSemesterNumber" required>
+                                <option value="">Select Semester</option>
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                                <option value="3">Semester 3</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="addSemesterIsCurrent">
+                                <label class="form-check-label" for="addSemesterIsCurrent">
+                                    Set as Current Semester
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester Start Date</label>
+                            <input type="date" class="form-control" id="addSemesterStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester End Date</label>
+                            <input type="date" class="form-control" id="addSemesterEndDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Registration Start Date</label>
+                            <input type="date" class="form-control" id="addSemesterRegStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Registration End Date</label>
+                            <input type="date" class="form-control" id="addSemesterRegEndDate" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Add Semester
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Semester Modal -->
+<div class="modal fade" id="editSemesterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Semester</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editSemesterForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editSemesterId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester Number</label>
+                            <select class="form-select" id="editSemesterNumber" required>
+                                <option value="1">Semester 1</option>
+                                <option value="2">Semester 2</option>
+                                <option value="3">Semester 3</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="editSemesterIsCurrent">
+                                <label class="form-check-label" for="editSemesterIsCurrent">
+                                    Set as Current Semester
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester Start Date</label>
+                            <input type="date" class="form-control" id="editSemesterStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Semester End Date</label>
+                            <input type="date" class="form-control" id="editSemesterEndDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Registration Start Date</label>
+                            <input type="date" class="form-control" id="editSemesterRegStartDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Registration End Date</label>
+                            <input type="date" class="form-control" id="editSemesterRegEndDate" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Update Semester
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Semester Registrations Modal -->
+<div class="modal fade" id="semesterRegistrationsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Semester Registrations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="semesterRegistrationsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Global variables
+    let academicYears = [];
+    
+    // Document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAcademicYears();
+        
+        // Form event listeners
+        setupFormEventListeners();
+    });
+
+    // Setup form event listeners
+    function setupFormEventListeners() {
+        // Add Academic Year Form
+        document.getElementById('addYearForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            createAcademicYear();
+        });
+
+        // Edit Academic Year Form
+        document.getElementById('editYearForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            updateAcademicYear();
+        });
+
+        // Add Semester Form
+        document.getElementById('addSemesterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            createSemester();
+        });
+
+        // Edit Semester Form
+        document.getElementById('editSemesterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            updateSemester();
+        });
+    }
+
+    // Load academic years from server
+    function loadAcademicYears() {
+        showLoading(true);
+        
+        fetch("{% url 'get_academic_years' %}")
+            .then(response => response.json())
+            .then(data => {
+                academicYears = data.academic_years;
+                renderAcademicYears();
+                updateCurrentStatus();
+                showLoading(false);
+            })
+            .catch(error => {
+                console.error('Error loading academic years:', error);
+                showAlert('Error loading academic years', 'danger');
+                showLoading(false);
+            });
+    }
+
+    // Render academic years tabs and content
+    function renderAcademicYears() {
+        const tabsContainer = document.getElementById('academicYearsTabs');
+        const contentContainer = document.getElementById('academicYearsTabsContent');
+        
+        if (academicYears.length === 0) {
+            tabsContainer.innerHTML = '<li class="nav-item"><span class="nav-link text-muted">No academic years found</span></li>';
+            contentContainer.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-calendar-x display-4 mb-3"></i><p>No academic years created yet. Click "Add Academic Year" to get started.</p></div>';
+            return;
+        }
+
+        // Generate tabs
+        let tabsHtml = '';
+        let contentHtml = '';
+        
+        academicYears.forEach((year, index) => {
+            const isActive = index === 0 ? 'active' : '';
+            const isCurrentBadge = year.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
+            
+            tabsHtml += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ${isActive}" id="year-${year.id}-tab" data-bs-toggle="tab" 
+                            data-bs-target="#year-${year.id}" type="button" role="tab">
+                        ${year.year} ${isCurrentBadge}
+                    </button>
+                </li>
+            `;
+            
+            contentHtml += `
+                <div class="tab-pane fade ${isActive} show" id="year-${year.id}" role="tabpanel">
+                    ${renderAcademicYearContent(year)}
+                </div>
+            `;
+        });
+        
+        tabsContainer.innerHTML = tabsHtml;
+        contentContainer.innerHTML = contentHtml;
+    }
+
+    // Render individual academic year content
+    function renderAcademicYearContent(year) {
+        const currentBadge = year.is_current ? '<span class="badge bg-success">Current</span>' : '';
+        
+        let semestersHtml = '';
+        if (year.semesters.length === 0) {
+            semestersHtml = '<div class="text-center py-4 text-muted">No semesters created for this academic year.</div>';
+        } else {
+            year.semesters.forEach(semester => {
+                const semesterCurrentBadge = semester.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
+                
+                semestersHtml += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Semester ${semester.semester_number} ${semesterCurrentBadge}</h6>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" onclick="viewSemesterRegistrations(${semester.id})">
+                                        <i class="bi bi-people"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="editSemester(${semester.id})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-success" onclick="setCurrentSemester(${semester.id})">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteSemester(${semester.id})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <small class="text-muted">Duration:</small>
+                                        <div>${formatDate(semester.start_date)} - ${formatDate(semester.end_date)}</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <small class="text-muted">Registration:</small>
+                                        <div>${formatDate(semester.registration_start_date)} - ${formatDate(semester.registration_end_date)}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">Statistics:</small>
+                                    <div>Total Students: ${semester.stats?.total_students || 0}</div>
+                                    <div>Registrations: ${semester.stats?.registrations || 0}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        return `
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <h5 class="fw-bold">${year.year} ${currentBadge}</h5>
+                    <p class="text-muted mb-1">
+                        <i class="bi bi-calendar-range me-2"></i>
+                        ${formatDate(year.start_date)} - ${formatDate(year.end_date)}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary btn-sm" onclick="addSemester(${year.id})">
+                            <i class="bi bi-plus me-1"></i>Add Semester
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="editAcademicYear(${year.id})">
+                            <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                        ${!year.is_current ? `<button class="btn btn-outline-success btn-sm" onclick="setCurrentAcademicYear(${year.id})">
+                            <i class="bi bi-check-circle me-1"></i>Set Current
+                        </button>` : ''}
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAcademicYear(${year.id})">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                ${semestersHtml}
+            </div>
+        `;
+    }
+
+    // Create academic year
+    function createAcademicYear() {
+        const formData = {
+            year: document.getElementById('addYearName').value,
+            start_date: document.getElementById('addYearStartDate').value,
+            end_date: document.getElementById('addYearEndDate').value,
+            is_current: document.getElementById('addYearIsCurrent').checked
+        };
+
+        fetch("{% url 'create_academic_year' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
+                document.getElementById('addYearForm').reset();
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating academic year:', error);
+            showAlert('Error creating academic year', 'danger');
+        });
+    }
+
+    // Edit academic year
+    function editAcademicYear(yearId) {
+        const year = academicYears.find(y => y.id === yearId);
+        if (!year) return;
+
+        document.getElementById('editYearId').value = year.id;
+        document.getElementById('editYearName').value = year.year;
+        document.getElementById('editYearStartDate').value = year.start_date;
+        document.getElementById('editYearEndDate').value = year.end_date;
+        document.getElementById('editYearIsCurrent').checked = year.is_current;
+
+        new bootstrap.Modal(document.getElementById('editYearModal')).show();
+    }
+
+    // Update academic year
+    function updateAcademicYear() {
+        const yearId = document.getElementById('editYearId').value;
+        const formData = {
+            year: document.getElementById('editYearName').value,
+            start_date: document.getElementById('editYearStartDate').value,
+            end_date: document.getElementById('editYearEndDate').value,
+            is_current: document.getElementById('editYearIsCurrent').checked
+        };
+
+        fetch(`/academics/api/academic-years/${yearId}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editYearModal')).hide();
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating academic year:', error);
+            showAlert('Error updating academic year', 'danger');
+        });
+    }
+
+    // Delete academic year
+    function deleteAcademicYear(yearId) {
+        const year = academicYears.find(y => y.id === yearId);
+        if (!year) return;
+
+        if (!confirm(`Are you sure you want to delete academic year "${year.year}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        fetch(`/academics/api/academic-years/${yearId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting academic year:', error);
+            showAlert('Error deleting academic year', 'danger');
+        });
+    }
+
+    // Set current academic year
+    function setCurrentAcademicYear(yearId) {
+        fetch(`/academics/api/academic-years/${yearId}/set-current/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error setting current academic year:', error);
+            showAlert('Error setting current academic year', 'danger');
+        });
+    }
+
+    // Add semester
+    function addSemester(yearId) {
+        document.getElementById('addSemesterYearId').value = yearId;
+        new bootstrap.Modal(document.getElementById('addSemesterModal')).show();
+    }
+
+    // Create semester
+    function createSemester() {
+        const yearId = document.getElementById('addSemesterYearId').value;
+        const formData = {
+            semester_number: document.getElementById('addSemesterNumber').value,
+            start_date: document.getElementById('addSemesterStartDate').value,
+            end_date: document.getElementById('addSemesterEndDate').value,
+            registration_start_date: document.getElementById('addSemesterRegStartDate').value,
+            registration_end_date: document.getElementById('addSemesterRegEndDate').value,
+            is_current: document.getElementById('addSemesterIsCurrent').checked
+        };
+
+        fetch(`/academics/api/academic-years/${yearId}/semesters/create/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('addSemesterModal')).hide();
+                document.getElementById('addSemesterForm').reset();
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating semester:', error);
+            showAlert('Error creating semester', 'danger');
+        });
+    }
+
+    // Edit semester
+    function editSemester(semesterId) {
+        let semester = null;
+        for (let year of academicYears) {
+            semester = year.semesters.find(s => s.id === semesterId);
+            if (semester) break;
+        }
+        if (!semester) return;
+
+        document.getElementById('editSemesterId').value = semester.id;
+        document.getElementById('editSemesterNumber').value = semester.semester_number;
+        document.getElementById('editSemesterStartDate').value = semester.start_date;
+        document.getElementById('editSemesterEndDate').value = semester.end_date;
+        document.getElementById('editSemesterRegStartDate').value = semester.registration_start_date;
+        document.getElementById('editSemesterRegEndDate').value = semester.registration_end_date;
+        document.getElementById('editSemesterIsCurrent').checked = semester.is_current;
+
+        new bootstrap.Modal(document.getElementById('editSemesterModal')).show();
+    }
+
+    // Update semester
+    function updateSemester() {
+        const semesterId = document.getElementById('editSemesterId').value;
+        const formData = {
+            semester_number: document.getElementById('editSemesterNumber').value,
+            start_date: document.getElementById('editSemesterStartDate').value,
+            end_date: document.getElementById('editSemesterEndDate').value,
+            registration_start_date: document.getElementById('editSemesterRegStartDate').value,
+            registration_end_date: document.getElementById('editSemesterRegEndDate').value,
+            is_current: document.getElementById('editSemesterIsCurrent').checked
+        };
+
+        fetch(`/academics/api/semesters/${semesterId}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editSemesterModal')).hide();
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating semester:', error);
+            showAlert('Error updating semester', 'danger');
+        });
+    }
+
+    // Delete semester
+    function deleteSemester(semesterId) {
+        let semester = null;
+        for (let year of academicYears) {
+            semester = year.semesters.find(s => s.id === semesterId);
+            if (semester) break;
+        }
+        if (!semester) return;
+
+        if (!confirm(`Are you sure you want to delete Semester ${semester.semester_number}? This action cannot be undone.`)) {
+            return;
+        }
+
+        fetch(`/academics/api/semesters/${semesterId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting semester:', error);
+            showAlert('Error deleting semester', 'danger');
+        });
+    }
+
+    // Set current semester
+    function setCurrentSemester(semesterId) {
+        fetch(`/academics/api/semesters/${semesterId}/set-current/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadAcademicYears();
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error setting current semester:', error);
+            showAlert('Error setting current semester', 'danger');
+        });
+    }
+
+    // View semester registrations
+    function viewSemesterRegistrations(semesterId) {
+        fetch(`/academics/api/semesters/${semesterId}/registrations/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderSemesterRegistrations(data);
+                    new bootstrap.Modal(document.getElementById('semesterRegistrationsModal')).show();
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading semester registrations:', error);
+                showAlert('Error loading semester registrations', 'danger');
+            });
+    }
+
+    // Render semester registrations modal content
+    function renderSemesterRegistrations(data) {
+        const container = document.getElementById('semesterRegistrationsContent');
+        
+        let html = `
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h6 class="fw-bold">${data.semester.name} - ${data.semester.academic_year}</h6>
+                    <p class="text-muted mb-1">
+                        Registration Period: ${formatDate(data.semester.registration_start)} - ${formatDate(data.semester.registration_end)}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="badge bg-primary fs-6">Total Registrations: ${data.total_registrations}</div>
+                </div>
+            </div>
+        `;
+
+        if (data.programmes.length === 0) {
+            html += '<div class="text-center py-4 text-muted">No programme registrations found for this semester.</div>';
+        } else {
+            html += `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Programme Code</th>
+                                <th>Programme Name</th>
+                                <th>Type</th>
+                                <th>Department</th>
+                                <th class="text-center">Registrations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.programmes.forEach(programme => {
+                html += `
+                    <tr>
+                        <td><span class="badge bg-light text-dark">${programme.code}</span></td>
+                        <td>${programme.name}</td>
+                        <td>${programme.programme_type}</td>
+                        <td>${programme.department}</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">${programme.enrollment_count}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    // Update current status display
+    function updateCurrentStatus() {
+        let currentYear = academicYears.find(y => y.is_current);
+        let currentSemester = null;
+        
+        if (currentYear) {
+            currentSemester = currentYear.semesters.find(s => s.is_current);
+        }
+
+        document.getElementById('currentYearText').textContent = currentYear ? currentYear.year : 'Not Set';
+        document.getElementById('currentSemesterText').textContent = currentSemester ? `Semester ${currentSemester.semester_number}` : 'Not Set';
+        document.getElementById('totalYearsText').textContent = academicYears.length;
+    }
+
+    // Utility functions
+    function showLoading(show) {
+        const spinner = document.getElementById('loadingSpinner');
+        const container = document.getElementById('academicYearsContainer');
+        
+        if (show) {
+            spinner.style.display = 'block';
+            container.style.display = 'none';
+        } else {
+            spinner.style.display = 'none';
+            container.style.display = 'block';
+        }
+    }
+
+    function showAlert(message, type = 'info') {
+        const alertContainer = document.getElementById('alertContainer');
+        const alertId = 'alert-' + Date.now();
+        
+        const alertHtml = `
+            <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="bi bi-${getAlertIcon(type)} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                const bsAlert = bootstrap.Alert.getInstance(alert);
+                if (bsAlert) {
+                    bsAlert.close();
+                }
+            }
+        }, 5000);
+    }
+
+    function getAlertIcon(type) {
+        const icons = {
+            'success': 'check-circle',
+            'danger': 'exclamation-triangle',
+            'warning': 'exclamation-circle',
+            'info': 'info-circle'
+        };
+        return icons[type] || 'info-circle';
+    }
+
+    function formatDate(dateString) {
+        const options = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        };
+        return new Date(dateString).toLocaleDateString('en-US', options);
+    }
+
+    function getCsrfToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        return '';
+    }
+
+    // Form validation helpers
+    document.getElementById('addYearStartDate').addEventListener('change', function() {
+        const startDate = this.value;
+        const endDateInput = document.getElementById('addYearEndDate');
+        if (startDate) {
+            endDateInput.min = startDate;
+        }
+    });
+
+    document.getElementById('editYearStartDate').addEventListener('change', function() {
+        const startDate = this.value;
+        const endDateInput = document.getElementById('editYearEndDate');
+        if (startDate) {
+            endDateInput.min = startDate;
+        }
+    });
+
+    document.getElementById('addSemesterStartDate').addEventListener('change', function() {
+        const startDate = this.value;
+        const endDateInput = document.getElementById('addSemesterEndDate');
+        const regStartInput = document.getElementById('addSemesterRegStartDate');
+        const regEndInput = document.getElementById('addSemesterRegEndDate');
+        
+        if (startDate) {
+            endDateInput.min = startDate;
+            regStartInput.max = startDate;
+            regEndInput.max = startDate;
+        }
+    });
+
+    document.getElementById('editSemesterStartDate').addEventListener('change', function() {
+        const startDate = this.value;
+        const endDateInput = document.getElementById('editSemesterEndDate');
+        const regStartInput = document.getElementById('editSemesterRegStartDate');
+        const regEndInput = document.getElementById('editSemesterRegEndDate');
+        
+        if (startDate) {
+            endDateInput.min = startDate;
+            regStartInput.max = startDate;
+            regEndInput.max = startDate;
+        }
+    });
+
+    document.getElementById('addSemesterRegStartDate').addEventListener('change', function() {
+        const regStartDate = this.value;
+        const regEndInput = document.getElementById('addSemesterRegEndDate');
+        if (regStartDate) {
+            regEndInput.min = regStartDate;
+        }
+    });
+
+    document.getElementById('editSemesterRegStartDate').addEventListener('change', function() {
+        const regStartDate = this.value;
+        const regEndInput = document.getElementById('editSemesterRegEndDate');
+        if (regStartDate) {
+            regEndInput.min = regStartDate;
+        }
+    });
+</script>
+{% endblock %}

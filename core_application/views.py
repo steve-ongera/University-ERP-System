@@ -8879,3 +8879,390 @@ def lecturer_profile_picture_upload(request):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.db import transaction
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.utils import timezone
+from datetime import datetime
+import json
+
+from .models import AcademicYear, Semester, Student, Programme, Enrollment
+
+
+def is_admin(user):
+    """Check if user is admin or has administrative privileges"""
+    return user.is_authenticated and user.user_type in ['admin', 'registrar']
+
+
+@login_required
+@user_passes_test(is_admin)
+def academic_management(request):
+    """Main academic year and semester management dashboard"""
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'total_academic_years': AcademicYear.objects.count(),
+        'total_semesters': Semester.objects.count(),
+        'active_students': Student.objects.filter(status='active').count(),
+    }
+    return render(request, 'admin/academic_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def get_academic_years(request):
+    """AJAX endpoint to get all academic years with their semesters"""
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    years_data = []
+    for year in academic_years:
+        semesters = []
+        for semester in year.semesters.all().order_by('semester_number'):
+            semester_stats = {
+                'total_students': Student.objects.filter(
+                    current_year__lte=semester.academic_year.end_date.year - semester.academic_year.start_date.year + 1
+                ).count(),
+                'registrations': Enrollment.objects.filter(semester=semester).count() if hasattr(semester, 'courseenrollment_set') else 0
+            }
+            
+            semesters.append({
+                'id': semester.id,
+                'semester_number': semester.semester_number,
+                'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                'is_current': semester.is_current,
+                'stats': semester_stats
+            })
+        
+        years_data.append({
+            'id': year.id,
+            'year': year.year,
+            'start_date': year.start_date.strftime('%Y-%m-%d'),
+            'end_date': year.end_date.strftime('%Y-%m-%d'),
+            'is_current': year.is_current,
+            'semesters': semesters
+        })
+    
+    return JsonResponse({'academic_years': years_data})
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def create_academic_year(request):
+    """AJAX endpoint to create a new academic year"""
+    try:
+        data = json.loads(request.body)
+        
+        with transaction.atomic():
+            academic_year = AcademicYear.objects.create(
+                year=data['year'],
+                start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
+                end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date(),
+                is_current=data.get('is_current', False)
+            )
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Academic year {academic_year.year} created successfully!',
+            'academic_year': {
+                'id': academic_year.id,
+                'year': academic_year.year,
+                'start_date': academic_year.start_date.strftime('%Y-%m-%d'),
+                'end_date': academic_year.end_date.strftime('%Y-%m-%d'),
+                'is_current': academic_year.is_current
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating academic year: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def update_academic_year(request, year_id):
+    """AJAX endpoint to update an academic year"""
+    try:
+        academic_year = get_object_or_404(AcademicYear, id=year_id)
+        data = json.loads(request.body)
+        
+        with transaction.atomic():
+            academic_year.year = data['year']
+            academic_year.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            academic_year.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+            academic_year.is_current = data.get('is_current', False)
+            academic_year.save()
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Academic year {academic_year.year} updated successfully!',
+            'academic_year': {
+                'id': academic_year.id,
+                'year': academic_year.year,
+                'start_date': academic_year.start_date.strftime('%Y-%m-%d'),
+                'end_date': academic_year.end_date.strftime('%Y-%m-%d'),
+                'is_current': academic_year.is_current
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating academic year: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def delete_academic_year(request, year_id):
+    """AJAX endpoint to delete an academic year"""
+    try:
+        academic_year = get_object_or_404(AcademicYear, id=year_id)
+        year_name = academic_year.year
+        
+        # Check if year has students or other dependencies
+        if academic_year.semesters.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'Cannot delete academic year with existing semesters. Delete semesters first.'
+            }, status=400)
+        
+        academic_year.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Academic year {year_name} deleted successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting academic year: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def create_semester(request, year_id):
+    """AJAX endpoint to create a new semester"""
+    try:
+        academic_year = get_object_or_404(AcademicYear, id=year_id)
+        data = json.loads(request.body)
+        
+        with transaction.atomic():
+            semester = Semester.objects.create(
+                academic_year=academic_year,
+                semester_number=data['semester_number'],
+                start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
+                end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date(),
+                registration_start_date=datetime.strptime(data['registration_start_date'], '%Y-%m-%d').date(),
+                registration_end_date=datetime.strptime(data['registration_end_date'], '%Y-%m-%d').date(),
+                is_current=data.get('is_current', False)
+            )
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester {semester.semester_number} created successfully!',
+            'semester': {
+                'id': semester.id,
+                'semester_number': semester.semester_number,
+                'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                'is_current': semester.is_current
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating semester: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def update_semester(request, semester_id):
+    """AJAX endpoint to update a semester"""
+    try:
+        semester = get_object_or_404(Semester, id=semester_id)
+        data = json.loads(request.body)
+        
+        with transaction.atomic():
+            semester.semester_number = data['semester_number']
+            semester.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            semester.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+            semester.registration_start_date = datetime.strptime(data['registration_start_date'], '%Y-%m-%d').date()
+            semester.registration_end_date = datetime.strptime(data['registration_end_date'], '%Y-%m-%d').date()
+            semester.is_current = data.get('is_current', False)
+            semester.save()
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester {semester.semester_number} updated successfully!',
+            'semester': {
+                'id': semester.id,
+                'semester_number': semester.semester_number,
+                'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                'is_current': semester.is_current
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating semester: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def delete_semester(request, semester_id):
+    """AJAX endpoint to delete a semester"""
+    try:
+        semester = get_object_or_404(Semester, id=semester_id)
+        semester_name = f"Semester {semester.semester_number}"
+        
+        # Check if semester has enrollments or other dependencies
+        if hasattr(semester, 'courseenrollment_set') and semester.courseenrollment_set.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'Cannot delete semester with existing course enrollments.'
+            }, status=400)
+        
+        semester.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{semester_name} deleted successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting semester: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def set_current_academic_year(request, year_id):
+    """AJAX endpoint to set current academic year"""
+    try:
+        with transaction.atomic():
+            AcademicYear.objects.filter(is_current=True).update(is_current=False)
+            academic_year = get_object_or_404(AcademicYear, id=year_id)
+            academic_year.is_current = True
+            academic_year.save()
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Academic year {academic_year.year} set as current!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error setting current academic year: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def set_current_semester(request, semester_id):
+    """AJAX endpoint to set current semester"""
+    try:
+        with transaction.atomic():
+            Semester.objects.filter(is_current=True).update(is_current=False)
+            semester = get_object_or_404(Semester, id=semester_id)
+            semester.is_current = True
+            semester.save()
+            
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester {semester.semester_number} ({semester.academic_year.year}) set as current!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error setting current semester: {str(e)}'
+        }, status=400)
+
+
+@login_required
+@user_passes_test(is_admin)
+def get_semester_registrations(request, semester_id):
+    """AJAX endpoint to get semester registration details"""
+    try:
+        semester = get_object_or_404(Semester, id=semester_id)
+        
+        # Get all programmes and their enrollments for this semester
+        programmes = Programme.objects.filter(is_active=True).annotate(
+            enrollment_count=Count('students__courseenrollment', 
+                                 filter=Q(students__courseenrollment__semester=semester))
+        )
+        
+        programmes_data = []
+        total_registrations = 0
+        
+        for programme in programmes:
+            enrollment_count = programme.enrollment_count
+            total_registrations += enrollment_count
+            
+            programmes_data.append({
+                'id': programme.id,
+                'name': programme.name,
+                'code': programme.code,
+                'programme_type': programme.get_programme_type_display(),
+                'department': programme.department.name,
+                'enrollment_count': enrollment_count
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'semester': {
+                'id': semester.id,
+                'name': f"Semester {semester.semester_number}",
+                'academic_year': semester.academic_year.year,
+                'registration_start': semester.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end': semester.registration_end_date.strftime('%Y-%m-%d'),
+            },
+            'programmes': programmes_data,
+            'total_registrations': total_registrations
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error fetching semester registrations: {str(e)}'
+        }, status=400)

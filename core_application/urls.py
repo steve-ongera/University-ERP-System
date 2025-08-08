@@ -216,5 +216,22 @@ urlpatterns = [
     # Notifications URL
     path('notifications/', views.notifications, name='student_notifications'),
 
+    # Main academic management dashboard
+    path('management/', views.academic_management, name='academic_management'),
+    
+    # Academic Year AJAX endpoints
+    path('api/academic-years/', views.get_academic_years, name='get_academic_years'),
+    path('api/academic-years/create/', views.create_academic_year, name='create_academic_year'),
+    path('api/academic-years/<int:year_id>/update/', views.update_academic_year, name='update_academic_year'),
+    path('api/academic-years/<int:year_id>/delete/', views.delete_academic_year, name='delete_academic_year'),
+    path('api/academic-years/<int:year_id>/set-current/', views.set_current_academic_year, name='set_current_academic_year'),
+    
+    # Semester AJAX endpoints
+    path('api/academic-years/<int:year_id>/semesters/create/', views.create_semester, name='create_semester'),
+    path('api/semesters/<int:semester_id>/update/', views.update_semester, name='update_semester'),
+    path('api/semesters/<int:semester_id>/delete/', views.delete_semester, name='delete_semester'),
+    path('api/semesters/<int:semester_id>/set-current/', views.set_current_semester, name='set_current_semester'),
+    path('api/semesters/<int:semester_id>/registrations/', views.get_semester_registrations, name='get_semester_registrations'),
+
 
 ]
