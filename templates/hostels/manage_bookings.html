@@ -1,0 +1,927 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h2 class="fw-bold mb-0">Hostel Booking Management</h2>
+                            <p class="text-muted">Manage student hostel bookings and room availability</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary" onclick="refreshData()">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                                <button class="btn btn-outline-info" onclick="window.print()">
+                                    <i class="bi bi-printer"></i> Print Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-2">
+            <div class="card border-primary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-journal-bookmark display-4 text-primary"></i>
+                    <h4 class="text-primary mt-2" id="totalBookings">{{ booking_stats.total_bookings }}</h4>
+                    <p class="small text-muted mb-0">Total Bookings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock display-4 text-warning"></i>
+                    <h4 class="text-warning mt-2" id="pendingBookings">{{ booking_stats.pending }}</h4>
+                    <p class="small text-muted mb-0">Pending Approval</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-success h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle display-4 text-success"></i>
+                    <h4 class="text-success mt-2" id="approvedBookings">{{ booking_stats.approved }}</h4>
+                    <p class="small text-muted mb-0">Approved</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-info h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-door-open display-4 text-info"></i>
+                    <h4 class="text-info mt-2" id="checkedInBookings">{{ booking_stats.checked_in }}</h4>
+                    <p class="small text-muted mb-0">Checked In</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-percent display-4 text-secondary"></i>
+                    <h4 class="text-secondary mt-2" id="overallOccupancy">{{ booking_stats.overall_occupancy }}%</h4>
+                    <p class="small text-muted mb-0">Overall Occupancy</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-dark h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-cash display-4 text-dark"></i>
+                    <h4 class="text-dark mt-2" id="totalRevenue">KES {{ booking_stats.collected_revenue|floatformat:0 }}</h4>
+                    <p class="small text-muted mb-0">Revenue Collected</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Year Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="academicYearTabs" role="tablist">
+                        {% for year in academic_years %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if year == selected_year %}active{% endif %}" 
+                                    id="year-{{ year.id }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#year-{{ year.id }}" 
+                                    data-year-id="{{ year.id }}"
+                                    type="button" 
+                                    role="tab">
+                                <i class="bi bi-calendar me-1"></i>{{ year.year }}
+                                {% if year.is_current %}
+                                <span class="badge bg-success ms-1">Current</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="academicYearTabsContent">
+                        {% for year in academic_years %}
+                        <div class="tab-pane fade {% if year == selected_year %}show active{% endif %}" 
+                             id="year-{{ year.id }}" 
+                             role="tabpanel">
+                             
+                            <!-- Hostel Overview for this year -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <h5 class="fw-bold">Hostel Overview - {{ year.year }}</h5>
+                                    <div class="row" id="hostelsOverview-{{ year.id }}">
+                                        {% if year == selected_year %}
+                                        {% for hostel_data in hostels_data %}
+                                        <div class="col-md-3 mb-3">
+                                            <div class="card border-{% if hostel_data.hostel.hostel_type == 'boys' %}primary{% else %}danger{% endif %}">
+                                                <div class="card-body">
+                                                    <h6 class="card-title">{{ hostel_data.hostel.name }}</h6>
+                                                    <span class="badge bg-{% if hostel_data.hostel.hostel_type == 'boys' %}primary{% else %}danger{% endif %} mb-2">
+                                                        {{ hostel_data.hostel.get_hostel_type_display }}
+                                                    </span>
+                                                    <div class="progress mb-2" style="height: 15px;">
+                                                        <div class="progress-bar bg-{% if hostel_data.occupancy_rate >= 90 %}danger{% elif hostel_data.occupancy_rate >= 70 %}warning{% else %}success{% endif %}" 
+                                                             style="width: {{ hostel_data.occupancy_rate }}%">
+                                                            {{ hostel_data.occupancy_rate }}%
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        {{ hostel_data.occupied_beds }}/{{ hostel_data.total_beds }} beds occupied<br>
+                                                        {{ hostel_data.available_beds }} available
+                                                    </small>
+                                                </div>
+                                                <div class="card-footer">
+                                                    <button class="btn btn-outline-primary btn-sm w-100" 
+                                                            onclick="viewRoomAvailability({{ hostel_data.hostel.id }}, {{ year.id }})">
+                                                        <i class="bi bi-eye"></i> View Rooms
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Booking Management Tabs -->
+                            <ul class="nav nav-pills mb-3" id="bookingTabs-{{ year.id }}" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" 
+                                            id="bookings-tab-{{ year.id }}" 
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#bookings-{{ year.id }}" 
+                                            type="button" 
+                                            role="tab">
+                                        <i class="bi bi-list-ul me-1"></i>All Bookings
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" 
+                                            id="rooms-tab-{{ year.id }}" 
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#rooms-{{ year.id }}" 
+                                            type="button" 
+                                            role="tab">
+                                        <i class="bi bi-door-closed me-1"></i>Room Availability
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" 
+                                            id="payments-tab-{{ year.id }}" 
+                                            data-bs-toggle="pill" 
+                                            data-bs-target="#payments-{{ year.id }}" 
+                                            type="button" 
+                                            role="tab">
+                                        <i class="bi bi-cash-coin me-1"></i>Payment Status
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="bookingTabsContent-{{ year.id }}">
+                                <!-- All Bookings Tab -->
+                                <div class="tab-pane fade show active" 
+                                     id="bookings-{{ year.id }}" 
+                                     role="tabpanel">
+                                     
+                                    <!-- Filters -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-3">
+                                            <select class="form-select" id="hostelFilter-{{ year.id }}" onchange="filterBookings({{ year.id }})">
+                                                <option value="all">All Hostels</option>
+                                                {% for hostel_data in hostels_data %}
+                                                <option value="{{ hostel_data.hostel.id }}">{{ hostel_data.hostel.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select class="form-select" id="statusFilter-{{ year.id }}" onchange="filterBookings({{ year.id }})">
+                                                <option value="all">All Statuses</option>
+                                                <option value="pending">Pending</option>
+                                                <option value="approved">Approved</option>
+                                                <option value="rejected">Rejected</option>
+                                                <option value="checked_in">Checked In</option>
+                                                <option value="checked_out">Checked Out</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control" id="searchInput-{{ year.id }}" 
+                                                   placeholder="Search by student ID, name, or bed number..." 
+                                                   onkeyup="filterBookings({{ year.id }})">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button class="btn btn-primary w-100" onclick="filterBookings({{ year.id }})">
+                                                <i class="bi bi-search"></i> Search
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Bookings Table -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Student</th>
+                                                    <th>Hostel & Room</th>
+                                                    <th>Bed</th>
+                                                    <th>Booking Date</th>
+                                                    <th>Status</th>
+                                                    <th>Payment</th>
+                                                    <th>Amount</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="bookingsTableBody-{{ year.id }}">
+                                                <tr>
+                                                    <td colspan="8" class="text-center">
+                                                        <div class="spinner-border spinner-border-sm me-2"></div>
+                                                        Loading bookings...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- Pagination -->
+                                    <nav id="bookingsPagination-{{ year.id }}"></nav>
+                                </div>
+
+                                <!-- Room Availability Tab -->
+                                <div class="tab-pane fade" 
+                                     id="rooms-{{ year.id }}" 
+                                     role="tabpanel">
+                                     
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <select class="form-select" id="roomHostelSelect-{{ year.id }}" onchange="loadRoomAvailability({{ year.id }})">
+                                                <option value="">Select Hostel...</option>
+                                                {% for hostel_data in hostels_data %}
+                                                <option value="{{ hostel_data.hostel.id }}">{{ hostel_data.hostel.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="roomsAvailabilityContent-{{ year.id }}">
+                                        <div class="text-center py-5">
+                                            <i class="bi bi-door-closed display-1 text-muted"></i>
+                                            <h5 class="text-muted mt-3">Select a hostel to view room availability</h5>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Payment Status Tab -->
+                                <div class="tab-pane fade" 
+                                     id="payments-{{ year.id }}" 
+                                     role="tabpanel">
+                                     
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Payment tracking and management will be displayed here.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Status Update Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Booking Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateStatusForm">
+                    <input type="hidden" id="updateBookingId">
+                    <div class="mb-3">
+                        <label for="updateStatus" class="form-label">New Status</label>
+                        <select class="form-select" id="updateStatus" required>
+                            <option value="">Select status...</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="checked_in">Checked In</option>
+                            <option value="checked_out">Checked Out</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="updateRemarks" class="form-label">Remarks (Optional)</label>
+                        <textarea class="form-control" id="updateRemarks" rows="3" 
+                                  placeholder="Add any remarks or notes about this status change..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitStatusUpdate()">Update Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Details Modal -->
+<div class="modal fade" id="roomDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomDetailsTitle">Room Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="roomDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border"></div>
+                    <p class="mt-2">Loading room details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentYearId = {{ selected_year.id }};
+const csrfToken = '{{ csrf_token }}';
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Load initial data for current year
+    loadBookingsData(currentYearId);
+    
+    // Setup tab change handlers
+    document.querySelectorAll('[data-year-id]').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const yearId = this.getAttribute('data-year-id');
+            currentYearId = yearId;
+            loadBookingsData(yearId);
+            loadHostelOverview(yearId);
+        });
+    });
+});
+
+// Load bookings data for a specific year
+function loadBookingsData(yearId) {
+    const tbody = document.getElementById(`bookingsTableBody-${yearId}`);
+    const hostelFilter = document.getElementById(`hostelFilter-${yearId}`)?.value || 'all';
+    const statusFilter = document.getElementById(`statusFilter-${yearId}`)?.value || 'all';
+    const searchInput = document.getElementById(`searchInput-${yearId}`)?.value || '';
+    
+    // Show loading
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Loading bookings...
+            </td>
+        </tr>
+    `;
+    
+    // Build query parameters
+    const params = new URLSearchParams({
+        year_id: yearId,
+        hostel_id: hostelFilter,
+        status: statusFilter,
+        search: searchInput
+    });
+    
+    fetch(`/hostel/get-booking-data/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error: ${data.error}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            if (data.bookings.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="bi bi-inbox me-2"></i>
+                            No bookings found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Populate table
+            tbody.innerHTML = data.bookings.map(booking => `
+                <tr>
+                    <td>
+                        <div>
+                            <strong>${booking.student_name}</strong><br>
+                            <small class="text-muted">${booking.student_id}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <strong>${booking.hostel_name}</strong><br>
+                            <small class="text-muted">Room ${booking.room_number}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">${booking.bed_number}</span>
+                    </td>
+                    <td>
+                        <small>${new Date(booking.booking_date).toLocaleDateString()}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getStatusColor(booking.booking_status)}">
+                            ${booking.booking_status_display}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getPaymentStatusColor(booking.payment_status)}">
+                            ${booking.payment_status_display}
+                        </span>
+                    </td>
+                    <td>
+                        <div>
+                            <strong>KES ${parseFloat(booking.booking_fee).toLocaleString()}</strong><br>
+                            <small class="text-muted">
+                                Paid: KES ${parseFloat(booking.amount_paid).toLocaleString()}<br>
+                                Balance: KES ${parseFloat(booking.balance_due).toLocaleString()}
+                            </small>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="viewBookingDetails(${booking.id})" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-success" onclick="updateBookingStatus(${booking.id}, '${booking.booking_status}')" title="Update Status">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            ${booking.booking_status === 'pending' ? `
+                                <button class="btn btn-outline-success" onclick="quickApprove(${booking.id})" title="Quick Approve">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="quickReject(${booking.id})" title="Quick Reject">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Update pagination
+            updatePagination(yearId, data);
+        })
+        .catch(error => {
+            console.error('Error loading bookings:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Failed to load bookings. Please try again.
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+// Load hostel overview for a specific year
+function loadHostelOverview(yearId) {
+    const container = document.getElementById(`hostelsOverview-${yearId}`);
+    
+    // Skip if already loaded or not visible
+    if (container.children.length > 0) {
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="col-12 text-center">
+            <div class="spinner-border"></div>
+            <p class="mt-2">Loading hostel overview...</p>
+        </div>
+    `;
+    
+    // This would be loaded via AJAX in a real implementation
+    // For now, showing placeholder
+    setTimeout(() => {
+        container.innerHTML = `
+            <div class="col-12 text-muted text-center">
+                <p>Hostel overview for academic year will be loaded here</p>
+            </div>
+        `;
+    }, 1000);
+}
+
+// Filter bookings
+function filterBookings(yearId) {
+    loadBookingsData(yearId);
+}
+
+// Load room availability
+function loadRoomAvailability(yearId) {
+    const select = document.getElementById(`roomHostelSelect-${yearId}`);
+    const content = document.getElementById(`roomsAvailabilityContent-${yearId}`);
+    const hostelId = select.value;
+    
+    if (!hostelId) {
+        content.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-door-closed display-1 text-muted"></i>
+                <h5 class="text-muted mt-3">Select a hostel to view room availability</h5>
+            </div>
+        `;
+        return;
+    }
+    
+    content.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border"></div>
+            <p class="mt-2">Loading room availability...</p>
+        </div>
+    `;
+    
+    fetch(`/hostel/get-room-availability/?hostel_id=${hostelId}&year_id=${yearId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${data.error}
+                    </div>
+                `;
+                return;
+            }
+            
+            content.innerHTML = `
+                <h5 class="mb-3">${data.hostel_name} - Room Availability</h5>
+                <div class="row">
+                    ${data.rooms.map(room => `
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between">
+                                    <strong>Room ${room.room_number}</strong>
+                                    <span class="badge bg-info">Floor ${room.floor}</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="progress mb-2" style="height: 15px;">
+                                        <div class="progress-bar bg-${room.occupancy_rate >= 90 ? 'danger' : room.occupancy_rate >= 70 ? 'warning' : 'success'}" 
+                                             style="width: ${room.occupancy_rate}%">
+                                            ${room.occupancy_rate}%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">
+                                        ${room.occupied_beds}/${room.total_beds} beds occupied<br>
+                                        ${room.available_beds} available
+                                    </small>
+                                    <div class="mt-2">
+                                        <div class="row">
+                                            ${room.beds.map(bed => `
+                                                <div class="col-6 mb-1">
+                                                    <div class="bed-indicator ${bed.is_available ? 'bg-success' : 'bg-danger'} text-white text-center p-1 rounded">
+                                                        <small>${bed.bed_position}</small>
+                                                        ${!bed.is_available && bed.student ? `
+                                                            <br><small title="${bed.student.name}">${bed.student.student_id}</small>
+                                                        ` : ''}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <button class="btn btn-outline-primary btn-sm w-100" 
+                                            onclick="viewRoomDetails(${room.id}, ${yearId})">
+                                        <i class="bi bi-eye"></i> View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading room availability:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Failed to load room availability. Please try again.
+                </div>
+            `;
+        });
+}
+
+// View room availability modal
+function viewRoomAvailability(hostelId, yearId) {
+    const modal = new bootstrap.Modal(document.getElementById('roomDetailsModal'));
+    document.getElementById('roomDetailsTitle').textContent = 'Room Availability';
+    document.getElementById('roomDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border"></div>
+            <p class="mt-2">Loading room availability...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Load the room availability in the modal
+    setTimeout(() => {
+        loadRoomAvailability(yearId);
+        // Copy the content to modal (simplified for demo)
+        document.getElementById('roomDetailsContent').innerHTML = `
+            <p>Room availability details would be shown here.</p>
+            <p>This would include detailed bed assignments, student information, and room status.</p>
+        `;
+    }, 1000);
+}
+
+// Update booking status modal
+function updateBookingStatus(bookingId, currentStatus) {
+    document.getElementById('updateBookingId').value = bookingId;
+    document.getElementById('updateStatus').value = currentStatus;
+    document.getElementById('updateRemarks').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+    modal.show();
+}
+
+// Submit status update
+function submitStatusUpdate() {
+    const bookingId = document.getElementById('updateBookingId').value;
+    const status = document.getElementById('updateStatus').value;
+    const remarks = document.getElementById('updateRemarks').value;
+    
+    if (!status) {
+        alert('Please select a status');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('booking_id', bookingId);
+    formData.append('status', status);
+    formData.append('remarks', remarks);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch('/hostel/update-booking-status/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('updateStatusModal'));
+            modal.hide();
+            
+            // Show success message
+            showAlert('success', data.message);
+            
+            // Refresh bookings
+            loadBookingsData(currentYearId);
+        } else {
+            showAlert('danger', data.error || 'Failed to update status');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating status:', error);
+        showAlert('danger', 'Failed to update status. Please try again.');
+    });
+}
+
+// Quick approve/reject functions
+function quickApprove(bookingId) {
+    if (confirm('Are you sure you want to approve this booking?')) {
+        updateBookingStatusQuick(bookingId, 'approved');
+    }
+}
+
+function quickReject(bookingId) {
+    if (confirm('Are you sure you want to reject this booking?')) {
+        updateBookingStatusQuick(bookingId, 'rejected');
+    }
+}
+
+function updateBookingStatusQuick(bookingId, status) {
+    const formData = new FormData();
+    formData.append('booking_id', bookingId);
+    formData.append('status', status);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch('/hostel/update-booking-status/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            loadBookingsData(currentYearId);
+        } else {
+            showAlert('danger', data.error || 'Failed to update status');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating status:', error);
+        showAlert('danger', 'Failed to update status. Please try again.');
+    });
+}
+
+// Utility functions
+function getStatusColor(status) {
+    const colors = {
+        'pending': 'warning',
+        'approved': 'success',
+        'rejected': 'danger',
+        'checked_in': 'info',
+        'checked_out': 'secondary',
+        'cancelled': 'dark'
+    };
+    return colors[status] || 'secondary';
+}
+
+function getPaymentStatusColor(status) {
+    const colors = {
+        'pending': 'warning',
+        'partial': 'info',
+        'paid': 'success',
+        'refunded': 'secondary'
+    };
+    return colors[status] || 'secondary';
+}
+
+function updatePagination(yearId, data) {
+    const pagination = document.getElementById(`bookingsPagination-${yearId}`);
+    if (data.total_pages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = `
+        <nav>
+            <ul class="pagination justify-content-center">
+                ${data.has_previous ? `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadPage(${yearId}, ${data.page_number - 1})">Previous</a>
+                    </li>
+                ` : ''}
+                
+                <li class="page-item active">
+                    <span class="page-link">${data.page_number} of ${data.total_pages}</span>
+                </li>
+                
+                ${data.has_next ? `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadPage(${yearId}, ${data.page_number + 1})">Next</a>
+                    </li>
+                ` : ''}
+            </ul>
+        </nav>
+    `;
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+function loadPage(yearId, page) {
+    // Add page parameter and reload
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    window.history.replaceState({}, '', url);
+    loadBookingsData(yearId);
+}
+
+function refreshData() {
+    loadBookingsData(currentYearId);
+    showAlert('info', 'Data refreshed successfully');
+}
+
+function showAlert(type, message) {
+    const alertsContainer = document.querySelector('.row.mt-3 .col-md-12');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertsContainer.appendChild(alert);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+function viewBookingDetails(bookingId) {
+    // This would open a detailed view of the booking
+    alert('Booking details view would open here for booking ID: ' + bookingId);
+}
+
+function viewRoomDetails(roomId, yearId) {
+    // This would open a detailed view of the room
+    alert('Room details view would open here for room ID: ' + roomId);
+}
+</script>
+
+<style>
+.bed-indicator {
+    font-size: 0.75rem;
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #007bff;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.btn-group-sm > .btn, .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+@media print {
+    .btn, .nav-tabs, .modal, .pagination {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    
+    .table {
+        font-size: 0.8rem;
+    }
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.border-primary { border-color: #007bff !important; }
+.border-danger { border-color: #dc3545 !important; }
+.border-success { border-color: #28a745 !important; }
+.border-warning { border-color: #ffc107 !important; }
+.border-info { border-color: #17a2b8 !important; }
+.border-secondary { border-color: #6c757d !important; }
+</style>
+
+{% endblock %}

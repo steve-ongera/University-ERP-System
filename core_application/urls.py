@@ -233,5 +233,13 @@ urlpatterns = [
     path('api/semesters/<int:semester_id>/set-current/', views.set_current_semester, name='set_current_semester'),
     path('api/semesters/<int:semester_id>/registrations/', views.get_semester_registrations, name='get_semester_registrations'),
 
+    #Main hostel booking management view
+    path('manage-bookings/', views.manage_hostel_bookings, name='manage_hostel_bookings'),
+    
+    # AJAX endpoints
+    path('hostel/get-booking-data/', views.get_booking_data, name='get_booking_data'),
+    path('get-room-availability/', views.get_room_availability, name='get_room_availability'),
+    path('update-booking-status/', views.update_booking_status, name='update_booking_status'),
+
 
 ]

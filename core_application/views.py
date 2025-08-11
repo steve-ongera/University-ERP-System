@@ -9266,3 +9266,289 @@ def get_semester_registrations(request, semester_id):
             'success': False,
             'message': f'Error fetching semester registrations: {str(e)}'
         }, status=400)
+
+
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Count, Q, Sum
+from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import datetime
+from .models import (
+    HostelBooking, Hostel, Room, Bed, AcademicYear, 
+    Student, HostelPayment, HostelIncident
+)
+
+def is_admin_or_warden(user):
+    """Check if user is admin or hostel warden"""
+    return user.is_superuser or user.user_type in ['admin', 'hostel_warden']
+
+@login_required
+@user_passes_test(is_admin_or_warden)
+def manage_hostel_bookings(request):
+    """Main view for managing hostel bookings"""
+    # Get all academic years
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get selected academic year from request or use current
+    selected_year_id = request.GET.get('year', current_year.id if current_year else None)
+    selected_year = get_object_or_404(AcademicYear, id=selected_year_id) if selected_year_id else academic_years.first()
+    
+    # Get all hostels
+    hostels = Hostel.objects.filter(is_active=True).prefetch_related('rooms__beds')
+    
+    # Get booking statistics for selected year
+    booking_stats = get_booking_statistics(selected_year)
+    
+    # Get hostels with availability data
+    hostels_data = []
+    for hostel in hostels:
+        hostel_data = {
+            'hostel': hostel,
+            'total_beds': hostel.get_total_beds_count(selected_year),
+            'occupied_beds': hostel.get_occupied_beds_count(selected_year),
+            'available_beds': hostel.get_total_beds_count(selected_year) - hostel.get_occupied_beds_count(selected_year),
+            'occupancy_rate': 0
+        }
+        if hostel_data['total_beds'] > 0:
+            hostel_data['occupancy_rate'] = round(
+                (hostel_data['occupied_beds'] / hostel_data['total_beds']) * 100, 1
+            )
+        hostels_data.append(hostel_data)
+    
+    context = {
+        'academic_years': academic_years,
+        'selected_year': selected_year,
+        'hostels_data': hostels_data,
+        'booking_stats': booking_stats,
+    }
+    
+    return render(request, 'hostels/manage_bookings.html', context)
+
+@login_required
+@user_passes_test(is_admin_or_warden)
+def get_booking_data(request):
+    """AJAX endpoint to get booking data for specific academic year"""
+    year_id = request.GET.get('year_id')
+    hostel_id = request.GET.get('hostel_id')
+    status = request.GET.get('status', 'all')
+    search = request.GET.get('search', '')
+    
+    if not year_id:
+        return JsonResponse({'error': 'Academic year required'}, status=400)
+    
+    academic_year = get_object_or_404(AcademicYear, id=year_id)
+    
+    # Build query
+    bookings = HostelBooking.objects.filter(
+        academic_year=academic_year
+    ).select_related(
+        'student__user', 'bed__room__hostel', 'approved_by'
+    ).order_by('-booking_date')
+    
+    # Apply filters
+    if hostel_id and hostel_id != 'all':
+        bookings = bookings.filter(bed__room__hostel_id=hostel_id)
+    
+    if status and status != 'all':
+        bookings = bookings.filter(booking_status=status)
+    
+    if search:
+        bookings = bookings.filter(
+            Q(student__student_id__icontains=search) |
+            Q(student__user__first_name__icontains=search) |
+            Q(student__user__last_name__icontains=search) |
+            Q(bed__bed_number__icontains=search)
+        )
+    
+    # Pagination
+    page = request.GET.get('page', 1)
+    paginator = Paginator(bookings, 20)
+    bookings_page = paginator.get_page(page)
+    
+    # Serialize data
+    bookings_data = []
+    for booking in bookings_page:
+        bookings_data.append({
+            'id': booking.id,
+            'student_id': booking.student.student_id,
+            'student_name': booking.student.user.get_full_name(),
+            'hostel_name': booking.bed.room.hostel.name,
+            'room_number': booking.bed.room.room_number,
+            'bed_number': booking.bed.bed_number,
+            'booking_date': booking.booking_date.strftime('%Y-%m-%d %H:%M'),
+            'check_in_date': booking.check_in_date.strftime('%Y-%m-%d') if booking.check_in_date else None,
+            'check_out_date': booking.check_out_date.strftime('%Y-%m-%d') if booking.check_out_date else None,
+            'booking_status': booking.booking_status,
+            'booking_status_display': booking.get_booking_status_display(),
+            'payment_status': booking.payment_status,
+            'payment_status_display': booking.get_payment_status_display(),
+            'booking_fee': str(booking.booking_fee),
+            'amount_paid': str(booking.amount_paid),
+            'balance_due': str(booking.balance_due),
+            'approved_by': booking.approved_by.get_full_name() if booking.approved_by else None,
+            'approval_date': booking.approval_date.strftime('%Y-%m-%d %H:%M') if booking.approval_date else None,
+        })
+    
+    return JsonResponse({
+        'bookings': bookings_data,
+        'has_next': bookings_page.has_next(),
+        'has_previous': bookings_page.has_previous(),
+        'page_number': bookings_page.number,
+        'total_pages': paginator.num_pages,
+        'total_count': paginator.count,
+    })
+
+@login_required
+@user_passes_test(is_admin_or_warden)
+def get_room_availability(request):
+    """AJAX endpoint to get room availability for a hostel"""
+    hostel_id = request.GET.get('hostel_id')
+    year_id = request.GET.get('year_id')
+    
+    if not hostel_id or not year_id:
+        return JsonResponse({'error': 'Hostel and academic year required'}, status=400)
+    
+    hostel = get_object_or_404(Hostel, id=hostel_id)
+    academic_year = get_object_or_404(AcademicYear, id=year_id)
+    
+    rooms_data = []
+    for room in hostel.rooms.filter(is_active=True).prefetch_related('beds'):
+        # Get beds for this academic year
+        beds = room.beds.filter(academic_year=academic_year)
+        
+        room_data = {
+            'id': room.id,
+            'room_number': room.room_number,
+            'floor': room.floor,
+            'capacity': room.capacity,
+            'total_beds': beds.count(),
+            'available_beds': beds.filter(is_available=True).count(),
+            'occupied_beds': beds.filter(is_available=False).count(),
+            'beds': []
+        }
+        
+        # Get bed details
+        for bed in beds:
+            booking = HostelBooking.objects.filter(
+                bed=bed, 
+                academic_year=academic_year,
+                booking_status__in=['approved', 'checked_in']
+            ).select_related('student__user').first()
+            
+            bed_data = {
+                'id': bed.id,
+                'bed_number': bed.bed_number,
+                'bed_position': bed.get_bed_position_display(),
+                'is_available': bed.is_available,
+                'maintenance_status': bed.maintenance_status,
+                'maintenance_status_display': bed.get_maintenance_status_display(),
+                'student': {
+                    'id': booking.student.id,
+                    'student_id': booking.student.student_id,
+                    'name': booking.student.user.get_full_name(),
+                    'booking_status': booking.booking_status,
+                } if booking else None
+            }
+            room_data['beds'].append(bed_data)
+        
+        # Calculate occupancy rate
+        if room_data['total_beds'] > 0:
+            room_data['occupancy_rate'] = round(
+                (room_data['occupied_beds'] / room_data['total_beds']) * 100, 1
+            )
+        else:
+            room_data['occupancy_rate'] = 0
+            
+        rooms_data.append(room_data)
+    
+    return JsonResponse({
+        'hostel_name': hostel.name,
+        'rooms': rooms_data
+    })
+
+@login_required
+@user_passes_test(is_admin_or_warden)
+def update_booking_status(request):
+    """AJAX endpoint to update booking status"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    booking_id = request.POST.get('booking_id')
+    new_status = request.POST.get('status')
+    remarks = request.POST.get('remarks', '')
+    
+    if not booking_id or not new_status:
+        return JsonResponse({'error': 'Booking ID and status required'}, status=400)
+    
+    booking = get_object_or_404(HostelBooking, id=booking_id)
+    old_status = booking.booking_status
+    
+    # Update booking status
+    booking.booking_status = new_status
+    booking.approval_remarks = remarks
+    
+    if new_status in ['approved', 'rejected']:
+        booking.approved_by = request.user
+        booking.approval_date = timezone.now()
+    
+    if new_status == 'checked_in':
+        booking.checked_in_by = request.user
+        booking.check_in_date = timezone.now().date()
+    
+    if new_status == 'checked_out':
+        booking.checked_out_by = request.user
+        booking.check_out_date = timezone.now().date()
+    
+    booking.save()  # This will automatically update bed availability
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Booking status updated from {old_status} to {new_status}',
+        'new_status': booking.get_booking_status_display()
+    })
+
+def get_booking_statistics(academic_year):
+    """Helper function to get booking statistics"""
+    bookings = HostelBooking.objects.filter(academic_year=academic_year)
+    
+    stats = {
+        'total_bookings': bookings.count(),
+        'pending': bookings.filter(booking_status='pending').count(),
+        'approved': bookings.filter(booking_status='approved').count(),
+        'rejected': bookings.filter(booking_status='rejected').count(),
+        'checked_in': bookings.filter(booking_status='checked_in').count(),
+        'checked_out': bookings.filter(booking_status='checked_out').count(),
+        'cancelled': bookings.filter(booking_status='cancelled').count(),
+        'total_revenue': bookings.aggregate(
+            total=Sum('booking_fee')
+        )['total'] or 0,
+        'collected_revenue': bookings.aggregate(
+            collected=Sum('amount_paid')
+        )['collected'] or 0,
+        'pending_payments': bookings.filter(
+            payment_status__in=['pending', 'partial']
+        ).count(),
+    }
+    
+    # Calculate occupancy rates by hostel type
+    boys_hostels = Hostel.objects.filter(hostel_type='boys', is_active=True)
+    girls_hostels = Hostel.objects.filter(hostel_type='girls', is_active=True)
+    
+    boys_total = sum(h.get_total_beds_count(academic_year) for h in boys_hostels)
+    boys_occupied = sum(h.get_occupied_beds_count(academic_year) for h in boys_hostels)
+    
+    girls_total = sum(h.get_total_beds_count(academic_year) for h in girls_hostels)
+    girls_occupied = sum(h.get_occupied_beds_count(academic_year) for h in girls_hostels)
+    
+    stats['boys_occupancy'] = round((boys_occupied / boys_total * 100), 1) if boys_total > 0 else 0
+    stats['girls_occupancy'] = round((girls_occupied / girls_total * 100), 1) if girls_total > 0 else 0
+    stats['overall_occupancy'] = round(((boys_occupied + girls_occupied) / (boys_total + girls_total) * 100), 1) if (boys_total + girls_total) > 0 else 0
+    
+    return stats
