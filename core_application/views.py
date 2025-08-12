@@ -9552,3 +9552,342 @@ def get_booking_statistics(academic_year):
     stats['overall_occupancy'] = round(((boys_occupied + girls_occupied) / (boys_total + girls_total) * 100), 1) if (boys_total + girls_total) > 0 else 0
     
     return stats
+
+# views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponseRedirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.db import transaction
+from django.core.paginator import Paginator
+from django.urls import reverse
+import json
+from .models import Hostel, Room, Bed, AcademicYear, Department
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def hostel_room_management(request, hostel_id):
+    """Main view for managing rooms in a hostel"""
+    hostel = get_object_or_404(Hostel, id=hostel_id)
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    
+    # Get selected academic year from request
+    selected_year_id = request.GET.get('academic_year', current_academic_year.id if current_academic_year else None)
+    selected_academic_year = get_object_or_404(AcademicYear, id=selected_year_id) if selected_year_id else None
+    
+    # Get rooms for the hostel with pagination
+    rooms = Room.objects.filter(hostel=hostel).order_by('floor', 'room_number')
+    paginator = Paginator(rooms, 20)  # Show 20 rooms per page
+    page_number = request.GET.get('page')
+    page_rooms = paginator.get_page(page_number)
+    
+    # Get room statistics
+    total_rooms = rooms.count()
+    active_rooms = rooms.filter(is_active=True).count()
+    inactive_rooms = total_rooms - active_rooms
+    
+    # Get bed statistics for selected academic year
+    bed_stats = {}
+    if selected_academic_year:
+        bed_stats = {
+            'total_beds': Bed.objects.filter(
+                room__hostel=hostel,
+                academic_year=selected_academic_year
+            ).count(),
+            'available_beds': Bed.objects.filter(
+                room__hostel=hostel,
+                academic_year=selected_academic_year,
+                is_available=True
+            ).count(),
+            'occupied_beds': Bed.objects.filter(
+                room__hostel=hostel,
+                academic_year=selected_academic_year,
+                is_available=False
+            ).count(),
+        }
+    
+    context = {
+        'hostel': hostel,
+        'rooms': page_rooms,
+        'total_rooms': total_rooms,
+        'active_rooms': active_rooms,
+        'inactive_rooms': inactive_rooms,
+        'academic_years': academic_years,
+        'selected_academic_year': selected_academic_year,
+        'bed_stats': bed_stats,
+        'floors': sorted(set(room.floor for room in rooms)) if rooms else [],
+    }
+    
+    return render(request, 'hostel/room_management.html', context)
+
+@login_required
+@require_http_methods(["POST"])
+def create_single_room(request, hostel_id):
+    """Create a single room via AJAX"""
+    hostel = get_object_or_404(Hostel, id=hostel_id)
+    
+    try:
+        data = json.loads(request.body)
+        room_number = data.get('room_number', '').strip()
+        floor = int(data.get('floor', 0))
+        capacity = int(data.get('capacity', 4))
+        description = data.get('description', '').strip()
+        facilities = data.get('facilities', '').strip()
+        
+        # Validate room number
+        if not room_number:
+            return JsonResponse({'success': False, 'message': 'Room number is required'})
+        
+        # Check if room already exists
+        if Room.objects.filter(hostel=hostel, room_number=room_number).exists():
+            return JsonResponse({'success': False, 'message': f'Room {room_number} already exists'})
+        
+        # Create the room
+        room = Room.objects.create(
+            hostel=hostel,
+            room_number=room_number,
+            floor=floor,
+            capacity=capacity,
+            description=description,
+            facilities=facilities
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Room {room_number} created successfully',
+            'room': {
+                'id': room.id,
+                'room_number': room.room_number,
+                'floor': room.floor,
+                'capacity': room.capacity,
+                'is_active': room.is_active,
+                'created_at': room.created_at.strftime('%Y-%m-%d %H:%M:%S') if room.created_at else ''
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
+    except ValueError as e:
+        return JsonResponse({'success': False, 'message': 'Invalid number format'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error creating room: {str(e)}'})
+
+@login_required
+@require_http_methods(["POST"])
+def bulk_create_rooms(request, hostel_id):
+    """Create multiple rooms with auto-generated numbers"""
+    hostel = get_object_or_404(Hostel, id=hostel_id)
+    
+    try:
+        data = json.loads(request.body)
+        room_prefix = data.get('room_prefix', '').strip().upper()
+        start_number = int(data.get('start_number', 1))
+        room_count = int(data.get('room_count', 1))
+        floor = int(data.get('floor', 0))
+        capacity = int(data.get('capacity', 4))
+        description = data.get('description', '').strip()
+        facilities = data.get('facilities', '').strip()
+        
+        # Validation
+        if not room_prefix:
+            return JsonResponse({'success': False, 'message': 'Room prefix is required'})
+        
+        if room_count > 500:  # Prevent creating too many rooms at once
+            return JsonResponse({'success': False, 'message': 'Cannot create more than 500 rooms at once'})
+        
+        if room_count < 1:
+            return JsonResponse({'success': False, 'message': 'Room count must be at least 1'})
+        
+        created_rooms = []
+        existing_rooms = []
+        
+        with transaction.atomic():
+            for i in range(room_count):
+                room_number = f"{room_prefix}{start_number + i:03d}"  # Format: KL001, KL002, etc.
+                
+                # Check if room already exists
+                if Room.objects.filter(hostel=hostel, room_number=room_number).exists():
+                    existing_rooms.append(room_number)
+                    continue
+                
+                # Create the room
+                room = Room.objects.create(
+                    hostel=hostel,
+                    room_number=room_number,
+                    floor=floor,
+                    capacity=capacity,
+                    description=description,
+                    facilities=facilities
+                )
+                
+                created_rooms.append({
+                    'id': room.id,
+                    'room_number': room.room_number,
+                    'floor': room.floor,
+                    'capacity': room.capacity,
+                    'is_active': room.is_active
+                })
+        
+        message = f"Successfully created {len(created_rooms)} rooms"
+        if existing_rooms:
+            message += f". {len(existing_rooms)} rooms already existed: {', '.join(existing_rooms[:5])}"
+            if len(existing_rooms) > 5:
+                message += f" and {len(existing_rooms) - 5} more"
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'created_count': len(created_rooms),
+            'existing_count': len(existing_rooms),
+            'rooms': created_rooms
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
+    except ValueError as e:
+        return JsonResponse({'success': False, 'message': 'Invalid number format'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error creating rooms: {str(e)}'})
+
+@login_required
+@require_http_methods(["DELETE"])
+def delete_room(request, room_id):
+    """Delete a single room via AJAX"""
+    room = get_object_or_404(Room, id=room_id)
+    
+    try:
+        # Check if room has any beds with students
+        occupied_beds = Bed.objects.filter(room=room, is_available=False).exists()
+        if occupied_beds:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Cannot delete room with occupied beds'
+            })
+        
+        room_number = room.room_number
+        room.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Room {room_number} deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error deleting room: {str(e)}'})
+
+@login_required
+@require_http_methods(["POST"])
+def bulk_delete_rooms(request, hostel_id):
+    """Delete multiple rooms via AJAX"""
+    hostel = get_object_or_404(Hostel, id=hostel_id)
+    
+    try:
+        data = json.loads(request.body)
+        room_ids = data.get('room_ids', [])
+        
+        if not room_ids:
+            return JsonResponse({'success': False, 'message': 'No rooms selected'})
+        
+        # Get rooms to delete
+        rooms = Room.objects.filter(id__in=room_ids, hostel=hostel)
+        
+        # Check for rooms with occupied beds
+        rooms_with_students = []
+        for room in rooms:
+            if Bed.objects.filter(room=room, is_available=False).exists():
+                rooms_with_students.append(room.room_number)
+        
+        if rooms_with_students:
+            return JsonResponse({
+                'success': False,
+                'message': f'Cannot delete rooms with occupied beds: {", ".join(rooms_with_students)}'
+            })
+        
+        deleted_count = rooms.count()
+        rooms.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully deleted {deleted_count} rooms'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error deleting rooms: {str(e)}'})
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_room_status(request, room_id):
+    """Toggle room active/inactive status via AJAX"""
+    room = get_object_or_404(Room, id=room_id)
+    
+    try:
+        room.is_active = not room.is_active
+        room.save()
+        
+        status = "activated" if room.is_active else "deactivated"
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Room {room.room_number} {status} successfully',
+            'is_active': room.is_active
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error updating room status: {str(e)}'})
+
+@login_required
+def get_room_details(request, room_id):
+    """Get detailed information about a room via AJAX"""
+    room = get_object_or_404(Room, id=room_id)
+    academic_year_id = request.GET.get('academic_year')
+    
+    try:
+        academic_year = None
+        bed_info = {}
+        
+        if academic_year_id:
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+            beds = Bed.objects.filter(room=room, academic_year=academic_year)
+            bed_info = {
+                'total_beds': beds.count(),
+                'available_beds': beds.filter(is_available=True).count(),
+                'occupied_beds': beds.filter(is_available=False).count(),
+                'maintenance_beds': beds.filter(maintenance_status__in=['needs_repair', 'under_maintenance', 'out_of_order']).count()
+            }
+        
+        return JsonResponse({
+            'success': True,
+            'room': {
+                'id': room.id,
+                'room_number': room.room_number,
+                'floor': room.floor,
+                'capacity': room.capacity,
+                'description': room.description,
+                'facilities': room.facilities,
+                'is_active': room.is_active,
+                'bed_info': bed_info
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error getting room details: {str(e)}'})
+
+@login_required
+def get_hostel_list(request):
+    """Get list of hostels for room management"""
+    # Check if user can manage hostels (customize based on your permissions)
+    if request.user.user_type not in ['admin', 'hostel_warden', 'staff']:
+        messages.error(request, 'You do not have permission to manage hostels')
+        return redirect('student_dashboard')  # or appropriate redirect
+    
+    hostels = Hostel.objects.filter(is_active=True).order_by('hostel_type', 'name')
+    
+    context = {
+        'hostels': hostels
+    }
+    
+    return render(request, 'hostel/hostel_list.html', context)
