@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Transcript - {{ student.user.get_full_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        /* Header Section */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #1a73e8;
+            padding-bottom: 15px;
+        }
+
+        .university-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 10px;
+            object-fit: contain;
+        }
+
+        .university-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a73e8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .university-motto {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 3px;
+        }
+
+        .university-address {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.2;
+        }
+
+        .document-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a73e8;
+            margin: 15px 0 10px;
+            text-decoration: underline;
+        }
+
+        .transcript-type {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        /* Student Information */
+        .student-info {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+
+        .student-info h3 {
+            color: #1a73e8;
+            font-size: 14px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            width: 150px;
+            color: #555;
+        }
+
+        .info-value {
+            flex: 1;
+        }
+
+        /* Academic Summary */
+        .academic-summary {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            background-color: #f0f4ff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #1a73e8;
+        }
+
+        .summary-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a73e8;
+        }
+
+        .summary-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        /* Transcript Table */
+        .transcript-section {
+            margin-bottom: 25px;
+        }
+
+        .year-header {
+            background-color: #1a73e8;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 15px;
+            margin-bottom: 5px;
+        }
+
+        .semester-header {
+            background-color: #e3f2fd;
+            color: #1a73e8;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 6px 12px;
+            margin: 10px 0 5px;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .semester-stats {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 10px;
+            padding-left: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 10px;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        table td {
+            padding: 5px 4px;
+            text-align: center;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+
+        table td:nth-child(2) {
+            text-align: left;
+            font-size: 9px;
+        }
+
+        .grade-A, .grade-A-plus {
+            background-color: #d4edda;
+            color: #155724;
+            font-weight: bold;
+        }
+
+        .grade-B, .grade-B-plus, .grade-B-minus {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            font-weight: bold;
+        }
+
+        .grade-C, .grade-C-plus, .grade-C-minus {
+            background-color: #fff3cd;
+            color: #856404;
+            font-weight: bold;
+        }
+
+        .grade-D, .grade-D-plus {
+            background-color: #f8d7da;
+            color: #721c24;
+            font-weight: bold;
+        }
+
+        .grade-F {
+            background-color: #f5c6cb;
+            color: #721c24;
+            font-weight: bold;
+        }
+
+        .status-passed {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #1a73e8;
+            font-size: 10px;
+        }
+
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .signature-block {
+            text-align: center;
+            width: 200px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 40px;
+            padding-top: 5px;
+        }
+
+        .grading-scale {
+            margin-top: 20px;
+            font-size: 9px;
+        }
+
+        .grading-scale h4 {
+            font-size: 11px;
+            margin-bottom: 8px;
+            color: #1a73e8;
+        }
+
+        .scale-table {
+            width: 100%;
+        }
+
+        .scale-table th,
+        .scale-table td {
+            padding: 3px 5px;
+            font-size: 9px;
+        }
+
+        /* Page break control */
+        .page-break {
+            page-break-before: always;
+        }
+
+        @media print {
+            .page-break {
+                page-break-before: always;
+            }
+            
+            table {
+                page-break-inside: avoid;
+            }
+            
+            .transcript-section {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Watermark */
+        .watermark {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 8px;
+            color: #ccc;
+            z-index: -1;
+        }
+
+        /* Additional styles for completeness */
+        .disclaimer {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            font-size: 9px;
+            color: #856404;
+        }
+
+        .verification-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            font-size: 9px;
+        }
+
+        .official-seal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 60px;
+            height: 60px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- Watermark -->
+    <div class="watermark">
+        This is an official academic transcript generated on {{ generated_date }}
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            {% if university_info.logo_url %}
+            <img src="{{ university_info.logo_url }}" alt="University Logo" class="university-logo">
+            {% endif %}
+            <div class="university-name">{{ university_info.name }}</div>
+            {% if university_info.motto %}
+            <div class="university-motto">"{{ university_info.motto }}"</div>
+            {% endif %}
+            <div class="university-address">
+                {{ university_info.address }}<br>
+                Tel: {{ university_info.phone }} | Email: {{ university_info.email }}<br>
+                Website: {{ university_info.website }}
+            </div>
+            
+            <div class="document-title">OFFICIAL ACADEMIC TRANSCRIPT</div>
+            <div class="transcript-type">{{ transcript_type }}</div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="student-info">
+            <h3>Student Information</h3>
+            <div class="info-row">
+                <span class="info-label">Full Name:</span>
+                <span class="info-value">{{ student.user.get_full_name|upper }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Student ID:</span>
+                <span class="info-value">{{ student.student_id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Programme:</span>
+                <span class="info-value">{{ student.programme.name }} ({{ student.programme.code }})</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">School/Faculty:</span>
+                <span class="info-value">{{ student.programme.faculty.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Department:</span>
+                <span class="info-value">{{ student.programme.department.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Admission Date:</span>
+                <span class="info-value">{{ student.admission_date|date:"F d, Y" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Current Status:</span>
+                <span class="info-value">{{ student.get_status_display }}</span>
+            </div>
+            {% if academic_year %}
+            <div class="info-row">
+                <span class="info-label">Academic Year:</span>
+                <span class="info-value">{{ academic_year.year }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Academic Summary -->
+        <div class="academic-summary">
+            <div class="summary-item">
+                <div class="summary-value">{{ overall_gpa }}</div>
+                <div class="summary-label">Cumulative GPA</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value">{{ total_credits }}</div>
+                <div class="summary-label">Total Credits</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value">{{ passed_subjects }}/{{ total_subjects }}</div>
+                <div class="summary-label">Units Passed</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value">{{ completed_percentage }}%</div>
+                <div class="summary-label">Programme Completion</div>
+            </div>
+        </div>
+
+        <!-- Academic Standing -->
+        {% if overall_gpa > 0 %}
+        <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e8f5e8; border-radius: 5px;">
+            <strong>Academic Standing: {{ academic_standing }}</strong>
+        </div>
+        {% endif %}
+
+        <!-- Transcript Data -->
+        {% for year, semesters in transcript_data.items %}
+        <div class="transcript-section">
+            <div class="year-header">Academic Year {{ year }}</div>
+            
+            {% for semester_num, subjects in semesters.items %}
+            <div class="semester-header">
+                Semester {{ semester_num }}
+                {% for key, value in semester_gpas.items %}
+                    {% if key == year|add:"-"|add:semester_num %}
+                        - GPA: {{ value.gpa }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <div class="semester-stats">
+                Units: {{ subjects|length }} | 
+                Passed: {% for subject in subjects %}{% if subject.is_passed %}{{ forloop.counter0|add:1 }}{% endif %}{% empty %}0{% endfor %} | 
+                Credits: {% for subject in subjects %}{{ subject.unit.credit_hours }}{% if not forloop.last %} + {% endif %}{% endfor %}
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 8%;">Code</th>
+                        <th style="width: 25%;">Course Title</th>
+                        <th style="width: 6%;">Credits</th>
+                        <th style="width: 8%;">CA</th>
+                        <th style="width: 8%;">Exam</th>
+                        <th style="width: 8%;">Practical</th>
+                        <th style="width: 8%;">Project</th>
+                        <th style="width: 8%;">Total</th>
+                        <th style="width: 6%;">Grade</th>
+                        <th style="width: 6%;">Points</th>
+                        <th style="width: 9%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subject_data in subjects %}
+                    <tr class="grade-{{ subject_data.grade_letter|lower|cut:'+' }}">
+                        <td>{{ subject_data.unit.code }}</td>
+                        <td style="text-align: left;">{{ subject_data.unit.name }}</td>
+                        <td>{{ subject_data.unit.credit_hours }}</td>
+                        <td>{{ subject_data.continuous_assessment|default_if_none:"-" }}</td>
+                        <td>{{ subject_data.final_exam|default_if_none:"-" }}</td>
+                        <td>{{ subject_data.practical_marks|default_if_none:"-" }}</td>
+                        <td>{{ subject_data.project_marks|default_if_none:"-" }}</td>
+                        <td>{{ subject_data.total_marks|default_if_none:"-"|floatformat:1 }}</td>
+                        <td><strong>{{ subject_data.grade_letter }}</strong></td>
+                        <td>{{ subject_data.grade_points|default_if_none:"-" }}</td>
+                        <td class="status-{{ subject_data.status|lower }}">{{ subject_data.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
+        {% empty %}
+        <div style="text-align: center; padding: 20px; color: #666;">
+            No academic records found for the specified period.
+        </div>
+        {% endfor %}
+
+        <!-- Grading Scale -->
+        <div class="grading-scale">
+            <h4>University Grading Scale</h4>
+            <table class="scale-table">
+                <thead>
+                    <tr>
+                        <th>Grade</th>
+                        <th>Marks Range</th>
+                        <th>Grade Points</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>A+</td>
+                        <td>90-100</td>
+                        <td>4.0</td>
+                        <td>Excellent</td>
+                    </tr>
+                    <tr>
+                        <td>A</td>
+                        <td>80-89</td>
+                        <td>4.0</td>
+                        <td>Excellent</td>
+                    </tr>
+                    <tr>
+                        <td>A-</td>
+                        <td>75-79</td>
+                        <td>3.7</td>
+                        <td>Very Good</td>
+                    </tr>
+                    <tr>
+                        <td>B+</td>
+                        <td>70-74</td>
+                        <td>3.3</td>
+                        <td>Good</td>
+                    </tr>
+                    <tr>
+                        <td>B</td>
+                        <td>65-69</td>
+                        <td>3.0</td>
+                        <td>Good</td>
+                    </tr>
+                    <tr>
+                        <td>B-</td>
+                        <td>60-64</td>
+                        <td>2.7</td>
+                        <td>Above Average</td>
+                    </tr>
+                    <tr>
+                        <td>C+</td>
+                        <td>55-59</td>
+                        <td>2.3</td>
+                        <td>Average</td>
+                    </tr>
+                    <tr>
+                        <td>C</td>
+                        <td>50-54</td>
+                        <td>2.0</td>
+                        <td>Average</td>
+                    </tr>
+                    <tr>
+                        <td>C-</td>
+                        <td>45-49</td>
+                        <td>1.7</td>
+                        <td>Below Average</td>
+                    </tr>
+                    <tr>
+                        <td>D+</td>
+                        <td>40-44</td>
+                        <td>1.3</td>
+                        <td>Poor</td>
+                    </tr>
+                    <tr>
+                        <td>D</td>
+                        <td>35-39</td>
+                        <td>1.0</td>
+                        <td>Poor</td>
+                    </tr>
+                    <tr>
+                        <td>F</td>
+                        <td>Below 35</td>
+                        <td>0.0</td>
+                        <td>Fail</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer and Signatures -->
+        <div class="footer">
+            <p><strong>Note:</strong> This transcript is valid only if it bears the official university seal and authorized signatures.</p>
+            <p><strong>Generated on:</strong> {{ generated_date }}</p>
+            
+            <!-- Disclaimer -->
+            <div class="disclaimer">
+                <strong>Disclaimer:</strong> This transcript is an official document of the university. Any alteration, forgery, or unauthorized reproduction is strictly prohibited and may result in legal action. For verification purposes, contact the Office of the Registrar.
+            </div>
+
+            <!-- Verification Information -->
+            <div class="verification-info">
+                <strong>Document Verification:</strong><br>
+                Transcript ID: {{ transcript_id|default:"TRS-"|add:student.student_id|add:"-"|add:generated_date|date:"Ymd" }}<br>
+                Verification Code: {{ verification_code|default:"VER-"|add:student.student_id|slice:":4"|add:generated_date|date:"md" }}<br>
+                To verify this document, visit: {{ university_info.website }}/verify or contact {{ university_info.email }}
+            </div>
+            
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line">
+                        <strong>Registrar</strong><br>
+                        Academic Affairs
+                    </div>
+                </div>
+                
+                <div class="signature-block">
+                    <div class="signature-line">
+                        <strong>Dean</strong><br>
+                        {{ student.programme.faculty.name }}
+                    </div>
+                </div>
+                
+                <div class="signature-block">
+                    <div class="signature-line">
+                        <strong>Vice-Chancellor</strong><br>
+                        {{ university_info.name }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final footer information -->
+            <div style="text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; color: #666; font-size: 8px;">
+                <p>This document was electronically generated and is valid without physical signatures when verified through official university channels.</p>
+                <p>© {{ generated_date|date:"Y" }} {{ university_info.name }}. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
