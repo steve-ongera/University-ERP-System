@@ -1,0 +1,14 @@
+Django>=4.2,<5.0
+djangorestframework>=3.14.0
+django-filter>=23.2
+django-crispy-forms>=2.0
+crispy-bootstrap5>=0.7
+Pillow>=10.0.0
+pdfkit>=1.0.0
+xhtml2pdf>=0.2.11
+django-import-export>=3.3.0
+django-environ>=0.11.2
+psycopg2-binary>=2.9.7  # PostgreSQL driver (remove if not using Postgres)
+mysqlclient>=2.2.0       # MySQL driver (only if using MySQL instead of Postgres)
+whitenoise>=6.5.0        # Static file serving in production
+gunicorn>=21.2.0         # WSGI HTTP server for deployment

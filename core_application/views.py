@@ -2768,89 +2768,265 @@ def student_transcript(request, student_id=None):
     
     return render(request, 'student/student_transcript.html', context)
 
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden, HttpResponse
+from django.db.models import Avg, Sum, Count, Q
+from django.template.loader import get_template
+from collections import defaultdict
+from decimal import Decimal
+import pdfkit
+from django.conf import settings
+import os
+from .models import Student, Enrollment, Grade, AcademicYear, Semester
 
-# Alternative view for generating transcript PDF
 @login_required
-def student_transcript_pdf(request, student_id=None):
-    """Generate PDF version of student transcript"""
-    from django.http import HttpResponse
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.lib import colors
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.units import inch
-    from io import BytesIO
+def student_transcript_pdf(request, academic_year_id=None, semester_id=None):
+    """
+    Generate PDF transcript for student - either for specific semester or full academic year
+    """
+    # Check if user is a student
+    if not hasattr(request.user, 'student_profile'):
+        return HttpResponseForbidden("Access denied. Students only.")
     
-    # Get the same data as the regular transcript view
-    if student_id:
-        if not (request.user.user_type in ['admin', 'instructor', 'staff', 'registrar']):
-            return HttpResponseForbidden("Access denied.")
-        student = get_object_or_404(Student, id=student_id)
+    student = request.user.student_profile
+    
+    # Determine what to include in the transcript
+    enrollments_filter = Q(student=student, is_active=True)
+    
+    if semester_id:
+        # Specific semester transcript
+        semester = get_object_or_404(Semester, id=semester_id)
+        enrollments_filter &= Q(semester=semester)
+        transcript_type = f"Semester {semester.semester_number}"
+        academic_year = semester.academic_year
+        pdf_filename = f"{student.student_id}_transcript_{semester.academic_year.year}_sem{semester.semester_number}.pdf"
+    elif academic_year_id:
+        # Full academic year transcript
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+        enrollments_filter &= Q(semester__academic_year=academic_year)
+        transcript_type = f"Academic Year {academic_year.year}"
+        pdf_filename = f"{student.student_id}_transcript_{academic_year.year}.pdf"
     else:
-        if not hasattr(request.user, 'student_profile'):
-            return HttpResponseForbidden("Access denied. Students only.")
-        student = request.user.student_profile
-    
-    # Create the HttpResponse object with PDF headers
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="transcript_{student.registration_number}.pdf"'
-    
-    # Create the PDF object using BytesIO as a file-like buffer
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    
-    # Container for the 'Flowable' objects
-    elements = []
-    
-    # Define styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        textColor=colors.HexColor('#3639A4'),
-        alignment=1  # Center alignment
-    )
-    
-    # Title
-    title = Paragraph("ACADEMIC TRANSCRIPT", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 12))
-    
-    # Student Information
-    student_info = [
-        ['Student Name:', student.user.get_full_name()],
-        ['Registration Number:', student.registration_number],
-        ['Programme:', student.programme.name],
-        ['School:', student.programme.school.name],
-        ['Current Year/Semester:', f"{student.current_year}/{student.current_semester}"],
-        ['Status:', student.get_status_display()],
-    ]
-    
-    student_table = Table(student_info, colWidths=[2*inch, 4*inch])
-    student_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    
-    elements.append(student_table)
-    elements.append(Spacer(1, 20))
-    
-    # Add transcript data (simplified version for PDF)
-    # This would need to be expanded based on your specific requirements
-    
-    # Build PDF
-    doc.build(elements)
-    pdf = buffer.getvalue()
-    buffer.close()
-    response.write(pdf)
-    
-    return response
+        # Full transcript (all years)
+        transcript_type = "Complete Academic Transcript"
+        academic_year = None
+        pdf_filename = f"{student.student_id}_complete_transcript.pdf"
 
+    # Get enrollments based on filter
+    enrollments = Enrollment.objects.filter(enrollments_filter).select_related(
+        'course',
+        'semester',
+        'semester__academic_year',
+        'lecturer'
+    ).prefetch_related('grade').order_by(
+        'semester__academic_year__year', 
+        'semester__semester_number', 
+        'course__code'
+    )
+
+    if not enrollments.exists():
+        return HttpResponse("No academic records found for the specified period.", status=404)
+
+    # Organize data by academic year and semester
+    transcript_data = defaultdict(lambda: defaultdict(list))
+    
+    for enrollment in enrollments:
+        year = enrollment.semester.academic_year.year
+        semester_num = enrollment.semester.semester_number
+        
+        # Get grade information
+        grade_info = None
+        try:
+            grade_info = enrollment.grade
+        except Grade.DoesNotExist:
+            pass
+        
+        # Calculate total marks
+        total_marks = None
+        if grade_info and grade_info.total_marks:
+            total_marks = grade_info.total_marks
+        elif grade_info:
+            # Calculate from individual components if total_marks is not set
+            marks = []
+            if grade_info.continuous_assessment is not None:
+                marks.append(float(grade_info.continuous_assessment))
+            if grade_info.final_exam is not None:
+                marks.append(float(grade_info.final_exam))
+            if grade_info.practical_marks is not None:
+                marks.append(float(grade_info.practical_marks))
+            if grade_info.project_marks is not None:
+                marks.append(float(grade_info.project_marks))
+            
+            if marks:
+                total_marks = sum(marks) / len(marks)
+        
+        subject_data = {
+            'unit': enrollment.course,
+            'enrollment': enrollment,
+            'grade': grade_info,
+            'continuous_assessment': grade_info.continuous_assessment if grade_info else None,
+            'final_exam': grade_info.final_exam if grade_info else None,
+            'practical_marks': grade_info.practical_marks if grade_info else None,
+            'project_marks': grade_info.project_marks if grade_info else None,
+            'total_marks': total_marks,
+            'grade_letter': grade_info.grade if grade_info else 'N/A',
+            'grade_points': grade_info.grade_points if grade_info else None,
+            'quality_points': grade_info.quality_points if grade_info else None,
+            'is_passed': grade_info.is_passed if grade_info else False,
+            'status': 'Passed' if (grade_info and grade_info.is_passed) else 'Failed' if grade_info else 'Pending',
+            'lecturer': enrollment.lecturer.user.get_full_name() if enrollment.lecturer else 'TBA'
+        }
+        
+        transcript_data[year][semester_num].append(subject_data)
+
+    # Convert to regular dict and sort
+    transcript_data = dict(transcript_data)
+    for year in transcript_data:
+        transcript_data[year] = dict(transcript_data[year])
+        for semester in transcript_data[year]:
+            transcript_data[year][semester].sort(key=lambda x: x['unit'].code)
+
+    # Calculate statistics
+    semester_gpas = {}
+    overall_credits = 0
+    overall_grade_points = 0
+    total_subjects = 0
+    passed_subjects = 0
+    total_quality_points = 0
+    
+    for year in transcript_data:
+        for semester_num in transcript_data[year]:
+            semester_credits = 0
+            semester_quality_points = 0
+            semester_subjects = 0
+            semester_passed = 0
+            
+            for subject_data in transcript_data[year][semester_num]:
+                total_subjects += 1
+                semester_subjects += 1
+                
+                if subject_data['is_passed']:
+                    passed_subjects += 1
+                    semester_passed += 1
+                    
+                if subject_data['grade_points'] is not None and subject_data['quality_points'] is not None:
+                    credits = subject_data['unit'].credit_hours
+                    quality_points = float(subject_data['quality_points'])
+                    
+                    semester_credits += credits
+                    semester_quality_points += quality_points
+                    
+                    overall_credits += credits
+                    total_quality_points += quality_points
+            
+            if semester_credits > 0:
+                semester_gpa = semester_quality_points / semester_credits
+                semester_gpas[f"{year}-{semester_num}"] = {
+                    'gpa': round(semester_gpa, 2),
+                    'credits': semester_credits,
+                    'subjects': semester_subjects,
+                    'passed': semester_passed
+                }
+
+    overall_gpa = round(total_quality_points / overall_credits, 2) if overall_credits > 0 else 0
+    
+    # Calculate completion percentage
+    programme_units = student.programme.programme_courses.filter(is_active=True)
+    if semester_id:
+        # For semester transcript, calculate based on that semester's expected units
+        semester_obj = get_object_or_404(Semester, id=semester_id)
+        expected_units = programme_units.filter(
+            year=student.current_year,
+            semester=semester_obj.semester_number
+        ).count()
+        completed_percentage = round((passed_subjects / expected_units) * 100, 1) if expected_units > 0 else 0
+    else:
+        total_programme_units = programme_units.count()
+        completed_percentage = round((passed_subjects / total_programme_units) * 100, 1) if total_programme_units > 0 else 0
+    
+    # Determine academic standing
+    if overall_gpa >= 3.5:
+        academic_standing = "First Class Honours"
+    elif overall_gpa >= 3.0:
+        academic_standing = "Second Class Honours (Upper Division)"
+    elif overall_gpa >= 2.5:
+        academic_standing = "Second Class Honours (Lower Division)"
+    elif overall_gpa >= 2.0:
+        academic_standing = "Pass"
+    else:
+        academic_standing = "Fail"
+
+    # Get university information (you might need to create a University model or use settings)
+    university_info = {
+        'name': getattr(settings, 'UNIVERSITY_NAME', 'University Name'),
+        'logo_url': getattr(settings, 'UNIVERSITY_LOGO_URL', '/static/images/university_logo.png'),
+        'address': getattr(settings, 'UNIVERSITY_ADDRESS', 'University Address'),
+        'phone': getattr(settings, 'UNIVERSITY_PHONE', '+254 XXX XXX XXX'),
+        'email': getattr(settings, 'UNIVERSITY_EMAIL', 'info@university.ac.ke'),
+        'website': getattr(settings, 'UNIVERSITY_WEBSITE', 'www.university.ac.ke'),
+        'motto': getattr(settings, 'UNIVERSITY_MOTTO', 'Excellence in Education'),
+    }
+
+    context = {
+        'student': student,
+        'transcript_data': transcript_data,
+        'semester_gpas': semester_gpas,
+        'overall_gpa': overall_gpa,
+        'total_credits': overall_credits,
+        'completed_percentage': completed_percentage,
+        'academic_standing': academic_standing,
+        'total_subjects': total_subjects,
+        'passed_subjects': passed_subjects,
+        'transcript_type': transcript_type,
+        'academic_year': academic_year,
+        'university_info': university_info,
+        'generated_date': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+    }
+    
+    # Render HTML template
+    template = get_template('student/transcript_pdf.html')
+    html = template.render(context)
+    
+    # Configure PDF options
+    options = {
+        'page-size': 'A4',
+        'margin-top': '0.5in',
+        'margin-right': '0.5in',
+        'margin-bottom': '0.5in',
+        'margin-left': '0.5in',
+        'encoding': "UTF-8",
+        'no-outline': None,
+        'enable-local-file-access': None,
+        'print-media-type': '',
+        'disable-smart-shrinking': '',
+        'zoom': '0.8',
+    }
+    
+    try:
+        # Generate PDF
+        pdf = pdfkit.from_string(html, False, options=options)
+        
+        # Create HTTP response
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
+        
+        return response
+        
+    except Exception as e:
+        # Fallback: return HTML if PDF generation fails
+        return HttpResponse(f"Error generating PDF: {str(e)}")
+
+
+@login_required
+def student_transcript_preview(request, academic_year_id=None, semester_id=None):
+    """
+    Preview the transcript before downloading (same logic as PDF but returns HTML)
+    """
+    # This uses the same logic as the PDF view but returns HTML for preview
+    # You can reuse most of the code from student_transcript_pdf
+    # Just return render instead of PDF generation
+    pass
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
