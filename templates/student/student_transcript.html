@@ -26,9 +26,44 @@
                     <button class="btn btn-outline-primary" onclick="window.print()">
                         <i class="bi bi-printer"></i> Print
                     </button>
-                    <a href="#" class="btn btn-outline-info">
-                        <i class="bi bi-download"></i> Download
-                    </a>
+                    <!-- Dropdown for PDF downloads -->
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download"></i> Download PDF
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'transcript_pdf' %}">
+                                    <i class="bi bi-file-earmark-pdf"></i> Complete Transcript
+                                </a>
+                            </li>
+                            {% if current_academic_year %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' current_academic_year.id %}">
+                                    <i class="bi bi-file-earmark-pdf"></i> Current Year ({{ current_academic_year.year }})
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if current_semester %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'transcript_pdf_semester' current_semester.id %}">
+                                    <i class="bi bi-file-earmark-pdf"></i> Current Semester
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <h6 class="dropdown-header">Select Specific Year:</h6>
+                            </li>
+                            {% for year_data in available_years %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' year_data.id %}">
+                                    <i class="bi bi-calendar"></i> {{ year_data.year }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -133,10 +168,25 @@
     <div class="row p-3">
         <div class="col-md-12 mb-4">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="bi bi-journal-text"></i> Detailed Transcript
                     </h5>
+                    <!-- Quick PDF download buttons for individual years -->
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% for year_data in academic_years_in_transcript %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' year_data.id %}">
+                                    <i class="bi bi-file-earmark-pdf"></i> Year {{ year_data.year }} PDF
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
                 <div class="card-body">
                     {% if transcript_data %}
@@ -147,11 +197,19 @@
                                 <i class="bi bi-bar-chart"></i> Summary
                             </button>
                         </li>
-                        {% for year in transcript_data.keys %}
+                        {% for year, semesters in transcript_data.items %}
                         <li class="nav-item" role="presentation">
+                            {% for year_data in academic_years_in_transcript %}
+                                {% if year_data.year == year %}
                             <button class="nav-link" id="year{{ year|slugify }}-tab" data-bs-toggle="tab" data-bs-target="#year{{ year|slugify }}" type="button" role="tab">
                                 {{ year }}
+                                <!-- Add small PDF download icon -->
+                                <a href="{% url 'transcript_pdf_year' year_data.id %}" class="ms-1 text-decoration-none" onclick="event.stopPropagation();" title="Download Year {{ year }} PDF">
+                                    <i class="bi bi-download" style="font-size: 0.7rem;"></i>
+                                </a>
                             </button>
+                                {% endif %}
+                            {% endfor %}
                         </li>
                         {% endfor %}
                     </ul>
@@ -203,7 +261,16 @@
                         <!-- Year Tabs -->
                         {% for year, semesters in transcript_data.items %}
                         <div class="tab-pane fade" id="year{{ year|slugify }}" role="tabpanel">
-                            <h5 class="mb-4">Academic Year {{ year }}</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5>Academic Year {{ year }}</h5>
+                                {% for year_data in academic_years_in_transcript %}
+                                    {% if year_data.year == year %}
+                                <a href="{% url 'transcript_pdf_year' year_data.id %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-download"></i> Download Year {{ year }} PDF
+                                </a>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
                             
                             {% for semester_num, subjects in semesters.items %}
                             <div class="semester-section mb-4 p-3 border rounded">
@@ -215,6 +282,12 @@
                                                 <span class="badge bg-primary">
                                                     GPA: {{ value.gpa }}
                                                 </span>
+                                                <!-- Add semester PDF download if you have semester IDs -->
+                                                {% if semester.id %}
+                                                <a href="{% url 'transcript_pdf_semester' semester.id %}" class="btn btn-outline-info btn-sm ms-2">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                                {% endif %}
                                             {% endif %}
                                         {% endfor %}
                                     </div>

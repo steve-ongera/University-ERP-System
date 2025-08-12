@@ -2754,6 +2754,29 @@ def student_transcript(request, student_id=None):
     else:
         academic_standing = "Poor"
 
+    # Get academic year objects with their IDs for the dropdown
+    academic_years_in_transcript = []
+    for year_string in transcript_data.keys():
+        try:
+            # Find the academic year object by year string
+            academic_year_obj = AcademicYear.objects.get(year=year_string)
+            academic_years_in_transcript.append({
+                'id': academic_year_obj.id,
+                'year': year_string,
+                'object': academic_year_obj
+            })
+        except AcademicYear.DoesNotExist:
+            # If no exact match, you might need to handle this differently
+            # depending on your AcademicYear model structure
+            pass
+    
+    # Get all available academic years for the student
+    available_years = AcademicYear.objects.filter(
+        semesters__enrollments__student=student,
+        semesters__enrollments__is_active=True
+    ).distinct().order_by('-year')
+
+
     context = {
         'student': student,
         'transcript_data': transcript_data,
@@ -2764,6 +2787,14 @@ def student_transcript(request, student_id=None):
         'academic_standing': academic_standing,
         'total_subjects': total_subjects,
         'passed_subjects': passed_subjects,
+
+        'transcript_type': 'Complete Academic Transcript',
+        'academic_year': None,
+        'available_years': available_years,
+        'academic_years_in_transcript': academic_years_in_transcript,  # New context variable
+        'current_academic_year': AcademicYear.objects.filter(is_current=True).first(),
+        'current_semester': Semester.objects.filter(is_current=True).first(),
+        'generated_date': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
     }
     
     return render(request, 'student/student_transcript.html', context)
@@ -2960,7 +2991,7 @@ def student_transcript_pdf(request, academic_year_id=None, semester_id=None):
     # Get university information (you might need to create a University model or use settings)
     university_info = {
         'name': getattr(settings, 'UNIVERSITY_NAME', 'University Name'),
-        'logo_url': getattr(settings, 'UNIVERSITY_LOGO_URL', '/static/images/university_logo.png'),
+        'logo_url': getattr(settings, 'UNIVERSITY_LOGO_URL', '/static/logo.png'),
         'address': getattr(settings, 'UNIVERSITY_ADDRESS', 'University Address'),
         'phone': getattr(settings, 'UNIVERSITY_PHONE', '+254 XXX XXX XXX'),
         'email': getattr(settings, 'UNIVERSITY_EMAIL', 'info@university.ac.ke'),
@@ -3005,7 +3036,9 @@ def student_transcript_pdf(request, academic_year_id=None, semester_id=None):
     
     try:
         # Generate PDF
-        pdf = pdfkit.from_string(html, False, options=options)
+        
+        config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_CMD)
+        pdf = pdfkit.from_string(html, False, options=options, configuration=config)
         
         # Create HTTP response
         response = HttpResponse(pdf, content_type='application/pdf')

@@ -91,7 +91,15 @@ urlpatterns = [
     path('admin-calculate-gpa/<str:student_id>/', views.calculate_student_gpa, name='calculate_student_gpa'),
      #students transcript
     path('student/transcript/', views.student_transcript, name='student_transcript'),
-    path('student-download-transcript', views.student_transcript_pdf , name='student_transcript_pdf'),
+    # Complete transcript (all years)
+    path('transcript/pdf/', views.student_transcript_pdf, name='transcript_pdf'),
+    
+    # Academic year transcript
+    path('transcript/pdf/year/<int:academic_year_id>/', views.student_transcript_pdf, name='transcript_pdf_year'),
+    
+    # Semester transcript
+    path('transcript/pdf/semester/<int:semester_id>/', views.student_transcript_pdf, name='transcript_pdf_semester'),
+
 
     # Lecturer management URLs
     path('lecturers/', views.lecturer_list, name='lecturer_list'),
