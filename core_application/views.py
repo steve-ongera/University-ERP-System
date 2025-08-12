@@ -2990,12 +2990,12 @@ def student_transcript_pdf(request, academic_year_id=None, semester_id=None):
 
     # Get university information (you might need to create a University model or use settings)
     university_info = {
-        'name': getattr(settings, 'UNIVERSITY_NAME', 'University Name'),
+        'name': getattr(settings, 'UNIVERSITY_NAME', 'MURANGA UNIVERSITY OF TECHNOLOGY'),
         'logo_url': getattr(settings, 'UNIVERSITY_LOGO_URL', '/static/logo.png'),
-        'address': getattr(settings, 'UNIVERSITY_ADDRESS', 'University Address'),
-        'phone': getattr(settings, 'UNIVERSITY_PHONE', '+254 XXX XXX XXX'),
-        'email': getattr(settings, 'UNIVERSITY_EMAIL', 'info@university.ac.ke'),
-        'website': getattr(settings, 'UNIVERSITY_WEBSITE', 'www.university.ac.ke'),
+        'address': getattr(settings, 'UNIVERSITY_ADDRESS', '625 Kimathi Avenue, P.O. Box 45678, Nairobi, Kenya'),
+        'phone': getattr(settings, 'UNIVERSITY_PHONE', '+254 757 790 877'),
+        'email': getattr(settings, 'UNIVERSITY_EMAIL', 'info@murangauniversity.ac.ke'),
+        'website': getattr(settings, 'UNIVERSITY_WEBSITE', 'www.murangauniversity.ac.ke'),
         'motto': getattr(settings, 'UNIVERSITY_MOTTO', 'Excellence in Education'),
     }
 

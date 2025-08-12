@@ -5,370 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Academic Transcript - {{ student.user.get_full_name }}</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            font-size: 11px;
-            line-height: 1.4;
-            color: #333;
-            background: white;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 10px;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; font-size: 10px; line-height: 1.3; color: #333; }
+        .container { width: 100%; max-width: 800px; margin: 0 auto; padding: 5px; }
+        
         /* Header Section */
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #1a73e8;
-            padding-bottom: 15px;
-        }
-
-        .university-logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 10px;
-            object-fit: contain;
-        }
-
-        .university-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #1a73e8;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-
-        .university-motto {
-            font-size: 12px;
-            color: #666;
-            font-style: italic;
-            margin-bottom: 3px;
-        }
-
-        .university-address {
-            font-size: 10px;
-            color: #666;
-            line-height: 1.2;
-        }
-
-        .document-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1a73e8;
-            margin: 15px 0 10px;
-            text-decoration: underline;
-        }
-
-        .transcript-type {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 20px;
-        }
-
+        .header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid #1a73e8; padding-bottom: 8px; }
+        .university-logo { width: 60px; height: 60px; margin: 0 auto 5px; object-fit: contain; }
+        .university-name { font-size: 16px; font-weight: bold; color: #1a73e8; margin-bottom: 2px; text-transform: uppercase; }
+        .university-motto { font-size: 10px; color: #666; font-style: italic; }
+        .university-address { font-size: 9px; color: #666; line-height: 1.2; margin-top: 3px; }
+        .document-title { font-size: 14px; font-weight: bold; color: #1a73e8; margin: 8px 0 5px; text-decoration: underline; }
+        .transcript-type { font-size: 10px; color: #666; margin-bottom: 10px; }
+        
         /* Student Information */
-        .student-info {
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            padding: 15px;
-            background-color: #f9f9f9;
-        }
-
-        .student-info h3 {
-            color: #1a73e8;
-            font-size: 14px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-        }
-
-        .info-row {
-            display: flex;
-            margin-bottom: 8px;
-        }
-
-        .info-label {
-            font-weight: bold;
-            width: 150px;
-            color: #555;
-        }
-
-        .info-value {
-            flex: 1;
-        }
-
+        .student-info { margin-bottom: 10px; border: 1px solid #ddd; padding: 8px; background-color: #f9f9f9; }
+        .student-info h3 { color: #1a73e8; font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+        .info-row { display: flex; margin-bottom: 4px; }
+        .info-label { font-weight: bold; width: 120px; color: #555; }
+        .info-value { flex: 1; }
+        
         /* Academic Summary */
-        .academic-summary {
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-around;
-            background-color: #f0f4ff;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #1a73e8;
-        }
-
-        .summary-item {
-            text-align: center;
-            flex: 1;
-        }
-
-        .summary-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1a73e8;
-        }
-
-        .summary-label {
-            font-size: 10px;
-            color: #666;
-            margin-top: 3px;
-        }
-
+        .academic-summary { margin-bottom: 10px; display: flex; justify-content: space-around; background-color: #f0f4ff; padding: 8px; border-radius: 3px; border: 1px solid #1a73e8; }
+        .summary-item { text-align: center; flex: 1; }
+        .summary-value { font-size: 14px; font-weight: bold; color: #1a73e8; }
+        .summary-label { font-size: 9px; color: #666; }
+        
         /* Transcript Table */
-        .transcript-section {
-            margin-bottom: 25px;
-        }
-
-        .year-header {
-            background-color: #1a73e8;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            padding: 8px 15px;
-            margin-bottom: 5px;
-        }
-
-        .semester-header {
-            background-color: #e3f2fd;
-            color: #1a73e8;
-            font-size: 12px;
-            font-weight: bold;
-            padding: 6px 12px;
-            margin: 10px 0 5px;
-            border-left: 4px solid #1a73e8;
-        }
-
-        .semester-stats {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 10px;
-            padding-left: 12px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
-        }
-
-        table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            padding: 6px 4px;
-            text-align: center;
-            border: 1px solid #ddd;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
-
-        table td {
-            padding: 5px 4px;
-            text-align: center;
-            border: 1px solid #ddd;
-            vertical-align: middle;
-        }
-
-        table td:nth-child(2) {
-            text-align: left;
-            font-size: 9px;
-        }
-
-        .grade-A, .grade-A-plus {
-            background-color: #d4edda;
-            color: #155724;
-            font-weight: bold;
-        }
-
-        .grade-B, .grade-B-plus, .grade-B-minus {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            font-weight: bold;
-        }
-
-        .grade-C, .grade-C-plus, .grade-C-minus {
-            background-color: #fff3cd;
-            color: #856404;
-            font-weight: bold;
-        }
-
-        .grade-D, .grade-D-plus {
-            background-color: #f8d7da;
-            color: #721c24;
-            font-weight: bold;
-        }
-
-        .grade-F {
-            background-color: #f5c6cb;
-            color: #721c24;
-            font-weight: bold;
-        }
-
-        .status-passed {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .status-failed {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
-        .status-pending {
-            color: #ffc107;
-            font-weight: bold;
-        }
-
+        .transcript-section { margin-bottom: 15px; }
+        .year-header { background-color: #1a73e8; color: white; font-size: 12px; font-weight: bold; padding: 5px 10px; margin-bottom: 3px; }
+        .semester-header { background-color: #e3f2fd; color: #1a73e8; font-size: 11px; font-weight: bold; padding: 4px 8px; margin: 5px 0 3px; border-left: 3px solid #1a73e8; }
+        .semester-stats { font-size: 9px; color: #666; margin-bottom: 5px; padding-left: 8px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9px; }
+        table th { background-color: #f5f5f5; font-weight: bold; padding: 4px; text-align: center; border: 1px solid #ddd; text-transform: uppercase; }
+        table td { padding: 3px; text-align: center; border: 1px solid #ddd; }
+        table td:nth-child(2) { text-align: left; }
+        
+        .grade-A, .grade-A-plus { background-color: #d4edda; color: #155724; font-weight: bold; }
+        .grade-B, .grade-B-plus, .grade-B-minus { background-color: #d1ecf1; color: #0c5460; font-weight: bold; }
+        .grade-C, .grade-C-plus, .grade-C-minus { background-color: #fff3cd; color: #856404; font-weight: bold; }
+        .grade-D, .grade-D-plus { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+        .grade-F { background-color: #f5c6cb; color: #721c24; font-weight: bold; }
+        .status-passed { color: #28a745; font-weight: bold; }
+        .status-failed { color: #dc3545; font-weight: bold; }
+        .status-pending { color: #ffc107; font-weight: bold; }
+        
         /* Footer */
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #1a73e8;
-            font-size: 10px;
-        }
-
-        .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 30px;
-        }
-
-        .signature-block {
-            text-align: center;
-            width: 200px;
-        }
-
-        .signature-line {
-            border-top: 1px solid #333;
-            margin-top: 40px;
-            padding-top: 5px;
-        }
-
-        .grading-scale {
-            margin-top: 20px;
-            font-size: 9px;
-        }
-
-        .grading-scale h4 {
-            font-size: 11px;
-            margin-bottom: 8px;
-            color: #1a73e8;
-        }
-
-        .scale-table {
-            width: 100%;
-        }
-
-        .scale-table th,
-        .scale-table td {
-            padding: 3px 5px;
-            font-size: 9px;
-        }
-
-        /* Page break control */
-        .page-break {
-            page-break-before: always;
-        }
-
+        .footer { margin-top: 15px; padding-top: 8px; border-top: 2px solid #1a73e8; font-size: 9px; }
+        .signatures { display: flex; justify-content: space-between; margin-top: 15px; }
+        .signature-block { text-align: center; width: 150px; }
+        .signature-line { border-top: 1px solid #333; margin-top: 25px; padding-top: 3px; }
+        .grading-scale { margin-top: 10px; font-size: 8px; }
+        .grading-scale h4 { font-size: 10px; margin-bottom: 5px; color: #1a73e8; }
+        .scale-table th, .scale-table td { padding: 2px 3px; }
+        
+        /* Compact elements */
+        .disclaimer, .verification-info { margin-top: 8px; padding: 5px; font-size: 8px; }
+        .watermark { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7px; color: #ccc; z-index: -1; }
+        
         @media print {
-            .page-break {
-                page-break-before: always;
-            }
-            
-            table {
-                page-break-inside: avoid;
-            }
-            
-            .transcript-section {
-                page-break-inside: avoid;
-            }
-        }
-
-        /* Watermark */
-        .watermark {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 8px;
-            color: #ccc;
-            z-index: -1;
-        }
-
-        /* Additional styles for completeness */
-        .disclaimer {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 5px;
-            font-size: 9px;
-            color: #856404;
-        }
-
-        .verification-info {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #e8f5e8;
-            border: 1px solid #28a745;
-            border-radius: 5px;
-            font-size: 9px;
-        }
-
-        .official-seal {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            width: 60px;
-            height: 60px;
-            opacity: 0.7;
+            table, .transcript-section { page-break-inside: avoid; }
+            .page-break { page-break-before: always; }
         }
     </style>
 </head>
 <body>
-    <!-- Watermark -->
-    <div class="watermark">
-        This is an official academic transcript generated on {{ generated_date }}
-    </div>
+    <div class="watermark">Official Transcript - {{ university_info.name }} - Generated on {{ generated_date }}</div>
 
     <div class="container">
         <!-- Header -->
         <div class="header">
-            {% if university_info.logo_url %}
-            <img src="{{ university_info.logo_url }}" alt="University Logo" class="university-logo">
-            {% endif %}
+            <img src="{{ university_info.logo_url|default:'data:image/jpeg;base64,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' }}" alt="University Logo" class="university-logo">
             <div class="university-name">{{ university_info.name }}</div>
-            {% if university_info.motto %}
-            <div class="university-motto">"{{ university_info.motto }}"</div>
-            {% endif %}
+            {% if university_info.motto %}<div class="university-motto">"{{ university_info.motto }}"</div>{% endif %}
             <div class="university-address">
-                {{ university_info.address }}<br>
-                Tel: {{ university_info.phone }} | Email: {{ university_info.email }}<br>
-                Website: {{ university_info.website }}
+                {{ university_info.address }} | Tel: {{ university_info.phone }}<br>
+                Email: {{ university_info.email }} | Website: {{ university_info.website }}
             </div>
-            
             <div class="document-title">OFFICIAL ACADEMIC TRANSCRIPT</div>
             <div class="transcript-type">{{ transcript_type }}</div>
         </div>
@@ -432,9 +146,8 @@
             </div>
         </div>
 
-        <!-- Academic Standing -->
         {% if overall_gpa > 0 %}
-        <div style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #e8f5e8; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 8px; padding: 5px; background-color: #e8f5e8; border-radius: 3px; font-size: 10px;">
             <strong>Academic Standing: {{ academic_standing }}</strong>
         </div>
         {% endif %}
@@ -448,9 +161,7 @@
             <div class="semester-header">
                 Semester {{ semester_num }}
                 {% for key, value in semester_gpas.items %}
-                    {% if key == year|add:"-"|add:semester_num %}
-                        - GPA: {{ value.gpa }}
-                    {% endif %}
+                    {% if key == year|add:"-"|add:semester_num %}- GPA: {{ value.gpa }}{% endif %}
                 {% endfor %}
             </div>
             
@@ -466,21 +177,21 @@
                         <th style="width: 8%;">Code</th>
                         <th style="width: 25%;">Course Title</th>
                         <th style="width: 6%;">Credits</th>
-                        <th style="width: 8%;">CA</th>
-                        <th style="width: 8%;">Exam</th>
-                        <th style="width: 8%;">Practical</th>
-                        <th style="width: 8%;">Project</th>
-                        <th style="width: 8%;">Total</th>
-                        <th style="width: 6%;">Grade</th>
-                        <th style="width: 6%;">Points</th>
-                        <th style="width: 9%;">Status</th>
+                        <th style="width: 7%;">CA</th>
+                        <th style="width: 7%;">Exam</th>
+                        <th style="width: 7%;">Practical</th>
+                        <th style="width: 7%;">Project</th>
+                        <th style="width: 7%;">Total</th>
+                        <th style="width: 5%;">Grade</th>
+                        <th style="width: 5%;">Points</th>
+                        <th style="width: 8%;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for subject_data in subjects %}
                     <tr class="grade-{{ subject_data.grade_letter|lower|cut:'+' }}">
                         <td>{{ subject_data.unit.code }}</td>
-                        <td style="text-align: left;">{{ subject_data.unit.name }}</td>
+                        <td>{{ subject_data.unit.name }}</td>
                         <td>{{ subject_data.unit.credit_hours }}</td>
                         <td>{{ subject_data.continuous_assessment|default_if_none:"-" }}</td>
                         <td>{{ subject_data.final_exam|default_if_none:"-" }}</td>
@@ -497,7 +208,7 @@
             {% endfor %}
         </div>
         {% empty %}
-        <div style="text-align: center; padding: 20px; color: #666;">
+        <div style="text-align: center; padding: 10px; color: #666; font-size: 10px;">
             No academic records found for the specified period.
         </div>
         {% endfor %}
@@ -515,127 +226,53 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>A+</td>
-                        <td>90-100</td>
-                        <td>4.0</td>
-                        <td>Excellent</td>
-                    </tr>
-                    <tr>
-                        <td>A</td>
-                        <td>80-89</td>
-                        <td>4.0</td>
-                        <td>Excellent</td>
-                    </tr>
-                    <tr>
-                        <td>A-</td>
-                        <td>75-79</td>
-                        <td>3.7</td>
-                        <td>Very Good</td>
-                    </tr>
-                    <tr>
-                        <td>B+</td>
-                        <td>70-74</td>
-                        <td>3.3</td>
-                        <td>Good</td>
-                    </tr>
-                    <tr>
-                        <td>B</td>
-                        <td>65-69</td>
-                        <td>3.0</td>
-                        <td>Good</td>
-                    </tr>
-                    <tr>
-                        <td>B-</td>
-                        <td>60-64</td>
-                        <td>2.7</td>
-                        <td>Above Average</td>
-                    </tr>
-                    <tr>
-                        <td>C+</td>
-                        <td>55-59</td>
-                        <td>2.3</td>
-                        <td>Average</td>
-                    </tr>
-                    <tr>
-                        <td>C</td>
-                        <td>50-54</td>
-                        <td>2.0</td>
-                        <td>Average</td>
-                    </tr>
-                    <tr>
-                        <td>C-</td>
-                        <td>45-49</td>
-                        <td>1.7</td>
-                        <td>Below Average</td>
-                    </tr>
-                    <tr>
-                        <td>D+</td>
-                        <td>40-44</td>
-                        <td>1.3</td>
-                        <td>Poor</td>
-                    </tr>
-                    <tr>
-                        <td>D</td>
-                        <td>35-39</td>
-                        <td>1.0</td>
-                        <td>Poor</td>
-                    </tr>
-                    <tr>
-                        <td>F</td>
-                        <td>Below 35</td>
-                        <td>0.0</td>
-                        <td>Fail</td>
-                    </tr>
+                    <tr><td>A+</td><td>90-100</td><td>4.0</td><td>Excellent</td></tr>
+                    <tr><td>A</td><td>80-89</td><td>4.0</td><td>Excellent</td></tr>
+                    <tr><td>A-</td><td>75-79</td><td>3.7</td><td>Very Good</td></tr>
+                    <tr><td>B+</td><td>70-74</td><td>3.3</td><td>Good</td></tr>
+                    <tr><td>B</td><td>65-69</td><td>3.0</td><td>Good</td></tr>
+                    <tr><td>B-</td><td>60-64</td><td>2.7</td><td>Above Average</td></tr>
+                    <tr><td>C+</td><td>55-59</td><td>2.3</td><td>Average</td></tr>
+                    <tr><td>C</td><td>50-54</td><td>2.0</td><td>Average</td></tr>
+                    <tr><td>C-</td><td>45-49</td><td>1.7</td><td>Below Average</td></tr>
+                    <tr><td>D+</td><td>40-44</td><td>1.3</td><td>Poor</td></tr>
+                    <tr><td>D</td><td>35-39</td><td>1.0</td><td>Poor</td></tr>
+                    <tr><td>F</td><td>Below 35</td><td>0.0</td><td>Fail</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Footer and Signatures -->
+        <!-- Footer -->
         <div class="footer">
-            <p><strong>Note:</strong> This transcript is valid only if it bears the official university seal and authorized signatures.</p>
-            <p><strong>Generated on:</strong> {{ generated_date }}</p>
+            <p><strong>Note:</strong> Valid only with official university seal and authorized signatures.</p>
+            <p><strong>Generated:</strong> {{ generated_date }}</p>
             
-            <!-- Disclaimer -->
             <div class="disclaimer">
-                <strong>Disclaimer:</strong> This transcript is an official document of the university. Any alteration, forgery, or unauthorized reproduction is strictly prohibited and may result in legal action. For verification purposes, contact the Office of the Registrar.
+                <strong>Disclaimer:</strong> Any alteration or unauthorized reproduction is prohibited. Contact Registrar for verification.
             </div>
 
-            <!-- Verification Information -->
             <div class="verification-info">
-                <strong>Document Verification:</strong><br>
-                Transcript ID: {{ transcript_id|default:"TRS-"|add:student.student_id|add:"-"|add:generated_date|date:"Ymd" }}<br>
-                Verification Code: {{ verification_code|default:"VER-"|add:student.student_id|slice:":4"|add:generated_date|date:"md" }}<br>
-                To verify this document, visit: {{ university_info.website }}/verify or contact {{ university_info.email }}
+                <strong>Verification:</strong><br>
+                ID: {{ transcript_id|default:"TRS-"|add:student.student_id|add:"-"|add:generated_date|date:"Ymd" }}<br>
+                Code: {{ verification_code|default:"VER-"|add:student.student_id|slice:":4"|add:generated_date|date:"md" }}<br>
+                {{ university_info.website }}/verify
             </div>
             
             <div class="signatures">
                 <div class="signature-block">
-                    <div class="signature-line">
-                        <strong>Registrar</strong><br>
-                        Academic Affairs
-                    </div>
+                    <div class="signature-line">Registrar</div>
                 </div>
-                
                 <div class="signature-block">
-                    <div class="signature-line">
-                        <strong>Dean</strong><br>
-                        {{ student.programme.faculty.name }}
-                    </div>
+                    <div class="signature-line">Dean, {{ student.programme.faculty.name }}</div>
                 </div>
-                
                 <div class="signature-block">
-                    <div class="signature-line">
-                        <strong>Vice-Chancellor</strong><br>
-                        {{ university_info.name }}
-                    </div>
+                    <div class="signature-line">Vice-Chancellor</div>
                 </div>
             </div>
 
-            <!-- Final footer information -->
-            <div style="text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; color: #666; font-size: 8px;">
-                <p>This document was electronically generated and is valid without physical signatures when verified through official university channels.</p>
-                <p>© {{ generated_date|date:"Y" }} {{ university_info.name }}. All rights reserved.</p>
+            <div style="text-align: center; margin-top: 10px; padding-top: 5px; border-top: 1px solid #ddd; color: #666; font-size: 7px;">
+                <p>Electronically generated - valid when verified through official channels</p>
+                <p>© {{ generated_date|date:"Y" }} {{ university_info.name }}</p>
             </div>
         </div>
     </div>
