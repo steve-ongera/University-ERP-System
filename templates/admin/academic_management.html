@@ -1,9 +1,42 @@
-{% extends 'base.html' %}
+{% extends 'admin_base.html' %}
 {% load static %}
 
 {% block title %}Academic Year Management{% endblock %}
 
 {% block content %}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .nav-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    .nav-tabs .nav-link.active {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-primary);
+        color: white !important;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+
 <div class="container-fluid mt-3">
     <!-- Page Header -->
     <div class="row mb-4">
@@ -325,19 +358,29 @@
     </div>
 </div>
 
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Global variables
     let academicYears = [];
     
+    // Django URLs
+    const urls = {
+        getAcademicYears: "{% url 'get_academic_years' %}",
+        createAcademicYear: "{% url 'create_academic_year' %}",
+        updateAcademicYear: "/academics/api/academic-years/{id}/update/",
+        deleteAcademicYear: "/academics/api/academic-years/{id}/delete/",
+        setCurrentAcademicYear: "/academics/api/academic-years/{id}/set-current/",
+        createSemester: "/academics/api/academic-years/{yearId}/semesters/create/",
+        updateSemester: "/academics/api/semesters/{id}/update/",
+        deleteSemester: "/academics/api/semesters/{id}/delete/",
+        setCurrentSemester: "/academics/api/semesters/{id}/set-current/",
+        getSemesterRegistrations: "/academics/api/semesters/{id}/registrations/"
+    };
+    
     // Document ready
     document.addEventListener('DOMContentLoaded', function() {
         loadAcademicYears();
-        
-        // Form event listeners
         setupFormEventListeners();
     });
 
@@ -366,13 +409,79 @@
             e.preventDefault();
             updateSemester();
         });
+
+        // Date validation
+        setupDateValidation();
+    }
+
+    // Setup date validation
+    function setupDateValidation() {
+        // Academic Year date validation
+        document.getElementById('addYearStartDate').addEventListener('change', function() {
+            const startDate = this.value;
+            const endDateInput = document.getElementById('addYearEndDate');
+            if (startDate) {
+                endDateInput.min = startDate;
+            }
+        });
+
+        document.getElementById('editYearStartDate').addEventListener('change', function() {
+            const startDate = this.value;
+            const endDateInput = document.getElementById('editYearEndDate');
+            if (startDate) {
+                endDateInput.min = startDate;
+            }
+        });
+
+        // Semester date validation
+        document.getElementById('addSemesterStartDate').addEventListener('change', function() {
+            const startDate = this.value;
+            const endDateInput = document.getElementById('addSemesterEndDate');
+            const regStartInput = document.getElementById('addSemesterRegStartDate');
+            const regEndInput = document.getElementById('addSemesterRegEndDate');
+            
+            if (startDate) {
+                endDateInput.min = startDate;
+                regStartInput.max = startDate;
+                regEndInput.max = startDate;
+            }
+        });
+
+        document.getElementById('editSemesterStartDate').addEventListener('change', function() {
+            const startDate = this.value;
+            const endDateInput = document.getElementById('editSemesterEndDate');
+            const regStartInput = document.getElementById('editSemesterRegStartDate');
+            const regEndInput = document.getElementById('editSemesterRegEndDate');
+            
+            if (startDate) {
+                endDateInput.min = startDate;
+                regStartInput.max = startDate;
+                regEndInput.max = startDate;
+            }
+        });
+
+        document.getElementById('addSemesterRegStartDate').addEventListener('change', function() {
+            const regStartDate = this.value;
+            const regEndInput = document.getElementById('addSemesterRegEndDate');
+            if (regStartDate) {
+                regEndInput.min = regStartDate;
+            }
+        });
+
+        document.getElementById('editSemesterRegStartDate').addEventListener('change', function() {
+            const regStartDate = this.value;
+            const regEndInput = document.getElementById('editSemesterRegEndDate');
+            if (regStartDate) {
+                regEndInput.min = regStartDate;
+            }
+        });
     }
 
     // Load academic years from server
     function loadAcademicYears() {
         showLoading(true);
         
-        fetch("{% url 'get_academic_years' %}")
+        fetch(urls.getAcademicYears)
             .then(response => response.json())
             .then(data => {
                 academicYears = data.academic_years;
@@ -394,7 +503,12 @@
         
         if (academicYears.length === 0) {
             tabsContainer.innerHTML = '<li class="nav-item"><span class="nav-link text-muted">No academic years found</span></li>';
-            contentContainer.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-calendar-x display-4 mb-3"></i><p>No academic years created yet. Click "Add Academic Year" to get started.</p></div>';
+            contentContainer.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-calendar-x display-4 mb-3"></i>
+                    <p>No academic years created yet. Click "Add Academic Year" to get started.</p>
+                </div>
+            `;
             return;
         }
 
@@ -443,16 +557,16 @@
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0">Semester ${semester.semester_number} ${semesterCurrentBadge}</h6>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-info" onclick="viewSemesterRegistrations(${semester.id})">
+                                    <button class="btn btn-outline-info" onclick="viewSemesterRegistrations(${semester.id})" title="View Registrations">
                                         <i class="bi bi-people"></i>
                                     </button>
-                                    <button class="btn btn-outline-primary" onclick="editSemester(${semester.id})">
+                                    <button class="btn btn-outline-primary" onclick="editSemester(${semester.id})" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <button class="btn btn-outline-success" onclick="setCurrentSemester(${semester.id})">
+                                    ${!semester.is_current ? `<button class="btn btn-outline-success" onclick="setCurrentSemester(${semester.id})" title="Set as Current">
                                         <i class="bi bi-check-circle"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger" onclick="deleteSemester(${semester.id})">
+                                    </button>` : ''}
+                                    <button class="btn btn-outline-danger" onclick="deleteSemester(${semester.id})" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
@@ -521,7 +635,7 @@
             is_current: document.getElementById('addYearIsCurrent').checked
         };
 
-        fetch("{% url 'create_academic_year' %}", {
+        fetch(urls.createAcademicYear, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -570,7 +684,7 @@
             is_current: document.getElementById('editYearIsCurrent').checked
         };
 
-        fetch(`/academics/api/academic-years/${yearId}/update/`, {
+        fetch(urls.updateAcademicYear.replace('{id}', yearId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -603,7 +717,7 @@
             return;
         }
 
-        fetch(`/academics/api/academic-years/${yearId}/delete/`, {
+        fetch(urls.deleteAcademicYear.replace('{id}', yearId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -626,7 +740,7 @@
 
     // Set current academic year
     function setCurrentAcademicYear(yearId) {
-        fetch(`/academics/api/academic-years/${yearId}/set-current/`, {
+        fetch(urls.setCurrentAcademicYear.replace('{id}', yearId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -665,7 +779,7 @@
             is_current: document.getElementById('addSemesterIsCurrent').checked
         };
 
-        fetch(`/academics/api/academic-years/${yearId}/semesters/create/`, {
+        fetch(urls.createSemester.replace('{yearId}', yearId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -722,7 +836,7 @@
             is_current: document.getElementById('editSemesterIsCurrent').checked
         };
 
-        fetch(`/academics/api/semesters/${semesterId}/update/`, {
+        fetch(urls.updateSemester.replace('{id}', semesterId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -759,7 +873,7 @@
             return;
         }
 
-        fetch(`/academics/api/semesters/${semesterId}/delete/`, {
+        fetch(urls.deleteSemester.replace('{id}', semesterId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -782,7 +896,7 @@
 
     // Set current semester
     function setCurrentSemester(semesterId) {
-        fetch(`/academics/api/semesters/${semesterId}/set-current/`, {
+        fetch(urls.setCurrentSemester.replace('{id}', semesterId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -805,7 +919,7 @@
 
     // View semester registrations
     function viewSemesterRegistrations(semesterId) {
-        fetch(`/academics/api/semesters/${semesterId}/registrations/`)
+        fetch(urls.getSemesterRegistrations.replace('{id}', semesterId))
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -963,64 +1077,5 @@
         }
         return '';
     }
-
-    // Form validation helpers
-    document.getElementById('addYearStartDate').addEventListener('change', function() {
-        const startDate = this.value;
-        const endDateInput = document.getElementById('addYearEndDate');
-        if (startDate) {
-            endDateInput.min = startDate;
-        }
-    });
-
-    document.getElementById('editYearStartDate').addEventListener('change', function() {
-        const startDate = this.value;
-        const endDateInput = document.getElementById('editYearEndDate');
-        if (startDate) {
-            endDateInput.min = startDate;
-        }
-    });
-
-    document.getElementById('addSemesterStartDate').addEventListener('change', function() {
-        const startDate = this.value;
-        const endDateInput = document.getElementById('addSemesterEndDate');
-        const regStartInput = document.getElementById('addSemesterRegStartDate');
-        const regEndInput = document.getElementById('addSemesterRegEndDate');
-        
-        if (startDate) {
-            endDateInput.min = startDate;
-            regStartInput.max = startDate;
-            regEndInput.max = startDate;
-        }
-    });
-
-    document.getElementById('editSemesterStartDate').addEventListener('change', function() {
-        const startDate = this.value;
-        const endDateInput = document.getElementById('editSemesterEndDate');
-        const regStartInput = document.getElementById('editSemesterRegStartDate');
-        const regEndInput = document.getElementById('editSemesterRegEndDate');
-        
-        if (startDate) {
-            endDateInput.min = startDate;
-            regStartInput.max = startDate;
-            regEndInput.max = startDate;
-        }
-    });
-
-    document.getElementById('addSemesterRegStartDate').addEventListener('change', function() {
-        const regStartDate = this.value;
-        const regEndInput = document.getElementById('addSemesterRegEndDate');
-        if (regStartDate) {
-            regEndInput.min = regStartDate;
-        }
-    });
-
-    document.getElementById('editSemesterRegStartDate').addEventListener('change', function() {
-        const regStartDate = this.value;
-        const regEndInput = document.getElementById('editSemesterRegEndDate');
-        if (regStartDate) {
-            regEndInput.min = regStartDate;
-        }
-    });
 </script>
 {% endblock %}
