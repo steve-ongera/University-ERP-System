@@ -40,7 +40,26 @@ urlpatterns = [
     path('hostel/<int:hostel_id>/rooms/', views.room_list, name='room_list'),
     path('room/<int:room_id>/beds/', views.bed_list, name='bed_list'),
     path('bed/<int:bed_id>/book/', views.book_bed, name='book_bed'),
+
+    #warden hostel views
+    # Hostel Management URLs
+    path('hostels/', views.get_hostel_list, name='warden_hostel_list'),
+    path('warden/hostel/<int:hostel_id>/rooms/', views.hostel_room_management, name='hostel_room_management'),
     
+    # Room Creation URLs
+    path('hostel/<int:hostel_id>/rooms/create/', views.create_single_room, name='create_single_room'),
+    path('hostel/<int:hostel_id>/rooms/bulk-create/', views.bulk_create_rooms, name='bulk_create_rooms'),
+    
+    # Room Management URLs
+    path('rooms/<int:room_id>/delete/', views.delete_room, name='delete_room'),
+    path('rooms/<int:room_id>/toggle-status/', views.toggle_room_status, name='toggle_room_status'),
+    path('rooms/<int:room_id>/details/', views.get_room_details, name='get_room_details'),
+    
+    # Bulk Operations URLs
+    path('hostel/<int:hostel_id>/rooms/bulk-delete/', views.bulk_delete_rooms, name='bulk_delete_rooms'),
+
+    #end of warden views 
+
     # Booking management
     path('booking/<int:booking_id>/', views.hostel_booking_detail, name='hostel_booking_detail'),
     path('booking/<int:booking_id>/cancel/', views.cancel_booking, name='cancel_booking'),

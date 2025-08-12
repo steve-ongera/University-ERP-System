@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% load room_filters %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Hostel Management</h2>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-building me-1"></i>Manage hostel rooms and accommodation
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-primary" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print List
+                            </button>
+                            <a href="{% url 'hostel_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h5 class="text-primary">{{ hostels.count }}</h5>
+                            <p class="small text-muted mb-0">Total Hostels</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-info">{% for hostel in hostels %}{% if hostel.hostel_type == 'boys' %}{{ forloop.counter }}{% endif %}{% endfor %}</h5>
+                            <p class="small text-muted mb-0">Boys Hostels</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-danger">{% for hostel in hostels %}{% if hostel.hostel_type == 'girls' %}{{ forloop.counter }}{% endif %}{% endfor %}</h5>
+                            <p class="small text-muted mb-0">Girls Hostels</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-success">{{ hostels|length }}</h5>
+                            <p class="small text-muted mb-0">Active Hostels</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostels Grid -->
+    <div class="row p-3">
+        {% for hostel in hostels %}
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 shadow-sm hostel-card">
+                <div class="card-header bg-{% if hostel.hostel_type == 'boys' %}primary{% else %}danger{% endif %} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ hostel.name }}</h5>
+                        <span class="badge bg-light text-dark">
+                            {{ hostel.get_hostel_type_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Department</small>
+                            <p class="mb-0 fw-bold">{{ hostel.school.code }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Total Rooms</small>
+                            <p class="mb-0 fw-bold">{{ hostel.total_rooms }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if hostel.warden %}
+                    <div class="mb-3">
+                        <small class="text-muted">Warden</small>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ hostel.warden.get_full_name }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if hostel.description %}
+                    <div class="mb-3">
+                        <small class="text-muted">Description</small>
+                        <p class="mb-0 text-truncate">{{ hostel.description|truncatechars:80 }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if hostel.facilities %}
+                    <div class="mb-3">
+                        <small class="text-muted">Facilities</small>
+                        <p class="mb-0 small">{{ hostel.facilities|truncatechars:60 }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Room Statistics -->
+                    <div class="row text-center border-top pt-3">
+                        <div class="col-4">
+                            <h6 class="text-primary mb-1">{{ hostel.rooms.count }}</h6>
+                            <small class="text-muted">Rooms</small>
+                        </div>
+                        <div class="col-4">
+                            <h6 class="text-success mb-1">{{ hostel.rooms|active_count }}</h6>
+                            <small class="text-muted">Active</small>
+                        </div>
+                        <div class="col-4">
+                            <h6 class="text-warning mb-1">{{ hostel.rooms|inactive_count }}</h6>
+                            <small class="text-muted">Inactive</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'hostel_room_management' hostel.id %}" class="btn btn-primary">
+                            <i class="bi bi-gear me-1"></i>Manage Rooms
+                        </a>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" onclick="viewHostelDetails({{ hostel.id }})" data-bs-toggle="modal" data-bs-target="#hostelDetailsModal">
+                                <i class="bi bi-eye"></i> View Details
+                            </button>
+                            {% if hostel.rooms.count > 0 %}
+                            <button class="btn btn-outline-success" onclick="viewRoomSummary({{ hostel.id }})" data-bs-toggle="modal" data-bs-target="#roomSummaryModal">
+                                <i class="bi bi-list-ul"></i> Room Summary
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-building display-1 text-muted"></i>
+                <h3 class="text-muted mt-3">No Hostels Found</h3>
+                <p class="text-muted">No active hostels are currently available for management.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Hostel Details Modal -->
+<div class="modal fade" id="hostelDetailsModal" tabindex="-1" aria-labelledby="hostelDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="hostelDetailsModalLabel">Hostel Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="hostelDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Room Summary Modal -->
+<div class="modal fade" id="roomSummaryModal" tabindex="-1" aria-labelledby="roomSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomSummaryModalLabel">Room Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="roomSummaryContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printModal('roomSummaryContent')">
+                    <i class="bi bi-printer"></i> Print Summary
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewHostelDetails(hostelId) {
+    // You can implement this to show more detailed information about the hostel
+    document.getElementById('hostelDetailsContent').innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Hostel details functionality can be implemented here.
+            <br>You can add more detailed information about facilities, rules, contact information, etc.
+        </div>
+    `;
+}
+
+function viewRoomSummary(hostelId) {
+    // You can implement this to show a summary of all rooms in the hostel
+    document.getElementById('roomSummaryContent').innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Room summary functionality can be implemented here.
+            <br>This could show a quick overview of all rooms, their occupancy status, etc.
+        </div>
+    `;
+}
+
+function printModal(contentId) {
+    const content = document.getElementById(contentId).innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Print Summary</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body { margin: 20px; }
+                    @media print {
+                        .btn { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${content}
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        window.onafterprint = function() {
+                            window.close();
+                        }
+                    }
+                </script>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+// Add hover effects to cards
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.hostel-card');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+
+<style>
+.hostel-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+}
+
+.hostel-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+@media print {
+    .btn, .modal {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .row {
+        display: block !important;
+    }
+    
+    .col-md-6, .col-lg-4 {
+        display: inline-block;
+        width: 48%;
+        vertical-align: top;
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem 0.75rem;
+    }
+}
+</style>
+
+{% endblock %}

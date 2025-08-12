@@ -9620,7 +9620,7 @@ def hostel_room_management(request, hostel_id):
         'floors': sorted(set(room.floor for room in rooms)) if rooms else [],
     }
     
-    return render(request, 'hostel/room_management.html', context)
+    return render(request, 'hostels/room_management.html', context)
 
 @login_required
 @require_http_methods(["POST"])
@@ -9890,4 +9890,4 @@ def get_hostel_list(request):
         'hostels': hostels
     }
     
-    return render(request, 'hostel/hostel_list.html', context)
+    return render(request, 'hostels/warden_hostel_list.html', context)
