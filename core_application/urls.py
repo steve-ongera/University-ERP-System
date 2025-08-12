@@ -238,7 +238,7 @@ urlpatterns = [
     
     # AJAX endpoints
     path('hostel/get-booking-data/', views.get_booking_data, name='get_booking_data'),
-    path('get-room-availability/', views.get_room_availability, name='get_room_availability'),
+    path('hostel/get-room-availability/', views.get_room_availability, name='get_room_availability'),
     path('update-booking-status/', views.update_booking_status, name='update_booking_status'),
 
 
