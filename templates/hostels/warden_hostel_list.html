@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'hostel_base.html' %}
 {% load room_filters %}
 {% load static %}
 
@@ -217,61 +217,48 @@
 <script>
 function viewHostelDetails(hostelId) {
     // You can implement this to show more detailed information about the hostel
-    document.getElementById('hostelDetailsContent').innerHTML = `
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            Hostel details functionality can be implemented here.
-            <br>You can add more detailed information about facilities, rules, contact information, etc.
-        </div>
-    `;
+    document.getElementById('hostelDetailsContent').innerHTML = '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Hostel details functionality can be implemented here.<br>You can add more detailed information about facilities, rules, contact information, etc.</div>';
 }
 
 function viewRoomSummary(hostelId) {
     // You can implement this to show a summary of all rooms in the hostel
-    document.getElementById('roomSummaryContent').innerHTML = `
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            Room summary functionality can be implemented here.
-            <br>This could show a quick overview of all rooms, their occupancy status, etc.
-        </div>
-    `;
+    document.getElementById('roomSummaryContent').innerHTML = '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Room summary functionality can be implemented here.<br>This could show a quick overview of all rooms, their occupancy status, etc.</div>';
 }
 
 function printModal(contentId) {
-    const content = document.getElementById(contentId).innerHTML;
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Print Summary</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                <style>
-                    body { margin: 20px; }
-                    @media print {
-                        .btn { display: none !important; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${content}
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        window.onafterprint = function() {
-                            window.close();
-                        }
-                    }
-                </script>
-            </body>
-        </html>
-    `);
+    var content = document.getElementById(contentId).innerHTML;
+    var printWindow = window.open('', '_blank');
+    
+    var htmlContent = '<html>' +
+        '<head>' +
+        '<title>Print Summary</title>' +
+        '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">' +
+        '<style>' +
+        'body { margin: 20px; }' +
+        '@media print { .btn { display: none !important; } }' +
+        '</style>' +
+        '</head>' +
+        '<body>' +
+        content +
+        '<script>' +
+        'window.onload = function() {' +
+        'window.print();' +
+        'window.onafterprint = function() {' +
+        'window.close();' +
+        '}' +
+        '}' +
+        '<\/script>' +
+        '</body>' +
+        '</html>';
+    
+    printWindow.document.write(htmlContent);
     printWindow.document.close();
 }
 
 // Add hover effects to cards
 document.addEventListener('DOMContentLoaded', function() {
-    const cards = document.querySelectorAll('.hostel-card');
-    cards.forEach(card => {
+    var cards = document.querySelectorAll('.hostel-card');
+    cards.forEach(function(card) {
         card.addEventListener('mouseenter', function() {
             this.style.transform = 'translateY(-5px)';
             this.style.transition = 'transform 0.3s ease';
