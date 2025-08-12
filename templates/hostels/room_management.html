@@ -185,10 +185,10 @@
                                             </td>
                                             {% if selected_academic_year %}
                                             <td>
-                                                <span class="text-success">{{ room.get_available_beds_count:selected_academic_year }}</span>
+                                                <span class="text-success">{{ room.available_beds|default:0 }}</span>
                                             </td>
                                             <td>
-                                                <span class="text-danger">{{ room.get_occupied_beds_count:selected_academic_year }}</span>
+                                                <span class="text-danger">{{ room.occupied_beds|default:0 }}</span>
                                             </td>
                                             {% endif %}
                                             <td>
@@ -870,7 +870,7 @@ function viewRoomDetails(roomId) {
             if (Object.keys(bedInfo).length > 0) {
                 bedInfoHtml = `
                     <hr>
-                    <h6>Bed Information ({{ selected_academic_year.year }})</h6>
+                    <h6>Bed Information (${data.academic_year || 'Current Year'})</h6>
                     <div class="row text-center">
                         <div class="col-3">
                             <h5 class="text-primary">${bedInfo.total_beds}</h5>
