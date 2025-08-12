@@ -9579,6 +9579,15 @@ def hostel_room_management(request, hostel_id):
     
     # Get rooms for the hostel with pagination
     rooms = Room.objects.filter(hostel=hostel).order_by('floor', 'room_number')
+    # Calculate bed counts for each room
+    for room in rooms:
+        if selected_academic_year:
+            room.available_beds = room.get_available_beds_count(selected_academic_year)
+            room.occupied_beds = room.get_occupied_beds_count(selected_academic_year)
+        else:
+            room.available_beds = 0
+            room.occupied_beds = 0
+
     paginator = Paginator(rooms, 20)  # Show 20 rooms per page
     page_number = request.GET.get('page')
     page_rooms = paginator.get_page(page_number)
