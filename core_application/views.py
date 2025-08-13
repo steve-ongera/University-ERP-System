@@ -9427,6 +9427,12 @@ def set_current_semester(request, semester_id):
             'message': f'Error setting current semester: {str(e)}'
         }, status=400)
 
+from django.db.models import Count, Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
+from .models import Semester, Programme, Enrollment
 
 @login_required
 @user_passes_test(is_admin)
@@ -9435,11 +9441,14 @@ def get_semester_registrations(request, semester_id):
     try:
         semester = get_object_or_404(Semester, id=semester_id)
         
-        # Get all programmes and their enrollments for this semester
+        # Get all programmes and count enrollments for this semester
         programmes = Programme.objects.filter(is_active=True).annotate(
-            enrollment_count=Count('students__courseenrollment', 
-                                 filter=Q(students__courseenrollment__semester=semester))
-        )
+            enrollment_count=Count(
+                'students__enrollments',
+                filter=Q(students__enrollments__semester=semester) & Q(students__enrollments__is_active=True),
+                distinct=True
+            )
+        ).select_related('department', 'faculty')
         
         programmes_data = []
         total_registrations = 0
@@ -9453,9 +9462,12 @@ def get_semester_registrations(request, semester_id):
                 'name': programme.name,
                 'code': programme.code,
                 'programme_type': programme.get_programme_type_display(),
-                'department': programme.department.name,
+                'department': programme.department.name if programme.department else 'N/A',
                 'enrollment_count': enrollment_count
             })
+        
+        # Sort by enrollment count (highest first)
+        programmes_data.sort(key=lambda x: x['enrollment_count'], reverse=True)
         
         return JsonResponse({
             'success': True,
@@ -9463,19 +9475,22 @@ def get_semester_registrations(request, semester_id):
                 'id': semester.id,
                 'name': f"Semester {semester.semester_number}",
                 'academic_year': semester.academic_year.year,
-                'registration_start': semester.registration_start_date.strftime('%Y-%m-%d'),
-                'registration_end': semester.registration_end_date.strftime('%Y-%m-%d'),
+                'registration_start': semester.registration_start_date.strftime('%Y-%m-%d') if semester.registration_start_date else 'N/A',
+                'registration_end': semester.registration_end_date.strftime('%Y-%m-%d') if semester.registration_end_date else 'N/A',
             },
             'programmes': programmes_data,
             'total_registrations': total_registrations
         })
         
     except Exception as e:
+        import traceback
+        print(f"Error in get_semester_registrations: {str(e)}")
+        print(traceback.format_exc())
+        
         return JsonResponse({
             'success': False,
             'message': f'Error fetching semester registrations: {str(e)}'
         }, status=400)
-
 
 
 

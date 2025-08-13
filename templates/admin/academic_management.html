@@ -5,131 +5,111 @@
 
 {% block content %}
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-    .card {
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: box-shadow 0.3s ease;
-    }
-    .card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    .nav-tabs .nav-link {
-        border: 1px solid transparent;
-        border-radius: 0.5rem 0.5rem 0 0;
-    }
-    .nav-tabs .nav-link.active {
-        border-color: var(--bs-primary);
-        background-color: var(--bs-primary);
-        color: white !important;
-    }
-    .table-hover tbody tr:hover {
-        background-color: rgba(0,0,0,0.02);
-    }
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-    }
-    .spinner-border {
-        width: 3rem;
-        height: 3rem;
-    }
-</style>
 
-<div class="container-fluid mt-3">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h2 class="fw-bold text-primary">
-                <i class="bi bi-calendar-event me-2"></i>Academic Year Management
-            </h2>
-            <p class="text-muted">Manage academic years, semesters, and registration periods</p>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-        <div class="col-md-4 text-end">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addYearModal">
-                <i class="bi bi-plus-circle me-1"></i>Add Academic Year
-            </button>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-calendar-event me-2"></i>Academic Year Management
+                        </h2>
+                        <p class="text-muted mb-0">Manage academic years, semesters, and registration periods</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addYearModal">
+                            <i class="bi bi-plus-circle me-1"></i>Add Academic Year
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Alert Messages Container -->
-    <div id="alertContainer"></div>
-
     <!-- Current Status Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white h-100">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar-check display-4 mb-2"></i>
-                    <h5>Current Academic Year</h5>
-                    <h4 id="currentYearText">
-                        {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %}
-                    </h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white h-100">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar2-week display-4 mb-2"></i>
-                    <h5>Current Semester</h5>
-                    <h4 id="currentSemesterText">
-                        {% if current_semester %}Semester {{ current_semester.semester_number }}{% else %}Not Set{% endif %}
-                    </h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white h-100">
-                <div class="card-body text-center">
-                    <i class="bi bi-calendar3 display-4 mb-2"></i>
-                    <h5>Total Academic Years</h5>
-                    <h4 id="totalYearsText">{{ total_academic_years }}</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white h-100">
-                <div class="card-body text-center">
-                    <i class="bi bi-people display-4 mb-2"></i>
-                    <h5>Active Students</h5>
-                    <h4 id="activeStudentsText">{{ active_students }}</h4>
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">
+                                {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %}
+                            </h5>
+                            <p class="small text-muted mb-0">Current Academic Year</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">
+                                {% if current_semester %}Semester {{ current_semester.semester_number }}{% else %}Not Set{% endif %}
+                            </h5>
+                            <p class="small text-muted mb-0">Current Semester</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-info">{{ total_academic_years }}</h5>
+                            <p class="small text-muted mb-0">Total Academic Years</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-warning">{{ active_students }}</h5>
+                            <p class="small text-muted mb-0">Active Students</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Academic Years Management -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <div class="row align-items-center">
-                <div class="col">
-                    <h5 class="mb-0 fw-bold">Academic Years & Semesters</h5>
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0 fw-bold">Academic Years & Semesters</h5>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadAcademicYears()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-auto">
-                    <button class="btn btn-outline-primary btn-sm" onclick="loadAcademicYears()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <!-- Loading Spinner -->
-            <div id="loadingSpinner" class="text-center py-5" style="display: none;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2 text-muted">Loading academic years...</p>
-            </div>
+                <div class="card-body">
+                    <!-- Loading Spinner -->
+                    <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading academic years...</p>
+                    </div>
 
-            <!-- Academic Years Tabs -->
-            <div id="academicYearsContainer">
-                <ul class="nav nav-tabs" id="academicYearsTabs" role="tablist">
-                    <!-- Tabs will be populated by JavaScript -->
-                </ul>
-                <div class="tab-content mt-3" id="academicYearsTabsContent">
-                    <!-- Tab content will be populated by JavaScript -->
+                    <!-- Academic Years Tabs -->
+                    <div id="academicYearsContainer">
+                        <ul class="nav nav-tabs" id="academicYearsTabs" role="tablist">
+                            <!-- Tabs will be populated by JavaScript -->
+                        </ul>
+                        <div class="tab-content mt-3" id="academicYearsTabsContent">
+                            <!-- Tab content will be populated by JavaScript -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -357,725 +337,862 @@
         </div>
     </div>
 </div>
-
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Global variables
-    let academicYears = [];
-    
-    // Django URLs
-    const urls = {
-        getAcademicYears: "{% url 'get_academic_years' %}",
-        createAcademicYear: "{% url 'create_academic_year' %}",
-        updateAcademicYear: "/academics/api/academic-years/{id}/update/",
-        deleteAcademicYear: "/academics/api/academic-years/{id}/delete/",
-        setCurrentAcademicYear: "/academics/api/academic-years/{id}/set-current/",
-        createSemester: "/academics/api/academic-years/{yearId}/semesters/create/",
-        updateSemester: "/academics/api/semesters/{id}/update/",
-        deleteSemester: "/academics/api/semesters/{id}/delete/",
-        setCurrentSemester: "/academics/api/semesters/{id}/set-current/",
-        getSemesterRegistrations: "/academics/api/semesters/{id}/registrations/"
-    };
-    
-    // Document ready
-    document.addEventListener('DOMContentLoaded', function() {
-        loadAcademicYears();
-        setupFormEventListeners();
-    });
+   // Global variables
+let academicYears = [];
 
-    // Setup form event listeners
-    function setupFormEventListeners() {
-        // Add Academic Year Form
-        document.getElementById('addYearForm').addEventListener('submit', function(e) {
+// Django URLs
+const urls = {
+    getAcademicYears: "{% url 'get_academic_years' %}",
+    createAcademicYear: "{% url 'create_academic_year' %}",
+    updateAcademicYear: "/academics/api/academic-years/{id}/update/",
+    deleteAcademicYear: "/academics/api/academic-years/{id}/delete/",
+    setCurrentAcademicYear: "/academics/api/academic-years/{id}/set-current/",
+    createSemester: "/academics/api/academic-years/{yearId}/semesters/create/",
+    updateSemester: "/academics/api/semesters/{id}/update/",
+    deleteSemester: "/academics/api/semesters/{id}/delete/",
+    setCurrentSemester: "/academics/api/semesters/{id}/set-current/",
+    getSemesterRegistrations: "/academics/api/semesters/{id}/registrations/"
+};
+
+// Document ready
+document.addEventListener('DOMContentLoaded', function() {
+    loadAcademicYears();
+    setupFormEventListeners();
+});
+
+// Setup form event listeners
+function setupFormEventListeners() {
+    // Add Academic Year Form
+    const addYearForm = document.getElementById('addYearForm');
+    if (addYearForm) {
+        addYearForm.addEventListener('submit', function(e) {
             e.preventDefault();
             createAcademicYear();
         });
+    }
 
-        // Edit Academic Year Form
-        document.getElementById('editYearForm').addEventListener('submit', function(e) {
+    // Edit Academic Year Form
+    const editYearForm = document.getElementById('editYearForm');
+    if (editYearForm) {
+        editYearForm.addEventListener('submit', function(e) {
             e.preventDefault();
             updateAcademicYear();
         });
+    }
 
-        // Add Semester Form
-        document.getElementById('addSemesterForm').addEventListener('submit', function(e) {
+    // Add Semester Form
+    const addSemesterForm = document.getElementById('addSemesterForm');
+    if (addSemesterForm) {
+        addSemesterForm.addEventListener('submit', function(e) {
             e.preventDefault();
             createSemester();
         });
+    }
 
-        // Edit Semester Form
-        document.getElementById('editSemesterForm').addEventListener('submit', function(e) {
+    // Edit Semester Form
+    const editSemesterForm = document.getElementById('editSemesterForm');
+    if (editSemesterForm) {
+        editSemesterForm.addEventListener('submit', function(e) {
             e.preventDefault();
             updateSemester();
         });
-
-        // Date validation
-        setupDateValidation();
     }
 
-    // Setup date validation
-    function setupDateValidation() {
-        // Academic Year date validation
-        document.getElementById('addYearStartDate').addEventListener('change', function() {
+    // Date validation
+    setupDateValidation();
+}
+
+// Setup date validation
+function setupDateValidation() {
+    // Academic Year date validation
+    const addYearStartDate = document.getElementById('addYearStartDate');
+    if (addYearStartDate) {
+        addYearStartDate.addEventListener('change', function() {
             const startDate = this.value;
             const endDateInput = document.getElementById('addYearEndDate');
-            if (startDate) {
+            if (startDate && endDateInput) {
                 endDateInput.min = startDate;
             }
         });
+    }
 
-        document.getElementById('editYearStartDate').addEventListener('change', function() {
+    const editYearStartDate = document.getElementById('editYearStartDate');
+    if (editYearStartDate) {
+        editYearStartDate.addEventListener('change', function() {
             const startDate = this.value;
             const endDateInput = document.getElementById('editYearEndDate');
-            if (startDate) {
+            if (startDate && endDateInput) {
                 endDateInput.min = startDate;
             }
         });
+    }
 
-        // Semester date validation
-        document.getElementById('addSemesterStartDate').addEventListener('change', function() {
+    // Semester date validation
+    const addSemesterStartDate = document.getElementById('addSemesterStartDate');
+    if (addSemesterStartDate) {
+        addSemesterStartDate.addEventListener('change', function() {
             const startDate = this.value;
             const endDateInput = document.getElementById('addSemesterEndDate');
             const regStartInput = document.getElementById('addSemesterRegStartDate');
             const regEndInput = document.getElementById('addSemesterRegEndDate');
             
             if (startDate) {
-                endDateInput.min = startDate;
-                regStartInput.max = startDate;
-                regEndInput.max = startDate;
+                if (endDateInput) endDateInput.min = startDate;
+                if (regStartInput) regStartInput.max = startDate;
+                if (regEndInput) regEndInput.max = startDate;
             }
         });
+    }
 
-        document.getElementById('editSemesterStartDate').addEventListener('change', function() {
+    const editSemesterStartDate = document.getElementById('editSemesterStartDate');
+    if (editSemesterStartDate) {
+        editSemesterStartDate.addEventListener('change', function() {
             const startDate = this.value;
             const endDateInput = document.getElementById('editSemesterEndDate');
             const regStartInput = document.getElementById('editSemesterRegStartDate');
             const regEndInput = document.getElementById('editSemesterRegEndDate');
             
             if (startDate) {
-                endDateInput.min = startDate;
-                regStartInput.max = startDate;
-                regEndInput.max = startDate;
+                if (endDateInput) endDateInput.min = startDate;
+                if (regStartInput) regStartInput.max = startDate;
+                if (regEndInput) regEndInput.max = startDate;
             }
         });
+    }
 
-        document.getElementById('addSemesterRegStartDate').addEventListener('change', function() {
+    const addSemesterRegStartDate = document.getElementById('addSemesterRegStartDate');
+    if (addSemesterRegStartDate) {
+        addSemesterRegStartDate.addEventListener('change', function() {
             const regStartDate = this.value;
             const regEndInput = document.getElementById('addSemesterRegEndDate');
-            if (regStartDate) {
+            if (regStartDate && regEndInput) {
                 regEndInput.min = regStartDate;
             }
         });
+    }
 
-        document.getElementById('editSemesterRegStartDate').addEventListener('change', function() {
+    const editSemesterRegStartDate = document.getElementById('editSemesterRegStartDate');
+    if (editSemesterRegStartDate) {
+        editSemesterRegStartDate.addEventListener('change', function() {
             const regStartDate = this.value;
             const regEndInput = document.getElementById('editSemesterRegEndDate');
-            if (regStartDate) {
+            if (regStartDate && regEndInput) {
                 regEndInput.min = regStartDate;
             }
         });
     }
+}
 
-    // Load academic years from server
-    function loadAcademicYears() {
-        showLoading(true);
-        
-        fetch(urls.getAcademicYears)
-            .then(response => response.json())
-            .then(data => {
-                academicYears = data.academic_years;
+// Load academic years from server
+function loadAcademicYears() {
+    showLoading(true);
+    
+    fetch(urls.getAcademicYears, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Response is not JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success !== false) {
+                academicYears = data.academic_years || data || [];
                 renderAcademicYears();
                 updateCurrentStatus();
-                showLoading(false);
-            })
-            .catch(error => {
-                console.error('Error loading academic years:', error);
-                showAlert('Error loading academic years', 'danger');
-                showLoading(false);
-            });
-    }
-
-    // Render academic years tabs and content
-    function renderAcademicYears() {
-        const tabsContainer = document.getElementById('academicYearsTabs');
-        const contentContainer = document.getElementById('academicYearsTabsContent');
-        
-        if (academicYears.length === 0) {
-            tabsContainer.innerHTML = '<li class="nav-item"><span class="nav-link text-muted">No academic years found</span></li>';
-            contentContainer.innerHTML = `
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-calendar-x display-4 mb-3"></i>
-                    <p>No academic years created yet. Click "Add Academic Year" to get started.</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Generate tabs
-        let tabsHtml = '';
-        let contentHtml = '';
-        
-        academicYears.forEach((year, index) => {
-            const isActive = index === 0 ? 'active' : '';
-            const isCurrentBadge = year.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
-            
-            tabsHtml += `
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link ${isActive}" id="year-${year.id}-tab" data-bs-toggle="tab" 
-                            data-bs-target="#year-${year.id}" type="button" role="tab">
-                        ${year.year} ${isCurrentBadge}
-                    </button>
-                </li>
-            `;
-            
-            contentHtml += `
-                <div class="tab-pane fade ${isActive} show" id="year-${year.id}" role="tabpanel">
-                    ${renderAcademicYearContent(year)}
-                </div>
-            `;
+            } else {
+                showAlert(data.message || 'Failed to load academic years', 'danger');
+            }
+            showLoading(false);
+        })
+        .catch(error => {
+            console.error('Error loading academic years:', error);
+            showAlert('Error loading academic years: ' + error.message, 'danger');
+            showLoading(false);
         });
-        
-        tabsContainer.innerHTML = tabsHtml;
-        contentContainer.innerHTML = contentHtml;
+}
+
+// Render academic years tabs and content
+function renderAcademicYears() {
+    const tabsContainer = document.getElementById('academicYearsTabs');
+    const contentContainer = document.getElementById('academicYearsTabsContent');
+    
+    if (!tabsContainer || !contentContainer) {
+        console.error('Required containers not found');
+        return;
+    }
+    
+    if (!academicYears || academicYears.length === 0) {
+        tabsContainer.innerHTML = '<li class="nav-item"><span class="nav-link text-muted">No academic years found</span></li>';
+        contentContainer.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-calendar-x display-4 mb-3"></i>
+                <p>No academic years created yet. Click "Add Academic Year" to get started.</p>
+            </div>
+        `;
+        return;
     }
 
-    // Render individual academic year content
-    function renderAcademicYearContent(year) {
-        const currentBadge = year.is_current ? '<span class="badge bg-success">Current</span>' : '';
+    // Generate tabs
+    let tabsHtml = '';
+    let contentHtml = '';
+    
+    academicYears.forEach((year, index) => {
+        const isActive = index === 0 ? 'active' : '';
+        const isCurrentBadge = year.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
         
-        let semestersHtml = '';
-        if (year.semesters.length === 0) {
-            semestersHtml = '<div class="text-center py-4 text-muted">No semesters created for this academic year.</div>';
-        } else {
-            year.semesters.forEach(semester => {
-                const semesterCurrentBadge = semester.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
-                
-                semestersHtml += `
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">Semester ${semester.semester_number} ${semesterCurrentBadge}</h6>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-info" onclick="viewSemesterRegistrations(${semester.id})" title="View Registrations">
-                                        <i class="bi bi-people"></i>
-                                    </button>
-                                    <button class="btn btn-outline-primary" onclick="editSemester(${semester.id})" title="Edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    ${!semester.is_current ? `<button class="btn btn-outline-success" onclick="setCurrentSemester(${semester.id})" title="Set as Current">
-                                        <i class="bi bi-check-circle"></i>
-                                    </button>` : ''}
-                                    <button class="btn btn-outline-danger" onclick="deleteSemester(${semester.id})" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+        tabsHtml += `
+            <li class="nav-item" role="presentation">
+                <button class="nav-link ${isActive}" id="year-${year.id}-tab" data-bs-toggle="tab" 
+                        data-bs-target="#year-${year.id}" type="button" role="tab">
+                    ${year.year} ${isCurrentBadge}
+                </button>
+            </li>
+        `;
+        
+        contentHtml += `
+            <div class="tab-pane fade ${isActive} show" id="year-${year.id}" role="tabpanel">
+                ${renderAcademicYearContent(year)}
+            </div>
+        `;
+    });
+    
+    tabsContainer.innerHTML = tabsHtml;
+    contentContainer.innerHTML = contentHtml;
+}
+
+// Render individual academic year content
+function renderAcademicYearContent(year) {
+    const currentBadge = year.is_current ? '<span class="badge bg-success">Current</span>' : '';
+    
+    let semestersHtml = '';
+    if (!year.semesters || year.semesters.length === 0) {
+        semestersHtml = '<div class="text-center py-4 text-muted">No semesters created for this academic year.</div>';
+    } else {
+        year.semesters.forEach(semester => {
+            const semesterCurrentBadge = semester.is_current ? '<span class="badge bg-success ms-2">Current</span>' : '';
+            
+            semestersHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Semester ${semester.semester_number} ${semesterCurrentBadge}</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-info" onclick="viewSemesterRegistrations(${semester.id})" title="View Registrations">
+                                    <i class="bi bi-people"></i>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="editSemester(${semester.id})" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                ${!semester.is_current ? `<button class="btn btn-outline-success" onclick="setCurrentSemester(${semester.id})" title="Set as Current">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>` : ''}
+                                <button class="btn btn-outline-danger" onclick="deleteSemester(${semester.id})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <small class="text-muted">Duration:</small>
+                                    <div>${formatDate(semester.start_date)} - ${formatDate(semester.end_date)}</div>
+                                </div>
+                                <div class="col-12">
+                                    <small class="text-muted">Registration:</small>
+                                    <div>${formatDate(semester.registration_start_date)} - ${formatDate(semester.registration_end_date)}</div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Duration:</small>
-                                        <div>${formatDate(semester.start_date)} - ${formatDate(semester.end_date)}</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <small class="text-muted">Registration:</small>
-                                        <div>${formatDate(semester.registration_start_date)} - ${formatDate(semester.registration_end_date)}</div>
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <small class="text-muted">Statistics:</small>
-                                    <div>Total Students: ${semester.stats?.total_students || 0}</div>
-                                    <div>Registrations: ${semester.stats?.registrations || 0}</div>
-                                </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Statistics:</small>
+                                <div>Total Students: ${semester.stats?.total_students || 0}</div>
+                                <div>Registrations: ${semester.stats?.registrations || 0}</div>
                             </div>
                         </div>
                     </div>
-                `;
-            });
-        }
-        
-        return `
-            <div class="row mb-3">
-                <div class="col-md-8">
-                    <h5 class="fw-bold">${year.year} ${currentBadge}</h5>
-                    <p class="text-muted mb-1">
-                        <i class="bi bi-calendar-range me-2"></i>
-                        ${formatDate(year.start_date)} - ${formatDate(year.end_date)}
-                    </p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="btn-group">
-                        <button class="btn btn-outline-primary btn-sm" onclick="addSemester(${year.id})">
-                            <i class="bi bi-plus me-1"></i>Add Semester
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="editAcademicYear(${year.id})">
-                            <i class="bi bi-pencil me-1"></i>Edit
-                        </button>
-                        ${!year.is_current ? `<button class="btn btn-outline-success btn-sm" onclick="setCurrentAcademicYear(${year.id})">
-                            <i class="bi bi-check-circle me-1"></i>Set Current
-                        </button>` : ''}
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAcademicYear(${year.id})">
-                            <i class="bi bi-trash me-1"></i>Delete
-                        </button>
-                    </div>
+            `;
+        });
+    }
+    
+    return `
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <h5 class="fw-bold">${year.year} ${currentBadge}</h5>
+                <p class="text-muted mb-1">
+                    <i class="bi bi-calendar-range me-2"></i>
+                    ${formatDate(year.start_date)} - ${formatDate(year.end_date)}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="addSemester(${year.id})">
+                        <i class="bi bi-plus me-1"></i>Add Semester
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="editAcademicYear(${year.id})">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
+                    ${!year.is_current ? `<button class="btn btn-outline-success btn-sm" onclick="setCurrentAcademicYear(${year.id})">
+                        <i class="bi bi-check-circle me-1"></i>Set Current
+                    </button>` : ''}
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteAcademicYear(${year.id})">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
                 </div>
             </div>
-            <div class="row">
-                ${semestersHtml}
-            </div>
-        `;
-    }
+        </div>
+        <div class="row">
+            ${semestersHtml}
+        </div>
+    `;
+}
 
-    // Create academic year
-    function createAcademicYear() {
-        const formData = {
-            year: document.getElementById('addYearName').value,
-            start_date: document.getElementById('addYearStartDate').value,
-            end_date: document.getElementById('addYearEndDate').value,
-            is_current: document.getElementById('addYearIsCurrent').checked
-        };
+// Create academic year
+function createAcademicYear() {
+    const formData = {
+        year: document.getElementById('addYearName').value,
+        start_date: document.getElementById('addYearStartDate').value,
+        end_date: document.getElementById('addYearEndDate').value,
+        is_current: document.getElementById('addYearIsCurrent').checked
+    };
 
-        fetch(urls.createAcademicYear, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
-                document.getElementById('addYearForm').reset();
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error creating academic year:', error);
-            showAlert('Error creating academic year', 'danger');
-        });
-    }
-
-    // Edit academic year
-    function editAcademicYear(yearId) {
-        const year = academicYears.find(y => y.id === yearId);
-        if (!year) return;
-
-        document.getElementById('editYearId').value = year.id;
-        document.getElementById('editYearName').value = year.year;
-        document.getElementById('editYearStartDate').value = year.start_date;
-        document.getElementById('editYearEndDate').value = year.end_date;
-        document.getElementById('editYearIsCurrent').checked = year.is_current;
-
-        new bootstrap.Modal(document.getElementById('editYearModal')).show();
-    }
-
-    // Update academic year
-    function updateAcademicYear() {
-        const yearId = document.getElementById('editYearId').value;
-        const formData = {
-            year: document.getElementById('editYearName').value,
-            start_date: document.getElementById('editYearStartDate').value,
-            end_date: document.getElementById('editYearEndDate').value,
-            is_current: document.getElementById('editYearIsCurrent').checked
-        };
-
-        fetch(urls.updateAcademicYear.replace('{id}', yearId), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('editYearModal')).hide();
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating academic year:', error);
-            showAlert('Error updating academic year', 'danger');
-        });
-    }
-
-    // Delete academic year
-    function deleteAcademicYear(yearId) {
-        const year = academicYears.find(y => y.id === yearId);
-        if (!year) return;
-
-        if (!confirm(`Are you sure you want to delete academic year "${year.year}"? This action cannot be undone.`)) {
-            return;
+    fetch(urls.createAcademicYear, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addYearModal'));
+            if (modal) modal.hide();
+            const form = document.getElementById('addYearForm');
+            if (form) form.reset();
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
         }
+    })
+    .catch(error => {
+        console.error('Error creating academic year:', error);
+        showAlert('Error creating academic year', 'danger');
+    });
+}
 
-        fetch(urls.deleteAcademicYear.replace('{id}', yearId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken()
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting academic year:', error);
-            showAlert('Error deleting academic year', 'danger');
-        });
+// Edit academic year
+function editAcademicYear(yearId) {
+    const year = academicYears.find(y => y.id === yearId);
+    if (!year) return;
+
+    document.getElementById('editYearId').value = year.id;
+    document.getElementById('editYearName').value = year.year;
+    document.getElementById('editYearStartDate').value = year.start_date;
+    document.getElementById('editYearEndDate').value = year.end_date;
+    document.getElementById('editYearIsCurrent').checked = year.is_current;
+
+    new bootstrap.Modal(document.getElementById('editYearModal')).show();
+}
+
+// Update academic year
+function updateAcademicYear() {
+    const yearId = document.getElementById('editYearId').value;
+    const formData = {
+        year: document.getElementById('editYearName').value,
+        start_date: document.getElementById('editYearStartDate').value,
+        end_date: document.getElementById('editYearEndDate').value,
+        is_current: document.getElementById('editYearIsCurrent').checked
+    };
+
+    fetch(urls.updateAcademicYear.replace('{id}', yearId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editYearModal'));
+            if (modal) modal.hide();
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating academic year:', error);
+        showAlert('Error updating academic year', 'danger');
+    });
+}
+
+// Delete academic year
+function deleteAcademicYear(yearId) {
+    const year = academicYears.find(y => y.id === yearId);
+    if (!year) return;
+
+    if (!confirm(`Are you sure you want to delete academic year "${year.year}"? This action cannot be undone.`)) {
+        return;
     }
 
-    // Set current academic year
-    function setCurrentAcademicYear(yearId) {
-        fetch(urls.setCurrentAcademicYear.replace('{id}', yearId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken()
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error setting current academic year:', error);
-            showAlert('Error setting current academic year', 'danger');
-        });
-    }
+    fetch(urls.deleteAcademicYear.replace('{id}', yearId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting academic year:', error);
+        showAlert('Error deleting academic year', 'danger');
+    });
+}
 
-    // Add semester
-    function addSemester(yearId) {
-        document.getElementById('addSemesterYearId').value = yearId;
+// Set current academic year
+function setCurrentAcademicYear(yearId) {
+    fetch(urls.setCurrentAcademicYear.replace('{id}', yearId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error setting current academic year:', error);
+        showAlert('Error setting current academic year', 'danger');
+    });
+}
+
+// Add semester
+function addSemester(yearId) {
+    const yearIdInput = document.getElementById('addSemesterYearId');
+    if (yearIdInput) {
+        yearIdInput.value = yearId;
         new bootstrap.Modal(document.getElementById('addSemesterModal')).show();
     }
+}
 
-    // Create semester
-    function createSemester() {
-        const yearId = document.getElementById('addSemesterYearId').value;
-        const formData = {
-            semester_number: document.getElementById('addSemesterNumber').value,
-            start_date: document.getElementById('addSemesterStartDate').value,
-            end_date: document.getElementById('addSemesterEndDate').value,
-            registration_start_date: document.getElementById('addSemesterRegStartDate').value,
-            registration_end_date: document.getElementById('addSemesterRegEndDate').value,
-            is_current: document.getElementById('addSemesterIsCurrent').checked
-        };
+// Create semester
+function createSemester() {
+    const yearId = document.getElementById('addSemesterYearId').value;
+    const formData = {
+        semester_number: document.getElementById('addSemesterNumber').value,
+        start_date: document.getElementById('addSemesterStartDate').value,
+        end_date: document.getElementById('addSemesterEndDate').value,
+        registration_start_date: document.getElementById('addSemesterRegStartDate').value,
+        registration_end_date: document.getElementById('addSemesterRegEndDate').value,
+        is_current: document.getElementById('addSemesterIsCurrent').checked
+    };
 
-        fetch(urls.createSemester.replace('{yearId}', yearId), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('addSemesterModal')).hide();
-                document.getElementById('addSemesterForm').reset();
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error creating semester:', error);
-            showAlert('Error creating semester', 'danger');
-        });
-    }
+    fetch(urls.createSemester.replace('{yearId}', yearId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addSemesterModal'));
+            if (modal) modal.hide();
+            const form = document.getElementById('addSemesterForm');
+            if (form) form.reset();
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating semester:', error);
+        showAlert('Error creating semester', 'danger');
+    });
+}
 
-    // Edit semester
-    function editSemester(semesterId) {
-        let semester = null;
-        for (let year of academicYears) {
+// Edit semester
+function editSemester(semesterId) {
+    let semester = null;
+    for (let year of academicYears) {
+        if (year.semesters) {
             semester = year.semesters.find(s => s.id === semesterId);
             if (semester) break;
         }
-        if (!semester) return;
-
-        document.getElementById('editSemesterId').value = semester.id;
-        document.getElementById('editSemesterNumber').value = semester.semester_number;
-        document.getElementById('editSemesterStartDate').value = semester.start_date;
-        document.getElementById('editSemesterEndDate').value = semester.end_date;
-        document.getElementById('editSemesterRegStartDate').value = semester.registration_start_date;
-        document.getElementById('editSemesterRegEndDate').value = semester.registration_end_date;
-        document.getElementById('editSemesterIsCurrent').checked = semester.is_current;
-
-        new bootstrap.Modal(document.getElementById('editSemesterModal')).show();
     }
+    if (!semester) return;
 
-    // Update semester
-    function updateSemester() {
-        const semesterId = document.getElementById('editSemesterId').value;
-        const formData = {
-            semester_number: document.getElementById('editSemesterNumber').value,
-            start_date: document.getElementById('editSemesterStartDate').value,
-            end_date: document.getElementById('editSemesterEndDate').value,
-            registration_start_date: document.getElementById('editSemesterRegStartDate').value,
-            registration_end_date: document.getElementById('editSemesterRegEndDate').value,
-            is_current: document.getElementById('editSemesterIsCurrent').checked
-        };
+    document.getElementById('editSemesterId').value = semester.id;
+    document.getElementById('editSemesterNumber').value = semester.semester_number;
+    document.getElementById('editSemesterStartDate').value = semester.start_date;
+    document.getElementById('editSemesterEndDate').value = semester.end_date;
+    document.getElementById('editSemesterRegStartDate').value = semester.registration_start_date;
+    document.getElementById('editSemesterRegEndDate').value = semester.registration_end_date;
+    document.getElementById('editSemesterIsCurrent').checked = semester.is_current;
 
-        fetch(urls.updateSemester.replace('{id}', semesterId), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('editSemesterModal')).hide();
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating semester:', error);
-            showAlert('Error updating semester', 'danger');
-        });
-    }
+    new bootstrap.Modal(document.getElementById('editSemesterModal')).show();
+}
 
-    // Delete semester
-    function deleteSemester(semesterId) {
-        let semester = null;
-        for (let year of academicYears) {
+// Update semester
+function updateSemester() {
+    const semesterId = document.getElementById('editSemesterId').value;
+    const formData = {
+        semester_number: document.getElementById('editSemesterNumber').value,
+        start_date: document.getElementById('editSemesterStartDate').value,
+        end_date: document.getElementById('editSemesterEndDate').value,
+        registration_start_date: document.getElementById('editSemesterRegStartDate').value,
+        registration_end_date: document.getElementById('editSemesterRegEndDate').value,
+        is_current: document.getElementById('editSemesterIsCurrent').checked
+    };
+
+    fetch(urls.updateSemester.replace('{id}', semesterId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editSemesterModal'));
+            if (modal) modal.hide();
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating semester:', error);
+        showAlert('Error updating semester', 'danger');
+    });
+}
+
+// Delete semester
+function deleteSemester(semesterId) {
+    let semester = null;
+    for (let year of academicYears) {
+        if (year.semesters) {
             semester = year.semesters.find(s => s.id === semesterId);
             if (semester) break;
         }
-        if (!semester) return;
+    }
+    if (!semester) return;
 
-        if (!confirm(`Are you sure you want to delete Semester ${semester.semester_number}? This action cannot be undone.`)) {
-            return;
+    if (!confirm(`Are you sure you want to delete Semester ${semester.semester_number}? This action cannot be undone.`)) {
+        return;
+    }
+
+    fetch(urls.deleteSemester.replace('{id}', semesterId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting semester:', error);
+        showAlert('Error deleting semester', 'danger');
+    });
+}
 
-        fetch(urls.deleteSemester.replace('{id}', semesterId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken()
-            }
-        })
+// Set current semester
+function setCurrentSemester(semesterId) {
+    fetch(urls.setCurrentSemester.replace('{id}', semesterId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            loadAcademicYears();
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error setting current semester:', error);
+        showAlert('Error setting current semester', 'danger');
+    });
+}
+
+// View semester registrations
+function viewSemesterRegistrations(semesterId) {
+    fetch(urls.getSemesterRegistrations.replace('{id}', semesterId))
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showAlert(data.message, 'success');
-                loadAcademicYears();
+                renderSemesterRegistrations(data);
+                new bootstrap.Modal(document.getElementById('semesterRegistrationsModal')).show();
             } else {
                 showAlert(data.message, 'danger');
             }
         })
         .catch(error => {
-            console.error('Error deleting semester:', error);
-            showAlert('Error deleting semester', 'danger');
+            console.error('Error loading semester registrations:', error);
+            showAlert('Error loading semester registrations', 'danger');
         });
-    }
+}
 
-    // Set current semester
-    function setCurrentSemester(semesterId) {
-        fetch(urls.setCurrentSemester.replace('{id}', semesterId), {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken()
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                loadAcademicYears();
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error setting current semester:', error);
-            showAlert('Error setting current semester', 'danger');
-        });
-    }
-
-    // View semester registrations
-    function viewSemesterRegistrations(semesterId) {
-        fetch(urls.getSemesterRegistrations.replace('{id}', semesterId))
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    renderSemesterRegistrations(data);
-                    new bootstrap.Modal(document.getElementById('semesterRegistrationsModal')).show();
-                } else {
-                    showAlert(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading semester registrations:', error);
-                showAlert('Error loading semester registrations', 'danger');
-            });
-    }
-
-    // Render semester registrations modal content
-    function renderSemesterRegistrations(data) {
-        const container = document.getElementById('semesterRegistrationsContent');
-        
-        let html = `
-            <div class="row mb-4">
-                <div class="col-md-8">
-                    <h6 class="fw-bold">${data.semester.name} - ${data.semester.academic_year}</h6>
-                    <p class="text-muted mb-1">
-                        Registration Period: ${formatDate(data.semester.registration_start)} - ${formatDate(data.semester.registration_end)}
-                    </p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="badge bg-primary fs-6">Total Registrations: ${data.total_registrations}</div>
-                </div>
+// Render semester registrations modal content
+function renderSemesterRegistrations(data) {
+    const container = document.getElementById('semesterRegistrationsContent');
+    if (!container) return;
+    
+    let html = `
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h6 class="fw-bold">${data.semester.name} - ${data.semester.academic_year}</h6>
+                <p class="text-muted mb-1">
+                    Registration Period: ${formatDate(data.semester.registration_start)} - ${formatDate(data.semester.registration_end)}
+                </p>
             </div>
+            <div class="col-md-4 text-end">
+                <div class="badge bg-primary fs-6">Total Registrations: ${data.total_registrations}</div>
+            </div>
+        </div>
+    `;
+
+    if (!data.programmes || data.programmes.length === 0) {
+        html += '<div class="text-center py-4 text-muted">No programme registrations found for this semester.</div>';
+    } else {
+        html += `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Programme Code</th>
+                            <th>Programme Name</th>
+                            <th>Type</th>
+                            <th>Department</th>
+                            <th class="text-center">Registrations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
         `;
 
-        if (data.programmes.length === 0) {
-            html += '<div class="text-center py-4 text-muted">No programme registrations found for this semester.</div>';
-        } else {
+        data.programmes.forEach(programme => {
             html += `
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Programme Code</th>
-                                <th>Programme Name</th>
-                                <th>Type</th>
-                                <th>Department</th>
-                                <th class="text-center">Registrations</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                <tr>
+                    <td><span class="badge bg-light text-dark">${programme.code}</span></td>
+                    <td>${programme.name}</td>
+                    <td>${programme.programme_type}</td>
+                    <td>${programme.department}</td>
+                    <td class="text-center">
+                        <span class="badge bg-primary">${programme.enrollment_count}</span>
+                    </td>
+                </tr>
             `;
+        });
 
-            data.programmes.forEach(programme => {
-                html += `
-                    <tr>
-                        <td><span class="badge bg-light text-dark">${programme.code}</span></td>
-                        <td>${programme.name}</td>
-                        <td>${programme.programme_type}</td>
-                        <td>${programme.department}</td>
-                        <td class="text-center">
-                            <span class="badge bg-primary">${programme.enrollment_count}</span>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        container.innerHTML = html;
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
 
-    // Update current status display
-    function updateCurrentStatus() {
-        let currentYear = academicYears.find(y => y.is_current);
-        let currentSemester = null;
+    container.innerHTML = html;
+}
+
+// Update current status display
+function updateCurrentStatus() {
+    let currentYear = null;
+    let currentSemester = null;
+    
+    if (academicYears && academicYears.length > 0) {
+        currentYear = academicYears.find(y => y.is_current);
         
-        if (currentYear) {
+        if (currentYear && currentYear.semesters) {
             currentSemester = currentYear.semesters.find(s => s.is_current);
         }
-
-        document.getElementById('currentYearText').textContent = currentYear ? currentYear.year : 'Not Set';
-        document.getElementById('currentSemesterText').textContent = currentSemester ? `Semester ${currentSemester.semester_number}` : 'Not Set';
-        document.getElementById('totalYearsText').textContent = academicYears.length;
     }
 
-    // Utility functions
-    function showLoading(show) {
-        const spinner = document.getElementById('loadingSpinner');
-        const container = document.getElementById('academicYearsContainer');
+    // Update current year - try multiple possible element IDs
+    const currentYearElements = [
+        document.getElementById('currentYearText'),
+        document.querySelector('[data-current-year]'),
+        document.querySelector('.current-academic-year')
+    ].filter(el => el !== null);
+    
+    currentYearElements.forEach(el => {
+        if (el) el.textContent = currentYear ? currentYear.year : 'Not Set';
+    });
+
+    // Update current semester - try multiple possible element IDs
+    const currentSemesterElements = [
+        document.getElementById('currentSemesterText'),
+        document.querySelector('[data-current-semester]'),
+        document.querySelector('.current-semester')
+    ].filter(el => el !== null);
+    
+    currentSemesterElements.forEach(el => {
+        if (el) el.textContent = currentSemester ? `Semester ${currentSemester.semester_number}` : 'Not Set';
+    });
+
+    // Update total years - try multiple possible element IDs
+    const totalYearsElements = [
+        document.getElementById('totalYearsText'),
+        document.querySelector('[data-total-years]'),
+        document.querySelector('.total-academic-years')
+    ].filter(el => el !== null);
+    
+    totalYearsElements.forEach(el => {
+        if (el) el.textContent = academicYears ? academicYears.length : 0;
+    });
+}
+
+// Utility functions
+function showLoading(show) {
+    const spinner = document.getElementById('loadingSpinner');
+    const container = document.getElementById('academicYearsContainer');
+    
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
+    }
+    
+    if (container) {
+        container.style.display = show ? 'none' : 'block';
+    }
+}
+
+function showAlert(message, type = 'info') {
+    // Create alert container if it doesn't exist
+    let alertContainer = document.getElementById('alertContainer');
+    
+    if (!alertContainer) {
+        // Try to find messages container or create one
+        alertContainer = document.querySelector('.messages') || document.querySelector('[class*="alert"]')?.parentNode;
         
-        if (show) {
-            spinner.style.display = 'block';
-            container.style.display = 'none';
-        } else {
-            spinner.style.display = 'none';
-            container.style.display = 'block';
+        if (!alertContainer) {
+            // Create alert container at the top of the main content
+            const mainContent = document.querySelector('.container-fluid') || document.body;
+            alertContainer = document.createElement('div');
+            alertContainer.id = 'alertContainer';
+            alertContainer.className = 'alert-container';
+            mainContent.insertBefore(alertContainer, mainContent.firstChild);
         }
     }
-
-    function showAlert(message, type = 'info') {
-        const alertContainer = document.getElementById('alertContainer');
-        const alertId = 'alert-' + Date.now();
-        
-        const alertHtml = `
-            <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-                <i class="bi bi-${getAlertIcon(type)} me-2"></i>${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
-        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            const alert = document.getElementById(alertId);
-            if (alert) {
-                const bsAlert = bootstrap.Alert.getInstance(alert);
-                if (bsAlert) {
-                    bsAlert.close();
-                }
+    
+    const alertId = 'alert-' + Date.now();
+    
+    const alertHtml = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${getAlertIcon(type)} me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = document.getElementById(alertId);
+        if (alert) {
+            const bsAlert = bootstrap.Alert.getInstance(alert);
+            if (bsAlert) {
+                bsAlert.close();
+            } else {
+                alert.remove();
             }
-        }, 5000);
-    }
+        }
+    }, 5000);
+}
 
-    function getAlertIcon(type) {
-        const icons = {
-            'success': 'check-circle',
-            'danger': 'exclamation-triangle',
-            'warning': 'exclamation-circle',
-            'info': 'info-circle'
-        };
-        return icons[type] || 'info-circle';
-    }
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
 
-    function formatDate(dateString) {
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
         const options = { 
             year: 'numeric', 
             month: 'short', 
             day: 'numeric' 
         };
         return new Date(dateString).toLocaleDateString('en-US', options);
+    } catch (error) {
+        return dateString;
     }
+}
 
-    function getCsrfToken() {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'csrftoken') {
-                return value;
-            }
-        }
-        return '';
+function getCsrfToken() {
+    // First try to get from meta tag
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken) {
+        return metaToken.getAttribute('content');
     }
+    
+    // Then try to get from cookies
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    // Finally try to get from form input
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    return '';
+}
 </script>
 {% endblock %}
