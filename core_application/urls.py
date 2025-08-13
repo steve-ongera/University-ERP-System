@@ -268,5 +268,13 @@ urlpatterns = [
     path('hostel/get-room-availability/', views.get_room_availability, name='get_room_availability'),
     path('update-booking-status/', views.update_booking_status, name='update_booking_status'),
 
+    # Admin Student Enrollment Management
+    path('admin-students/enrollments/', views.admin_student_enrollment_list,   name='admin_student_enrollment_list'),
+    # AJAX endpoints
+    path('ajax/student/<int:student_id>/enrollments/',  views.get_student_enrollments,  name='get_student_enrollments'),
+    path('ajax/enrollment/add/', views.add_student_enrollment, name='add_student_enrollment'),
+    path('ajax/enrollment/<int:enrollment_id>/delete/',  views.delete_student_enrollment,  name='delete_student_enrollment'),
+    path('ajax/semesters/options/', views.get_semester_options,  name='get_semester_options'),
+
 
 ]

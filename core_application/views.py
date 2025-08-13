@@ -10124,3 +10124,361 @@ def get_hostel_list(request):
     }
     
     return render(request, 'hostels/warden_hostel_list.html', context)
+
+
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.views.decorators.http import require_http_methods
+from django.db.models import Q, Count, Prefetch
+from django.core.paginator import Paginator
+from django.contrib import messages
+from django.urls import reverse
+from django.db import transaction
+from .models import (
+    Student, Enrollment, Course, AcademicYear, Semester, 
+    Programme, Faculty, Department, ProgrammeCourse
+)
+import json
+
+@staff_member_required
+@login_required
+def admin_student_enrollment_list(request):
+    """Main view to display list of students for enrollment management"""
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    programme_filter = request.GET.get('programme', '')
+    faculty_filter = request.GET.get('faculty', '')
+    status_filter = request.GET.get('status', '')
+    year_filter = request.GET.get('year', '')
+    
+    # Base queryset with related data
+    students = Student.objects.select_related(
+        'user', 'programme', 'programme__department', 'programme__faculty'
+    ).annotate(
+        total_enrollments=Count('enrollments')
+    ).order_by('-admission_date')
+    
+    # Apply filters
+    if search_query:
+        students = students.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(student_id__icontains=search_query) |
+            Q(user__email__icontains=search_query)
+        )
+    
+    if programme_filter:
+        students = students.filter(programme_id=programme_filter)
+    
+    if faculty_filter:
+        students = students.filter(programme__faculty_id=faculty_filter)
+    
+    if status_filter:
+        students = students.filter(status=status_filter)
+    
+    if year_filter:
+        students = students.filter(current_year=year_filter)
+    
+    # Pagination
+    paginator = Paginator(students, 12)  # 12 students per page
+    page_number = request.GET.get('page')
+    students_page = paginator.get_page(page_number)
+    
+    # Get filter options
+    programmes = Programme.objects.filter(is_active=True).select_related('faculty')
+    faculties = Faculty.objects.filter(is_active=True)
+    
+    context = {
+        'students': students_page,
+        'programmes': programmes,
+        'faculties': faculties,
+        'search_query': search_query,
+        'programme_filter': programme_filter,
+        'faculty_filter': faculty_filter,
+        'status_filter': status_filter,
+        'year_filter': year_filter,
+        'student_statuses': Student.STATUS_CHOICES,
+        'current_years': range(1, 9),  # 1-8 years
+    }
+    
+    return render(request, 'admin/student_enrollment_list.html', context)
+
+@staff_member_required
+@login_required
+def get_student_enrollments(request, student_id):
+    """AJAX view to fetch student enrollments organized by academic year and semester"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        student = get_object_or_404(
+            Student.objects.select_related('user', 'programme'), 
+            id=student_id
+        )
+        
+        # Get all enrollments with related data
+        enrollments = Enrollment.objects.filter(
+            student=student
+        ).select_related(
+            'course', 'semester', 'semester__academic_year', 'lecturer', 'lecturer__user'
+        ).order_by(
+            'semester__academic_year__start_date', 'semester__semester_number', 'course__name'
+        )
+        
+        # Organize enrollments by academic year and semester
+        enrollment_data = {}
+        
+        for enrollment in enrollments:
+            academic_year = enrollment.semester.academic_year
+            semester_num = enrollment.semester.semester_number
+            
+            year_key = academic_year.year
+            semester_key = f"semester_{semester_num}"
+            
+            if year_key not in enrollment_data:
+                enrollment_data[year_key] = {
+                    'academic_year': {
+                        'id': academic_year.id,
+                        'year': academic_year.year,
+                        'start_date': academic_year.start_date.strftime('%Y-%m-%d'),
+                        'end_date': academic_year.end_date.strftime('%Y-%m-%d'),
+                        'is_current': academic_year.is_current,
+                    },
+                    'semesters': {}
+                }
+            
+            if semester_key not in enrollment_data[year_key]['semesters']:
+                enrollment_data[year_key]['semesters'][semester_key] = {
+                    'semester_info': {
+                        'id': enrollment.semester.id,
+                        'number': semester_num,
+                        'start_date': enrollment.semester.start_date.strftime('%Y-%m-%d'),
+                        'end_date': enrollment.semester.end_date.strftime('%Y-%m-%d'),
+                        'is_current': enrollment.semester.is_current,
+                    },
+                    'enrollments': []
+                }
+            
+            # Add enrollment data
+            enrollment_info = {
+                'id': enrollment.id,
+                'course': {
+                    'id': enrollment.course.id,
+                    'name': enrollment.course.name,
+                    'code': enrollment.course.code,
+                    'credit_hours': enrollment.course.credit_hours,
+                    'course_type': enrollment.course.course_type,
+                    'course_type_display': enrollment.course.get_course_type_display(),
+                    'level': enrollment.course.level,
+                },
+                'lecturer': {
+                    'id': enrollment.lecturer.id if enrollment.lecturer else None,
+                    'name': enrollment.lecturer.user.get_full_name() if enrollment.lecturer else 'Not Assigned',
+                    'academic_rank': enrollment.lecturer.academic_rank if enrollment.lecturer else '',
+                } if enrollment.lecturer else None,
+                'enrollment_date': enrollment.enrollment_date.strftime('%Y-%m-%d'),
+                'is_active': enrollment.is_active,
+                'is_repeat': enrollment.is_repeat,
+                'is_audit': enrollment.is_audit,
+            }
+            
+            enrollment_data[year_key]['semesters'][semester_key]['enrollments'].append(enrollment_info)
+        
+        # Get available courses for adding new enrollments
+        available_courses = get_available_courses_for_student(student)
+        
+        response_data = {
+            'student': {
+                'id': student.id,
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'email': student.user.email,
+                'programme': {
+                    'name': student.programme.name,
+                    'code': student.programme.code,
+                },
+                'current_year': student.current_year,
+                'current_semester': student.current_semester,
+                'status': student.status,
+                'admission_date': student.admission_date.strftime('%Y-%m-%d'),
+            },
+            'enrollment_data': enrollment_data,
+            'available_courses': available_courses,
+            'success': True
+        }
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to fetch enrollments: {str(e)}',
+            'success': False
+        }, status=500)
+
+def get_available_courses_for_student(student):
+    """Get courses available for the student based on their programme"""
+    # Get programme courses for the student's current level
+    programme_courses = ProgrammeCourse.objects.filter(
+        programme=student.programme,
+        is_active=True,
+        year__lte=student.current_year
+    ).select_related('course').order_by('year', 'semester', 'course__name')
+    
+    # Get already enrolled course IDs
+    enrolled_course_ids = Enrollment.objects.filter(
+        student=student
+    ).values_list('course_id', flat=True)
+    
+    available_courses = []
+    for pc in programme_courses:
+        if pc.course.id not in enrolled_course_ids:
+            available_courses.append({
+                'id': pc.course.id,
+                'name': pc.course.name,
+                'code': pc.course.code,
+                'credit_hours': pc.course.credit_hours,
+                'course_type': pc.course.get_course_type_display(),
+                'level': pc.course.level,
+                'year': pc.year,
+                'semester': pc.semester,
+                'is_mandatory': pc.is_mandatory,
+            })
+    
+    return available_courses
+
+@staff_member_required
+@login_required
+@require_http_methods(["POST"])
+def add_student_enrollment(request):
+    """AJAX view to add new enrollment for a student"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        student_id = data.get('student_id')
+        course_id = data.get('course_id')
+        semester_id = data.get('semester_id')
+        lecturer_id = data.get('lecturer_id')
+        
+        # Validate required fields
+        if not all([student_id, course_id, semester_id]):
+            return JsonResponse({
+                'error': 'Student, course, and semester are required',
+                'success': False
+            }, status=400)
+        
+        # Get objects
+        student = get_object_or_404(Student, id=student_id)
+        course = get_object_or_404(Course, id=course_id)
+        semester = get_object_or_404(Semester, id=semester_id)
+        lecturer = None
+        
+        if lecturer_id:
+            lecturer = get_object_or_404(Lecturer, id=lecturer_id)
+        
+        # Check if enrollment already exists
+        existing_enrollment = Enrollment.objects.filter(
+            student=student,
+            course=course,
+            semester=semester
+        ).first()
+        
+        if existing_enrollment:
+            return JsonResponse({
+                'error': 'Student is already enrolled in this course for this semester',
+                'success': False
+            }, status=400)
+        
+        # Create enrollment
+        with transaction.atomic():
+            enrollment = Enrollment.objects.create(
+                student=student,
+                course=course,
+                semester=semester,
+                lecturer=lecturer,
+                is_active=True
+            )
+        
+        return JsonResponse({
+            'message': f'Successfully enrolled {student.user.get_full_name()} in {course.name}',
+            'enrollment_id': enrollment.id,
+            'success': True
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'Invalid JSON data',
+            'success': False
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to add enrollment: {str(e)}',
+            'success': False
+        }, status=500)
+
+@staff_member_required
+@login_required
+@require_http_methods(["DELETE"])
+def delete_student_enrollment(request, enrollment_id):
+    """AJAX view to delete a student enrollment"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        enrollment = get_object_or_404(
+            Enrollment.objects.select_related('student__user', 'course'),
+            id=enrollment_id
+        )
+        
+        student_name = enrollment.student.user.get_full_name()
+        course_name = enrollment.course.name
+        
+        enrollment.delete()
+        
+        return JsonResponse({
+            'message': f'Successfully removed {student_name} from {course_name}',
+            'success': True
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to delete enrollment: {str(e)}',
+            'success': False
+        }, status=500)
+
+@staff_member_required
+@login_required
+def get_semester_options(request):
+    """AJAX view to get available semesters for enrollment"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        semesters = Semester.objects.select_related('academic_year').filter(
+            academic_year__is_current=True
+        ).order_by('semester_number')
+        
+        semester_options = []
+        for semester in semesters:
+            semester_options.append({
+                'id': semester.id,
+                'display_name': f"{semester.academic_year.year} - Semester {semester.semester_number}",
+                'semester_number': semester.semester_number,
+                'academic_year': semester.academic_year.year,
+                'is_current': semester.is_current,
+            })
+        
+        return JsonResponse({
+            'semesters': semester_options,
+            'success': True
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to fetch semesters: {str(e)}',
+            'success': False
+        }, status=500)

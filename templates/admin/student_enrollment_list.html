@@ -1,0 +1,1263 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-people-fill text-primary me-2"></i>
+                                Student Enrollment Management
+                            </h2>
+                            <p class="text-muted mb-0">Manage student course enrollments across academic years and semesters</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button class="btn btn-outline-primary" onclick="refreshStudentList()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                </button>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bulkEnrollmentModal">
+                                    <i class="bi bi-plus-circle me-1"></i>Bulk Enrollment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Search Student</label>
+                                <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                       placeholder="Name, Student ID, Email...">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">Faculty</label>
+                                <select class="form-select" name="faculty">
+                                    <option value="">All Faculties</option>
+                                    {% for faculty in faculties %}
+                                    <option value="{{ faculty.id }}" {% if faculty_filter == faculty.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ faculty.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">Programme</label>
+                                <select class="form-select" name="programme">
+                                    <option value="">All Programmes</option>
+                                    {% for programme in programmes %}
+                                    <option value="{{ programme.id }}" {% if programme_filter == programme.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ programme.code }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="">All Statuses</option>
+                                    {% for status_key, status_label in student_statuses %}
+                                    <option value="{{ status_key }}" {% if status_filter == status_key %}selected{% endif %}>
+                                        {{ status_label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold">Year</label>
+                                <select class="form-select" name="year">
+                                    <option value="">All Years</option>
+                                    {% for year in current_years %}
+                                    <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>
+                                        Year {{ year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label small fw-bold">&nbsp;</label>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Students List -->
+        <div class="col-md-5">
+            <div class="card shadow-sm" style="height: 80vh; overflow-y: auto;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-people me-2"></i>
+                        Students ({{ students|length }})
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if students %}
+                    <div class="list-group list-group-flush">
+                        {% for student in students %}
+                        <div class="list-group-item list-group-item-action student-card" 
+                             data-student-id="{{ student.id }}"
+                             onclick="selectStudent({{ student.id }})">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">{{ student.user.get_full_name }}</h6>
+                                    <p class="mb-1 small text-muted">
+                                        <span class="badge bg-secondary">{{ student.student_id }}</span>
+                                        <span class="badge bg-info ms-1">{{ student.programme.code }}</span>
+                                    </p>
+                                    <p class="mb-1 small">
+                                        <i class="bi bi-building me-1"></i>{{ student.programme.faculty.name }}
+                                    </p>
+                                    <p class="mb-0 small text-muted">
+                                        <i class="bi bi-mortarboard me-1"></i>Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}primary{% else %}warning{% endif %}">
+                                        {{ student.get_status_display }}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">{{ student.total_enrollments }} enrollments</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if students.has_other_pages %}
+                    <div class="p-3 border-top">
+                        <nav aria-label="Students pagination">
+                            <ul class="pagination pagination-sm justify-content-center mb-0">
+                                {% if students.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if faculty_filter %}&faculty={{ faculty_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in students.paginator.page_range %}
+                                {% if students.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > students.number|add:'-3' and num < students.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if faculty_filter %}&faculty={{ faculty_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% if students.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if faculty_filter %}&faculty={{ faculty_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">Next</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-people display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Students Found</h5>
+                        <p class="text-muted">Try adjusting your filters or search criteria.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Enrollments -->
+        <div class="col-md-7">
+            <div class="card shadow-sm" style="height: 80vh;">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text me-2"></i>
+                        <span id="selectedStudentName">Student Enrollments</span>
+                    </h5>
+                    <button class="btn btn-light btn-sm" id="addEnrollmentBtn" onclick="showAddEnrollmentModal()" style="display: none;">
+                        <i class="bi bi-plus-circle me-1"></i>Add Enrollment
+                    </button>
+                </div>
+                <div class="card-body p-0" style="overflow-y: auto; height: calc(80vh - 60px);">
+                    <div id="enrollmentContent">
+                        <div class="text-center py-5">
+                            <i class="bi bi-arrow-left-circle display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">Select a Student</h5>
+                            <p class="text-muted">Click on a student from the list to view their enrollments.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Enrollment Modal -->
+<div class="modal fade" id="addEnrollmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle me-2"></i>Add Course Enrollment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEnrollmentForm">
+                    <input type="hidden" id="modalStudentId" name="student_id">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Course</label>
+                            <select class="form-select" id="modalCourseId" name="course_id" required>
+                                <option value="">Select Course</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Semester</label>
+                            <select class="form-select" id="modalSemesterId" name="semester_id" required>
+                                <option value="">Select Semester</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Lecturer (Optional)</label>
+                            <select class="form-select" id="modalLecturerId" name="lecturer_id">
+                                <option value="">No Lecturer Assigned</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="courseDetails" class="alert alert-info" style="display: none;">
+                        <!-- Course details will be populated here -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddEnrollment()">
+                    <i class="bi bi-check-circle me-1"></i>Add Enrollment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Enrollment Modal -->
+<div class="modal fade" id="bulkEnrollmentModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-layers me-2"></i>Bulk Enrollment Management
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-building me-2"></i>Select Programme</h6>
+                        <select class="form-select mb-3" id="bulkProgramme">
+                            <option value="">Select Programme</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}">{{ programme.name }} ({{ programme.code }})</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <h6><i class="bi bi-calendar me-2"></i>Select Academic Year & Semester</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <select class="form-select" id="bulkYear">
+                                    <option value="">Select Year</option>
+                                    {% for year in current_years %}
+                                    <option value="{{ year }}">Year {{ year }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-select" id="bulkSemester">
+                                    <option value="">Select Semester</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <h6><i class="bi bi-journals me-2"></i>Available Courses</h6>
+                        <div id="bulkAvailableCourses" class="border rounded p-3" style="height: 300px; overflow-y: auto;">
+                            <p class="text-muted">Select programme and year/semester to view courses</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-people me-2"></i>Target Students</h6>
+                        <div id="bulkTargetStudents" class="border rounded p-3 mb-3" style="height: 200px; overflow-y: auto;">
+                            <p class="text-muted">Select programme to view students</p>
+                        </div>
+                        
+                        <h6><i class="bi bi-check-square me-2"></i>Selected Courses for Enrollment</h6>
+                        <div id="bulkSelectedCourses" class="border rounded p-3" style="height: 200px; overflow-y: auto;">
+                            <p class="text-muted">No courses selected</p>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-success" onclick="executeBulkEnrollment()" disabled id="bulkEnrollBtn">
+                                <i class="bi bi-check-all me-1"></i>Execute Bulk Enrollment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmButton">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="position-fixed top-50 start-50 translate-middle" style="display: none; z-index: 9999;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<style>
+.student-card:hover {
+    background-color: #f8f9fa;
+}
+
+.student-card.active {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+}
+
+.course-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.course-item:hover {
+    background-color: #f8f9fa;
+}
+
+.course-item.selected {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.student-checkbox:checked + label {
+    background-color: #e3f2fd;
+}
+</style>
+
+<script>
+// Global variables
+let currentStudentId = null;
+let currentStudentData = null;
+let selectedCoursesForBulk = [];
+let selectedStudentsForBulk = [];
+
+// CSRF token setup
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Show/hide loading spinner
+function showLoading() {
+    document.getElementById('loadingSpinner').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loadingSpinner').style.display = 'none';
+}
+
+// Show toast notifications
+function showToast(message, type = 'success') {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const iconClass = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show">
+            <i class="bi ${iconClass} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+    alertContainer.innerHTML = alertHTML + alertContainer.innerHTML;
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = alertContainer.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Select student and load enrollments
+function selectStudent(studentId) {
+    // Highlight selected student
+    document.querySelectorAll('.student-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    document.querySelector(`[data-student-id="${studentId}"]`).classList.add('active');
+    
+    currentStudentId = studentId;
+    loadStudentEnrollments(studentId);
+    
+    // Show add enrollment button
+    document.getElementById('addEnrollmentBtn').style.display = 'inline-block';
+}
+
+// Load student enrollments via AJAX
+function loadStudentEnrollments(studentId) {
+    showLoading();
+    
+    fetch(`/ajax/student/${studentId}/enrollments/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            currentStudentData = data;
+            displayStudentEnrollments(data);
+        } else {
+            showToast(data.error || 'Failed to load enrollments', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showToast('Network error occurred', 'error');
+    });
+}
+
+// Display student enrollments
+function displayStudentEnrollments(data) {
+    const student = data.student;
+    const enrollmentData = data.enrollment_data;
+    
+    // Update header with student name
+    document.getElementById('selectedStudentName').textContent = 
+        `${student.name} (${student.student_id}) - Enrollments`;
+    
+    let html = `
+        <div class="p-3 bg-light border-bottom">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6 class="mb-1 fw-bold">${student.name}</h6>
+                    <p class="mb-1 small text-muted">
+                        <span class="badge bg-secondary">${student.student_id}</span>
+                        <span class="badge bg-info ms-1">${student.programme.code}</span>
+                        <span class="badge bg-success ms-1">${student.status}</span>
+                    </p>
+                    <p class="mb-0 small">
+                        <i class="bi bi-mortarboard me-1"></i>${student.programme.name}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <p class="mb-1 small"><strong>Current:</strong> Year ${student.current_year}, Sem ${student.current_semester}</p>
+                    <p class="mb-0 small"><strong>Admitted:</strong> ${student.admission_date}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (Object.keys(enrollmentData).length === 0) {
+        html += `
+            <div class="text-center py-5">
+                <i class="bi bi-journal-x display-1 text-muted"></i>
+                <h5 class="text-muted mt-3">No Enrollments Found</h5>
+                <p class="text-muted">This student has not been enrolled in any courses yet.</p>
+            </div>
+        `;
+    } else {
+        // Group enrollments by academic year
+        Object.keys(enrollmentData).sort().forEach(yearKey => {
+            const yearData = enrollmentData[yearKey];
+            
+            html += `
+                <div class="accordion" id="accordion${yearKey.replace('/', '')}">
+                    <div class="accordion-item">
+                        <h6 class="accordion-header">
+                            <button class="accordion-button ${Object.keys(enrollmentData).indexOf(yearKey) === 0 ? '' : 'collapsed'}" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapse${yearKey.replace('/', '')}"
+                                    aria-expanded="${Object.keys(enrollmentData).indexOf(yearKey) === 0 ? 'true' : 'false'}">
+                                <i class="bi bi-calendar3 me-2"></i>
+                                <strong>Academic Year: ${yearData.academic_year.year}</strong>
+                                ${yearData.academic_year.is_current ? '<span class="badge bg-success ms-2">Current</span>' : ''}
+                            </button>
+                        </h6>
+                        <div id="collapse${yearKey.replace('/', '')}" class="accordion-collapse collapse ${Object.keys(enrollmentData).indexOf(yearKey) === 0 ? 'show' : ''}"
+                             data-bs-parent="#accordion${yearKey.replace('/', '')}">
+                            <div class="accordion-body p-0">
+            `;
+            
+            // Display semesters
+            Object.keys(yearData.semesters).sort().forEach(semesterKey => {
+                const semesterData = yearData.semesters[semesterKey];
+                const semesterInfo = semesterData.semester_info;
+                
+                html += `
+                    <div class="border-bottom">
+                        <div class="p-3 bg-light">
+                            <h6 class="mb-1">
+                                <i class="bi bi-calendar2-week me-2"></i>
+                                Semester ${semesterInfo.number}
+                                ${semesterInfo.is_current ? '<span class="badge bg-primary ms-2">Current</span>' : ''}
+                            </h6>
+                            <p class="mb-0 small text-muted">
+                                ${semesterInfo.start_date} to ${semesterInfo.end_date}
+                                <span class="ms-3"><strong>${semesterData.enrollments.length}</strong> courses</span>
+                            </p>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course</th>
+                                        <th>Type</th>
+                                        <th>Credits</th>
+                                        <th>Lecturer</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                semesterData.enrollments.forEach(enrollment => {
+                    html += `
+                        <tr>
+                            <td>
+                                <strong>${enrollment.course.name}</strong><br>
+                                <small class="text-muted">${enrollment.course.code}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">${enrollment.course.course_type_display}</span>
+                            </td>
+                            <td>${enrollment.course.credit_hours}</td>
+                            <td>
+                                ${enrollment.lecturer ? enrollment.lecturer.name : 'Not Assigned'}<br>
+                                ${enrollment.lecturer ? `<small class="text-muted">${enrollment.lecturer.academic_rank}</small>` : ''}
+                            </td>
+                            <td>
+                                ${enrollment.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-warning">Inactive</span>'}
+                                ${enrollment.is_repeat ? '<br><span class="badge bg-info">Repeat</span>' : ''}
+                                ${enrollment.is_audit ? '<br><span class="badge bg-secondary">Audit</span>' : ''}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmDeleteEnrollment(${enrollment.id}, '${enrollment.course.name}')"
+                                        title="Remove Enrollment">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    document.getElementById('enrollmentContent').innerHTML = html;
+}
+
+// Show add enrollment modal
+function showAddEnrollmentModal() {
+    if (!currentStudentData) {
+        showToast('Please select a student first', 'error');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('addEnrollmentModal'));
+    
+    // Set student ID
+    document.getElementById('modalStudentId').value = currentStudentId;
+    
+    // Populate available courses
+    const courseSelect = document.getElementById('modalCourseId');
+    courseSelect.innerHTML = '<option value="">Select Course</option>';
+    
+    currentStudentData.available_courses.forEach(course => {
+        courseSelect.innerHTML += `
+            <option value="${course.id}" data-credits="${course.credit_hours}" 
+                    data-type="${course.course_type}" data-level="${course.level}"
+                    data-year="${course.year}" data-semester="${course.semester}"
+                    data-mandatory="${course.is_mandatory}">
+                ${course.name} (${course.code}) - ${course.credit_hours} credits
+            </option>
+        `;
+    });
+    
+    // Load semester options
+    loadSemesterOptions();
+    
+    modal.show();
+}
+
+// Load semester options
+function loadSemesterOptions() {
+    fetch('/ajax/semesters/options/', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const semesterSelect = document.getElementById('modalSemesterId');
+            semesterSelect.innerHTML = '<option value="">Select Semester</option>';
+            
+            data.semesters.forEach(semester => {
+                semesterSelect.innerHTML += `
+                    <option value="${semester.id}" ${semester.is_current ? 'selected' : ''}>
+                        ${semester.display_name} ${semester.is_current ? '(Current)' : ''}
+                    </option>
+                `;
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading semesters:', error);
+    });
+}
+
+// Handle course selection change
+document.addEventListener('DOMContentLoaded', function() {
+    const courseSelect = document.getElementById('modalCourseId');
+    if (courseSelect) {
+        courseSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const courseDetails = document.getElementById('courseDetails');
+            
+            if (selectedOption.value) {
+                const credits = selectedOption.dataset.credits;
+                const type = selectedOption.dataset.type;
+                const level = selectedOption.dataset.level;
+                const year = selectedOption.dataset.year;
+                const semester = selectedOption.dataset.semester;
+                const mandatory = selectedOption.dataset.mandatory === 'true';
+                
+                courseDetails.innerHTML = `
+                    <h6>Course Details</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Credits:</strong> ${credits}</p>
+                            <p class="mb-1"><strong>Type:</strong> ${type}</p>
+                            <p class="mb-0"><strong>Level:</strong> ${level}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Programme Year:</strong> ${year}</p>
+                            <p class="mb-1"><strong>Programme Semester:</strong> ${semester}</p>
+                            <p class="mb-0"><strong>Status:</strong> 
+                                <span class="badge bg-${mandatory ? 'danger' : 'info'}">
+                                    ${mandatory ? 'Mandatory' : 'Elective'}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                `;
+                courseDetails.style.display = 'block';
+            } else {
+                courseDetails.style.display = 'none';
+            }
+        });
+    }
+
+    // Bulk enrollment event handlers
+    const bulkProgramme = document.getElementById('bulkProgramme');
+    const bulkYear = document.getElementById('bulkYear');
+    const bulkSemester = document.getElementById('bulkSemester');
+
+    if (bulkProgramme) {
+        bulkProgramme.addEventListener('change', function() {
+            if (this.value) {
+                loadBulkStudents(this.value);
+                updateBulkCourses();
+            } else {
+                document.getElementById('bulkTargetStudents').innerHTML = '<p class="text-muted">Select programme to view students</p>';
+                document.getElementById('bulkAvailableCourses').innerHTML = '<p class="text-muted">Select programme and year/semester to view courses</p>';
+            }
+        });
+    }
+
+    if (bulkYear || bulkSemester) {
+        [bulkYear, bulkSemester].forEach(element => {
+            if (element) {
+                element.addEventListener('change', updateBulkCourses);
+            }
+        });
+    }
+});
+
+// Submit add enrollment form
+function submitAddEnrollment() {
+    const form = document.getElementById('addEnrollmentForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        student_id: formData.get('student_id'),
+        course_id: formData.get('course_id'),
+        semester_id: formData.get('semester_id'),
+        lecturer_id: formData.get('lecturer_id') || null
+    };
+    
+    if (!data.student_id || !data.course_id || !data.semester_id) {
+        showToast('Please fill all required fields', 'error');
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/ajax/enrollment/add/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addEnrollmentModal')).hide();
+            
+            // Reload student enrollments
+            loadStudentEnrollments(currentStudentId);
+            
+            // Reset form
+            document.getElementById('addEnrollmentForm').reset();
+            document.getElementById('courseDetails').style.display = 'none';
+        } else {
+            showToast(data.error || 'Failed to add enrollment', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showToast('Network error occurred', 'error');
+    });
+}
+
+// Confirm delete enrollment
+function confirmDeleteEnrollment(enrollmentId, courseName) {
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmButton = document.getElementById('confirmButton');
+    
+    confirmMessage.textContent = `Are you sure you want to remove the enrollment for "${courseName}"? This action cannot be undone.`;
+    
+    confirmButton.onclick = function() {
+        deleteEnrollment(enrollmentId);
+        modal.hide();
+    };
+    
+    modal.show();
+}
+
+// Delete enrollment
+function deleteEnrollment(enrollmentId) {
+    showLoading();
+    
+    fetch(`/ajax/enrollment/${enrollmentId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            // Reload student enrollments
+            loadStudentEnrollments(currentStudentId);
+        } else {
+            showToast(data.error || 'Failed to delete enrollment', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showToast('Network error occurred', 'error');
+    });
+}
+
+// Refresh student list
+function refreshStudentList() {
+    window.location.reload();
+}
+
+// Bulk enrollment functions
+function loadBulkStudents(programmeId) {
+    showLoading();
+    
+    fetch(`/ajax/programme/${programmeId}/students/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            displayBulkStudents(data.students);
+        } else {
+            document.getElementById('bulkTargetStudents').innerHTML = '<p class="text-danger">Failed to load students</p>';
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        document.getElementById('bulkTargetStudents').innerHTML = '<p class="text-danger">Network error occurred</p>';
+    });
+}
+
+function displayBulkStudents(students) {
+    let html = '';
+    
+    if (students.length === 0) {
+        html = '<p class="text-muted">No students found for this programme</p>';
+    } else {
+        html += `
+            <div class="mb-2">
+                <label class="form-check-label">
+                    <input type="checkbox" class="form-check-input" onchange="toggleAllStudents(this)">
+                    <strong>Select All (${students.length} students)</strong>
+                </label>
+            </div>
+        `;
+        
+        students.forEach(student => {
+            html += `
+                <div class="form-check mb-1">
+                    <input class="form-check-input student-checkbox" type="checkbox" 
+                           value="${student.id}" id="student_${student.id}"
+                           onchange="updateSelectedStudents()">
+                    <label class="form-check-label w-100" for="student_${student.id}">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${student.name}</strong><br>
+                                <small class="text-muted">${student.student_id} - Year ${student.current_year}</small>
+                            </div>
+                            <small class="text-muted">${student.status}</small>
+                        </div>
+                    </label>
+                </div>
+            `;
+        });
+    }
+    
+    document.getElementById('bulkTargetStudents').innerHTML = html;
+}
+
+function toggleAllStudents(checkbox) {
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    studentCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedStudents();
+}
+
+function updateSelectedStudents() {
+    const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
+    selectedStudentsForBulk = Array.from(checkedBoxes).map(cb => cb.value);
+    updateBulkEnrollButton();
+}
+
+function updateBulkCourses() {
+    const programmeId = document.getElementById('bulkProgramme').value;
+    const year = document.getElementById('bulkYear').value;
+    const semester = document.getElementById('bulkSemester').value;
+    
+    if (!programmeId || !year || !semester) {
+        document.getElementById('bulkAvailableCourses').innerHTML = '<p class="text-muted">Select programme, year, and semester to view courses</p>';
+        return;
+    }
+    
+    // Load semester options first if needed
+    if (!document.getElementById('bulkSemester').innerHTML.trim()) {
+        loadBulkSemesterOptions();
+    }
+    
+    showLoading();
+    
+    fetch(`/ajax/programme/${programmeId}/courses/?year=${year}&semester=${semester}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            displayBulkCourses(data.courses);
+        } else {
+            document.getElementById('bulkAvailableCourses').innerHTML = '<p class="text-danger">Failed to load courses</p>';
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        document.getElementById('bulkAvailableCourses').innerHTML = '<p class="text-danger">Network error occurred</p>';
+    });
+}
+
+function loadBulkSemesterOptions() {
+    fetch('/ajax/semesters/options/', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const semesterSelect = document.getElementById('bulkSemester');
+            semesterSelect.innerHTML = '<option value="">Select Semester</option>';
+            
+            data.semesters.forEach(semester => {
+                semesterSelect.innerHTML += `
+                    <option value="${semester.id}">
+                        ${semester.display_name}
+                    </option>
+                `;
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error loading semesters:', error);
+    });
+}
+
+function displayBulkCourses(courses) {
+    let html = '';
+    
+    if (courses.length === 0) {
+        html = '<p class="text-muted">No courses found for this programme, year, and semester</p>';
+    } else {
+        html += `
+            <div class="mb-2">
+                <label class="form-check-label">
+                    <input type="checkbox" class="form-check-input" onchange="toggleAllCourses(this)">
+                    <strong>Select All (${courses.length} courses)</strong>
+                </label>
+            </div>
+        `;
+        
+        courses.forEach(course => {
+            html += `
+                <div class="course-item" onclick="toggleCourseSelection(${course.id})">
+                    <div class="form-check">
+                        <input class="form-check-input course-checkbox" type="checkbox" 
+                               value="${course.id}" id="course_${course.id}">
+                        <label class="form-check-label w-100" for="course_${course.id}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${course.name}</strong><br>
+                                    <small class="text-muted">${course.code} - ${course.credit_hours} credits</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-${course.is_mandatory ? 'danger' : 'info'}">${course.is_mandatory ? 'Mandatory' : 'Elective'}</span><br>
+                                    <small class="text-muted">${course.course_type}</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    document.getElementById('bulkAvailableCourses').innerHTML = html;
+}
+
+function toggleAllCourses(checkbox) {
+    const courseCheckboxes = document.querySelectorAll('.course-checkbox');
+    courseCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        const courseItem = cb.closest('.course-item');
+        if (checkbox.checked) {
+            courseItem.classList.add('selected');
+        } else {
+            courseItem.classList.remove('selected');
+        }
+    });
+    updateSelectedCourses();
+}
+
+function toggleCourseSelection(courseId) {
+    const checkbox = document.getElementById(`course_${courseId}`);
+    const courseItem = checkbox.closest('.course-item');
+    
+    checkbox.checked = !checkbox.checked;
+    
+    if (checkbox.checked) {
+        courseItem.classList.add('selected');
+    } else {
+        courseItem.classList.remove('selected');
+    }
+    
+    updateSelectedCourses();
+}
+
+function updateSelectedCourses() {
+    const checkedBoxes = document.querySelectorAll('.course-checkbox:checked');
+    selectedCoursesForBulk = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    // Update display
+    const selectedCoursesDiv = document.getElementById('bulkSelectedCourses');
+    
+    if (selectedCoursesForBulk.length === 0) {
+        selectedCoursesDiv.innerHTML = '<p class="text-muted">No courses selected</p>';
+    } else {
+        let html = `<p class="mb-2"><strong>${selectedCoursesForBulk.length} courses selected:</strong></p>`;
+        
+        selectedCoursesForBulk.forEach(courseId => {
+            const checkbox = document.getElementById(`course_${courseId}`);
+            const label = checkbox.nextElementSibling;
+            const courseName = label.querySelector('strong').textContent;
+            const courseCode = label.querySelector('small').textContent.split(' - ')[0];
+            
+            html += `
+                <div class="d-flex justify-content-between align-items-center mb-1 p-2 bg-light rounded">
+                    <span><strong>${courseName}</strong> (${courseCode})</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeCourseFromSelection('${courseId}')">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            `;
+        });
+        
+        selectedCoursesDiv.innerHTML = html;
+    }
+    
+    updateBulkEnrollButton();
+}
+
+function removeCourseFromSelection(courseId) {
+    const checkbox = document.getElementById(`course_${courseId}`);
+    const courseItem = checkbox.closest('.course-item');
+    
+    checkbox.checked = false;
+    courseItem.classList.remove('selected');
+    
+    updateSelectedCourses();
+}
+
+function updateBulkEnrollButton() {
+    const button = document.getElementById('bulkEnrollBtn');
+    const hasStudents = selectedStudentsForBulk.length > 0;
+    const hasCourses = selectedCoursesForBulk.length > 0;
+    
+    button.disabled = !(hasStudents && hasCourses);
+    
+    if (hasStudents && hasCourses) {
+        button.innerHTML = `<i class="bi bi-check-all me-1"></i>Enroll ${selectedStudentsForBulk.length} Students in ${selectedCoursesForBulk.length} Courses`;
+    } else {
+        button.innerHTML = '<i class="bi bi-check-all me-1"></i>Execute Bulk Enrollment';
+    }
+}
+
+function executeBulkEnrollment() {
+    if (selectedStudentsForBulk.length === 0 || selectedCoursesForBulk.length === 0) {
+        showToast('Please select students and courses for enrollment', 'error');
+        return;
+    }
+    
+    const semesterId = document.getElementById('bulkSemester').value;
+    if (!semesterId) {
+        showToast('Please select a semester', 'error');
+        return;
+    }
+    
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    const confirmMessage = document.getElementById('confirmMessage');
+    const confirmButton = document.getElementById('confirmButton');
+    
+    confirmMessage.innerHTML = `
+        Are you sure you want to enroll <strong>${selectedStudentsForBulk.length} students</strong> 
+        in <strong>${selectedCoursesForBulk.length} courses</strong>?<br><br>
+        This will create <strong>${selectedStudentsForBulk.length * selectedCoursesForBulk.length} enrollment records</strong>.
+    `;
+    
+    confirmButton.onclick = function() {
+        performBulkEnrollment(semesterId);
+        confirmModal.hide();
+    };
+    
+    confirmModal.show();
+}
+
+function performBulkEnrollment(semesterId) {
+    showLoading();
+    
+    const data = {
+        student_ids: selectedStudentsForBulk,
+        course_ids: selectedCoursesForBulk,
+        semester_id: semesterId
+    };
+    
+    fetch('/ajax/enrollment/bulk-add/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            showToast(`Successfully created ${data.created_count} enrollments. ${data.skipped_count} duplicates were skipped.`, 'success');
+            
+            // Close modal and reset selections
+            bootstrap.Modal.getInstance(document.getElementById('bulkEnrollmentModal')).hide();
+            selectedStudentsForBulk = [];
+            selectedCoursesForBulk = [];
+            
+            // Reset form
+            document.getElementById('bulkProgramme').value = '';
+            document.getElementById('bulkYear').value = '';
+            document.getElementById('bulkSemester').value = '';
+            document.getElementById('bulkTargetStudents').innerHTML = '<p class="text-muted">Select programme to view students</p>';
+            document.getElementById('bulkAvailableCourses').innerHTML = '<p class="text-muted">Select programme and year/semester to view courses</p>';
+            document.getElementById('bulkSelectedCourses').innerHTML = '<p class="text-muted">No courses selected</p>';
+            updateBulkEnrollButton();
+            
+            // Refresh current student if selected
+            if (currentStudentId) {
+                loadStudentEnrollments(currentStudentId);
+            }
+        } else {
+            showToast(data.error || 'Failed to perform bulk enrollment', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showToast('Network error occurred', 'error');
+    });
+}
+</script>
+
+{% endblock %}
