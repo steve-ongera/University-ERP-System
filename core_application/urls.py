@@ -276,5 +276,13 @@ urlpatterns = [
     path('ajax/enrollment/<int:enrollment_id>/delete/',  views.delete_student_enrollment,  name='delete_student_enrollment'),
     path('ajax/semesters/options/', views.get_semester_options,  name='get_semester_options'),
 
+    # Bulk enrollment AJAX endpoints
+    path('ajax/programme/<int:programme_id>/students/', views.get_programme_students, name='get_programme_students'),
+    path('ajax/programme/<int:programme_id>/courses/', views.get_programme_courses, name='get_programme_courses'),
+    path('ajax/enrollment/bulk-add/', views.bulk_add_enrollments, name='bulk_add_enrollments'),
+
+    # Optional: Lecturer assignment endpoint
+    path('ajax/course/<int:course_id>/lecturers/', views.get_course_lecturers, name='get_course_lecturers'),
+
 
 ]

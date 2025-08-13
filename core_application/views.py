@@ -10482,3 +10482,266 @@ def get_semester_options(request):
             'error': f'Failed to fetch semesters: {str(e)}',
             'success': False
         }, status=500)
+    
+
+# Add these views to your views.py file
+
+@staff_member_required
+@login_required
+def get_programme_students(request, programme_id):
+    """Get students for a specific programme (for bulk enrollment)"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+        
+        # Get students enrolled in this programme
+        students = Student.objects.filter(
+            programme=programme,
+            status__in=['active', 'deferred']  # Only active and deferred students
+        ).select_related('user').order_by('user__first_name', 'user__last_name')
+        
+        student_data = []
+        for student in students:
+            student_data.append({
+                'id': student.id,
+                'name': student.user.get_full_name(),
+                'student_id': student.student_id,
+                'current_year': student.current_year,
+                'current_semester': student.current_semester,
+                'status': student.status,
+                'status_display': student.get_status_display(),
+                'email': student.user.email,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'students': student_data,
+            'programme': {
+                'id': programme.id,
+                'name': programme.name,
+                'code': programme.code,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to fetch students: {str(e)}',
+            'success': False
+        }, status=500)
+
+
+@staff_member_required
+@login_required  
+def get_programme_courses(request, programme_id):
+    """Get courses for a specific programme/year/semester (for bulk enrollment)"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+        year = request.GET.get('year')
+        semester = request.GET.get('semester')
+        
+        if not year or not semester:
+            return JsonResponse({
+                'error': 'Year and semester parameters are required',
+                'success': False
+            }, status=400)
+        
+        # Get programme courses for the specified year and semester
+        programme_courses = ProgrammeCourse.objects.filter(
+            programme=programme,
+            year=year,
+            semester=semester,
+            is_active=True
+        ).select_related('course').order_by('course__name')
+        
+        course_data = []
+        for pc in programme_courses:
+            course_data.append({
+                'id': pc.course.id,
+                'name': pc.course.name,
+                'code': pc.course.code,
+                'credit_hours': pc.course.credit_hours,
+                'course_type': pc.course.get_course_type_display(),
+                'course_type_raw': pc.course.course_type,
+                'level': pc.course.level,
+                'is_mandatory': pc.is_mandatory,
+                'year': pc.year,
+                'semester': pc.semester,
+                'description': pc.course.description,
+                'department': pc.course.department.name,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'courses': course_data,
+            'programme': {
+                'id': programme.id,
+                'name': programme.name,
+                'code': programme.code,
+            },
+            'filters': {
+                'year': year,
+                'semester': semester,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to fetch courses: {str(e)}',
+            'success': False
+        }, status=500)
+
+
+@staff_member_required
+@login_required
+@require_http_methods(["POST"])
+def bulk_add_enrollments(request):
+    """Handle bulk enrollment creation"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        student_ids = data.get('student_ids', [])
+        course_ids = data.get('course_ids', [])
+        semester_id = data.get('semester_id')
+        
+        # Validate required fields
+        if not student_ids or not course_ids or not semester_id:
+            return JsonResponse({
+                'error': 'Student IDs, course IDs, and semester ID are required',
+                'success': False
+            }, status=400)
+        
+        # Get objects
+        students = Student.objects.filter(id__in=student_ids)
+        courses = Course.objects.filter(id__in=course_ids)
+        semester = get_object_or_404(Semester, id=semester_id)
+        
+        if len(students) != len(student_ids):
+            return JsonResponse({
+                'error': 'Some students were not found',
+                'success': False
+            }, status=400)
+        
+        if len(courses) != len(course_ids):
+            return JsonResponse({
+                'error': 'Some courses were not found',
+                'success': False
+            }, status=400)
+        
+        created_count = 0
+        skipped_count = 0
+        error_count = 0
+        errors = []
+        
+        with transaction.atomic():
+            for student in students:
+                for course in courses:
+                    # Check if enrollment already exists
+                    existing_enrollment = Enrollment.objects.filter(
+                        student=student,
+                        course=course,
+                        semester=semester
+                    ).first()
+                    
+                    if existing_enrollment:
+                        skipped_count += 1
+                        continue
+                    
+                    try:
+                        # Create enrollment
+                        enrollment = Enrollment.objects.create(
+                            student=student,
+                            course=course,
+                            semester=semester,
+                            is_active=True,
+                            is_repeat=False,
+                            is_audit=False
+                        )
+                        created_count += 1
+                        
+                    except Exception as e:
+                        error_count += 1
+                        errors.append({
+                            'student': student.user.get_full_name(),
+                            'course': course.name,
+                            'error': str(e)
+                        })
+        
+        # Prepare response
+        response_data = {
+            'success': True,
+            'created_count': created_count,
+            'skipped_count': skipped_count,
+            'error_count': error_count,
+            'total_attempted': len(student_ids) * len(course_ids),
+            'message': f'Bulk enrollment completed. Created: {created_count}, Skipped: {skipped_count}, Errors: {error_count}'
+        }
+        
+        if errors:
+            response_data['errors'] = errors[:10]  # Limit to first 10 errors
+            if len(errors) > 10:
+                response_data['additional_errors'] = len(errors) - 10
+        
+        return JsonResponse(response_data)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'error': 'Invalid JSON data',
+            'success': False
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to perform bulk enrollment: {str(e)}',
+            'success': False
+        }, status=500)
+
+
+# Additional helper view for getting lecturers (optional - for lecturer assignment in enrollment modal)
+@staff_member_required
+@login_required
+def get_course_lecturers(request, course_id):
+    """Get lecturers who can teach a specific course"""
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    
+    try:
+        course = get_object_or_404(Course, id=course_id)
+        
+        # Get lecturers from the same department as the course
+        lecturers = Lecturer.objects.filter(
+            department=course.department,
+            is_active=True
+        ).select_related('user').order_by('user__first_name', 'user__last_name')
+        
+        lecturer_data = []
+        for lecturer in lecturers:
+            lecturer_data.append({
+                'id': lecturer.id,
+                'name': lecturer.user.get_full_name(),
+                'academic_rank': lecturer.get_academic_rank_display(),
+                'employee_number': lecturer.employee_number,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'lecturers': lecturer_data,
+            'course': {
+                'id': course.id,
+                'name': course.name,
+                'code': course.code,
+                'department': course.department.name,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to fetch lecturers: {str(e)}',
+            'success': False
+        }, status=500)
+
