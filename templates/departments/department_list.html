@@ -160,11 +160,14 @@
                                                     data-name="{{ department.name }}" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-outline-secondary edit-department" 
-                                                    data-code="{{ department.code }}"
-                                                    data-name="{{ department.name }}" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
+                                            <!-- Alternative: If you prefer to keep it as a button with form submission -->
+                                            <form method="get" action="{% url 'department_update' department.code %}" style="display: inline;">
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-outline-secondary" 
+                                                        title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </form>
                                             <button class="btn btn-sm btn-outline-danger delete-department" 
                                                     data-code="{{ department.code }}"
                                                     data-name="{{ department.name }}" title="Delete">
