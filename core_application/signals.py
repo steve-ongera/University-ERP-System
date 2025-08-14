@@ -190,9 +190,6 @@ def _promote_student(student, current_semester):
     student.current_semester = new_semester
     student.save()
     
-    # Auto-enroll in next semester's courses (if next semester exists)
-    _auto_enroll_next_semester(student)
-    
     logger.info(f"Promoted student {student.student_id} to Year {new_year}, Semester {new_semester}")
 
 
@@ -200,86 +197,10 @@ def _handle_repeat_student(student, current_semester, failed_units):
     """
     Handle students who need to repeat due to failed units
     """
-    # Keep student in current year and semester
-    # They will need to re-enroll in failed courses
+    # Keep student in current year and semester for repeat
+    logger.info(f"Student {student.student_id} marked for repeat due to {failed_units} failed units - staying in Year {student.current_year}, Semester {student.current_semester}")
     
-    # Get failed courses for re-enrollment
-    year_semesters = Semester.objects.filter(
-        academic_year=current_semester.academic_year,
-        semester_number__lte=student.programme.semesters_per_year
-    )
-    
-    failed_enrollments = Enrollment.objects.filter(
-        student=student,
-        semester__in=year_semesters,
-        grade__is_passed=False,
-        grade__grade__in=['D+', 'D', 'F']
-    )
-    
-    # Mark failed courses for repeat
-    for enrollment in failed_enrollments:
-        # Create repeat enrollment for next academic year
-        next_academic_year = _get_next_academic_year(current_semester.academic_year)
-        if next_academic_year:
-            next_semester = Semester.objects.filter(
-                academic_year=next_academic_year,
-                semester_number=enrollment.semester.semester_number
-            ).first()
-            
-            if next_semester:
-                Enrollment.objects.get_or_create(
-                    student=student,
-                    course=enrollment.course,
-                    semester=next_semester,
-                    defaults={
-                        'is_repeat': True,
-                        'lecturer': enrollment.lecturer
-                    }
-                )
-    
-    logger.info(f"Student {student.student_id} marked for repeat due to {failed_units} failed units")
-
-
-def _auto_enroll_next_semester(student):
-    """
-    Automatically enroll student in courses for next semester
-    """
-    try:
-        # Get next academic year and semester
-        next_academic_year = _get_next_academic_year_for_student(student)
-        if not next_academic_year:
-            return
-        
-        next_semester = Semester.objects.filter(
-            academic_year=next_academic_year,
-            semester_number=student.current_semester
-        ).first()
-        
-        if not next_semester:
-            return
-        
-        # Get programme courses for the student's current year and semester
-        from .models import ProgrammeCourse
-        programme_courses = ProgrammeCourse.objects.filter(
-            programme=student.programme,
-            year=student.current_year,
-            semester=student.current_semester,
-            is_active=True
-        )
-        
-        # Enroll student in courses
-        for pc in programme_courses:
-            Enrollment.objects.get_or_create(
-                student=student,
-                course=pc.course,
-                semester=next_semester,
-                defaults={'is_active': True}
-            )
-        
-        logger.info(f"Auto-enrolled student {student.student_id} in {programme_courses.count()} courses")
-        
-    except Exception as e:
-        logger.error(f"Error in auto-enrollment for student {student.student_id}: {str(e)}")
+    # Note: Manual enrollment will be required for repeat students
 
 
 def _handle_graduation_eligible(student):
@@ -310,17 +231,6 @@ def _get_next_academic_year(current_academic_year):
             start_date__gt=current_academic_year.end_date
         ).order_by('start_date').first()
     except:
-        return None
-
-
-def _get_next_academic_year_for_student(student):
-    """
-    Get next academic year for student enrollment
-    """
-    try:
-        current_year = AcademicYear.objects.get(is_current=True)
-        return _get_next_academic_year(current_year)
-    except AcademicYear.DoesNotExist:
         return None
 
 
