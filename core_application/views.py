@@ -11100,3 +11100,376 @@ def get_department_programmes(request, department_id):
             'success': False,
             'message': str(e)
         })
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.views.generic import ListView
+from django.core.files.storage import default_storage
+import json
+from .models import Staff, User, Department, Faculty
+
+@login_required
+def staff_list_view(request):
+    """Main staff list page"""
+    # Get filter choices for the template
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    # Get staff statistics
+    total_staff = Staff.objects.count()
+    active_staff = Staff.objects.filter(is_active=True).count()
+    inactive_staff = Staff.objects.filter(is_active=False).count()
+    
+    context = {
+        'total_staff': total_staff,
+        'active_staff': active_staff,
+        'inactive_staff': inactive_staff,
+        'departments': departments,
+    }
+    
+    return render(request, 'staff/staff_list.html', context)
+
+@login_required
+def staff_ajax_list(request):
+    """AJAX endpoint for staff data"""
+    try:
+        # Get filter parameters
+        search = request.GET.get('search', '')
+        status = request.GET.get('status', '')
+        department_id = request.GET.get('department', '')
+        category = request.GET.get('category', '')
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 10))
+        
+        # Base queryset
+        staff_list = Staff.objects.select_related(
+            'user', 'department'
+        ).all()
+        
+        # Apply filters
+        if search:
+            staff_list = staff_list.filter(
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(employee_number__icontains=search) |
+                Q(designation__icontains=search)
+            )
+        
+        if status:
+            is_active = status == 'active'
+            staff_list = staff_list.filter(is_active=is_active)
+        
+        if department_id:
+            staff_list = staff_list.filter(department_id=department_id)
+        
+        if category:
+            staff_list = staff_list.filter(staff_category=category)
+        
+        # Order by name
+        staff_list = staff_list.order_by('user__first_name', 'user__last_name')
+        
+        # Pagination
+        paginator = Paginator(staff_list, per_page)
+        page_obj = paginator.get_page(page)
+        
+        # Serialize data
+        staff_data = []
+        for staff in page_obj:
+            profile_picture_url = ''
+            if staff.user.profile_picture:
+                try:
+                    profile_picture_url = staff.user.profile_picture.url
+                except:
+                    profile_picture_url = ''
+            
+            staff_data.append({
+                'id': staff.id,
+                'employee_number': staff.employee_number,
+                'first_name': staff.user.first_name,
+                'last_name': staff.user.last_name,
+                'full_name': staff.user.get_full_name(),
+                'email': staff.user.email or 'No email',
+                'designation': staff.designation,
+                'staff_category': staff.get_staff_category_display(),
+                'staff_category_code': staff.staff_category,
+                'department': staff.department.name if staff.department else 'No Department',
+                'department_id': staff.department.id if staff.department else None,
+                'joining_date': staff.joining_date.strftime('%b %d, %Y'),
+                'is_active': staff.is_active,
+                'status_display': 'Active' if staff.is_active else 'Inactive',
+                'profile_picture': profile_picture_url,
+                'phone': staff.user.phone or '',
+                'address': staff.user.address or '',
+                'gender': staff.user.gender or '',
+                'date_of_birth': staff.user.date_of_birth.strftime('%Y-%m-%d') if staff.user.date_of_birth else '',
+                'national_id': staff.user.national_id or '',
+                'office_location': staff.office_location or '',
+                'job_description': staff.job_description or '',
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'data': staff_data,
+            'pagination': {
+                'current_page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+                'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+                'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+                'total_items': paginator.count,
+                'start_index': page_obj.start_index(),
+                'end_index': page_obj.end_index(),
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error fetching staff data: {str(e)}'
+        }, status=500)
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def staff_create_ajax(request):
+    """AJAX endpoint for creating staff"""
+    try:
+        # Create user first
+        user_data = {
+            'first_name': request.POST.get('first_name'),
+            'last_name': request.POST.get('last_name'),
+            'email': request.POST.get('email'),
+            'username': request.POST.get('email'),  # Use email as username
+            'user_type': 'staff',
+            'phone': request.POST.get('phone', ''),
+            'address': request.POST.get('address', ''),
+            'gender': request.POST.get('gender', ''),
+            'national_id': request.POST.get('national_id', ''),
+        }
+        
+        # Handle date of birth
+        date_of_birth = request.POST.get('date_of_birth')
+        if date_of_birth:
+            user_data['date_of_birth'] = date_of_birth
+        
+        # Create user
+        user = User.objects.create_user(
+            username=user_data['email'],
+            email=user_data['email'],
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name'],
+            user_type=user_data['user_type'],
+            phone=user_data['phone'],
+            address=user_data['address'],
+            gender=user_data['gender'],
+            national_id=user_data['national_id'] if user_data['national_id'] else None,
+        )
+        
+        if date_of_birth:
+            user.date_of_birth = date_of_birth
+            user.save()
+        
+        # Handle profile picture
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+            user.save()
+        
+        # Create staff profile
+        staff_data = {
+            'employee_number': request.POST.get('employee_number'),
+            'staff_category': request.POST.get('staff_category'),
+            'designation': request.POST.get('designation'),
+            'joining_date': request.POST.get('joining_date'),
+            'office_location': request.POST.get('office_location', ''),
+            'job_description': request.POST.get('job_description', ''),
+        }
+        
+        # Handle department
+        department_id = request.POST.get('department')
+        if department_id:
+            staff_data['department_id'] = department_id
+        
+        # Handle salary
+        salary = request.POST.get('salary')
+        if salary:
+            staff_data['salary'] = salary
+        
+        staff = Staff.objects.create(
+            user=user,
+            **staff_data
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Staff member created successfully!',
+            'staff_id': staff.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating staff: {str(e)}'
+        }, status=500)
+
+@login_required
+def staff_detail_ajax(request, staff_id):
+    """AJAX endpoint for staff details"""
+    try:
+        staff = get_object_or_404(Staff, id=staff_id)
+        
+        profile_picture_url = ''
+        if staff.user.profile_picture:
+            try:
+                profile_picture_url = staff.user.profile_picture.url
+            except:
+                profile_picture_url = ''
+        
+        data = {
+            'id': staff.id,
+            'employee_number': staff.employee_number,
+            'first_name': staff.user.first_name,
+            'last_name': staff.user.last_name,
+            'email': staff.user.email,
+            'phone': staff.user.phone or '',
+            'address': staff.user.address or '',
+            'gender': staff.user.gender or '',
+            'date_of_birth': staff.user.date_of_birth.strftime('%Y-%m-%d') if staff.user.date_of_birth else '',
+            'national_id': staff.user.national_id or '',
+            'profile_picture': profile_picture_url,
+            'staff_category': staff.staff_category,
+            'staff_category_display': staff.get_staff_category_display(),
+            'department_id': staff.department.id if staff.department else '',
+            'department_name': staff.department.name if staff.department else '',
+            'designation': staff.designation,
+            'joining_date': staff.joining_date.strftime('%Y-%m-%d'),
+            'office_location': staff.office_location or '',
+            'job_description': staff.job_description or '',
+            'salary': str(staff.salary) if staff.salary else '',
+            'is_active': staff.is_active,
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error fetching staff details: {str(e)}'
+        }, status=500)
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def staff_update_ajax(request, staff_id):
+    """AJAX endpoint for updating staff"""
+    try:
+        staff = get_object_or_404(Staff, id=staff_id)
+        user = staff.user
+        
+        # Update user data
+        user.first_name = request.POST.get('first_name', user.first_name)
+        user.last_name = request.POST.get('last_name', user.last_name)
+        user.email = request.POST.get('email', user.email)
+        user.phone = request.POST.get('phone', user.phone)
+        user.address = request.POST.get('address', user.address)
+        user.gender = request.POST.get('gender', user.gender)
+        
+        # Handle national ID
+        national_id = request.POST.get('national_id')
+        if national_id:
+            user.national_id = national_id
+        
+        # Handle date of birth
+        date_of_birth = request.POST.get('date_of_birth')
+        if date_of_birth:
+            user.date_of_birth = date_of_birth
+        
+        # Handle profile picture
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+        
+        user.save()
+        
+        # Update staff data
+        staff.employee_number = request.POST.get('employee_number', staff.employee_number)
+        staff.staff_category = request.POST.get('staff_category', staff.staff_category)
+        staff.designation = request.POST.get('designation', staff.designation)
+        staff.joining_date = request.POST.get('joining_date', staff.joining_date)
+        staff.office_location = request.POST.get('office_location', staff.office_location)
+        staff.job_description = request.POST.get('job_description', staff.job_description)
+        
+        # Handle department
+        department_id = request.POST.get('department')
+        if department_id:
+            staff.department_id = department_id
+        else:
+            staff.department = None
+        
+        # Handle salary
+        salary = request.POST.get('salary')
+        if salary:
+            staff.salary = salary
+        
+        staff.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Staff updated successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating staff: {str(e)}'
+        }, status=500)
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def staff_delete_ajax(request, staff_id):
+    """AJAX endpoint for deleting staff"""
+    try:
+        staff = get_object_or_404(Staff, id=staff_id)
+        user = staff.user
+        
+        # Delete staff and user
+        staff.delete()
+        user.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Staff deleted successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting staff: {str(e)}'
+        }, status=500)
+
+@login_required
+def departments_ajax(request):
+    """AJAX endpoint for departments list"""
+    try:
+        departments = Department.objects.filter(is_active=True).values('id', 'name').order_by('name')
+        return JsonResponse({
+            'success': True,
+            'data': list(departments)
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error fetching departments: {str(e)}'
+        }, status=500)

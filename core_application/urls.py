@@ -294,5 +294,15 @@ urlpatterns = [
     # AJAX endpoints
     path('departments/api/<int:department_id>/programmes/', views.get_department_programmes, name='get_department_programmes'),
 
+    path('staff/', views.staff_list_view, name='staff_list'),
+    
+    # AJAX endpoints
+    path('ajax/staff/list/', views.staff_ajax_list, name='staff_ajax_list'),
+    path('ajax/staff/create/', views.staff_create_ajax, name='staff_create_ajax'),
+    path('ajax/staff/<int:staff_id>/detail/', views.staff_detail_ajax, name='staff_detail_ajax'),
+    path('ajax/staff/<int:staff_id>/update/', views.staff_update_ajax, name='staff_update_ajax'),
+    path('ajax/staff/<int:staff_id>/delete/', views.staff_delete_ajax, name='staff_delete_ajax'),
+    path('ajax/departments/', views.departments_ajax, name='departments_ajax'),
+
 
 ]

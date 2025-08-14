@@ -1,0 +1,1144 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div id="messageContainer">
+            <!-- Messages will be displayed here via AJAX -->
+        </div>
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Staff Management</p>
+                <small class="text-muted">
+                    Total: <span id="totalStaff">{{ total_staff }}</span> | Active: <span id="activeStaff">{{ active_staff }}</span> | Inactive: <span id="inactiveStaff">{{ inactive_staff }}</span>
+                </small>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <button class="btn btn-primary float-end" onclick="openStaffModal()">
+                        <i class="bi bi-plus-circle"></i> Add New Staff
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-3">
+            <form id="filterForm" class="row g-3">
+                <!-- Search -->
+                <div class="col-md-4">
+                    <label class="form-label small">Search Staff</label>
+                    <input type="text" class="form-control" name="search" id="searchInput" 
+                           placeholder="Name, Employee ID, email...">
+                </div>
+                
+                <!-- Status Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Status</label>
+                    <select class="form-select" name="status" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                
+                <!-- Department Filter -->
+                <div class="col-md-3">
+                    <label class="form-label small">Department</label>
+                    <select class="form-select" name="department" id="departmentFilter">
+                        <option value="">All Departments</option>
+                        <!-- Departments will be loaded via AJAX -->
+                    </select>
+                </div>
+                
+                <!-- Category Filter -->
+                <div class="col-md-3">
+                    <label class="form-label small">Category</label>
+                    <select class="form-select" name="category" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="administrative">Administrative</option>
+                        <option value="technical">Technical Support</option>
+                        <option value="library">Library Staff</option>
+                        <option value="laboratory">Laboratory Technician</option>
+                        <option value="it_support">IT Support</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="security">Security</option>
+                        <option value="catering">Catering</option>
+                        <option value="transport">Transport</option>
+                        <option value="medical">Medical Staff</option>
+                        <option value="counselling">Counselling</option>
+                    </select>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="col-md-12">
+                    <label class="form-label small">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                            <i class="bi bi-arrow-clockwise"></i> Clear
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="exportStaff()">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="text-center p-4" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Staff Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="staffTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Employee ID</th>
+                                    <th>Name</th>
+                                    <th>Designation</th>
+                                    <th>Category</th>
+                                    <th>Department</th>
+                                    <th>Joining Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTableBody">
+                                <!-- Staff data will be loaded here via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="pagination">
+                    <!-- Pagination will be generated via JavaScript -->
+                </ul>
+            </nav>
+            <div class="text-center text-muted" id="paginationInfo">
+                <!-- Pagination info will be displayed here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Modal -->
+<div class="modal fade" id="staffModal" tabindex="-1" aria-labelledby="staffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staffModalLabel">Add New Staff</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="staffForm" enctype="multipart/form-data">
+                    <input type="hidden" id="staffId" name="staff_id">
+                    
+                    <!-- Personal Information -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h6 class="text-primary mb-3"><i class="bi bi-person"></i> Personal Information</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="firstName" name="first_name" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="lastName" name="last_name" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="phone" name="phone">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Gender</label>
+                            <select class="form-select" id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Date of Birth</label>
+                            <input type="date" class="form-control" id="dateOfBirth" name="date_of_birth">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">National ID</label>
+                            <input type="text" class="form-control" id="nationalId" name="national_id">
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Profile Picture</label>
+                            <input type="file" class="form-control" id="profilePicture" name="profile_picture" accept="image/*">
+                            <div id="currentProfilePicture" class="mt-2" style="display: none;">
+                                <img id="currentProfileImg" src="" alt="Current Profile" class="img-thumbnail" style="max-width: 100px;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Employment Information -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h6 class="text-primary mb-3"><i class="bi bi-briefcase"></i> Employment Information</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="employeeNumber" name="employee_number" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Staff Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="staffCategory" name="staff_category" required>
+                                <option value="">Select Category</option>
+                                <option value="administrative">Administrative</option>
+                                <option value="technical">Technical Support</option>
+                                <option value="library">Library Staff</option>
+                                <option value="laboratory">Laboratory Technician</option>
+                                <option value="it_support">IT Support</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="security">Security</option>
+                                <option value="catering">Catering</option>
+                                <option value="transport">Transport</option>
+                                <option value="medical">Medical Staff</option>
+                                <option value="counselling">Counselling</option>
+                            </select>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Department</label>
+                            <select class="form-select" id="department" name="department">
+                                <option value="">Select Department</option>
+                                <!-- Departments will be loaded via AJAX -->
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Designation <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="designation" name="designation" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Joining Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="joiningDate" name="joining_date" required>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Office Location</label>
+                            <input type="text" class="form-control" id="officeLocation" name="office_location">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Salary</label>
+                            <input type="number" class="form-control" id="salary" name="salary" step="0.01">
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label class="form-label">Job Description</label>
+                            <textarea class="form-control" id="jobDescription" name="job_description" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveStaff()" id="saveStaffBtn">
+                    <span class="spinner-border spinner-border-sm me-2" style="display: none;" id="saveSpinner"></span>
+                    Save Staff
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Detail Modal -->
+<div class="modal fade" id="staffDetailModal" tabindex="-1" aria-labelledby="staffDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staffDetailModalLabel">Staff Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="staffDetailContent">
+                <!-- Staff details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editStaffFromDetail()" id="editFromDetailBtn">
+                    <i class="bi bi-pencil"></i> Edit Staff
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-confirm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header flex-column">
+                <div class="icon-box bg-danger">
+                    <i class="bi bi-x-lg text-white"></i>
+                </div>
+                <h4 class="modal-title fw-bold">Are you sure?</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p>Do you really want to delete <strong id="staffNameToDelete"></strong>? This process cannot be undone.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-lg btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-lg btn-danger" onclick="confirmDelete()" id="confirmDeleteBtn">
+                    <span class="spinner-border spinner-border-sm me-2" style="display: none;" id="deleteSpinner"></span>
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #1a73e8;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #1a73e8;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+/* Primary button styling */
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #1d2aed;
+    border-color: #1d2aed;
+}
+
+.btn-outline-primary {
+    color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-outline-primary:hover {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+/* Active pagination item */
+.page-item.active .page-link {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+/* Alert styling */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #1a73e8;
+}
+
+/* Badge styling */
+.badge.bg-primary {
+    background-color: #1a73e8 !important;
+}
+
+/* Card header styling */
+.card-header {
+    border-bottom: 1px solid rgba(157, 1, 1, 0.1);
+}
+
+/* Hover effects */
+.btn-primary:hover, .btn-outline-primary:hover {
+    box-shadow: 0 4px 8px rgba(157, 1, 1, 0.2);
+}
+
+/* Focus states */
+.btn-primary:focus, .btn-outline-primary:focus {
+    box-shadow: 0 0 0 0.25rem rgba(157, 1, 1, 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+}
+
+/* Staff detail card styling */
+.staff-detail-card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.staff-detail-header {
+    background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.staff-avatar {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border: 3px solid white;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.info-value {
+    color: #333;
+    font-size: 1rem;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+// Global variables
+let currentPage = 1;
+let staffToDelete = null;
+let editingStaffId = null;
+
+// Get CSRF token
+function getCSRFToken() {
+    return $('[name=csrfmiddlewaretoken]').val();
+}
+
+// CSRF token setup for AJAX
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", getCSRFToken());
+        }
+    }
+});
+
+// Document ready
+$(document).ready(function() {
+    console.log('Document ready, loading departments and staff data...');
+    loadDepartments();
+    loadStaffData();
+    
+    // Search on form submit
+    $('#filterForm').on('submit', function(e) {
+        e.preventDefault();
+        console.log('Filter form submitted');
+        currentPage = 1;
+        loadStaffData();
+    });
+    
+    // Search on input change (with delay)
+    let searchTimeout;
+    $('#searchInput').on('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            console.log('Search input changed');
+            currentPage = 1;
+            loadStaffData();
+        }, 500);
+    });
+    
+    // Filter changes
+    $('#statusFilter, #departmentFilter, #categoryFilter').on('change', function() {
+        console.log('Filter changed:', $(this).attr('id'), $(this).val());
+        currentPage = 1;
+        loadStaffData();
+    });
+});
+
+// Load departments for filters and forms
+function loadDepartments() {
+    console.log('Loading departments...');
+    $.get('{% url "departments_ajax" %}')
+        .done(function(response) {
+            console.log('Departments loaded:', response);
+            if (response.success) {
+                const departmentSelects = ['#departmentFilter', '#department'];
+                departmentSelects.forEach(function(selector) {
+                    const $select = $(selector);
+                    const currentValue = $select.val();
+                    $select.find('option:not(:first)').remove();
+                    
+                    response.data.forEach(function(dept) {
+                        $select.append(`<option value="${dept.id}">${dept.name}</option>`);
+                    });
+                    
+                    if (currentValue) {
+                        $select.val(currentValue);
+                    }
+                });
+            } else {
+                console.error('Error in departments response:', response.message);
+                showMessage('Error loading departments: ' + response.message, 'danger');
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Departments AJAX failed:', xhr.responseText, status, error);
+            showMessage('Error loading departments', 'danger');
+        });
+}
+
+// Load staff data via AJAX
+function loadStaffData() {
+    console.log('Loading staff data...');
+    showLoading(true);
+    
+    const formData = new FormData($('#filterForm')[0]);
+    formData.append('page', currentPage);
+    
+    const params = new URLSearchParams();
+    for (let [key, value] of formData) {
+        if (value) params.append(key, value);
+    }
+    
+    const url = '{% url "staff_ajax_list" %}?' + params.toString();
+    console.log('Staff AJAX URL:', url);
+    
+    $.get(url)
+        .done(function(response) {
+            console.log('Staff data loaded:', response);
+            if (response.success) {
+                renderStaffTable(response.data);
+                renderPagination(response.pagination);
+                updateStats(response.pagination.total_items);
+            } else {
+                console.error('Error in staff response:', response.message);
+                showMessage(response.message || 'Error loading staff data', 'danger');
+                renderEmptyTable();
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Staff AJAX failed:', xhr.responseText, status, error);
+            showMessage('Error loading staff data: ' + error, 'danger');
+            renderEmptyTable();
+        })
+        .always(function() {
+            showLoading(false);
+        });
+}
+
+// Render staff table
+function renderStaffTable(staffData) {
+    console.log('Rendering staff table with data:', staffData);
+    const tbody = $('#staffTableBody');
+    tbody.empty();
+    
+    if (staffData.length === 0) {
+        tbody.append(`
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <div class="d-flex flex-column align-items-center">
+                        <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted mt-2">No staff found</h5>
+                        <p class="text-muted">Try adjusting your search criteria or add new staff members.</p>
+                        <button class="btn btn-primary" onclick="openStaffModal()">
+                            <i class="bi bi-plus-circle"></i> Add First Staff Member
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `);
+        return;
+    }
+    
+    staffData.forEach(function(staff) {
+        const profilePicture = staff.profile_picture ? 
+            `<img src="${staff.profile_picture}" class="rounded-circle" width="40" height="40" alt="Profile">` :
+            `<div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center" 
+                 style="width: 40px; height: 40px;">
+                <i class="bi bi-person text-white"></i>
+             </div>`;
+        
+        const statusBadge = staff.is_active ?
+            '<span class="badge bg-success">Active</span>' :
+            '<span class="badge bg-danger">Inactive</span>';
+        
+        tbody.append(`
+            <tr>
+                <td>${profilePicture}</td>
+                <td class="fw-bold">${staff.employee_number}</td>
+                <td>
+                    <div>
+                        <strong>${staff.full_name}</strong>
+                        <br>
+                        <small class="text-muted">${staff.email}</small>
+                    </div>
+                </td>
+                <td>${staff.designation}</td>
+                <td>${staff.staff_category}</td>
+                <td>${staff.department}</td>
+                <td>${staff.joining_date}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewStaffDetail(${staff.id})" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editStaff(${staff.id})" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteStaff(${staff.id}, '${staff.full_name}')" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+// Render empty table
+function renderEmptyTable() {
+    $('#staffTableBody').html(`
+        <tr>
+            <td colspan="9" class="text-center py-4">
+                <div class="d-flex flex-column align-items-center">
+                    <i class="bi bi-exclamation-triangle text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-2">Error loading staff data</h5>
+                    <p class="text-muted">Please try again or contact support.</p>
+                </div>
+            </td>
+        </tr>
+    `);
+}
+
+// Render pagination
+function renderPagination(pagination) {
+    const paginationContainer = $('#pagination');
+    const paginationInfo = $('#paginationInfo');
+    
+    paginationContainer.empty();
+    
+    if (pagination.total_pages <= 1) {
+        paginationInfo.text('');
+        return;
+    }
+    
+    // Previous buttons
+    if (pagination.has_previous) {
+        paginationContainer.append(`
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(1)" aria-label="First">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${pagination.previous_page})" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+        `);
+    }
+    
+    // Page numbers
+    const startPage = Math.max(1, pagination.current_page - 2);
+    const endPage = Math.min(pagination.total_pages, pagination.current_page + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const activeClass = i === pagination.current_page ? 'active' : '';
+        paginationContainer.append(`
+            <li class="page-item ${activeClass}">
+                <a class="page-link" href="#" onclick="goToPage(${i})">${i}</a>
+            </li>
+        `);
+    }
+    
+    // Next buttons
+    if (pagination.has_next) {
+        paginationContainer.append(`
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${pagination.next_page})" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="goToPage(${pagination.total_pages})" aria-label="Last">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
+        `);
+    }
+    
+    // Update pagination info
+    paginationInfo.text(`Showing ${pagination.start_index} to ${pagination.end_index} of ${pagination.total_items} staff members`);
+}
+
+// Go to specific page
+function goToPage(page) {
+    currentPage = page;
+    loadStaffData();
+}
+
+// Update statistics
+function updateStats(totalItems) {
+    // This is a simple implementation - you might want to get actual active/inactive counts
+    $('#totalStaff').text(totalItems);
+}
+
+// Open staff modal for adding new staff
+function openStaffModal(staffId = null) {
+    editingStaffId = staffId;
+    
+    if (staffId) {
+        $('#staffModalLabel').text('Edit Staff');
+        loadStaffForEdit(staffId);
+    } else {
+        $('#staffModalLabel').text('Add New Staff');
+        resetStaffForm();
+    }
+    
+    $('#staffModal').modal('show');
+}
+
+// Reset staff form
+function resetStaffForm() {
+    document.getElementById('staffForm').reset();
+    $('#staffId').val('');
+    $('.form-control').removeClass('is-invalid');
+    $('.invalid-feedback').text('');
+    $('#currentProfilePicture').hide();
+    editingStaffId = null;
+}
+
+// Load staff data for editing
+function loadStaffForEdit(staffId) {
+    $.get(`{% url "staff_detail_ajax" staff_id=0 %}`.replace('0', staffId))
+        .done(function(response) {
+            if (response.success) {
+                const data = response.data;
+                $('#staffId').val(data.id);
+                $('#firstName').val(data.first_name);
+                $('#lastName').val(data.last_name);
+                $('#email').val(data.email);
+                $('#phone').val(data.phone);
+                $('#gender').val(data.gender);
+                $('#dateOfBirth').val(data.date_of_birth);
+                $('#nationalId').val(data.national_id);
+                $('#address').val(data.address);
+                $('#employeeNumber').val(data.employee_number);
+                $('#staffCategory').val(data.staff_category);
+                $('#department').val(data.department_id);
+                $('#designation').val(data.designation);
+                $('#joiningDate').val(data.joining_date);
+                $('#officeLocation').val(data.office_location);
+                $('#jobDescription').val(data.job_description);
+                $('#salary').val(data.salary);
+                
+                // Show current profile picture
+                if (data.profile_picture) {
+                    $('#currentProfileImg').attr('src', data.profile_picture);
+                    $('#currentProfilePicture').show();
+                } else {
+                    $('#currentProfilePicture').hide();
+                }
+            } else {
+                showMessage('Error loading staff data for editing', 'danger');
+            }
+        })
+        .fail(function() {
+            showMessage('Error loading staff data for editing', 'danger');
+        });
+}
+
+// Save staff (create or update)
+function saveStaff() {
+    const form = document.getElementById('staffForm');
+    const formData = new FormData(form);
+    
+    // Clear previous validation errors
+    $('.form-control').removeClass('is-invalid');
+    $('.invalid-feedback').text('');
+    
+    // Show loading spinner
+    $('#saveSpinner').show();
+    $('#saveStaffBtn').prop('disabled', true);
+    
+    const url = editingStaffId ? 
+        `{% url "staff_update_ajax" staff_id=0 %}`.replace('0', editingStaffId) : 
+        '{% url "staff_create_ajax" %}';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                showMessage(response.message, 'success');
+                $('#staffModal').modal('hide');
+                loadStaffData();
+                resetStaffForm();
+            } else {
+                showMessage(response.message, 'danger');
+            }
+        },
+        error: function(xhr) {
+            if (xhr.status === 400) {
+                const errors = xhr.responseJSON?.errors || {};
+                Object.keys(errors).forEach(function(field) {
+                    $(`[name="${field}"]`).addClass('is-invalid');
+                    $(`[name="${field}"]`).next('.invalid-feedback').text(errors[field][0]);
+                });
+            } else {
+                showMessage('Error saving staff member', 'danger');
+            }
+        },
+        complete: function() {
+            $('#saveSpinner').hide();
+            $('#saveStaffBtn').prop('disabled', false);
+        }
+    });
+}
+
+// View staff detail
+function viewStaffDetail(staffId) {
+    $.get(`{% url "staff_detail_ajax" staff_id=0 %}`.replace('0', staffId))
+        .done(function(response) {
+            if (response.success) {
+                renderStaffDetail(response.data);
+                $('#staffDetailModal').modal('show');
+            } else {
+                showMessage('Error loading staff details', 'danger');
+            }
+        })
+        .fail(function() {
+            showMessage('Error loading staff details', 'danger');
+        });
+}
+
+// Render staff detail modal content
+function renderStaffDetail(staff) {
+    const profilePicture = staff.profile_picture ? 
+        `<img src="${staff.profile_picture}" class="staff-avatar rounded-circle" alt="Profile">` :
+        `<div class="staff-avatar rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center">
+            <i class="bi bi-person text-white" style="font-size: 2rem;"></i>
+         </div>`;
+    
+    const statusBadge = staff.is_active ?
+        '<span class="badge bg-success">Active</span>' :
+        '<span class="badge bg-danger">Inactive</span>';
+    
+    const content = `
+        <div class="staff-detail-card">
+            <div class="staff-detail-header p-4 text-center">
+                ${profilePicture}
+                <h4 class="mt-3 mb-1">${staff.first_name} ${staff.last_name}</h4>
+                <p class="mb-0">${staff.designation}</p>
+                ${statusBadge}
+            </div>
+            
+            <div class="p-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3"><i class="bi bi-person"></i> Personal Information</h6>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Employee Number</div>
+                            <div class="info-value">${staff.employee_number}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">${staff.email || 'Not provided'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Phone</div>
+                            <div class="info-value">${staff.phone || 'Not provided'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Gender</div>
+                            <div class="info-value">${staff.gender ? staff.gender.charAt(0).toUpperCase() + staff.gender.slice(1) : 'Not specified'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Date of Birth</div>
+                            <div class="info-value">${staff.date_of_birth || 'Not provided'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">National ID</div>
+                            <div class="info-value">${staff.national_id || 'Not provided'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Address</div>
+                            <div class="info-value">${staff.address || 'Not provided'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3"><i class="bi bi-briefcase"></i> Employment Information</h6>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Category</div>
+                            <div class="info-value">${staff.staff_category_display}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Department</div>
+                            <div class="info-value">${staff.department_name || 'Not assigned'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Joining Date</div>
+                            <div class="info-value">${staff.joining_date}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Office Location</div>
+                            <div class="info-value">${staff.office_location || 'Not specified'}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="info-label">Salary</div>
+                            <div class="info-value">${staff.salary ? parseFloat(staff.salary).toLocaleString() : 'Not specified'}</div>
+                        </div>
+                        
+                        ${staff.job_description ? `
+                        <div class="mb-3">
+                            <div class="info-label">Job Description</div>
+                            <div class="info-value">${staff.job_description}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#staffDetailContent').html(content);
+    
+    // Store staff ID for potential edit action
+    $('#editFromDetailBtn').data('staff-id', staff.id);
+}
+
+// Edit staff from detail modal
+function editStaffFromDetail() {
+    const staffId = $('#editFromDetailBtn').data('staff-id');
+    $('#staffDetailModal').modal('hide');
+    setTimeout(() => {
+        openStaffModal(staffId);
+    }, 300);
+}
+
+// Edit staff
+function editStaff(staffId) {
+    openStaffModal(staffId);
+}
+
+// Delete staff
+function deleteStaff(staffId, staffName) {
+    staffToDelete = staffId;
+    $('#staffNameToDelete').text(staffName);
+    $('#deleteModal').modal('show');
+}
+
+// Confirm delete
+function confirmDelete() {
+    if (!staffToDelete) return;
+    
+    $('#deleteSpinner').show();
+    $('#confirmDeleteBtn').prop('disabled', true);
+    
+    $.ajax({
+        url: `{% url "staff_delete_ajax" staff_id=0 %}`.replace('0', staffToDelete),
+        type: 'POST',
+        success: function(response) {
+            if (response.success) {
+                showMessage(response.message, 'success');
+                $('#deleteModal').modal('hide');
+                loadStaffData();
+            } else {
+                showMessage(response.message, 'danger');
+            }
+        },
+        error: function() {
+            showMessage('Error deleting staff member', 'danger');
+        },
+        complete: function() {
+            $('#deleteSpinner').hide();
+            $('#confirmDeleteBtn').prop('disabled', false);
+            staffToDelete = null;
+        }
+    });
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById('filterForm').reset();
+    currentPage = 1;
+    loadStaffData();
+}
+
+// Export staff
+function exportStaff() {
+    // Implementation depends on your export requirements
+    showMessage('Export functionality not implemented yet', 'info');
+}
+
+// Show loading spinner
+function showLoading(show) {
+    if (show) {
+        $('#loadingSpinner').show();
+        $('#staffTable').css('opacity', '0.5');
+    } else {
+        $('#loadingSpinner').hide();
+        $('#staffTable').css('opacity', '1');
+    }
+}
+
+// Show message
+function showMessage(message, type) {
+    const alertClass = type === 'danger' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 
+                      'alert-info';
+    
+    const icon = type === 'success' ? 'bi-check-circle' : 
+                 type === 'danger' ? 'bi-exclamation-triangle' :
+                 'bi-info-circle';
+    
+    const alert = `
+        <div class="alert ${alertClass} alert-dismissible fade show">
+            <i class="bi ${icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    $('#messageContainer').html(alert);
+    
+    // Auto hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            $('#messageContainer .alert').alert('close');
+        }, 5000);
+    }
+}
+</script>
+
+{% endblock %}
