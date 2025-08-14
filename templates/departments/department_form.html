@@ -1,0 +1,247 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold card-stitle">{{ action }} Department</h4>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'department_list' %}">Departments</a></li>
+                            <li class="breadcrumb-item active">{{ action }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'department_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-building"></i> {{ action }} Department
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="departmentForm" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Department Name -->
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label required">
+                                        {{ form.name.label }}
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.help_text %}
+                                        <div class="form-text">{{ form.name.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.name.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Department Code -->
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.code.id_for_label }}" class="form-label required">
+                                        {{ form.code.label }}
+                                    </label>
+                                    {{ form.code }}
+                                    {% if form.code.help_text %}
+                                        <div class="form-text">{{ form.code.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.code.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.code.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Faculty -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.faculty.id_for_label }}" class="form-label required">
+                                        {{ form.faculty.label }}
+                                    </label>
+                                    {{ form.faculty }}
+                                    {% if form.faculty.help_text %}
+                                        <div class="form-text">{{ form.faculty.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.faculty.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.faculty.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Head of Department -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.head_of_department.id_for_label }}" class="form-label">
+                                        {{ form.head_of_department.label }}
+                                    </label>
+                                    {{ form.head_of_department }}
+                                    {% if form.head_of_department.help_text %}
+                                        <div class="form-text">{{ form.head_of_department.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.head_of_department.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.head_of_department.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                {{ form.description.label }}
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.help_text %}
+                                <div class="form-text">{{ form.description.help_text }}</div>
+                            {% endif %}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.description.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <!-- Established Date -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.established_date.id_for_label }}" class="form-label required">
+                                        {{ form.established_date.label }}
+                                    </label>
+                                    {{ form.established_date }}
+                                    {% if form.established_date.help_text %}
+                                        <div class="form-text">{{ form.established_date.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.established_date.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.established_date.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Active Status -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            {{ form.is_active.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.help_text %}
+                                        <div class="form-text">{{ form.is_active.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.is_active.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.is_active.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'department_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> {{ action }} Department
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required:after {
+    content: ' *';
+    color: red;
+}
+
+.card-stitle {
+    font-size: 1.5rem;
+    color: #1a73e8;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #1d2aed;
+    border-color: #1d2aed;
+}
+
+.card-header.bg-primary {
+    background-color: #1a73e8 !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 0.25rem rgba(26, 115, 232, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.form-check-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 0.25rem rgba(26, 115, 232, 0.25);
+}
+
+</style>
+{% endblock %}

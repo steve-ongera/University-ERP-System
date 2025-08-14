@@ -284,5 +284,15 @@ urlpatterns = [
     # Optional: Lecturer assignment endpoint
     path('ajax/course/<int:course_id>/lecturers/', views.get_course_lecturers, name='get_course_lecturers'),
 
+    path('department-list/', views.department_list, name='department_list'),
+    path('department/create/', views.department_create, name='department_create'),
+    path('department/<str:code>/', views.department_detail, name='department_detail'),
+    path('department/<str:code>/update/', views.department_update, name='department_update'),
+    path('department/<str:code>/delete/', views.department_delete, name='department_delete'),
+    path('department/export/', views.department_export, name='department_export'),
+    
+    # AJAX endpoints
+    path('department/api/<int:department_id>/programmes/', views.get_department_programmes, name='get_department_programmes'),
+
 
 ]

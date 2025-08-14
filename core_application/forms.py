@@ -500,4 +500,227 @@ class MessageReplyForm(forms.ModelForm):
                 'placeholder': 'Type your reply here...'
             }),
             'attachment': forms.FileInput(attrs={'class': 'form-control'})
+            
         }
+
+
+
+# departments/forms.py
+from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import date
+
+from .models import Department, Faculty, User
+
+
+class DepartmentForm(forms.ModelForm):
+    """Form for creating/updating departments"""
+    
+    class Meta:
+        model = Department
+        fields = [
+            'name', 
+            'code', 
+            'faculty', 
+            'head_of_department', 
+            'description', 
+            'established_date', 
+            'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter department name'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter department code (e.g., CS, ENG)',
+                'maxlength': 10
+            }),
+            'faculty': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'head_of_department': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Enter department description'
+            }),
+            'established_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        labels = {
+            'name': 'Department Name',
+            'code': 'Department Code',
+            'faculty': 'Faculty',
+            'head_of_department': 'Head of Department',
+            'description': 'Description',
+            'established_date': 'Established Date',
+            'is_active': 'Active Status',
+        }
+        help_texts = {
+            'code': 'Unique code for the department (max 10 characters)',
+            'established_date': 'Date when the department was established',
+            'head_of_department': 'Optional: Assign a head of department',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter faculties to only active ones
+        self.fields['faculty'].queryset = Faculty.objects.filter(
+            is_active=True
+        ).order_by('name')
+        
+        # Filter head_of_department to eligible users
+        self.fields['head_of_department'].queryset = User.objects.filter(
+            user_type__in=['lecturer', 'professor', 'hod', 'staff'],
+            is_active=True
+        ).order_by('first_name', 'last_name')
+        
+        # Make head_of_department optional
+        self.fields['head_of_department'].required = False
+        self.fields['head_of_department'].empty_label = "Select Head of Department (Optional)"
+        
+        # Set default established_date to today
+        if not self.instance.pk:
+            self.fields['established_date'].initial = timezone.now().date()
+
+    def clean_code(self):
+        """Validate department code"""
+        code = self.cleaned_data.get('code', '').upper().strip()
+        
+        if not code:
+            raise ValidationError("Department code is required.")
+        
+        if len(code) < 2:
+            raise ValidationError("Department code must be at least 2 characters long.")
+        
+        # Check for uniqueness (excluding current instance)
+        existing = Department.objects.filter(code=code)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        
+        if existing.exists():
+            raise ValidationError(f"A department with code '{code}' already exists.")
+        
+        return code
+
+    def clean_name(self):
+        """Validate department name"""
+        name = self.cleaned_data.get('name', '').strip()
+        
+        if not name:
+            raise ValidationError("Department name is required.")
+        
+        if len(name) < 3:
+            raise ValidationError("Department name must be at least 3 characters long.")
+        
+        # Check for uniqueness within the same faculty
+        faculty = self.cleaned_data.get('faculty')
+        if faculty:
+            existing = Department.objects.filter(
+                name__iexact=name,
+                faculty=faculty
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                raise ValidationError(f"A department named '{name}' already exists in {faculty.name}.")
+        
+        return name
+
+    def clean_established_date(self):
+        """Validate established date"""
+        established_date = self.cleaned_data.get('established_date')
+        
+        if established_date:
+            # Can't be in the future
+            if established_date > date.today():
+                raise ValidationError("Established date cannot be in the future.")
+            
+            # Can't be too far in the past (before 1800)
+            if established_date.year < 1800:
+                raise ValidationError("Please enter a valid established date.")
+        
+        return established_date
+
+    def clean_head_of_department(self):
+        """Validate head of department"""
+        hod = self.cleaned_data.get('head_of_department')
+        
+        if hod:
+            # Check if user is already HOD of another department
+            existing_hod = Department.objects.filter(
+                head_of_department=hod
+            ).exclude(pk=self.instance.pk if self.instance.pk else None)
+            
+            if existing_hod.exists():
+                dept_name = existing_hod.first().name
+                raise ValidationError(f"{hod.get_full_name()} is already Head of Department for {dept_name}.")
+        
+        return hod
+
+    def clean(self):
+        """Cross-field validation"""
+        cleaned_data = super().clean()
+        faculty = cleaned_data.get('faculty')
+        hod = cleaned_data.get('head_of_department')
+        
+        # Additional validations can be added here
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        """Save the department"""
+        department = super().save(commit=False)
+        
+        # Ensure code is uppercase
+        department.code = department.code.upper()
+        
+        if commit:
+            department.save()
+            
+        return department
+
+
+class DepartmentFilterForm(forms.Form):
+    """Form for filtering departments"""
+    
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search departments...'
+        })
+    )
+    
+    faculty = forms.ModelChoiceField(
+        queryset=Faculty.objects.filter(is_active=True),
+        required=False,
+        empty_label="All Faculties",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+    
+    status = forms.ChoiceField(
+        choices=[
+            ('', 'All Status'),
+            ('active', 'Active'),
+            ('inactive', 'Inactive'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )

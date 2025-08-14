@@ -10745,3 +10745,358 @@ def get_course_lecturers(request, course_id):
             'success': False
         }, status=500)
 
+# departments/views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils import timezone
+from django.urls import reverse
+import json
+import csv
+from datetime import datetime
+
+from .models import Department, Faculty, User
+from .forms import DepartmentForm
+
+
+def is_admin_or_staff(user):
+    """Check if user is admin or staff member"""
+    return user.is_authenticated and user.user_type in ['admin', 'registrar', 'dean']
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def department_list(request):
+    """List all departments with filtering and search"""
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    faculty_filter = request.GET.get('faculty', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Base queryset with related data
+    departments = Department.objects.select_related(
+        'faculty', 
+        'head_of_department'
+    ).annotate(
+        total_programmes=Count('programmes', distinct=True),
+        total_students=Count('programmes__students', distinct=True)
+    )
+    
+    # Apply search filter
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(faculty__name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Apply faculty filter
+    if faculty_filter:
+        departments = departments.filter(faculty_id=faculty_filter)
+    
+    # Apply status filter
+    if status_filter:
+        if status_filter == 'active':
+            departments = departments.filter(is_active=True)
+        elif status_filter == 'inactive':
+            departments = departments.filter(is_active=False)
+    
+    # Order by name
+    departments = departments.order_by('faculty__name', 'name')
+    
+    # Pagination
+    paginator = Paginator(departments, 25)
+    page_number = request.GET.get('page')
+    departments_page = paginator.get_page(page_number)
+    
+    # Get all faculties for filter dropdown
+    faculties = Faculty.objects.filter(is_active=True).order_by('name')
+    
+    # Status choices for filter
+    status_choices = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+    ]
+    
+    # Calculate totals
+    total_departments = Department.objects.count()
+    active_departments = Department.objects.filter(is_active=True).count()
+    inactive_departments = Department.objects.filter(is_active=False).count()
+    
+    context = {
+        'departments': departments_page,
+        'faculties': faculties,
+        'status_choices': status_choices,
+        'search_query': search_query,
+        'faculty_filter': faculty_filter,
+        'status_filter': status_filter,
+        'total_departments': total_departments,
+        'active_departments': active_departments,
+        'inactive_departments': inactive_departments,
+    }
+    
+    return render(request, 'departments/department_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def department_detail(request, code):
+    """Get department details via AJAX"""
+    department = get_object_or_404(Department, code=code)
+    
+    if request.method == 'GET':
+        # Return JSON response for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = {
+                'id': department.id,
+                'name': department.name,
+                'code': department.code,
+                'faculty_name': department.faculty.name,
+                'faculty_code': department.faculty.code,
+                'head_of_department': {
+                    'name': department.head_of_department.get_full_name() if department.head_of_department else None,
+                    'email': department.head_of_department.email if department.head_of_department else None,
+                    'phone': department.head_of_department.phone if department.head_of_department else None,
+                } if department.head_of_department else None,
+                'description': department.description,
+                'established_date': department.established_date.strftime('%Y-%m-%d') if department.established_date else None,
+                'is_active': department.is_active,
+                'total_programmes': getattr(department, 'total_programmes', 0),
+                'total_students': getattr(department, 'total_students', 0),
+            }
+            return JsonResponse(data)
+        
+        # Regular page view
+        context = {
+            'department': department,
+        }
+        return render(request, 'departments/department_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def department_create(request):
+    """Create new department"""
+    if request.method == 'POST':
+        form = DepartmentForm(request.POST)
+        if form.is_valid():
+            department = form.save()
+            
+            # AJAX response
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Department "{department.name}" created successfully!',
+                    'department': {
+                        'id': department.id,
+                        'name': department.name,
+                        'code': department.code,
+                        'faculty_name': department.faculty.name,
+                    }
+                })
+            
+            messages.success(request, f'Department "{department.name}" created successfully!')
+            return redirect('department_list')
+        else:
+            # AJAX error response
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+    else:
+        form = DepartmentForm()
+    
+    # Get faculties for dropdown
+    faculties = Faculty.objects.filter(is_active=True).order_by('name')
+    
+    # Get potential HODs (lecturers, professors, staff)
+    potential_hods = User.objects.filter(
+        user_type__in=['lecturer', 'professor', 'hod', 'staff'],
+        is_active=True
+    ).order_by('first_name', 'last_name')
+    
+    context = {
+        'form': form,
+        'faculties': faculties,
+        'potential_hods': potential_hods,
+        'action': 'Create',
+    }
+    
+    return render(request, 'departments/department_form.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def department_update(request, code):
+    """Update department via AJAX"""
+    department = get_object_or_404(Department, code=code)
+    
+    if request.method == 'POST':
+        form = DepartmentForm(request.POST, instance=department)
+        if form.is_valid():
+            department = form.save()
+            
+            # AJAX response
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Department "{department.name}" updated successfully!',
+                    'department': {
+                        'id': department.id,
+                        'name': department.name,
+                        'code': department.code,
+                        'faculty_name': department.faculty.name,
+                        'head_of_department': department.head_of_department.get_full_name() if department.head_of_department else 'Not assigned',
+                        'is_active': department.is_active,
+                    }
+                })
+            
+            messages.success(request, f'Department "{department.name}" updated successfully!')
+            return redirect('department_list')
+        else:
+            # AJAX error response
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
+    else:
+        form = DepartmentForm(instance=department)
+    
+    # Get faculties for dropdown
+    faculties = Faculty.objects.filter(is_active=True).order_by('name')
+    
+    # Get potential HODs
+    potential_hods = User.objects.filter(
+        user_type__in=['lecturer', 'professor', 'hod', 'staff'],
+        is_active=True
+    ).order_by('first_name', 'last_name')
+    
+    context = {
+        'form': form,
+        'department': department,
+        'faculties': faculties,
+        'potential_hods': potential_hods,
+        'action': 'Update',
+    }
+    
+    return render(request, 'departments/department_form.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["DELETE", "POST"])
+def department_delete(request, code):
+    """Delete department via AJAX"""
+    department = get_object_or_404(Department, code=code)
+    
+    try:
+        department_name = department.name
+        department.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Department "{department_name}" deleted successfully!'
+        })
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting department: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def department_export(request):
+    """Export departments to CSV"""
+    
+    # Get filter parameters (same as list view)
+    search_query = request.GET.get('search', '').strip()
+    faculty_filter = request.GET.get('faculty', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Apply same filters as list view
+    departments = Department.objects.select_related('faculty', 'head_of_department')
+    
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(faculty__name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    if faculty_filter:
+        departments = departments.filter(faculty_id=faculty_filter)
+    
+    if status_filter:
+        if status_filter == 'active':
+            departments = departments.filter(is_active=True)
+        elif status_filter == 'inactive':
+            departments = departments.filter(is_active=False)
+    
+    departments = departments.order_by('faculty__name', 'name')
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="departments_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Department Code',
+        'Department Name',
+        'Faculty',
+        'Head of Department',
+        'HOD Email',
+        'HOD Phone',
+        'Description',
+        'Established Date',
+        'Status',
+        'Created Date',
+    ])
+    
+    # Write data
+    for dept in departments:
+        writer.writerow([
+            dept.code,
+            dept.name,
+            dept.faculty.name,
+            dept.head_of_department.get_full_name() if dept.head_of_department else '',
+            dept.head_of_department.email if dept.head_of_department else '',
+            dept.head_of_department.phone if dept.head_of_department else '',
+            dept.description,
+            dept.established_date.strftime('%Y-%m-%d') if dept.established_date else '',
+            'Active' if dept.is_active else 'Inactive',
+            dept.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(dept, 'created_at') else '',
+        ])
+    
+    return response
+
+
+@login_required
+def get_department_programmes(request, department_id):
+    """Get programmes for a specific department (AJAX endpoint)"""
+    try:
+        department = get_object_or_404(Department, id=department_id)
+        programmes = department.programmes.filter(is_active=True).values('id', 'name', 'code')
+        
+        return JsonResponse({
+            'success': True,
+            'programmes': list(programmes)
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
