@@ -30,6 +30,12 @@
                             <p class="text-muted mb-0">View and manage student grades across all programmes</p>
                         </div>
                         <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary" onclick="expandAll()">
+                                <i class="bi bi-arrows-expand"></i> Expand All
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="collapseAll()">
+                                <i class="bi bi-arrows-collapse"></i> Collapse All
+                            </button>
                             <button class="btn btn-success" onclick="downloadPDF()">
                                 <i class="bi bi-file-earmark-pdf"></i> Download PDF
                             </button>
@@ -232,100 +238,142 @@
             <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Student Grades</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" onclick="toggleView('expanded')">
-                            <i class="bi bi-arrows-expand"></i> Expanded
-                        </button>
-                        <button class="btn btn-outline-primary active" onclick="toggleView('compact')">
-                            <i class="bi bi-list"></i> Compact
-                        </button>
+                    <div class="text-muted">
+                        <small>Click on a student card to expand/collapse details</small>
                     </div>
                 </div>
                 <div class="card-body">
                     <div id="gradesContainer">
                         {% for student_data in students_grades %}
-                            <div class="student-card mb-4 border rounded p-3">
-                                <!-- Student Header -->
-                                <div class="row mb-3">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1 text-primary">
-                                            <i class="bi bi-person-circle me-2"></i>
-                                            {{ student_data.student.user.get_full_name }}
-                                        </h5>
-                                        <div class="d-flex flex-wrap gap-3 text-muted">
-                                            <span><strong>ID:</strong> {{ student_data.student.student_id }}</span>
-                                            <span><strong>Programme:</strong> {{ student_data.student.programme.code }}</span>
-                                            <span><strong>Year:</strong> {{ student_data.student.current_year }}</span>
-                                            <span><strong>Semester:</strong> {{ student_data.student.current_semester }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <div class="d-flex justify-content-end gap-3">
-                                            <div class="text-center">
-                                                <h4 class="mb-0 text-success">{{ student_data.gpa }}</h4>
-                                                <small class="text-muted">GPA</small>
+                            <div class="student-card mb-3 border rounded" data-student-id="{{ student_data.student.student_id }}">
+                                <!-- Student Header (Always Visible) -->
+                                <div class="student-header p-3 cursor-pointer" onclick="toggleStudentGrades('{{ student_data.student.student_id }}')">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-chevron-right chevron-icon me-2 text-muted transition-all"></i>
+                                                <div>
+                                                    <h6 class="mb-1 text-primary fw-bold">
+                                                        <i class="bi bi-person-circle me-1"></i>
+                                                        {{ student_data.student.user.get_full_name }}
+                                                    </h6>
+                                                    <div class="d-flex flex-wrap gap-3 text-muted small">
+                                                        <span><strong>ID:</strong> {{ student_data.student.student_id }}</span>
+                                                        <span><strong>Programme:</strong> {{ student_data.student.programme.code }}</span>
+                                                        <span><strong>Year:</strong> {{ student_data.student.current_year }}</span>
+                                                        <span><strong>Semester:</strong> {{ student_data.student.current_semester }}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="text-center">
-                                                <h4 class="mb-0 text-info">{{ student_data.total_credits }}</h4>
-                                                <small class="text-muted">Credits</small>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <div class="stat-box">
+                                                        <div class="h5 mb-0 text-success">{{ student_data.gpa|default:"-" }}</div>
+                                                        <small class="text-muted">GPA</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="stat-box">
+                                                        <div class="h5 mb-0 text-info">{{ student_data.total_credits|default:0 }}</div>
+                                                        <small class="text-muted">Credits</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="stat-box">
+                                                        <div class="h5 mb-0 text-warning">{{ student_data.grades|length }}</div>
+                                                        <small class="text-muted">Courses</small>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Grades Table -->
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Course Code</th>
-                                                <th>Course Name</th>
-                                                <th>Credits</th>
-                                                <th>CAT</th>
-                                                <th>Exam</th>
-                                                <th>Total</th>
-                                                <th>Grade</th>
-                                                <th>Points</th>
-                                                <th>Semester</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for grade in student_data.grades %}
-                                                <tr>
-                                                    <td>
-                                                        <span class="badge bg-secondary">{{ grade.enrollment.course.code }}</span>
-                                                    </td>
-                                                    <td>{{ grade.enrollment.course.name }}</td>
-                                                    <td>{{ grade.enrollment.course.credit_hours }}</td>
-                                                    <td>{{ grade.continuous_assessment|default:"-" }}</td>
-                                                    <td>{{ grade.final_exam|default:"-" }}</td>
-                                                    <td>
-                                                        {% if grade.total_marks %}
-                                                            <strong>{{ grade.total_marks|floatformat:1 }}%</strong>
-                                                        {% else %}
-                                                            -
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if grade.grade %}
-                                                            <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %}">
-                                                                {{ grade.grade }}
-                                                            </span>
-                                                        {% else %}
-                                                            <span class="text-muted">-</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>{{ grade.grade_points|default:"-" }}</td>
-                                                    <td>
-                                                        <small class="text-muted">
-                                                            {{ grade.enrollment.semester.academic_year.year }}<br>
-                                                            Sem {{ grade.enrollment.semester.semester_number }}
-                                                        </small>
-                                                    </td>
-                                                </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                                <!-- Student Grades (Collapsible) -->
+                                <div class="student-grades collapse" id="grades-{{ student_data.student.student_id }}">
+                                    <div class="border-top">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th width="10%">Course Code</th>
+                                                        <th width="25%">Course Name</th>
+                                                        <th width="8%">Credits</th>
+                                                        <th width="10%">CAT</th>
+                                                        <th width="10%">Exam</th>
+                                                        <th width="10%">Total</th>
+                                                        <th width="8%">Grade</th>
+                                                        <th width="8%">Points</th>
+                                                        <th width="11%">Semester</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for grade in student_data.grades %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="badge bg-secondary">{{ grade.enrollment.course.code }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <div class="fw-medium">{{ grade.enrollment.course.name }}</div>
+                                                            </td>
+                                                            <td class="text-center">{{ grade.enrollment.course.credit_hours }}</td>
+                                                            <td class="text-center">
+                                                                {% if grade.continuous_assessment %}
+                                                                    {{ grade.continuous_assessment|floatformat:1 }}
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                {% if grade.final_exam %}
+                                                                    {{ grade.final_exam|floatformat:1 }}
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                {% if grade.total_marks %}
+                                                                    <strong>{{ grade.total_marks|floatformat:1 }}%</strong>
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                {% if grade.grade %}
+                                                                    <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %}">
+                                                                        {{ grade.grade }}
+                                                                    </span>
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                {% if grade.grade_points %}
+                                                                    {{ grade.grade_points|floatformat:1 }}
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <small class="text-muted">
+                                                                    {{ grade.enrollment.semester.academic_year.year }}<br>
+                                                                    Sem {{ grade.enrollment.semester.semester_number }}
+                                                                </small>
+                                                            </td>
+                                                        </tr>
+                                                    {% empty %}
+                                                        <tr>
+                                                            <td colspan="9" class="text-center text-muted py-3">
+                                                                No grades recorded for this student
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         {% empty %}
@@ -413,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial filter on page load
     filterSemesters();
     
-    // Auto-submit form on filter change
+    // Auto-submit form on filter change (with debouncing for text inputs)
     const filterInputs = document.querySelectorAll('#filterForm select, #filterForm input');
     filterInputs.forEach(input => {
         if (input.type === 'text') {
@@ -422,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearTimeout(timeout);
                 timeout = setTimeout(() => {
                     document.getElementById('filterForm').submit();
-                }, 500);
+                }, 800); // Increased debounce time
             });
         } else {
             input.addEventListener('change', function() {
@@ -431,6 +479,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function toggleStudentGrades(studentId) {
+    const gradesSection = document.getElementById(`grades-${studentId}`);
+    const chevronIcon = document.querySelector(`[data-student-id="${studentId}"] .chevron-icon`);
+    
+    if (gradesSection.classList.contains('show')) {
+        gradesSection.classList.remove('show');
+        chevronIcon.classList.remove('bi-chevron-down');
+        chevronIcon.classList.add('bi-chevron-right');
+    } else {
+        gradesSection.classList.add('show');
+        chevronIcon.classList.remove('bi-chevron-right');
+        chevronIcon.classList.add('bi-chevron-down');
+    }
+}
+
+function expandAll() {
+    const allGradeSections = document.querySelectorAll('.student-grades');
+    const allChevrons = document.querySelectorAll('.chevron-icon');
+    
+    allGradeSections.forEach(section => {
+        section.classList.add('show');
+    });
+    
+    allChevrons.forEach(chevron => {
+        chevron.classList.remove('bi-chevron-right');
+        chevron.classList.add('bi-chevron-down');
+    });
+    
+    // Show success message
+    showNotification('All student records expanded', 'success');
+}
+
+function collapseAll() {
+    const allGradeSections = document.querySelectorAll('.student-grades');
+    const allChevrons = document.querySelectorAll('.chevron-icon');
+    
+    allGradeSections.forEach(section => {
+        section.classList.remove('show');
+    });
+    
+    allChevrons.forEach(chevron => {
+        chevron.classList.remove('bi-chevron-down');
+        chevron.classList.add('bi-chevron-right');
+    });
+    
+    // Show success message
+    showNotification('All student records collapsed', 'success');
+}
 
 function clearFilters() {
     const form = document.getElementById('filterForm');
@@ -445,23 +542,6 @@ function clearFilters() {
     form.submit();
 }
 
-function toggleView(viewType) {
-    const buttons = document.querySelectorAll('.btn-group .btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    
-    if (viewType === 'expanded') {
-        document.querySelector('[onclick="toggleView(\'expanded\')"]').classList.add('active');
-        document.querySelectorAll('.student-card').forEach(card => {
-            card.classList.add('border-primary');
-        });
-    } else {
-        document.querySelector('[onclick="toggleView(\'compact\')"]').classList.add('active');
-        document.querySelectorAll('.student-card').forEach(card => {
-            card.classList.remove('border-primary');
-        });
-    }
-}
-
 function downloadPDF() {
     const currentURL = new URL(window.location);
     currentURL.pathname = currentURL.pathname.replace('/list/', '/download-pdf/');
@@ -469,89 +549,235 @@ function downloadPDF() {
 }
 
 function exportToExcel() {
-    // This would need to be implemented based on your backend requirements
-    alert('Excel export functionality to be implemented');
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Exporting...';
+    btn.disabled = true;
+    
+    // Simulate export process (replace with actual implementation)
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showNotification('Excel export functionality to be implemented', 'info');
+    }, 2000);
 }
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + E to expand all
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        expandAll();
+    }
+    
+    // Ctrl/Cmd + C to collapse all
+    if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
+        e.preventDefault();
+        collapseAll();
+    }
+});
 </script>
 
 <style>
 .student-card {
     transition: all 0.3s ease;
-    background: #fafafa;
+    background: #fff;
+    border: 1px solid #e3e6f0 !important;
 }
 
 .student-card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    border-color: #5a5c69 !important;
+}
+
+.student-header {
+    transition: background-color 0.2s ease;
+}
+
+.student-header:hover {
+    background-color: #f8f9fc;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.chevron-icon {
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.chevron-icon.bi-chevron-down {
+    transform: rotate(0deg);
+}
+
+.chevron-icon.bi-chevron-right {
+    transform: rotate(0deg);
+}
+
+.student-grades {
+    transition: all 0.3s ease;
+    max-height: 0;
+    overflow: hidden;
+}
+
+.student-grades.show {
+    max-height: none;
+    overflow: visible;
+}
+
+.stat-box {
+    padding: 0.5rem;
 }
 
 .table th {
     background-color: #f8f9fa;
     font-weight: 600;
     font-size: 0.875rem;
+    border-bottom: 2px solid #dee2e6;
+    color: #5a5c69;
 }
 
 .table td {
     vertical-align: middle;
     font-size: 0.875rem;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fc;
 }
 
 .badge {
     font-size: 0.75rem;
+    font-weight: 500;
 }
 
 .card {
     border: none;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 }
 
 .card-header {
-    background-color: #fff;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.student-card .table-responsive {
-    border-radius: 0.375rem;
-    overflow: hidden;
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
 }
 
 .pagination .page-link {
-    color: #6c757d;
-    border: 1px solid #dee2e6;
+    color: #5a5c69;
+    border: 1px solid #e3e6f0;
 }
 
 .pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: #5a5c69;
+    border-color: #5a5c69;
 }
 
-.btn-group .btn {
-    border-radius: 0.375rem;
+.form-label {
+    font-weight: 600;
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
 }
 
-.btn-group .btn:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+.form-select, .form-control {
+    border: 1px solid #d1d3e2;
+    border-radius: 0.35rem;
+    font-size: 0.875rem;
 }
 
-.btn-group .btn:last-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+.form-select:focus, .form-control:focus {
+    border-color: #bac8f3;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+.btn {
+    font-size: 0.875rem;
+    border-radius: 0.35rem;
+}
+
+.btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+.btn-primary:hover {
+    background-color: #2e59d9;
+    border-color: #2653d4;
+}
+
+.btn-success {
+    background-color: #1cc88a;
+    border-color: #1cc88a;
+}
+
+.btn-outline-secondary {
+    color: #858796;
+    border-color: #d1d3e2;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #858796;
+    border-color: #858796;
+}
+
+.text-primary {
+    color: #5a5c69 !important;
+}
+
+.fw-medium {
+    font-weight: 500;
 }
 
 @media print {
-    .btn, .card-header .btn-group, .pagination {
+    .btn, .card-header .btn-group, .pagination, .student-header {
         display: none !important;
+    }
+    
+    .student-grades {
+        max-height: none !important;
+        overflow: visible !important;
     }
     
     .student-card {
         break-inside: avoid;
         page-break-inside: avoid;
+        margin-bottom: 1rem;
     }
     
     .table {
         font-size: 0.75rem;
     }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
 }
+
+
 
 .form-label {
     font-weight: 600;
