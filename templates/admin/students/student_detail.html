@@ -32,7 +32,7 @@
                     <a href="{% url 'student_delete' student.student_id %}" class="btn btn-outline-danger">
                         <i class="bi bi-trash"></i> Delete
                     </a>
-                    <a href="#" class="btn btn-outline-info">
+                    <a href="{% url 'student_performance' student.student_id %}" class="btn btn-outline-info">
                         <i class="bi bi-graph-up"></i> Performance
                     </a>
                 </div>
