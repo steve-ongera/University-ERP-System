@@ -28,9 +28,10 @@
                     </button>
                     <!-- Dropdown for PDF downloads -->
                     <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a href="{% url 'transcript_pdf' %}" class="btn btn-outline-info">
                             <i class="bi bi-download"></i> Download PDF
-                        </button>
+                        </a>
+
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item" href="{% url 'transcript_pdf' %}">
