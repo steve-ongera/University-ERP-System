@@ -69,7 +69,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'university_erp_system.wsgi.application'
 
-
+CSRF_COOKIE_HTTPONLY = False
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 

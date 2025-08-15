@@ -3558,6 +3558,431 @@ def programme_detail(request, programme_id):
     
     return render(request, 'programmes/programme_detail.html', context)
 
+# views.py
+
+# views.py - Fixed add_programme_year function
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+import json
+import logging
+import uuid
+from .models import Programme, Course, ProgrammeCourse, Department
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+@login_required
+@require_http_methods(["POST"])
+def add_programme_year(request):
+    try:
+        # Check if request is AJAX
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid request type'
+            }, status=400)
+        
+        # Parse JSON data
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid JSON data'
+            }, status=400)
+        
+        programme_id = data.get('programme_id')
+        year = data.get('year')
+        
+        # Validate required fields
+        if not programme_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme ID is required'
+            }, status=400)
+        
+        if not year:
+            return JsonResponse({
+                'success': False,
+                'error': 'Year is required'
+            }, status=400)
+        
+        # Validate programme exists
+        try:
+            programme = Programme.objects.get(id=programme_id)
+        except Programme.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme not found'
+            }, status=404)
+        
+        # Validate year
+        if not isinstance(year, int) or year < 1 or year > programme.duration_years:
+            return JsonResponse({
+                'success': False,
+                'error': f'Year must be between 1 and {programme.duration_years}'
+            }, status=400)
+        
+        # Check if year already exists
+        existing_year = ProgrammeCourse.objects.filter(
+            programme=programme,
+            year=year
+        ).exists()
+        
+        if existing_year:
+            return JsonResponse({
+                'success': False,
+                'error': f'Year {year} already exists for this programme'
+            }, status=400)
+        
+        # Create entries for each semester WITHOUT creating placeholder courses
+        semesters = range(1, programme.semesters_per_year + 1)
+        created_semesters = []
+        
+        with transaction.atomic():
+            # Just create the year structure without courses
+            # The frontend will handle showing empty semesters
+            for semester in semesters:
+                # We don't create any ProgrammeCourse entries yet
+                # The year structure will be created when courses are added
+                created_semesters.append(semester)
+        
+        logger.info(f"Year {year} structure created for programme {programme.name}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Year {year} created successfully with {len(created_semesters)} semesters',
+            'year': year,
+            'semesters': created_semesters,
+            'programme_id': programme_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in add_programme_year: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def add_programme_semester(request):
+    """Add a new semester to a specific year in a programme"""
+    try:
+        # Check if request is AJAX
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid request type'
+            }, status=400)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid JSON data'
+            }, status=400)
+        
+        programme_id = data.get('programme_id')
+        year = data.get('year')
+        semester = data.get('semester')
+        
+        try:
+            programme = get_object_or_404(Programme, id=programme_id)
+        except Programme.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme not found'
+            }, status=404)
+        
+        # Validate inputs
+        if not year or not isinstance(year, int) or year < 1 or year > 8:
+            return JsonResponse({
+                'success': False,
+                'error': 'Year must be between 1 and 8'
+            }, status=400)
+        
+        # Get semesters_per_year from programme or default to 2
+        max_semesters = getattr(programme, 'semesters_per_year', 2)
+        
+        if not semester or not isinstance(semester, int) or semester < 1 or semester > max_semesters:
+            return JsonResponse({
+                'success': False,
+                'error': f'Semester must be between 1 and {max_semesters}'
+            }, status=400)
+        
+        # Check if semester already exists for this year
+        existing_semester = ProgrammeCourse.objects.filter(
+            programme=programme,
+            year=year,
+            semester=semester
+        ).exists()
+        
+        if existing_semester:
+            return JsonResponse({
+                'success': False,
+                'error': f'Semester {semester} already exists for Year {year}'
+            }, status=400)
+        
+        logger.info(f"Semester {semester} added to Year {year} in programme {programme.name}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester {semester} added to Year {year} successfully',
+            'year': year,
+            'semester': semester
+        })
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in add_programme_semester: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def add_programme_course(request):
+    """Add a course to a specific year and semester of a programme"""
+    try:
+        # Check if request is AJAX
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid request type'
+            }, status=400)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid JSON data'
+            }, status=400)
+        
+        programme_id = data.get('programme_id')
+        course_id = data.get('course_id')
+        year = data.get('year')
+        semester = data.get('semester')
+        is_mandatory = data.get('is_mandatory', True)
+        
+        try:
+            programme = get_object_or_404(Programme, id=programme_id)
+            course = get_object_or_404(Course, id=course_id)
+        except (Programme.DoesNotExist, Course.DoesNotExist):
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme or Course not found'
+            }, status=404)
+        
+        # Validate inputs
+        if not year or not isinstance(year, int) or year < 1 or year > 8:
+            return JsonResponse({
+                'success': False,
+                'error': 'Year must be between 1 and 8'
+            }, status=400)
+        
+        max_semesters = getattr(programme, 'semesters_per_year', 2)
+        if not semester or not isinstance(semester, int) or semester < 1 or semester > max_semesters:
+            return JsonResponse({
+                'success': False,
+                'error': f'Semester must be between 1 and {max_semesters}'
+            }, status=400)
+        
+        # Check if course already exists in this programme, year, and semester
+        existing_course = ProgrammeCourse.objects.filter(
+            programme=programme,
+            course=course,
+            year=year,
+            semester=semester
+        ).exists()
+        
+        if existing_course:
+            return JsonResponse({
+                'success': False,
+                'error': f'{course.name} already exists in Year {year}, Semester {semester}'
+            }, status=400)
+        
+        # Create the programme course
+        with transaction.atomic():
+            programme_course = ProgrammeCourse.objects.create(
+                programme=programme,
+                course=course,
+                year=year,
+                semester=semester,
+                is_mandatory=is_mandatory
+            )
+        
+        logger.info(f"Course {course.name} added to programme {programme.name}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{course.name} added successfully to Year {year}, Semester {semester}',
+            'course_data': {
+                'id': programme_course.id,
+                'course_id': course.id,
+                'course_name': course.name,
+                'course_code': course.code,
+                'credit_hours': course.credit_hours,
+                'lecture_hours': getattr(course, 'lecture_hours', 0),
+                'practical_hours': getattr(course, 'practical_hours', 0),
+                'department': course.department.name,
+                'is_mandatory': is_mandatory,
+                'year': year,
+                'semester': semester
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in add_programme_course: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def get_available_courses(request):
+    """Get available courses for a programme (not already added to specific year/semester)"""
+    try:
+        programme_id = request.GET.get('programme_id')
+        year = request.GET.get('year')
+        semester = request.GET.get('semester')
+        search = request.GET.get('search', '')
+        
+        try:
+            programme = get_object_or_404(Programme, id=programme_id)
+        except Programme.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme not found'
+            }, status=404)
+        
+        # Get courses from the same department or faculty
+        available_courses = Course.objects.filter(
+            department__faculty=programme.faculty,
+            is_active=True
+        )
+        
+        # Filter out courses already in this programme for this year/semester
+        if year and semester:
+            existing_course_ids = ProgrammeCourse.objects.filter(
+                programme=programme,
+                year=year,
+                semester=semester
+            ).values_list('course_id', flat=True)
+            available_courses = available_courses.exclude(id__in=existing_course_ids)
+        
+        # Apply search filter
+        if search:
+            available_courses = available_courses.filter(
+                Q(name__icontains=search) | 
+                Q(code__icontains=search) |
+                Q(department__name__icontains=search)
+            )
+        
+        # Limit results
+        available_courses = available_courses[:20]
+        
+        courses_data = []
+        for course in available_courses:
+            courses_data.append({
+                'id': course.id,
+                'name': course.name,
+                'code': course.code,
+                'credit_hours': course.credit_hours,
+                'level': getattr(course, 'level', ''),
+                'department': course.department.name,
+                'course_type': getattr(course, 'get_course_type_display', lambda: 'N/A')()
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'courses': courses_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in get_available_courses: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+@login_required
+@require_http_methods(["DELETE"])
+def remove_programme_course(request):
+    """Remove a course from a programme"""
+    try:
+        # Check if request is AJAX
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid request type'
+            }, status=400)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid JSON data'
+            }, status=400)
+        
+        programme_course_id = data.get('programme_course_id')
+        
+        try:
+            programme_course = get_object_or_404(ProgrammeCourse, id=programme_course_id)
+        except ProgrammeCourse.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Programme course not found'
+            }, status=404)
+        
+        # Check if there are any enrollments
+        try:
+            from .models import Enrollment
+            enrollment_count = Enrollment.objects.filter(
+                course=programme_course.course,
+                student__programme=programme_course.programme
+            ).count()
+        except ImportError:
+            # If Enrollment model doesn't exist, assume no enrollments
+            enrollment_count = 0
+        
+        if enrollment_count > 0:
+            return JsonResponse({
+                'success': False,
+                'error': f'Cannot remove course. {enrollment_count} students are enrolled.'
+            }, status=400)
+        
+        course_name = programme_course.course.name
+        programme_course.delete()
+        
+        logger.info(f"Course {course_name} removed from programme")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{course_name} removed successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in remove_programme_course: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
 
 @login_required
 def course_enrollments(request, programme_id, course_id):

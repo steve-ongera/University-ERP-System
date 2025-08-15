@@ -121,6 +121,12 @@ urlpatterns = [
     path('students/<int:student_id>/courses/<int:course_id>/enrollment/', 
          views.student_enrollment_detail, name='student_enrollment_detail'),
 
+    path('ajax/add-programme-year/', views.add_programme_year, name='ajax_add_programme_year'),
+    path('ajax/add-programme-semester/', views.add_programme_semester, name='ajax_add_programme_semester'),
+    path('ajax/add-programme-course/', views.add_programme_course, name='ajax_add_programme_course'),
+    path('ajax/get-available-courses/', views.get_available_courses, name='ajax_get_available_courses'),
+    path('ajax/remove-programme-course/', views.remove_programme_course, name='ajax_remove_programme_course'),
+
      #Grades URLs
     path('grades/', views.grades_list, name='grades_list'),
     path('grades/download-pdf/', views.download_grades_pdf, name='download_grades_pdf'),
