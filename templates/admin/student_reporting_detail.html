@@ -122,8 +122,8 @@
                                             cx="30"
                                             cy="30"
                                             stroke-dasharray="150.72"
-                                            stroke-dashoffset="{{ 150.72|floatformat:2 }}"
-                                            style="stroke-dashoffset: {{ 150.72|mul:stats.reporting_percentage|div:100|sub:150.72|abs }}"/>
+                                            stroke-dashoffset="150.72"
+                                            data-percentage="{{ stats.reporting_percentage|default:0 }}"/>
                                 </svg>
                             </div>
                             <p class="small text-muted mb-0 mt-2">Progress</p>
@@ -559,11 +559,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize progress ring animation
     function initializeProgressRing() {
-        const progressRing = document.querySelector('.progress-ring-circle:last-child');
+        const progressRing = document.querySelector('.progress-ring-circle[data-percentage]');
         if (progressRing) {
             const radius = progressRing.r.baseVal.value;
             const circumference = 2 * Math.PI * radius;
-            const percentage = {{ stats.reporting_percentage|default:0 }};
+            const percentage = parseFloat(progressRing.getAttribute('data-percentage')) || 0;
             const offset = circumference - (percentage / 100) * circumference;
             
             progressRing.style.strokeDasharray = circumference;
