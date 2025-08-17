@@ -311,4 +311,27 @@ urlpatterns = [
     path('ajax/departments/', views.departments_ajax, name='departments_ajax'),
 
 
+    # Student Reporting Management URLs
+    path('admin-student-reporting/', 
+         views.student_reporting_list, 
+         name='student_reporting_list'),
+    
+    path('admin-student-reporting/<int:student_id>/', 
+         views.student_reporting_detail, 
+         name='student_reporting_detail'),
+    
+    path('admin-student-reporting/export/', 
+         views.export_reporting_data, 
+         name='export_reporting_data'),
+    
+    # AJAX endpoints
+    path('ajax/process-student-report/', 
+         views.process_student_report, 
+         name='process_student_report'),
+    
+    path('ajax/bulk-approve-reports/', 
+         views.bulk_approve_reports, 
+         name='bulk_approve_reports'),
+
+
 ]
