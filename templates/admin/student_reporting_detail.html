@@ -1,0 +1,725 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Add CSRF token at the top -->
+{% csrf_token %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Student Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center">
+                            <div class="me-4">
+                                {% if student.user.profile_picture %}
+                                    <img src="{{ student.user.profile_picture.url }}" 
+                                         alt="Profile" class="rounded-circle" width="80" height="80">
+                                {% else %}
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                         style="width: 80px; height: 80px;">
+                                        <i class="bi bi-person text-white" style="font-size: 2rem;"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h2 class="fw-bold">{{ student.user.get_full_name }}</h2>
+                                <p class="text-muted mb-1">
+                                    <span class="badge bg-primary fs-6">{{ student.student_id }}</span>
+                                    <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %} fs-6">
+                                        {{ student.get_status_display }}
+                                    </span>
+                                </p>
+                                <p class="mb-0">
+                                    <i class="bi bi-mortarboard me-1"></i>{{ student.programme.name }}
+                                </p>
+                                <p class="mb-0">
+                                    <i class="bi bi-building me-1"></i>{{ student.programme.faculty.name }} - {{ student.programme.department.name }}
+                                </p>
+                                <p class="mb-0">
+                                    <i class="bi bi-calendar me-1"></i>Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.reporting_percentage|floatformat:1 }}%</h4>
+                            <small class="text-muted">reporting rate</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'student_reporting_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_semesters }}</h5>
+                            <p class="small text-muted mb-0">Total Semesters</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.reported_semesters }}</h5>
+                            <p class="small text-muted mb-0">Reported</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.pending_reports }}</h5>
+                            <p class="small text-muted mb-0">Pending</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.approved_reports }}</h5>
+                            <p class="small text-muted mb-0">Approved</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.rejected_reports }}</h5>
+                            <p class="small text-muted mb-0">Rejected</p>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="progress mx-auto" style="width: 60px; height: 60px;">
+                                <svg class="progress-ring" width="60" height="60">
+                                    <circle class="progress-ring-circle"
+                                            stroke="#e9ecef"
+                                            stroke-width="6"
+                                            fill="transparent"
+                                            r="24"
+                                            cx="30"
+                                            cy="30"/>
+                                    <circle class="progress-ring-circle"
+                                            stroke="#28a745"
+                                            stroke-width="6"
+                                            fill="transparent"
+                                            r="24"
+                                            cx="30"
+                                            cy="30"
+                                            stroke-dasharray="150.72"
+                                            stroke-dashoffset="{{ 150.72|floatformat:2 }}"
+                                            style="stroke-dashoffset: {{ 150.72|mul:stats.reporting_percentage|div:100|sub:150.72|abs }}"/>
+                                </svg>
+                            </div>
+                            <p class="small text-muted mb-0 mt-2">Progress</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reporting History by Academic Years -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Reporting History</h5>
+                    {% if current_semester %}
+                        <small class="text-muted">Current Semester: {{ current_semester }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Academic Year Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="yearTabs" role="tablist">
+                        {% for year_data in years_structure %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                        id="year-{{ year_data.academic_year.id }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#year-{{ year_data.academic_year.id }}" 
+                                        type="button" 
+                                        role="tab">
+                                    {{ year_data.academic_year.year }}
+                                </button>
+                            </li>
+                        {% empty %}
+                            <li class="nav-item" role="presentation">
+                                <span class="nav-link disabled">No academic years found</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Academic Year Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year_data in years_structure %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                 id="year-{{ year_data.academic_year.id }}" 
+                                 role="tabpanel">
+                                
+                                <!-- Semester Controls -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex">
+                                        {% for semester_data in year_data.semesters %}
+                                            <button class="btn btn-sm btn-outline-secondary me-2 {% if forloop.first %}active{% endif %}" 
+                                                    onclick="showSemester('year-{{ year_data.academic_year.id }}-sem-{{ semester_data.semester.id }}', this)">
+                                                Semester {{ semester_data.semester.semester_number }}
+                                            </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Semester Content -->
+                                {% for semester_data in year_data.semesters %}
+                                    <div class="semester-content {% if not forloop.first %}d-none{% endif %}" 
+                                         id="year-{{ year_data.academic_year.id }}-sem-{{ semester_data.semester.id }}">
+                                        
+                                        <!-- Semester Header -->
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="card bg-light">
+                                                    <div class="card-body py-2">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong>{{ semester_data.semester.academic_year.year }} - Semester {{ semester_data.semester.semester_number }}</strong>
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    {{ semester_data.semester.start_date|date:"M d, Y" }} - 
+                                                                    {{ semester_data.semester.end_date|date:"M d, Y" }}
+                                                                </small>
+                                                            </div>
+                                                            <div>
+                                                                {% if semester_data.semester.is_current %}
+                                                                    <span class="badge bg-success">Current</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Reporting Details -->
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                {% if semester_data.report %}
+                                                    <!-- Report exists -->
+                                                    <div class="card border-{% if semester_data.report.status == 'approved' %}success{% elif semester_data.report.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                                        <div class="card-header bg-{% if semester_data.report.status == 'approved' %}success{% elif semester_data.report.status == 'pending' %}warning{% else %}danger{% endif %} text-white">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <h6 class="mb-0">
+                                                                    <i class="bi bi-file-earmark-check me-2"></i>
+                                                                    Reporting Status: {{ semester_data.report.get_status_display }}
+                                                                </h6>
+                                                                {% if semester_data.report.status == 'pending' %}
+                                                                    <div class="btn-group">
+                                                                        <button class="btn btn-sm btn-light" 
+                                                                                onclick="processReport({{ semester_data.report.id }}, 'approve')">
+                                                                            <i class="bi bi-check"></i> Approve
+                                                                        </button>
+                                                                        <button class="btn btn-sm btn-light" 
+                                                                                onclick="processReport({{ semester_data.report.id }}, 'reject')">
+                                                                            <i class="bi bi-x"></i> Reject
+                                                                        </button>
+                                                                    </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <p class="mb-2">
+                                                                        <strong>Reporting Type:</strong> 
+                                                                        <span class="badge bg-secondary">{{ semester_data.report.get_reporting_type_display }}</span>
+                                                                    </p>
+                                                                    <p class="mb-2">
+                                                                        <strong>Reporting Date:</strong> 
+                                                                        {{ semester_data.report.reporting_date|date:"F d, Y \a\t H:i" }}
+                                                                    </p>
+                                                                    {% if semester_data.report.processed_by %}
+                                                                        <p class="mb-2">
+                                                                            <strong>Processed By:</strong> 
+                                                                            {{ semester_data.report.processed_by.get_full_name }}
+                                                                        </p>
+                                                                        <p class="mb-2">
+                                                                            <strong>Processed Date:</strong> 
+                                                                            {{ semester_data.report.processed_date|date:"F d, Y \a\t H:i" }}
+                                                                        </p>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    {% if semester_data.report.remarks %}
+                                                                        <p class="mb-2">
+                                                                            <strong>Remarks:</strong>
+                                                                        </p>
+                                                                        <div class="bg-light p-3 rounded">
+                                                                            {{ semester_data.report.remarks }}
+                                                                        </div>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    <!-- No report -->
+                                                    <div class="card border-secondary">
+                                                        <div class="card-body text-center py-5">
+                                                            <i class="bi bi-exclamation-triangle text-muted" style="font-size: 3rem;"></i>
+                                                            <h4 class="mt-3 text-muted">No Report Submitted</h4>
+                                                            {% if semester_data.should_report %}
+                                                                <p class="text-muted">Student has not submitted report for this semester</p>
+                                                                {% if semester_data.semester.is_current %}
+                                                                    <span class="badge bg-warning">Current semester - reporting may still be ongoing</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-danger">Missing report</span>
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <p class="text-muted">Student was not enrolled in this semester</p>
+                                                                <span class="badge bg-secondary">Not applicable</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="text-center py-4">
+                                        <p class="text-muted">No semesters found for this academic year.</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                                <h4 class="mt-3 text-muted">No Academic Years Found</h4>
+                                <p class="text-muted">No academic years found for this student's enrollment period</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Report Modal -->
+<div class="modal fade" id="processReportModal" tabindex="-1" aria-labelledby="processReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="processReportModalLabel">Process Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="processReportForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="actionType" class="form-label">Action</label>
+                        <input type="text" class="form-control" id="actionType" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Remarks (Optional)</label>
+                        <textarea class="form-control" id="remarks" rows="3" 
+                                  placeholder="Add any remarks or reasons..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="processReportBtn">Process</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Processing...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentReportId = null;
+    let currentAction = null;
+
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show success message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Process individual report
+    window.processReport = function(reportId, action) {
+        currentReportId = reportId;
+        currentAction = action;
+        
+        document.getElementById('actionType').value = action.charAt(0).toUpperCase() + action.slice(1);
+        document.getElementById('remarks').value = '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('processReportModal'));
+        modal.show();
+    };
+
+    // Process report form submission
+    document.getElementById('processReportForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!currentReportId || !currentAction) {
+            showAlert('Invalid report data', 'danger');
+            return;
+        }
+        
+        const remarks = document.getElementById('remarks').value;
+        
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('processReportModal')).hide();
+        
+        fetch('/ajax/process-student-report/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                report_id: currentReportId,
+                action: currentAction,
+                remarks: remarks
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to update the data
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while processing the report', 'danger');
+        });
+    });
+
+    // Enhanced showSemester function
+    window.showSemester = function(semesterId, button) {
+        // Hide all semester content in the current year
+        const yearTab = button.closest('.tab-pane');
+        const semesterContents = yearTab.querySelectorAll('.semester-content');
+        const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
+        
+        // Hide all semester contents
+        semesterContents.forEach(content => content.classList.add('d-none'));
+        
+        // Remove active class from all semester buttons
+        semesterButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show selected semester content
+        const targetContent = document.getElementById(semesterId);
+        if (targetContent) {
+            targetContent.classList.remove('d-none');
+        }
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+    };
+
+    // Ensure tabs are properly activated on load
+    function ensureActiveTab() {
+        const yearTabs = document.querySelectorAll('#yearTabs .nav-link:not(.disabled)');
+        const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
+        
+        if (yearTabs.length > 0 && !document.querySelector('#yearTabs .nav-link.active')) {
+            yearTabs[0].classList.add('active');
+            yearTabs[0].setAttribute('aria-selected', 'true');
+            
+            const targetId = yearTabs[0].getAttribute('data-bs-target');
+            if (targetId) {
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        }
+        
+        // Handle semester tabs for active year
+        const activeYear = document.querySelector('#yearTabsContent .tab-pane.active');
+        if (activeYear) {
+            const semesterButtons = activeYear.querySelectorAll('.btn-outline-secondary');
+            const semesterContents = activeYear.querySelectorAll('.semester-content');
+            
+            if (semesterButtons.length > 0 && !activeYear.querySelector('.btn-outline-secondary.active')) {
+                semesterButtons[0].classList.add('active');
+                if (semesterContents.length > 0) {
+                    semesterContents.forEach(content => content.classList.add('d-none'));
+                    semesterContents[0].classList.remove('d-none');
+                }
+            }
+        }
+    }
+
+    // Initialize tabs
+    ensureActiveTab();
+    
+    // Handle Bootstrap tab events
+    const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
+    yearTabElements.forEach(tabElement => {
+        tabElement.addEventListener('shown.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+            
+            if (targetPane) {
+                const semesterButtons = targetPane.querySelectorAll('.btn-outline-secondary');
+                const semesterContents = targetPane.querySelectorAll('.semester-content');
+                
+                if (semesterButtons.length > 0 && !targetPane.querySelector('.btn-outline-secondary.active')) {
+                    semesterButtons[0].classList.add('active');
+                    if (semesterContents.length > 0) {
+                        semesterContents.forEach(content => content.classList.add('d-none'));
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    });
+
+    // Initialize progress ring animation
+    function initializeProgressRing() {
+        const progressRing = document.querySelector('.progress-ring-circle:last-child');
+        if (progressRing) {
+            const radius = progressRing.r.baseVal.value;
+            const circumference = 2 * Math.PI * radius;
+            const percentage = {{ stats.reporting_percentage|default:0 }};
+            const offset = circumference - (percentage / 100) * circumference;
+            
+            progressRing.style.strokeDasharray = circumference;
+            progressRing.style.strokeDashoffset = circumference;
+            
+            // Animate the progress ring
+            setTimeout(() => {
+                progressRing.style.strokeDashoffset = offset;
+                progressRing.style.transition = 'stroke-dashoffset 1s ease-in-out';
+            }, 500);
+        }
+    }
+
+    // Initialize progress ring
+    initializeProgressRing();
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer, .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.semester-content {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary.active {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.35s;
+    transform-origin: 50% 50%;
+}
+
+.card-header.bg-success,
+.card-header.bg-warning,
+.card-header.bg-danger {
+    color: white !important;
+}
+
+.card-header.bg-success .btn-light,
+.card-header.bg-warning .btn-light,
+.card-header.bg-danger .btn-light {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+.border-success {
+    border-color: #28a745 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.border-secondary {
+    border-color: #6c757d !important;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+/* Custom styles for student info */
+.student-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+}
+
+.student-info .badge {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* Semester status indicators */
+.semester-status-approved {
+    border-left: 4px solid #28a745;
+}
+
+.semester-status-pending {
+    border-left: 4px solid #ffc107;
+}
+
+.semester-status-rejected {
+    border-left: 4px solid #dc3545;
+}
+
+.semester-status-missing {
+    border-left: 4px solid #6c757d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+</style>
+
+{% endblock %}
