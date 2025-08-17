@@ -12676,3 +12676,317 @@ def assign_bed_to_student(request):
             'success': False,
             'error': str(e)
         })
+
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
+from .models import HostelBooking, Hostel, Room, Bed, Student, AcademicYear
+
+@login_required
+def admin_hostel_bookings(request):
+    """Admin hostel bookings list with search, filter and pagination"""
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    hostel_filter = request.GET.get('hostel', '')
+    status_filter = request.GET.get('status', '')
+    year_filter = request.GET.get('year', '')
+    booking_type_filter = request.GET.get('booking_type', '')
+    
+    # Base queryset
+    bookings = HostelBooking.objects.select_related(
+        'student__user',
+        'bed__room__hostel',
+        'academic_year'
+    ).order_by('-created_at')
+    
+    # Apply search filter
+    if search_query:
+        bookings = bookings.filter(
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(student__user__email__icontains=search_query) |
+            Q(student__student_id__icontains=search_query) |
+            Q(bed__room__room_number__icontains=search_query) |
+            Q(bed__room__hostel__name__icontains=search_query)
+        )
+    
+    # Apply filters
+    if hostel_filter:
+        bookings = bookings.filter(bed__room__hostel_id=hostel_filter)
+    
+    if status_filter:
+        bookings = bookings.filter(status=status_filter)
+    
+    if year_filter:
+        bookings = bookings.filter(academic_year_id=year_filter)
+    
+    if booking_type_filter:
+        bookings = bookings.filter(booking_type=booking_type_filter)
+    
+    # Pagination
+    paginator = Paginator(bookings, 20)  # 20 bookings per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options for dropdowns
+    hostels = Hostel.objects.filter(is_active=True).order_by('name')
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Status choices from model
+    status_choices = HostelBooking.STATUS_CHOICES if hasattr(HostelBooking, 'STATUS_CHOICES') else [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
+    
+    # Booking type choices
+    booking_type_choices = [
+        ('new', 'New Booking'),
+        ('renewal', 'Renewal'),
+        ('transfer', 'Transfer'),
+    ]
+    
+    context = {
+        'page_obj': page_obj,
+        'hostels': hostels,
+        'academic_years': academic_years,
+        'status_choices': status_choices,
+        'booking_type_choices': booking_type_choices,
+        'search_query': search_query,
+        'current_filters': {
+            'hostel': hostel_filter,
+            'status': status_filter,
+            'year': year_filter,
+            'booking_type': booking_type_filter,
+        }
+    }
+    
+    return render(request, 'admin/hostel_bookings.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def booking_details_ajax(request, booking_id):
+    """Get booking details via AJAX"""
+    try:
+        booking = get_object_or_404(
+            HostelBooking.objects.select_related(
+                'student__user',
+                'bed__room__hostel',
+                'academic_year'
+            ),
+            id=booking_id
+        )
+        
+        data = {
+            'success': True,
+            'booking': {
+                'id': booking.id,
+                'student_name': f"{booking.student.user.first_name} {booking.student.user.last_name}",
+                'student_id': booking.student.student_id,
+                'student_email': booking.student.user.email,
+                'student_phone': getattr(booking.student, 'phone', ''),
+                'hostel_name': booking.bed.room.hostel.name,
+                'room_number': booking.bed.room.room_number,
+                'bed_number': booking.bed.bed_number,
+                'academic_year': str(booking.academic_year),
+                'status': booking.status,
+                'booking_type': booking.booking_type,
+                'booking_date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'check_in_date': booking.check_in_date.strftime('%Y-%m-%d') if booking.check_in_date else '',
+                'check_out_date': booking.check_out_date.strftime('%Y-%m-%d') if booking.check_out_date else '',
+                'amount': str(booking.amount) if hasattr(booking, 'amount') else '0.00',
+                'payment_status': getattr(booking, 'payment_status', 'Pending'),
+                'notes': getattr(booking, 'notes', ''),
+            }
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def update_booking_ajax(request, booking_id):
+    """Update booking details via AJAX"""
+    try:
+        booking = get_object_or_404(HostelBooking, id=booking_id)
+        
+        # Parse JSON data
+        data = json.loads(request.body)
+        
+        # Update allowed fields
+        if 'status' in data:
+            booking.status = data['status']
+        
+        if 'check_in_date' in data and data['check_in_date']:
+            from datetime import datetime
+            booking.check_in_date = datetime.strptime(data['check_in_date'], '%Y-%m-%d').date()
+        
+        if 'check_out_date' in data and data['check_out_date']:
+            from datetime import datetime
+            booking.check_out_date = datetime.strptime(data['check_out_date'], '%Y-%m-%d').date()
+        
+        if 'notes' in data:
+            booking.notes = data['notes']
+        
+        if 'amount' in data:
+            booking.amount = float(data['amount'])
+        
+        if 'payment_status' in data:
+            booking.payment_status = data['payment_status']
+        
+        booking.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Booking updated successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def delete_booking_ajax(request, booking_id):
+    """Delete booking via AJAX"""
+    try:
+        booking = get_object_or_404(HostelBooking, id=booking_id)
+        
+        # Optional: Instead of hard delete, you might want to soft delete
+        # booking.is_active = False
+        # booking.save()
+        
+        # Hard delete
+        booking.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Booking deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@require_http_methods(["GET"])
+def booking_stats_ajax(request):
+    """Get booking statistics for dashboard"""
+    try:
+        current_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        if current_year:
+            total_bookings = HostelBooking.objects.filter(academic_year=current_year).count()
+            confirmed_bookings = HostelBooking.objects.filter(
+                academic_year=current_year,
+                status='confirmed'
+            ).count()
+            pending_bookings = HostelBooking.objects.filter(
+                academic_year=current_year,
+                status='pending'
+            ).count()
+            cancelled_bookings = HostelBooking.objects.filter(
+                academic_year=current_year,
+                status='cancelled'
+            ).count()
+        else:
+            total_bookings = confirmed_bookings = pending_bookings = cancelled_bookings = 0
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_bookings': total_bookings,
+                'confirmed_bookings': confirmed_bookings,
+                'pending_bookings': pending_bookings,
+                'cancelled_bookings': cancelled_bookings,
+                'confirmation_rate': round((confirmed_bookings / total_bookings * 100), 2) if total_bookings > 0 else 0
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def bulk_update_bookings_ajax(request):
+    """Bulk update multiple bookings"""
+    try:
+        data = json.loads(request.body)
+        booking_ids = data.get('booking_ids', [])
+        action = data.get('action', '')
+        
+        if not booking_ids or not action:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing booking IDs or action'
+            })
+        
+        bookings = HostelBooking.objects.filter(id__in=booking_ids)
+        
+        if action == 'confirm':
+            bookings.update(status='confirmed')
+            message = f'{bookings.count()} bookings confirmed successfully'
+        elif action == 'cancel':
+            bookings.update(status='cancelled')
+            message = f'{bookings.count()} bookings cancelled successfully'
+        elif action == 'delete':
+            count = bookings.count()
+            bookings.delete()
+            message = f'{count} bookings deleted successfully'
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid action'
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

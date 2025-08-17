@@ -1,81 +1,867 @@
-{% extends 'base.html' %}
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Bookings Management{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2>Hostel Bookings Management</h2>
-    
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="get">
+
+<!-- Add CSRF token at the top -->
+{% csrf_token %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3">
-                        <label>Status</label>
-                        <select name="status" class="form-control">
-                            <option value="">All</option>
-                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
-                            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
-                        </select>
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-house me-2"></i>Hostel Bookings Management
+                        </h2>
+                        <p class="text-muted mb-0">
+                            Manage and track hostel bookings across all hostels
+                        </p>
+                        {% if current_academic_year %}
+                            <small class="text-info">
+                                <i class="bi bi-calendar-check me-1"></i>
+                                Current Academic Year: {{ current_academic_year }}
+                            </small>
+                        {% endif %}
                     </div>
-                    <div class="col-md-3">
-                        <label>Hostel</label>
-                        <select name="hostel" class="form-control">
-                            <option value="">All</option>
-                            {% for hostel in hostels %}
-                            <option value="{{ hostel.id }}" {% if hostel_filter == hostel.id|stringformat:"s" %}selected{% endif %}>{{ hostel.name }}</option>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-outline-primary" onclick="refreshStats()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Refresh Stats
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary" id="totalBookings">Loading...</h5>
+                            <p class="small text-muted mb-0">Total Bookings</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success" id="confirmedBookings">Loading...</h5>
+                            <p class="small text-muted mb-0">Confirmed</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning" id="pendingBookings">Loading...</h5>
+                            <p class="small text-muted mb-0">Pending</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-danger" id="cancelledBookings">Loading...</h5>
+                            <p class="small text-muted mb-0">Cancelled</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="get" id="filterForm" class="row g-3">
+                        <div class="col-md-12">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" name="search" id="search" class="form-control" 
+                                   placeholder="Search by student name, email, room number, or hostel name..."
+                                   value="{{ search_query }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="hostel" class="form-label">Hostel</label>
+                            <select name="hostel" id="hostel" class="form-select">
+                                <option value="">All Hostels</option>
+                                {% for hostel in hostels %}
+                                    <option value="{{ hostel.id }}" {% if current_filters.hostel == hostel.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ hostel.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="year" class="form-label">Academic Year</label>
+                            <select name="year" id="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year in academic_years %}
+                                    <option value="{{ year.id }}" {% if current_filters.year == year.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ year }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="booking_type" class="form-label">Booking Type</label>
+                            <select name="booking_type" id="booking_type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for value, label in booking_type_choices %}
+                                    <option value="{{ value }}" {% if current_filters.booking_type == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary me-2" onclick="applyFilters()">
+                                <i class="bi bi-funnel"></i> Apply Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary me-2" onclick="clearFilters()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="bulkUpdate('confirm')" id="bulkConfirmBtn" style="display: none;">
+                                <i class="bi bi-check-all"></i> Bulk Confirm
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="bulkUpdate('cancel')" id="bulkCancelBtn" style="display: none;">
+                                <i class="bi bi-x-circle-fill"></i> Bulk Cancel
+                            </button>
+                            <button type="button" class="btn btn-danger" onclick="bulkUpdate('delete')" id="bulkDeleteBtn" style="display: none;">
+                                <i class="bi bi-trash"></i> Bulk Delete
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div id="selectedInfo" class="text-muted small" style="display: none;">
+                                <span id="selectedCount">0</span> booking(s) selected
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Bookings List</h5>
+                    {% if page_obj %}
+                        <small class="text-muted">
+                            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} bookings
+                        </small>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    <th>Student Info</th>
+                                    <th>Accommodation</th>
+                                    <th>Status</th>
+                                    <th>Booking Details</th>
+                                    <th>Dates</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if page_obj %}
+                                    {% for booking in page_obj %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input booking-select" 
+                                                   value="{{ booking.id }}">
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    {% if booking.student.user.profile_picture %}
+                                                        <img src="{{ booking.student.user.profile_picture.url }}" 
+                                                             alt="Profile" class="rounded-circle" width="40" height="40">
+                                                    {% else %}
+                                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                                             style="width: 40px; height: 40px;">
+                                                            <i class="bi bi-person text-white"></i>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ booking.student.user.first_name }} {{ booking.student.user.last_name }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        <span class="badge bg-secondary">{{ booking.student.student_id }}</span>
+                                                    </small>
+                                                    <br>
+                                                    <small class="text-muted">{{ booking.student.user.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ booking.bed.room.hostel.name }}</strong>
+                                                <br>
+                                                <small class="text-muted">Room: {{ booking.bed.room.room_number }}</small>
+                                                <br>
+                                                <small class="text-muted">Bed: {{ booking.bed.bed_number }}</small>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}info{% endif %} fs-6">
+                                                {{ booking.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>Academic Year:</strong> {{ booking.academic_year }}
+                                                <br>
+                                                <small class="text-muted">Booking Date: {{ booking.created_at|date:"M d, Y" }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {% if booking.check_in_date %}
+                                                    <strong>Check-in:</strong> {{ booking.check_in_date|date:"M d, Y" }}
+                                                    <br>
+                                                {% endif %}
+                                                {% if booking.check_out_date %}
+                                                    <strong>Check-out:</strong> {{ booking.check_out_date|date:"M d, Y" }}
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="viewBooking({{ booking.id }})">
+                                                    <i class="bi bi-eye"></i> View
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success" onclick="editBooking({{ booking.id }})">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteBooking({{ booking.id }})">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <i class="bi bi-house text-muted" style="font-size: 3rem;"></i>
+                                            <h4 class="mt-3 text-muted">No Bookings Found</h4>
+                                            <p class="text-muted">Try adjusting your search criteria or filters</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Bookings pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">
+                                        First
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                                        Previous
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
                             {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                                        Next
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">
+                                        Last
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Booking Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewModalLabel">Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Booking Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Edit Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editBookingForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">Status</label>
+                        <select id="editStatus" class="form-select" required>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label>Search</label>
-                        <input type="text" name="search" class="form-control" value="{{ search|default:'' }}">
+                    
+                    <div class="mb-3">
+                        <label for="editCheckinDate" class="form-label">Check-in Date</label>
+                        <input type="date" id="editCheckinDate" class="form-control">
                     </div>
-                    <div class="col-md-2">
-                        <label>&nbsp;</label>
-                        <button type="submit" class="btn btn-primary form-control">Filter</button>
+                    
+                    <div class="mb-3">
+                        <label for="editCheckoutDate" class="form-label">Check-out Date</label>
+                        <input type="date" id="editCheckoutDate" class="form-control">
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="editAmount" class="form-label">Amount</label>
+                        <input type="number" id="editAmount" class="form-control" step="0.01">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPaymentStatus" class="form-label">Payment Status</label>
+                        <select id="editPaymentStatus" class="form-select">
+                            <option value="pending">Pending</option>
+                            <option value="partial">Partial</option>
+                            <option value="paid">Paid</option>
+                            <option value="refunded">Refunded</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editNotes" class="form-label">Notes</label>
+                        <textarea id="editNotes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Booking</button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 
-    <div class="card">
-        <div class="card-body">
-            {% if bookings %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Student</th>
-                        <th>Hostel</th>
-                        <th>Room</th>
-                        <th>Bed</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for booking in bookings %}
-                    <tr>
-                        <td>{{ booking.student.student_id }}</td>
-                        <td>{{ booking.room.hostel.name }}</td>
-                        <td>{{ booking.room.room_name }}</td>
-                        <td>{{ booking.bed_number }}</td>
-                        <td>{{ booking.get_status_display }}</td>
-                        <td>{{ booking.booking_date|date:"Y-m-d" }}</td>
-                        <td>
-                            <a href="#" class="btn btn-sm btn-info">View</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            
-            {% include 'partials/pagination.html' with page_obj=bookings %}
-            {% else %}
-            <p>No bookings found.</p>
-            {% endif %}
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Processing...</small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentBookingId = null;
+    let selectedBookings = new Set();
+
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show alert message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Initialize page
+    loadStats();
+    initializeCheckboxes();
+
+    // Load statistics
+    function loadStats() {
+        fetch('{% url "booking_stats_ajax" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('totalBookings').textContent = data.stats.total_bookings;
+                    document.getElementById('confirmedBookings').textContent = data.stats.confirmed_bookings;
+                    document.getElementById('pendingBookings').textContent = data.stats.pending_bookings;
+                    document.getElementById('cancelledBookings').textContent = data.stats.cancelled_bookings;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+                showAlert('Error loading statistics', 'danger');
+            });
+    }
+
+    // Refresh statistics
+    window.refreshStats = function() {
+        loadStats();
+        showAlert('Statistics refreshed');
+    };
+
+    // Apply filters function
+    window.applyFilters = function() {
+        document.getElementById('filterForm').submit();
+    };
+
+    // Clear filters function
+    window.clearFilters = function() {
+        const form = document.getElementById('filterForm');
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (input.type === 'text') {
+                input.value = '';
+            } else if (input.type === 'select-one') {
+                input.selectedIndex = 0;
+            }
+        });
+        form.submit();
+    };
+
+    // Initialize checkboxes
+    function initializeCheckboxes() {
+        const checkboxes = document.querySelectorAll('.booking-select');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedBookings.add(this.value);
+                } else {
+                    selectedBookings.delete(this.value);
+                }
+                updateBulkActions();
+            });
+        });
+    }
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.booking-select');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            if (this.checked) {
+                selectedBookings.add(checkbox.value);
+            } else {
+                selectedBookings.delete(checkbox.value);
+            }
+        });
+        updateBulkActions();
+    });
+
+    // Update bulk actions visibility
+    function updateBulkActions() {
+        const bulkBtns = ['bulkConfirmBtn', 'bulkCancelBtn', 'bulkDeleteBtn'];
+        const selectedInfo = document.getElementById('selectedInfo');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (selectedBookings.size > 0) {
+            bulkBtns.forEach(btnId => {
+                document.getElementById(btnId).style.display = 'inline-block';
+            });
+            selectedInfo.style.display = 'block';
+            selectedCount.textContent = selectedBookings.size;
+        } else {
+            bulkBtns.forEach(btnId => {
+                document.getElementById(btnId).style.display = 'none';
+            });
+            selectedInfo.style.display = 'none';
+        }
+    }
+
+    // View booking details
+    window.viewBooking = function(bookingId) {
+        showLoading();
+        
+        fetch(`/admin-hostel/bookings/details/${bookingId}/`)
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                
+                if (data.success) {
+                    const booking = data.booking;
+                    const modalBody = document.getElementById('viewModalBody');
+                    
+                    modalBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Student Information</h5>
+                                <p><strong>Name:</strong> ${booking.student_name}</p>
+                                <p><strong>Student ID:</strong> ${booking.student_id}</p>
+                                <p><strong>Email:</strong> ${booking.student_email}</p>
+                                <p><strong>Phone:</strong> ${booking.student_phone || 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Accommodation Details</h5>
+                                <p><strong>Hostel:</strong> ${booking.hostel_name}</p>
+                                <p><strong>Room:</strong> ${booking.room_number}</p>
+                                <p><strong>Bed:</strong> ${booking.bed_number}</p>
+                                <p><strong>Academic Year:</strong> ${booking.academic_year}</p>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h5>Booking Information</h5>
+                                <p><strong>Status:</strong> <span class="badge bg-${booking.status === 'confirmed' ? 'success' : booking.status === 'pending' ? 'warning' : booking.status === 'cancelled' ? 'danger' : 'info'}">${booking.status}</span></p>
+                                <p><strong>Booking Type:</strong> ${booking.booking_type}</p>
+                                <p><strong>Booking Date:</strong> ${booking.booking_date}</p>
+                                <p><strong>Amount:</strong> ${booking.amount}</p>
+                                <p><strong>Payment Status:</strong> ${booking.payment_status}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Dates</h5>
+                                <p><strong>Check-in Date:</strong> ${booking.check_in_date || 'Not set'}</p>
+                                <p><strong>Check-out Date:</strong> ${booking.check_out_date || 'Not set'}</p>
+                                ${booking.notes ? `<h5>Notes</h5><p>${booking.notes}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+                    modal.show();
+                } else {
+                    showAlert('Error loading booking details: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+                showAlert('Error loading booking details', 'danger');
+            });
+    };
+
+    // Edit booking
+    window.editBooking = function(bookingId) {
+        currentBookingId = bookingId;
+        showLoading();
+        
+        fetch(`/admin-hostel/bookings/details/${bookingId}/`)
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                
+                if (data.success) {
+                    const booking = data.booking;
+                    
+                    // Populate form fields
+                    document.getElementById('editStatus').value = booking.status;
+                    document.getElementById('editCheckinDate').value = booking.check_in_date;
+                    document.getElementById('editCheckoutDate').value = booking.check_out_date;
+                    document.getElementById('editAmount').value = booking.amount;
+                    document.getElementById('editPaymentStatus').value = booking.payment_status;
+                    document.getElementById('editNotes').value = booking.notes;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+                    modal.show();
+                } else {
+                    showAlert('Error loading booking details: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+                showAlert('Error loading booking details', 'danger');
+            });
+    };
+
+    // Handle edit form submission
+    document.getElementById('editBookingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!currentBookingId) return;
+        
+        const formData = {
+            status: document.getElementById('editStatus').value,
+            check_in_date: document.getElementById('editCheckinDate').value,
+            check_out_date: document.getElementById('editCheckoutDate').value,
+            amount: document.getElementById('editAmount').value,
+            payment_status: document.getElementById('editPaymentStatus').value,
+            notes: document.getElementById('editNotes').value
+        };
+        
+        showLoading();
+        
+        fetch(`/admin-hostel/bookings/update/${currentBookingId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert('Booking updated successfully');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                modal.hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('Error updating booking: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('Error updating booking', 'danger');
+        });
+    });
+
+    // Delete booking
+    window.deleteBooking = function(bookingId) {
+        if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch(`/admin-hostel/bookings/delete/${bookingId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert('Booking deleted successfully');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('Error deleting booking: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('Error deleting booking', 'danger');
+        });
+    };
+
+    // Bulk update bookings
+    window.bulkUpdate = function(action) {
+        if (selectedBookings.size === 0) {
+            showAlert('Please select at least one booking', 'warning');
+            return;
+        }
+        
+        let confirmMessage;
+        if (action === 'delete') {
+            confirmMessage = `Are you sure you want to delete ${selectedBookings.size} booking(s)? This action cannot be undone.`;
+        } else {
+            confirmMessage = `Are you sure you want to ${action} ${selectedBookings.size} booking(s)?`;
+        }
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('{% url "bulk_update_bookings_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                booking_ids: Array.from(selectedBookings),
+                action: action
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('Error: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('Error performing bulk action', 'danger');
+        });
+    };
+
+    // Auto-submit form on filter change (optional)
+    const filterSelects = document.querySelectorAll('#filterForm select');
+    filterSelects.forEach(select => {
+        if (select.name !== 'search') {
+            select.addEventListener('change', function() {
+                // Optionally auto-submit on change
+                // document.getElementById('filterForm').submit();
+            });
+        }
+    });
+
+    // Search input with debounce
+    const searchInput = document.getElementById('search');
+    let searchTimeout;
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                // Optionally auto-submit on search
+                // document.getElementById('filterForm').submit();
+            }, 500);
+        });
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.btn-group .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.booking-select:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+</style>
+
 {% endblock %}

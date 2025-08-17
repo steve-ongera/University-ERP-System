@@ -346,5 +346,15 @@ urlpatterns = [
     path('ajax/search-students/', views.search_students, name='search_students'),
     path('ajax/assign-bed-to-student/', views.assign_bed_to_student, name='assign_bed_to_student'),
 
+    # Main booking management page
+    path('bookings/', views.admin_hostel_bookings, name='admin_hostel_bookings'),
+    
+    # AJAX endpoints
+    path('bookings/details/<int:booking_id>/', views.booking_details_ajax, name='booking_details_ajax'),
+    path('bookings/update/<int:booking_id>/', views.update_booking_ajax, name='update_booking_ajax'),
+    path('bookings/delete/<int:booking_id>/', views.delete_booking_ajax, name='delete_booking_ajax'),
+    path('bookings/stats/', views.booking_stats_ajax, name='booking_stats_ajax'),
+    path('bookings/bulk-update/', views.bulk_update_bookings_ajax, name='bulk_update_bookings_ajax'),
+
 
 ]
