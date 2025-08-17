@@ -12296,10 +12296,8 @@ from .models import (
 @login_required
 def admin_hostel_management(request):
     """Main hostel management dashboard"""
-    # Get all hostels with stats
-    hostels = Hostel.objects.filter(is_active=True).annotate(
-        total_rooms=Count('rooms', filter=Q(rooms__is_active=True))
-    )
+    # Get all hostels without conflicting annotation
+    hostels = Hostel.objects.filter(is_active=True)
     
     # Get all academic years
     academic_years = AcademicYear.objects.all().order_by('-start_date')
@@ -12332,6 +12330,7 @@ def admin_hostel_management(request):
     for hostel in hostels:
         year_stats = {}
         for year in academic_years:
+            # Calculate active rooms count here instead of using annotation
             rooms_count = hostel.rooms.filter(is_active=True).count()
             beds_count = Bed.objects.filter(
                 room__hostel=hostel,
@@ -12356,7 +12355,8 @@ def admin_hostel_management(request):
         
         hostel_data.append({
             'hostel': hostel,
-            'year_stats': year_stats
+            'year_stats': year_stats,
+            'active_rooms_count': hostel.rooms.filter(is_active=True).count()  # Add this line
         })
     
     stats = {
