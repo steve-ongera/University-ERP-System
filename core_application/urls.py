@@ -333,5 +333,18 @@ urlpatterns = [
          views.bulk_approve_reports, 
          name='bulk_approve_reports'),
 
+   # Main hostel management dashboard
+    path('admin-hostel-management/', views.admin_hostel_management, name='admin_hostel_management'),
+    
+    # Individual hostel detail view
+    path('admin-hostel-management/<int:hostel_id>/', views.hostel_detail_view, name='hostel_detail_view'),
+    
+    # AJAX endpoints for hostel management
+    path('ajax/create-rooms-bulk/', views.create_rooms_bulk, name='create_rooms_bulk'),
+    path('ajax/toggle-bed-maintenance/', views.toggle_bed_maintenance, name='toggle_bed_maintenance'),
+    path('ajax/checkout-student/', views.checkout_student, name='checkout_student'),
+    path('ajax/search-students/', views.search_students, name='search_students'),
+    path('ajax/assign-bed-to-student/', views.assign_bed_to_student, name='assign_bed_to_student'),
+
 
 ]

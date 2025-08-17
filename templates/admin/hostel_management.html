@@ -1,0 +1,657 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Add CSRF token at the top -->
+{% csrf_token %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center">
+                            <div class="me-4">
+                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" 
+                                     style="width: 80px; height: 80px;">
+                                    <i class="bi bi-building text-white" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h2 class="fw-bold">Hostel Management</h2>
+                                <p class="text-muted mb-1">
+                                    <span class="badge bg-primary fs-6">{{ stats.total_hostels }} Hostels</span>
+                                    <span class="badge bg-info fs-6">{{ stats.total_rooms }} Rooms</span>
+                                </p>
+                                <p class="mb-0">
+                                    <i class="bi bi-calendar me-1"></i>Academic Year Management
+                                </p>
+                                {% if current_year %}
+                                <p class="mb-0">
+                                    <i class="bi bi-clock me-1"></i>Current: {{ current_year.year }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.occupancy_rate|floatformat:1 }}%</h4>
+                            <small class="text-muted">occupancy rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_hostels }}</h5>
+                            <p class="small text-muted mb-0">Total Hostels</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_rooms }}</h5>
+                            <p class="small text-muted mb-0">Total Rooms</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-secondary">{{ stats.total_beds }}</h5>
+                            <p class="small text-muted mb-0">Total Beds</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.occupied_beds }}</h5>
+                            <p class="small text-muted mb-0">Occupied</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.available_beds }}</h5>
+                            <p class="small text-muted mb-0">Available</p>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="progress mx-auto" style="width: 60px; height: 60px;">
+                                <svg class="progress-ring" width="60" height="60">
+                                    <circle class="progress-ring-circle"
+                                            stroke="#e9ecef"
+                                            stroke-width="6"
+                                            fill="transparent"
+                                            r="24"
+                                            cx="30"
+                                            cy="30"/>
+                                    <circle class="progress-ring-circle"
+                                            stroke="#007bff"
+                                            stroke-width="6"
+                                            fill="transparent"
+                                            r="24"
+                                            cx="30"
+                                            cy="30"
+                                            stroke-dasharray="150.72"
+                                            stroke-dashoffset="150.72"
+                                            data-percentage="{{ stats.occupancy_rate|default:0 }}"/>
+                                </svg>
+                            </div>
+                            <p class="small text-muted mb-0 mt-2">Progress</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostels Management -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Hostels Overview</h5>
+                    {% if current_year %}
+                        <small class="text-muted">Current Academic Year: {{ current_year.year }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Hostels List -->
+                    {% for hostel_info in hostel_data %}
+                        <div class="card mb-4 border-left-primary">
+                            <div class="card-header bg-light">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">
+                                            <i class="bi bi-building me-2"></i>
+                                            {{ hostel_info.hostel.name }}
+                                        </h5>
+                                        <div class="d-flex gap-3">
+                                            <span class="badge bg-{% if hostel_info.hostel.hostel_type == 'boys' %}primary{% else %}danger{% endif %}">
+                                                {{ hostel_info.hostel.get_hostel_type_display }}
+                                            </span>
+                                            <small class="text-muted">
+                                                <i class="bi bi-geo-alt me-1"></i>{{ hostel_info.hostel.school.name }}
+                                            </small>
+                                            {% if hostel_info.hostel.warden %}
+                                            <small class="text-muted">
+                                                <i class="bi bi-person-badge me-1"></i>Warden: {{ hostel_info.hostel.warden.get_full_name }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="btn-group">
+                                            <a href="{% url 'hostel_detail_view' hostel_info.hostel.id %}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> View Details
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    onclick="showCreateRoomsModal({{ hostel_info.hostel.id }}, '{{ hostel_info.hostel.name }}')">
+                                                <i class="bi bi-plus-circle"></i> Add Rooms
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Academic Year Tabs for this hostel -->
+                                <ul class="nav nav-pills mb-3" id="hostel-{{ hostel_info.hostel.id }}-tabs" role="tablist">
+                                    {% for year_id, year_stat in hostel_info.year_stats.items %}
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                                    id="hostel-{{ hostel_info.hostel.id }}-year-{{ year_id }}-tab" 
+                                                    data-bs-toggle="pill" 
+                                                    data-bs-target="#hostel-{{ hostel_info.hostel.id }}-year-{{ year_id }}" 
+                                                    type="button" 
+                                                    role="tab">
+                                                {{ year_stat.year.year }}
+                                            </button>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+
+                                <!-- Tab Content -->
+                                <div class="tab-content" id="hostel-{{ hostel_info.hostel.id }}-tabContent">
+                                    {% for year_id, year_stat in hostel_info.year_stats.items %}
+                                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                             id="hostel-{{ hostel_info.hostel.id }}-year-{{ year_id }}" 
+                                             role="tabpanel">
+                                            
+                                            <div class="row text-center">
+                                                <div class="col-md-3">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body py-2">
+                                                            <h6 class="text-primary mb-0">{{ year_stat.rooms_count }}</h6>
+                                                            <small class="text-muted">Rooms</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body py-2">
+                                                            <h6 class="text-secondary mb-0">{{ year_stat.beds_count }}</h6>
+                                                            <small class="text-muted">Total Beds</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body py-2">
+                                                            <h6 class="text-success mb-0">{{ year_stat.occupied_count }}</h6>
+                                                            <small class="text-muted">Occupied</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body py-2">
+                                                            <h6 class="text-warning mb-0">{{ year_stat.available_count }}</h6>
+                                                            <small class="text-muted">Available</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {% if year_stat.beds_count == 0 and year_stat.rooms_count == 0 %}
+                                                <div class="text-center mt-4">
+                                                    <i class="bi bi-house-x text-muted" style="font-size: 3rem;"></i>
+                                                    <h6 class="mt-2 text-muted">No rooms created for {{ year_stat.year.year }}</h6>
+                                                    <button class="btn btn-primary btn-sm mt-2" 
+                                                            onclick="showCreateRoomsModal({{ hostel_info.hostel.id }}, '{{ hostel_info.hostel.name }}', {{ year_stat.year.id }})">
+                                                        <i class="bi bi-plus-circle me-2"></i>Create Rooms for {{ year_stat.year.year }}
+                                                    </button>
+                                                </div>
+                                            {% else %}
+                                                <div class="mt-3">
+                                                    <div class="progress" style="height: 20px;">
+                                                        <div class="progress-bar bg-success" 
+                                                             role="progressbar" 
+                                                             style="width: {{ year_stat.occupancy_rate }}%"
+                                                             aria-valuenow="{{ year_stat.occupancy_rate }}" 
+                                                             aria-valuemin="0" 
+                                                             aria-valuemax="100">
+                                                            {{ year_stat.occupancy_rate|floatformat:1 }}%
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-muted">Occupancy Rate</small>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-building-x text-muted" style="font-size: 3rem;"></i>
+                            <h4 class="mt-3 text-muted">No Hostels Found</h4>
+                            <p class="text-muted">No active hostels found in the system</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Rooms Modal -->
+<div class="modal fade" id="createRoomsModal" tabindex="-1" aria-labelledby="createRoomsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createRoomsModalLabel">Create Rooms in Bulk</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createRoomsForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="hostelName" class="form-label">Hostel</label>
+                                <input type="text" class="form-control" id="hostelName" readonly>
+                                <input type="hidden" id="hostelId">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="academicYear" class="form-label">Academic Year</label>
+                                <select class="form-control" id="academicYear" required>
+                                    <option value="">Select Academic Year</option>
+                                    {% for year in academic_years %}
+                                    <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                        {{ year.year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="roomCount" class="form-label">Number of Rooms</label>
+                                <input type="number" class="form-control" id="roomCount" min="1" max="100" required>
+                                <small class="text-muted">How many rooms to create</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bedsPerRoom" class="form-label">Beds per Room</label>
+                                <select class="form-control" id="bedsPerRoom" required>
+                                    <option value="1">1 Bed</option>
+                                    <option value="2">2 Beds</option>
+                                    <option value="3">3 Beds</option>
+                                    <option value="4" selected>4 Beds</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="roomPrefix" class="form-label">Room Prefix</label>
+                                <input type="text" class="form-control" id="roomPrefix" maxlength="5" required>
+                                <small class="text-muted">e.g., "A" or "BLK"</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="startNumber" class="form-label">Start Number</label>
+                                <input type="number" class="form-control" id="startNumber" min="1" value="1" required>
+                                <small class="text-muted">Starting room number</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="floorNumber" class="form-label">Floor Number</label>
+                                <input type="number" class="form-control" id="floorNumber" min="0" value="0" required>
+                                <small class="text-muted">0 = Ground floor</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Preview:</strong> 
+                        <span id="roomPreview">Rooms will be named: A001, A002, A003...</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createRoomsBtn">
+                        <i class="bi bi-plus-circle me-2"></i>Create Rooms
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Creating rooms...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show alert message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Show create rooms modal
+    window.showCreateRoomsModal = function(hostelId, hostelName, yearId = null) {
+        document.getElementById('hostelId').value = hostelId;
+        document.getElementById('hostelName').value = hostelName;
+        
+        // Set room prefix to first 3 characters of hostel name
+        const prefix = hostelName.substring(0, 3).toUpperCase();
+        document.getElementById('roomPrefix').value = prefix;
+        
+        // Set academic year if provided
+        if (yearId) {
+            document.getElementById('academicYear').value = yearId;
+        }
+        
+        // Update preview
+        updateRoomPreview();
+        
+        const modal = new bootstrap.Modal(document.getElementById('createRoomsModal'));
+        modal.show();
+    };
+
+    // Update room preview
+    function updateRoomPreview() {
+        const prefix = document.getElementById('roomPrefix').value || 'A';
+        const startNum = parseInt(document.getElementById('startNumber').value) || 1;
+        const count = parseInt(document.getElementById('roomCount').value) || 3;
+        
+        const examples = [];
+        for (let i = 0; i < Math.min(count, 3); i++) {
+            const num = (startNum + i).toString().padStart(3, '0');
+            examples.push(prefix + num);
+        }
+        
+        if (count > 3) {
+            examples.push('...');
+        }
+        
+        document.getElementById('roomPreview').textContent = 
+            `Rooms will be named: ${examples.join(', ')}`;
+    }
+
+    // Add event listeners for preview update
+    ['roomPrefix', 'startNumber', 'roomCount'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateRoomPreview);
+    });
+
+    // Handle create rooms form submission
+    document.getElementById('createRoomsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            hostel_id: document.getElementById('hostelId').value,
+            academic_year_id: document.getElementById('academicYear').value,
+            room_count: parseInt(document.getElementById('roomCount').value),
+            beds_per_room: parseInt(document.getElementById('bedsPerRoom').value),
+            room_prefix: document.getElementById('roomPrefix').value.toUpperCase(),
+            start_number: parseInt(document.getElementById('startNumber').value),
+            floor_number: parseInt(document.getElementById('floorNumber').value)
+        };
+        
+        if (!formData.hostel_id || !formData.academic_year_id || !formData.room_count) {
+            showAlert('Please fill in all required fields', 'danger');
+            return;
+        }
+        
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('createRoomsModal')).hide();
+        
+        fetch('/ajax/create-rooms-bulk/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to show new rooms
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while creating rooms', 'danger');
+        });
+    });
+
+    // Initialize progress ring animation
+    function initializeProgressRing() {
+        const progressRing = document.querySelector('.progress-ring-circle[data-percentage]');
+        if (progressRing) {
+            const radius = progressRing.r.baseVal.value;
+            const circumference = 2 * Math.PI * radius;
+            const percentage = parseFloat(progressRing.getAttribute('data-percentage')) || 0;
+            const offset = circumference - (percentage / 100) * circumference;
+            
+            progressRing.style.strokeDasharray = circumference;
+            progressRing.style.strokeDashoffset = circumference;
+            
+            // Animate the progress ring
+            setTimeout(() => {
+                progressRing.style.strokeDashoffset = offset;
+                progressRing.style.transition = 'stroke-dashoffset 1s ease-in-out';
+            }, 500);
+        }
+    }
+
+    // Initialize progress ring
+    initializeProgressRing();
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer, .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.35s;
+    transform-origin: 50% 50%;
+}
+
+.nav-pills .nav-link {
+    border-radius: 20px;
+    margin-right: 5px;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #007bff;
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+/* Custom styles for hostel cards */
+.hostel-card {
+    transition: all 0.3s ease;
+}
+
+.hostel-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+    }
+    
+    .nav-pills {
+        flex-wrap: wrap;
+    }
+    
+    .nav-pills .nav-link {
+        margin-bottom: 5px;
+    }
+}
+
+/* Tab content styling */
+.tab-content {
+    min-height: 200px;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
+
+{% endblock %}

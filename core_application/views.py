@@ -12274,3 +12274,405 @@ def export_reporting_data(request):
         ])
     
     return response
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.db import transaction
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+import json
+
+from .models import (
+    Hostel, Room, Bed, HostelBooking, AcademicYear, 
+    Student, User, Department
+)
+
+@login_required
+def admin_hostel_management(request):
+    """Main hostel management dashboard"""
+    # Get all hostels with stats
+    hostels = Hostel.objects.filter(is_active=True).annotate(
+        total_rooms=Count('rooms', filter=Q(rooms__is_active=True))
+    )
+    
+    # Get all academic years
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Overall statistics
+    total_hostels = hostels.count()
+    total_rooms = Room.objects.filter(is_active=True, hostel__is_active=True).count()
+    
+    if current_year:
+        total_beds = Bed.objects.filter(
+            academic_year=current_year,
+            room__is_active=True,
+            room__hostel__is_active=True
+        ).count()
+        occupied_beds = Bed.objects.filter(
+            academic_year=current_year,
+            is_available=False,
+            room__is_active=True,
+            room__hostel__is_active=True
+        ).count()
+        occupancy_rate = (occupied_beds / total_beds * 100) if total_beds > 0 else 0
+    else:
+        total_beds = 0
+        occupied_beds = 0
+        occupancy_rate = 0
+    
+    # Prepare hostel data with year-specific information
+    hostel_data = []
+    for hostel in hostels:
+        year_stats = {}
+        for year in academic_years:
+            rooms_count = hostel.rooms.filter(is_active=True).count()
+            beds_count = Bed.objects.filter(
+                room__hostel=hostel,
+                academic_year=year,
+                room__is_active=True
+            ).count()
+            occupied_count = Bed.objects.filter(
+                room__hostel=hostel,
+                academic_year=year,
+                is_available=False,
+                room__is_active=True
+            ).count()
+            
+            year_stats[year.id] = {
+                'year': year,
+                'rooms_count': rooms_count,
+                'beds_count': beds_count,
+                'occupied_count': occupied_count,
+                'available_count': beds_count - occupied_count,
+                'occupancy_rate': (occupied_count / beds_count * 100) if beds_count > 0 else 0
+            }
+        
+        hostel_data.append({
+            'hostel': hostel,
+            'year_stats': year_stats
+        })
+    
+    stats = {
+        'total_hostels': total_hostels,
+        'total_rooms': total_rooms,
+        'total_beds': total_beds,
+        'occupied_beds': occupied_beds,
+        'available_beds': total_beds - occupied_beds,
+        'occupancy_rate': occupancy_rate
+    }
+    
+    context = {
+        'hostel_data': hostel_data,
+        'academic_years': academic_years,
+        'current_year': current_year,
+        'stats': stats,
+    }
+    
+    return render(request, 'admin/hostel_management.html', context)
+
+@login_required
+def hostel_detail_view(request, hostel_id):
+    """Detailed view of a specific hostel"""
+    hostel = get_object_or_404(Hostel, id=hostel_id, is_active=True)
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Prepare year-wise data
+    years_data = []
+    for year in academic_years:
+        rooms = hostel.rooms.filter(is_active=True).prefetch_related('beds')
+        
+        rooms_data = []
+        for room in rooms:
+            beds = room.beds.filter(academic_year=year)
+            beds_info = []
+            
+            for bed in beds:
+                booking = HostelBooking.objects.filter(
+                    bed=bed,
+                    academic_year=year,
+                    booking_status__in=['approved', 'checked_in']
+                ).first()
+                
+                beds_info.append({
+                    'bed': bed,
+                    'booking': booking,
+                    'student': booking.student if booking else None
+                })
+            
+            rooms_data.append({
+                'room': room,
+                'beds_info': beds_info,
+                'total_beds': beds.count(),
+                'occupied_beds': beds.filter(is_available=False).count(),
+                'available_beds': beds.filter(is_available=True).count()
+            })
+        
+        # Calculate year statistics
+        total_beds_year = Bed.objects.filter(
+            room__hostel=hostel,
+            academic_year=year,
+            room__is_active=True
+        ).count()
+        occupied_beds_year = Bed.objects.filter(
+            room__hostel=hostel,
+            academic_year=year,
+            is_available=False,
+            room__is_active=True
+        ).count()
+        
+        years_data.append({
+            'academic_year': year,
+            'rooms_data': rooms_data,
+            'stats': {
+                'total_rooms': rooms.count(),
+                'total_beds': total_beds_year,
+                'occupied_beds': occupied_beds_year,
+                'available_beds': total_beds_year - occupied_beds_year,
+                'occupancy_rate': (occupied_beds_year / total_beds_year * 100) if total_beds_year > 0 else 0
+            }
+        })
+    
+    context = {
+        'hostel': hostel,
+        'years_data': years_data,
+        'current_year': current_year,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'admin/hostel_detail.html', context)
+
+@login_required
+@require_POST
+def create_rooms_bulk(request):
+    """Create rooms in bulk for a hostel"""
+    try:
+        data = json.loads(request.body)
+        hostel_id = data.get('hostel_id')
+        academic_year_id = data.get('academic_year_id')
+        room_count = int(data.get('room_count', 0))
+        beds_per_room = int(data.get('beds_per_room', 4))
+        room_prefix = data.get('room_prefix', '').upper()
+        start_number = int(data.get('start_number', 1))
+        floor_number = int(data.get('floor_number', 0))
+        
+        if not hostel_id or not academic_year_id or room_count <= 0:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid data provided'
+            })
+        
+        hostel = get_object_or_404(Hostel, id=hostel_id, is_active=True)
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+        
+        created_rooms = []
+        created_beds_count = 0
+        
+        with transaction.atomic():
+            for i in range(room_count):
+                room_number = f"{room_prefix}{start_number + i:03d}"
+                
+                # Check if room already exists
+                if Room.objects.filter(hostel=hostel, room_number=room_number).exists():
+                    continue
+                
+                # Create room
+                room = Room.objects.create(
+                    hostel=hostel,
+                    room_number=room_number,
+                    floor=floor_number,
+                    capacity=beds_per_room,
+                    description=f"Room {room_number} on floor {floor_number}"
+                )
+                
+                # Create beds for this room
+                bed_positions = ['bed_1', 'bed_2', 'bed_3', 'bed_4'][:beds_per_room]
+                for bed_pos in bed_positions:
+                    bed = Bed.objects.create(
+                        room=room,
+                        academic_year=academic_year,
+                        bed_position=bed_pos,
+                        is_available=True
+                    )
+                    created_beds_count += 1
+                
+                created_rooms.append(room.room_number)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully created {len(created_rooms)} rooms with {created_beds_count} beds',
+            'created_rooms': created_rooms
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+@require_POST
+def toggle_bed_maintenance(request):
+    """Toggle bed maintenance status"""
+    try:
+        data = json.loads(request.body)
+        bed_id = data.get('bed_id')
+        maintenance_status = data.get('maintenance_status', 'good')
+        
+        bed = get_object_or_404(Bed, id=bed_id)
+        bed.maintenance_status = maintenance_status
+        
+        # If bed is under maintenance or out of order, make it unavailable
+        if maintenance_status in ['under_maintenance', 'out_of_order']:
+            bed.is_available = False
+        elif maintenance_status == 'good' and not bed.bookings.filter(
+            booking_status__in=['approved', 'checked_in']
+        ).exists():
+            bed.is_available = True
+            
+        bed.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Bed maintenance status updated to {bed.get_maintenance_status_display()}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+@require_POST
+def checkout_student(request):
+    """Check out a student from their bed"""
+    try:
+        data = json.loads(request.body)
+        booking_id = data.get('booking_id')
+        checkout_remarks = data.get('remarks', '')
+        
+        booking = get_object_or_404(HostelBooking, id=booking_id)
+        
+        with transaction.atomic():
+            # Update booking status
+            booking.booking_status = 'checked_out'
+            booking.check_out_date = timezone.now().date()
+            booking.checked_out_by = request.user
+            booking.remarks = checkout_remarks
+            booking.save()
+            
+            # Make bed available
+            bed = booking.bed
+            bed.is_available = True
+            bed.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Student {booking.student.student_id} checked out successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+def search_students(request):
+    """Search students for bed assignment"""
+    query = request.GET.get('q', '').strip()
+    
+    if len(query) < 2:
+        return JsonResponse({'students': []})
+    
+    students = Student.objects.filter(
+        Q(student_id__icontains=query) |
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query) |
+        Q(user__email__icontains=query),
+        status='active'
+    ).select_related('user', 'programme').order_by('student_id')[:20]
+    
+    students_data = []
+    for student in students:
+        students_data.append({
+            'id': student.id,
+            'student_id': student.student_id,
+            'name': student.user.get_full_name(),
+            'programme': student.programme.name,
+            'year': student.current_year,
+            'semester': student.current_semester
+        })
+    
+    return JsonResponse({'students': students_data})
+
+@login_required
+@require_POST
+def assign_bed_to_student(request):
+    """Assign a bed to a student"""
+    try:
+        data = json.loads(request.body)
+        bed_id = data.get('bed_id')
+        student_id = data.get('student_id')
+        academic_year_id = data.get('academic_year_id')
+        booking_fee = float(data.get('booking_fee', 0))
+        
+        bed = get_object_or_404(Bed, id=bed_id)
+        student = get_object_or_404(Student, id=student_id)
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+        
+        # Check if student already has a booking for this academic year
+        existing_booking = HostelBooking.objects.filter(
+            student=student,
+            academic_year=academic_year,
+            booking_status__in=['pending', 'approved', 'checked_in']
+        ).first()
+        
+        if existing_booking:
+            return JsonResponse({
+                'success': False,
+                'error': f'Student already has a booking for {academic_year.year}'
+            })
+        
+        # Check if bed is available
+        if not bed.is_available:
+            return JsonResponse({
+                'success': False,
+                'error': 'Bed is not available'
+            })
+        
+        with transaction.atomic():
+            # Create booking
+            booking = HostelBooking.objects.create(
+                student=student,
+                bed=bed,
+                academic_year=academic_year,
+                booking_status='approved',
+                booking_fee=booking_fee,
+                approved_by=request.user,
+                approval_date=timezone.now(),
+                approval_remarks=f'Direct assignment by {request.user.get_full_name()}'
+            )
+            
+            # Update bed availability
+            bed.is_available = False
+            bed.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Bed assigned to {student.student_id} successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
