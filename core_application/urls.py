@@ -350,11 +350,11 @@ urlpatterns = [
     path('bookings/', views.admin_hostel_bookings, name='admin_hostel_bookings'),
     
     # AJAX endpoints
-    path('bookings/details/<int:booking_id>/', views.booking_details_ajax, name='booking_details_ajax'),
-    path('bookings/update/<int:booking_id>/', views.update_booking_ajax, name='update_booking_ajax'),
-    path('bookings/delete/<int:booking_id>/', views.delete_booking_ajax, name='delete_booking_ajax'),
-    path('bookings/stats/', views.booking_stats_ajax, name='booking_stats_ajax'),
-    path('bookings/bulk-update/', views.bulk_update_bookings_ajax, name='bulk_update_bookings_ajax'),
+    path('admin-hostel/bookings/details/<int:booking_id>/', views.booking_details_ajax, name='booking_details_ajax'),
+    path('admin-hostel/bookings/update/<int:booking_id>/', views.update_booking_ajax, name='update_booking_ajax'),
+    path('admin-hostel/admin-hostel/bookings/delete/<int:booking_id>/', views.delete_booking_ajax, name='delete_booking_ajax'),
+    path('admin-hostel/bookings/stats/', views.booking_stats_ajax, name='booking_stats_ajax'),
+    path('admin-hostel/bookings/bulk-update/', views.bulk_update_bookings_ajax, name='bulk_update_bookings_ajax'),
 
 
 ]
