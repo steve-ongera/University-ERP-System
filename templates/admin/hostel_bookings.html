@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // View booking details
     window.viewBooking = function(bookingId) {
-        showLoading();
+        //showLoading();
         
         fetch(`/admin-hostel/bookings/details/${bookingId}/`)
             .then(response => response.json())
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Edit booking
     window.editBooking = function(bookingId) {
         currentBookingId = bookingId;
-        showLoading();
+        //showLoading();
         
         fetch(`/admin-hostel/bookings/details/${bookingId}/`)
             .then(response => response.json())
@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
             notes: document.getElementById('editNotes').value
         };
         
-        showLoading();
+        //showLoading();
         
         fetch(`/admin-hostel/bookings/update/${currentBookingId}/`, {
             method: 'POST',
@@ -720,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        showLoading();
+        //showLoading();
         
         fetch(`/admin-hostel/bookings/delete/${bookingId}/`, {
             method: 'POST',
@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        showLoading();
+        //showLoading();
         
         fetch('{% url "bulk_update_bookings_ajax" %}', {
             method: 'POST',
