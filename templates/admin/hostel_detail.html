@@ -285,4 +285,937 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="academic
+                                <label for="academicYearSelect" class="form-label">Academic Year</label>
+                                <select class="form-select" id="academicYearSelect" required>
+                                    <option value="">Select Academic Year</option>
+                                    {% for year in academic_years %}
+                                        <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>{{ year.year }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="roomCount" class="form-label">Number of Rooms</label>
+                                <input type="number" class="form-control" id="roomCount" min="1" max="50" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bedsPerRoom" class="form-label">Beds per Room</label>
+                                <select class="form-select" id="bedsPerRoom" required>
+                                    <option value="1">1 Bed</option>
+                                    <option value="2">2 Beds</option>
+                                    <option value="3">3 Beds</option>
+                                    <option value="4" selected>4 Beds</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="roomPrefix" class="form-label">Room Prefix</label>
+                                <input type="text" class="form-control" id="roomPrefix" placeholder="e.g., A" maxlength="3">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="startNumber" class="form-label">Start Number</label>
+                                <input type="number" class="form-control" id="startNumber" min="1" max="999" value="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="floorNumber" class="form-label">Floor Number</label>
+                                <input type="number" class="form-control" id="floorNumber" min="0" max="20" value="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Preview:</strong> 
+                        <span id="roomPreview">Rooms will be named A001, A002, A003... on Floor 0</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Rooms</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Bed Modal -->
+<div class="modal fade" id="assignBedModal" tabindex="-1" aria-labelledby="assignBedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignBedModalLabel">Assign Bed to Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="assignBedForm">
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Bed Location</label>
+                            <input type="text" class="form-control" id="bedLocation" readonly>
+                            <input type="hidden" id="bedId">
+                            <input type="hidden" id="bedAcademicYearId">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bookingFee" class="form-label">Booking Fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" class="form-control" id="bookingFee" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="studentSearch" class="form-label">Search Student</label>
+                        <input type="text" class="form-control" id="studentSearch" 
+                               placeholder="Type student ID, name, or email...">
+                        <div id="studentResults" class="mt-2 d-none">
+                            <div class="list-group" id="studentList"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="selectedStudent" class="d-none">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Selected Student</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Student ID:</strong> <span id="selectedStudentId"></span></p>
+                                        <p class="mb-1"><strong>Name:</strong> <span id="selectedStudentName"></span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Programme:</strong> <span id="selectedStudentProgramme"></span></p>
+                                        <p class="mb-1"><strong>Year/Semester:</strong> <span id="selectedStudentYear"></span></p>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="selectedStudentDbId">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" disabled id="assignBedBtn">Assign Bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Student Details Modal -->
+<div class="modal fade" id="studentDetailsModal" tabindex="-1" aria-labelledby="studentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentDetailsModalLabel">Student Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="studentDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maintenance Modal -->
+<div class="modal fade" id="maintenanceModal" tabindex="-1" aria-labelledby="maintenanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="maintenanceModalLabel">Update Bed Maintenance Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="maintenanceForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Current Status</label>
+                        <input type="text" class="form-control" id="currentMaintenanceStatus" readonly>
+                        <input type="hidden" id="maintenanceBedId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newMaintenanceStatus" class="form-label">New Status</label>
+                        <select class="form-select" id="newMaintenanceStatus" required>
+                            <option value="good">Good Condition</option>
+                            <option value="needs_repair">Needs Repair</option>
+                            <option value="under_maintenance">Under Maintenance</option>
+                            <option value="out_of_order">Out of Order</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="checkoutModalLabel">Check Out Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="checkoutForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Student</label>
+                        <input type="text" class="form-control" id="checkoutStudentId" readonly>
+                        <input type="hidden" id="checkoutBookingId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="checkoutRemarks" class="form-label">Checkout Remarks (Optional)</label>
+                        <textarea class="form-control" id="checkoutRemarks" rows="3" 
+                                  placeholder="Add any checkout notes or remarks..."></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        This will check out the student and make the bed available for new assignments.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Check Out Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Processing...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let searchTimeout;
+
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show success message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Update room preview
+    function updateRoomPreview() {
+        const prefix = document.getElementById('roomPrefix').value || '';
+        const startNumber = parseInt(document.getElementById('startNumber').value) || 1;
+        const floor = document.getElementById('floorNumber').value;
+        const count = Math.min(parseInt(document.getElementById('roomCount').value) || 1, 3);
+        
+        let preview = 'Rooms will be named ';
+        for (let i = 0; i < count; i++) {
+            if (i > 0) preview += ', ';
+            preview += `${prefix}${String(startNumber + i).padStart(3, '0')}`;
+            if (i === count - 1 && (parseInt(document.getElementById('roomCount').value) || 1) > count) {
+                preview += '...';
+            }
+        }
+        preview += ` on Floor ${floor}`;
+        
+        document.getElementById('roomPreview').textContent = preview;
+    }
+
+    // Initialize room preview updates
+    ['roomPrefix', 'startNumber', 'floorNumber', 'roomCount'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', updateRoomPreview);
+        }
+    });
+
+    // Show create rooms modal
+    window.showCreateRoomsModal = function(hostelId, hostelName, academicYearId = null) {
+        document.getElementById('hostelId').value = hostelId;
+        document.getElementById('hostelName').value = hostelName;
+        
+        if (academicYearId) {
+            document.getElementById('academicYearSelect').value = academicYearId;
+        }
+        
+        // Reset form
+        document.getElementById('createRoomsForm').reset();
+        document.getElementById('hostelId').value = hostelId;
+        document.getElementById('hostelName').value = hostelName;
+        document.getElementById('bedsPerRoom').value = '4';
+        document.getElementById('startNumber').value = '1';
+        document.getElementById('floorNumber').value = '0';
+        
+        updateRoomPreview();
+        
+        const modal = new bootstrap.Modal(document.getElementById('createRoomsModal'));
+        modal.show();
+    };
+
+    // Handle create rooms form submission
+    document.getElementById('createRoomsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            hostel_id: document.getElementById('hostelId').value,
+            academic_year_id: document.getElementById('academicYearSelect').value,
+            room_count: parseInt(document.getElementById('roomCount').value),
+            beds_per_room: parseInt(document.getElementById('bedsPerRoom').value),
+            room_prefix: document.getElementById('roomPrefix').value,
+            start_number: parseInt(document.getElementById('startNumber').value),
+            floor_number: parseInt(document.getElementById('floorNumber').value)
+        };
+
+        if (!formData.hostel_id || !formData.academic_year_id || !formData.room_count) {
+            showAlert('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('createRoomsModal')).hide();
+
+        fetch('/ajax/create-rooms-bulk/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to show new rooms
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while creating rooms', 'danger');
+        });
+    });
+
+    // Assign bed function
+    window.assignBed = function(bedId, roomNumber, bedPosition, academicYearId) {
+        document.getElementById('bedId').value = bedId;
+        document.getElementById('bedAcademicYearId').value = academicYearId;
+        document.getElementById('bedLocation').value = `Room ${roomNumber} - ${bedPosition}`;
+        document.getElementById('bookingFee').value = '15000.00'; // Default fee
+        
+        // Reset student selection
+        document.getElementById('studentSearch').value = '';
+        document.getElementById('studentResults').classList.add('d-none');
+        document.getElementById('selectedStudent').classList.add('d-none');
+        document.getElementById('assignBedBtn').disabled = true;
+        
+        const modal = new bootstrap.Modal(document.getElementById('assignBedModal'));
+        modal.show();
+    };
+
+    // Student search functionality
+    document.getElementById('studentSearch').addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            document.getElementById('studentResults').classList.add('d-none');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/ajax/search-students/?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const studentList = document.getElementById('studentList');
+                const results = document.getElementById('studentResults');
+                
+                studentList.innerHTML = '';
+                
+                if (data.students && data.students.length > 0) {
+                    data.students.forEach(student => {
+                        const item = document.createElement('a');
+                        item.className = 'list-group-item list-group-item-action';
+                        item.href = '#';
+                        item.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${student.student_id}</strong> - ${student.name}
+                                    <br><small class="text-muted">${student.programme} - Year ${student.year}, Semester ${student.semester}</small>
+                                </div>
+                                <i class="bi bi-arrow-right"></i>
+                            </div>
+                        `;
+                        
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            selectStudent(student);
+                        });
+                        
+                        studentList.appendChild(item);
+                    });
+                    
+                    results.classList.remove('d-none');
+                } else {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'list-group-item text-muted';
+                    noResults.textContent = 'No students found';
+                    studentList.appendChild(noResults);
+                    results.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error searching students:', error);
+            });
+        }, 300);
+    });
+
+    // Select student function
+    function selectStudent(student) {
+        document.getElementById('selectedStudentId').textContent = student.student_id;
+        document.getElementById('selectedStudentName').textContent = student.name;
+        document.getElementById('selectedStudentProgramme').textContent = student.programme;
+        document.getElementById('selectedStudentYear').textContent = `Year ${student.year}, Semester ${student.semester}`;
+        document.getElementById('selectedStudentDbId').value = student.id;
+        
+        document.getElementById('studentResults').classList.add('d-none');
+        document.getElementById('selectedStudent').classList.remove('d-none');
+        document.getElementById('assignBedBtn').disabled = false;
+        
+        document.getElementById('studentSearch').value = `${student.student_id} - ${student.name}`;
+    }
+
+    // Handle assign bed form submission
+    document.getElementById('assignBedForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            bed_id: document.getElementById('bedId').value,
+            student_id: document.getElementById('selectedStudentDbId').value,
+            academic_year_id: document.getElementById('bedAcademicYearId').value,
+            booking_fee: parseFloat(document.getElementById('bookingFee').value)
+        };
+
+        if (!formData.bed_id || !formData.student_id || !formData.academic_year_id) {
+            showAlert('Please complete all required fields', 'danger');
+            return;
+        }
+
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('assignBedModal')).hide();
+
+        fetch('/ajax/assign-bed-to-student/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to show updated bed assignment
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while assigning the bed', 'danger');
+        });
+    });
+
+    // Show student details
+    window.showStudentDetails = function(studentId, studentIdNumber, studentName) {
+        const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
+        const content = document.getElementById('studentDetailsContent');
+        
+        content.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // For now, show basic details. You can extend this to fetch more details via AJAX
+        content.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">${studentName}</h5>
+                    <p class="card-text">
+                        <strong>Student ID:</strong> ${studentIdNumber}<br>
+                        <strong>Name:</strong> ${studentName}
+                    </p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Detailed student information would be loaded here via AJAX call to get full student profile data.
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    // Toggle maintenance status
+    window.toggleMaintenance = function(bedId, currentStatus) {
+        document.getElementById('maintenanceBedId').value = bedId;
+        document.getElementById('currentMaintenanceStatus').value = currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1).replace('_', ' ');
+        document.getElementById('newMaintenanceStatus').value = currentStatus;
+        
+        const modal = new bootstrap.Modal(document.getElementById('maintenanceModal'));
+        modal.show();
+    };
+
+    // Handle maintenance form submission
+    document.getElementById('maintenanceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const bedId = document.getElementById('maintenanceBedId').value;
+        const newStatus = document.getElementById('newMaintenanceStatus').value;
+
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('maintenanceModal')).hide();
+
+        fetch('/ajax/toggle-bed-maintenance/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                bed_id: bedId,
+                maintenance_status: newStatus
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to show updated maintenance status
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while updating maintenance status', 'danger');
+        });
+    });
+
+    // Checkout student
+    window.checkoutStudent = function(bookingId, studentId) {
+        document.getElementById('checkoutBookingId').value = bookingId;
+        document.getElementById('checkoutStudentId').value = studentId;
+        document.getElementById('checkoutRemarks').value = '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+        modal.show();
+    };
+
+    // Handle checkout form submission
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const bookingId = document.getElementById('checkoutBookingId').value;
+        const remarks = document.getElementById('checkoutRemarks').value;
+
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('checkoutModal')).hide();
+
+        fetch('/ajax/checkout-student/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                remarks: remarks
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to show updated bed status
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while checking out the student', 'danger');
+        });
+    });
+
+    // Initialize room preview
+    updateRoomPreview();
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer, .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.room-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.room-card:hover {
+    transform: translateY(-2px);
+}
+
+.bed-item {
+    transition: all 0.2s ease-in-out;
+}
+
+.bed-item:hover {
+    transform: scale(1.02);
+}
+
+.beds-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.btn-xs {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    border-radius: 0.2rem;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.modal-lg {
+    max-width: 900px;
+}
+
+/* Custom scrollbar for student search results */
+.list-group {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.list-group::-webkit-scrollbar {
+    width: 6px;
+}
+
+.list-group::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.list-group::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.list-group::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Bed status colors */
+.bg-danger .text-white {
+    color: white !important;
+}
+
+.bg-success .text-white {
+    color: white !important;
+}
+
+.bg-warning {
+    color: #212529 !important;
+}
+
+/* Card header colors */
+.card-header.bg-danger,
+.card-header.bg-success,
+.card-header.bg-warning {
+    border-bottom: none;
+}
+
+.card-header.bg-success {
+    background-color: #198754 !important;
+}
+
+.card-header.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.card-header.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-6.col-lg-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .bed-item {
+        font-size: 0.8rem;
+    }
+    
+    .btn-xs {
+        padding: 0.1rem 0.2rem;
+        font-size: 0.6rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .beds-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 768px) {
+    .beds-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (min-width: 992px) {
+    .beds-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+}
+
+/* Loading animation */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Alert styling */
+.alert {
+    margin-bottom: 1rem;
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* Tab styling */
+.nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: #6c757d;
+}
+
+.nav-tabs .nav-link.active {
+    background: none;
+    border-bottom-color: #0d6efd;
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #0d6efd;
+    background-color: #f8f9fa;
+}
+
+/* Badge improvements */
+.badge {
+    font-weight: 500;
+    font-size: 0.75em;
+}
+
+/* Card improvements */
+.card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem 1rem;
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+/* Progress bar improvements */
+.progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    background-color: #e9ecef;
+}
+
+/* Form improvements */
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Button improvements */
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+}
+
+.btn-xs {
+    --bs-btn-padding-y: 0.125rem;
+    --bs-btn-padding-x: 0.25rem;
+    --bs-btn-font-size: 0.7rem;
+    --bs-btn-border-radius: 0.2rem;
+}
+</style>
+
+{% endblock %}
