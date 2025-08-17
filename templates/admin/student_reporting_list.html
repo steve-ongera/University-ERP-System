@@ -1,0 +1,652 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Add CSRF token at the top -->
+{% csrf_token %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-people me-2"></i>Student Reporting Management
+                        </h2>
+                        <p class="text-muted mb-0">
+                            Track and manage student semester reporting across all programmes
+                        </p>
+                        {% if current_semester %}
+                            <small class="text-info">
+                                <i class="bi bi-calendar-check me-1"></i>
+                                Current Semester: {{ current_semester }}
+                            </small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.total_students }}</h4>
+                            <small class="text-muted">total students</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ stats.total_students }}</h5>
+                            <p class="small text-muted mb-0">Total Students</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">{{ stats.reported_current }}</h5>
+                            <p class="small text-muted mb-0">Reported Current</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning">{{ stats.pending_reports }}</h5>
+                            <p class="small text-muted mb-0">Pending Reports</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-info">{{ stats.active_students }}</h5>
+                            <p class="small text-muted mb-0">Active Students</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="get" id="filterForm" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="faculty" class="form-label">Faculty</label>
+                            <select name="faculty" id="faculty" class="form-select">
+                                <option value="">All Faculties</option>
+                                {% for faculty in faculties %}
+                                    <option value="{{ faculty.id }}" 
+                                            {% if filters.faculty_id == faculty.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ faculty.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="programme" class="form-label">Programme</label>
+                            <select name="programme" id="programme" class="form-select">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                    <option value="{{ programme.id }}" 
+                                            {% if filters.programme_id == programme.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ programme.code }} - {{ programme.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="year" class="form-label">Year</label>
+                            <select name="year" id="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year_num in year_choices %}
+                                    <option value="{{ year_num }}" 
+                                            {% if filters.year == year_num|stringformat:"s" %}selected{% endif %}>
+                                        Year {{ year_num }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All Status</option>
+                                {% for status_key, status_label in status_choices %}
+                                    <option value="{{ status_key }}" 
+                                            {% if filters.status == status_key %}selected{% endif %}>
+                                        {{ status_label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" name="search" id="search" class="form-control" 
+                                   placeholder="Name, ID..." value="{{ filters.search }}">
+                        </div>
+                    </form>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary me-2" onclick="applyFilters()">
+                                <i class="bi bi-funnel"></i> Apply Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary me-2" onclick="clearFilters()">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="bulkApprove()">
+                                <i class="bi bi-check-all"></i> Bulk Approve
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <a href="{% url 'export_reporting_data' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
+                               class="btn btn-outline-primary">
+                                <i class="bi bi-download"></i> Export CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Students List</h5>
+                    <small class="text-muted">
+                        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} students
+                    </small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th width="50">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    <th>Student Info</th>
+                                    <th>Programme</th>
+                                    <th>Current Year/Sem</th>
+                                    <th>Current Report</th>
+                                    <th>Reporting Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student_data in page_obj %}
+                                <tr>
+                                    <td>
+                                        {% if student_data.current_report and student_data.current_report.status == 'pending' %}
+                                            <input type="checkbox" class="form-check-input student-select" 
+                                                   value="{{ student_data.current_report.id }}">
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3">
+                                                {% if student_data.student.user.profile_picture %}
+                                                    <img src="{{ student_data.student.user.profile_picture.url }}" 
+                                                         alt="Profile" class="rounded-circle" width="40" height="40">
+                                                {% else %}
+                                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                                         style="width: 40px; height: 40px;">
+                                                        <i class="bi bi-person text-white"></i>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <strong>{{ student_data.student.user.get_full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <span class="badge bg-secondary">{{ student_data.student.student_id }}</span>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student_data.student.programme.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ student_data.student.programme.faculty.name }}</small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info fs-6">
+                                            Y{{ student_data.student.current_year }}S{{ student_data.student.current_semester }}
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">
+                                            <span class="badge bg-{% if student_data.student.status == 'active' %}success{% elif student_data.student.status == 'graduated' %}primary{% else %}warning{% endif %}">
+                                                {{ student_data.student.get_status_display }}
+                                            </span>
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if student_data.current_report %}
+                                            <span class="badge bg-{% if student_data.current_report.status == 'approved' %}success{% elif student_data.current_report.status == 'pending' %}warning{% else %}danger{% endif %} fs-6">
+                                                {{ student_data.current_report.get_status_display }}
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ student_data.current_report.reporting_date|date:"M d, Y" }}
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">Not Reported</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 100px;">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: {{ student_data.reporting_percentage|floatformat:0 }}%" 
+                                                     aria-valuenow="{{ student_data.reporting_percentage|floatformat:0 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">
+                                                {{ student_data.student.total_reports }}/{{ student_data.total_semesters }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'student_reporting_detail' student_data.student.id %}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> View Details
+                                            </a>
+                                            {% if student_data.current_report and student_data.current_report.status == 'pending' %}
+                                                <button class="btn btn-sm btn-outline-success" 
+                                                        onclick="processReport({{ student_data.current_report.id }}, 'approve')">
+                                                    <i class="bi bi-check"></i> Approve
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="processReport({{ student_data.current_report.id }}, 'reject')">
+                                                    <i class="bi bi-x"></i> Reject
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                                        <h4 class="mt-3 text-muted">No Students Found</h4>
+                                        <p class="text-muted">Try adjusting your search criteria</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Students pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                                        Previous
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                                        Next
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Report Modal -->
+<div class="modal fade" id="processReportModal" tabindex="-1" aria-labelledby="processReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="processReportModalLabel">Process Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="processReportForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="actionType" class="form-label">Action</label>
+                        <input type="text" class="form-control" id="actionType" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Remarks (Optional)</label>
+                        <textarea class="form-control" id="remarks" rows="3" 
+                                  placeholder="Add any remarks or reasons..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="processReportBtn">Process</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Processing...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentReportId = null;
+    let currentAction = null;
+
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show success message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Apply filters function
+    window.applyFilters = function() {
+        document.getElementById('filterForm').submit();
+    };
+
+    // Clear filters function
+    window.clearFilters = function() {
+        const form = document.getElementById('filterForm');
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (input.type === 'text') {
+                input.value = '';
+            } else if (input.type === 'select-one') {
+                input.selectedIndex = 0;
+            }
+        });
+        form.submit();
+    };
+
+    // Select All functionality
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.student-select');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+
+    // Process individual report
+    window.processReport = function(reportId, action) {
+        currentReportId = reportId;
+        currentAction = action;
+        
+        document.getElementById('actionType').value = action.charAt(0).toUpperCase() + action.slice(1);
+        document.getElementById('remarks').value = '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('processReportModal'));
+        modal.show();
+    };
+
+    // Process report form submission
+    document.getElementById('processReportForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!currentReportId || !currentAction) {
+            showAlert('Invalid report data', 'danger');
+            return;
+        }
+        
+        const remarks = document.getElementById('remarks').value;
+        
+        showLoading();
+        bootstrap.Modal.getInstance(document.getElementById('processReportModal')).hide();
+        
+        fetch('/ajax/process-student-report/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                report_id: currentReportId,
+                action: currentAction,
+                remarks: remarks
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to update the data
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while processing the report', 'danger');
+        });
+    });
+
+    // Bulk approve functionality
+    window.bulkApprove = function() {
+        const selectedCheckboxes = document.querySelectorAll('.student-select:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            showAlert('Please select at least one pending report to approve', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to approve ${selectedCheckboxes.length} selected reports?`)) {
+            return;
+        }
+        
+        const reportIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        
+        showLoading();
+        
+        fetch('/ajax/bulk-approve-reports/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                report_ids: reportIds
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                // Refresh the page to update the data
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while processing bulk approval', 'danger');
+        });
+    };
+
+    // Auto-submit form on filter change (optional)
+    const filterSelects = document.querySelectorAll('#filterForm select');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            // Optionally auto-submit on change
+            // document.getElementById('filterForm').submit();
+        });
+    });
+
+    // Search input with debounce
+    const searchInput = document.getElementById('search');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            // Optionally auto-submit on search
+            // document.getElementById('filterForm').submit();
+        }, 500);
+    });
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.progress {
+    height: 8px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.btn-group .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.student-select:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+</style>
+
+{% endblock %}
