@@ -11898,3 +11898,379 @@ def departments_ajax(request):
             'success': False,
             'message': f'Error fetching departments: {str(e)}'
         }, status=500)
+
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Q, Count, Prefetch
+from django.core.paginator import Paginator
+from django.utils import timezone
+from collections import defaultdict
+import json
+
+from .models import (
+    Student, StudentReporting, AcademicYear, Semester, 
+    Programme, Faculty, Department, User
+)
+
+
+def is_admin_or_staff(user):
+    """Check if user is admin, registrar, dean, hod, or staff"""
+    return user.is_authenticated and user.user_type in [
+        'admin', 'registrar', 'dean', 'hod', 'staff'
+    ]
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def student_reporting_list(request):
+    """List all students with their reporting status"""
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    faculty_id = request.GET.get('faculty')
+    year = request.GET.get('year')
+    status = request.GET.get('status')
+    search = request.GET.get('search', '').strip()
+    
+    # Base queryset
+    students = Student.objects.select_related(
+        'user', 'programme', 'programme__department', 'programme__faculty'
+    ).prefetch_related(
+        Prefetch(
+            'studentreporting_set',
+            queryset=StudentReporting.objects.select_related('semester__academic_year')
+        )
+    )
+    
+    # Apply filters
+    if programme_id:
+        students = students.filter(programme_id=programme_id)
+    
+    if faculty_id:
+        students = students.filter(programme__faculty_id=faculty_id)
+    
+    if year:
+        students = students.filter(current_year=year)
+    
+    if status:
+        students = students.filter(status=status)
+    
+    if search:
+        students = students.filter(
+            Q(user__first_name__icontains=search) |
+            Q(user__last_name__icontains=search) |
+            Q(user__username__icontains=search) |
+            Q(student_id__icontains=search)
+        )
+    
+    # Get current semester for reporting status
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Annotate with reporting counts
+    students = students.annotate(
+        total_reports=Count('studentreporting'),
+        pending_reports=Count(
+            'studentreporting',
+            filter=Q(studentreporting__status='pending')
+        )
+    )
+    
+    # Calculate reporting statistics for each student
+    students_data = []
+    for student in students:
+        # Get current semester reporting status
+        current_report = None
+        if current_semester:
+            current_report = student.studentreporting_set.filter(
+                semester=current_semester
+            ).first()
+        
+        # Calculate total semesters the student should have reported for
+        total_semesters = 0
+        if student.admission_date:
+            # Simple calculation - this can be made more sophisticated
+            years_enrolled = student.current_year
+            total_semesters = years_enrolled * student.programme.semesters_per_year
+        
+        students_data.append({
+            'student': student,
+            'current_report': current_report,
+            'total_semesters': total_semesters,
+            'reporting_percentage': (
+                (student.total_reports / total_semesters * 100) 
+                if total_semesters > 0 else 0
+            ),
+        })
+    
+    # Pagination
+    paginator = Paginator(students_data, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    programmes = Programme.objects.filter(is_active=True).select_related('department', 'faculty')
+    faculties = Faculty.objects.filter(is_active=True)
+    
+    # Statistics
+    stats = {
+        'total_students': students.count(),
+        'reported_current': StudentReporting.objects.filter(
+            semester=current_semester,
+            status='approved'
+        ).count() if current_semester else 0,
+        'pending_reports': StudentReporting.objects.filter(
+            semester=current_semester,
+            status='pending'
+        ).count() if current_semester else 0,
+        'active_students': students.filter(status='active').count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'programmes': programmes,
+        'faculties': faculties,
+        'current_semester': current_semester,
+        'stats': stats,
+        'filters': {
+            'programme_id': programme_id,
+            'faculty_id': faculty_id,
+            'year': year,
+            'status': status,
+            'search': search,
+        },
+        'year_choices': range(1, 9),
+        'status_choices': Student.STATUS_CHOICES,
+    }
+    
+    return render(request, 'admin/student_reporting_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def student_reporting_detail(request, student_id):
+    """Detailed view of a student's reporting history"""
+    
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'user', 'programme', 'programme__department', 'programme__faculty'
+        ),
+        id=student_id
+    )
+    
+    # Get all student reports with semester and academic year info
+    reports = StudentReporting.objects.filter(
+        student=student
+    ).select_related(
+        'semester__academic_year', 'processed_by'
+    ).order_by('-semester__academic_year__start_date', '-semester__semester_number')
+    
+    # Get all academic years and semesters for this student's tenure
+    academic_years = AcademicYear.objects.filter(
+        start_date__gte=student.admission_date
+    ).prefetch_related('semesters').order_by('start_date')
+    
+    # Organize reports by academic year and semester
+    reports_by_year = defaultdict(lambda: defaultdict(dict))
+    for report in reports:
+        year_key = report.semester.academic_year.year
+        sem_key = report.semester.semester_number
+        reports_by_year[year_key][sem_key] = report
+    
+    # Create complete structure including missing semesters
+    years_structure = []
+    for academic_year in academic_years:
+        year_data = {
+            'academic_year': academic_year,
+            'semesters': []
+        }
+        
+        for semester in academic_year.semesters.all():
+            # Check if student should have been enrolled in this semester
+            semester_data = {
+                'semester': semester,
+                'report': reports_by_year[academic_year.year].get(
+                    semester.semester_number
+                ),
+                'should_report': True,  # Logic to determine if student should report
+            }
+            year_data['semesters'].append(semester_data)
+        
+        if year_data['semesters']:  # Only add years with semesters
+            years_structure.append(year_data)
+    
+    # Calculate statistics
+    total_semesters = sum(len(year['semesters']) for year in years_structure)
+    reported_semesters = len(reports)
+    pending_reports = reports.filter(status='pending').count()
+    approved_reports = reports.filter(status='approved').count()
+    rejected_reports = reports.filter(status='rejected').count()
+    
+    stats = {
+        'total_semesters': total_semesters,
+        'reported_semesters': reported_semesters,
+        'pending_reports': pending_reports,
+        'approved_reports': approved_reports,
+        'rejected_reports': rejected_reports,
+        'reporting_percentage': (
+            (reported_semesters / total_semesters * 100) 
+            if total_semesters > 0 else 0
+        ),
+    }
+    
+    context = {
+        'student': student,
+        'years_structure': years_structure,
+        'reports': reports,
+        'stats': stats,
+        'current_semester': Semester.objects.filter(is_current=True).first(),
+    }
+    
+    return render(request, 'admin/student_reporting_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def process_student_report(request):
+    """AJAX endpoint to approve/reject student reports"""
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+    
+    try:
+        data = json.loads(request.body)
+        report_id = data.get('report_id')
+        action = data.get('action')  # 'approve' or 'reject'
+        remarks = data.get('remarks', '')
+        
+        if not report_id or action not in ['approve', 'reject']:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Invalid parameters'
+            })
+        
+        report = get_object_or_404(StudentReporting, id=report_id)
+        
+        # Update report status
+        if action == 'approve':
+            report.status = 'approved'
+            message = f'Report for {report.student.student_id} approved successfully'
+        else:
+            report.status = 'rejected'
+            message = f'Report for {report.student.student_id} rejected'
+        
+        report.processed_by = request.user
+        report.processed_date = timezone.now()
+        if remarks:
+            report.remarks = remarks
+        
+        report.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'status': report.get_status_display(),
+            'processed_by': report.processed_by.get_full_name(),
+            'processed_date': report.processed_date.strftime('%Y-%m-%d %H:%M'),
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def bulk_approve_reports(request):
+    """AJAX endpoint to bulk approve multiple reports"""
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+    
+    try:
+        data = json.loads(request.body)
+        report_ids = data.get('report_ids', [])
+        
+        if not report_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'No reports selected'
+            })
+        
+        # Update selected reports
+        updated = StudentReporting.objects.filter(
+            id__in=report_ids,
+            status='pending'
+        ).update(
+            status='approved',
+            processed_by=request.user,
+            processed_date=timezone.now()
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{updated} reports approved successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def export_reporting_data(request):
+    """Export student reporting data as CSV"""
+    
+    import csv
+    from django.http import HttpResponse
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    faculty_id = request.GET.get('faculty')
+    
+    # Build queryset
+    reports = StudentReporting.objects.select_related(
+        'student__user',
+        'student__programme',
+        'semester__academic_year'
+    )
+    
+    if programme_id:
+        reports = reports.filter(student__programme_id=programme_id)
+    
+    if faculty_id:
+        reports = reports.filter(student__programme__faculty_id=faculty_id)
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="student_reporting_data.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Student ID', 'Student Name', 'Programme', 'Academic Year',
+        'Semester', 'Reporting Date', 'Status', 'Processed By', 'Remarks'
+    ])
+    
+    for report in reports:
+        writer.writerow([
+            report.student.student_id,
+            report.student.user.get_full_name(),
+            report.student.programme.name,
+            report.semester.academic_year.year,
+            f'Semester {report.semester.semester_number}',
+            report.reporting_date.strftime('%Y-%m-%d %H:%M'),
+            report.get_status_display(),
+            report.processed_by.get_full_name() if report.processed_by else '',
+            report.remarks or ''
+        ])
+    
+    return response
