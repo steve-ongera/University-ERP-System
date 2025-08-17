@@ -12773,7 +12773,13 @@ def admin_hostel_bookings(request):
     }
     
     return render(request, 'admin/hostel_bookings.html', context)
-
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+import json
 
 @login_required
 @require_http_methods(["GET"])
@@ -12796,19 +12802,19 @@ def booking_details_ajax(request, booking_id):
                 'student_name': f"{booking.student.user.first_name} {booking.student.user.last_name}",
                 'student_id': booking.student.student_id,
                 'student_email': booking.student.user.email,
-                'student_phone': getattr(booking.student, 'phone', ''),
+                'student_phone': getattr(booking.student.user, 'phone', ''),
                 'hostel_name': booking.bed.room.hostel.name,
                 'room_number': booking.bed.room.room_number,
                 'bed_number': booking.bed.bed_number,
                 'academic_year': str(booking.academic_year),
-                'status': booking.status,
-                'booking_type': booking.booking_type,
+                'status': booking.booking_status,  # Use booking_status from model
+                'booking_type': getattr(booking, 'booking_type', 'regular'),
                 'booking_date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'check_in_date': booking.check_in_date.strftime('%Y-%m-%d') if booking.check_in_date else '',
                 'check_out_date': booking.check_out_date.strftime('%Y-%m-%d') if booking.check_out_date else '',
-                'amount': str(booking.amount) if hasattr(booking, 'amount') else '0.00',
-                'payment_status': getattr(booking, 'payment_status', 'Pending'),
-                'notes': getattr(booking, 'notes', ''),
+                'amount': str(booking.booking_fee) if hasattr(booking, 'booking_fee') else '0.00',
+                'payment_status': booking.payment_status,
+                'notes': booking.remarks if hasattr(booking, 'remarks') else '',
             }
         }
         
@@ -12832,9 +12838,9 @@ def update_booking_ajax(request, booking_id):
         # Parse JSON data
         data = json.loads(request.body)
         
-        # Update allowed fields
+        # Update allowed fields - use correct field names from model
         if 'status' in data:
-            booking.status = data['status']
+            booking.booking_status = data['status']  # Map to booking_status
         
         if 'check_in_date' in data and data['check_in_date']:
             from datetime import datetime
@@ -12845,10 +12851,10 @@ def update_booking_ajax(request, booking_id):
             booking.check_out_date = datetime.strptime(data['check_out_date'], '%Y-%m-%d').date()
         
         if 'notes' in data:
-            booking.notes = data['notes']
+            booking.remarks = data['notes']  # Map to remarks field
         
         if 'amount' in data:
-            booking.amount = float(data['amount'])
+            booking.booking_fee = float(data['amount'])  # Map to booking_fee
         
         if 'payment_status' in data:
             booking.payment_status = data['payment_status']
@@ -12880,9 +12886,10 @@ def delete_booking_ajax(request, booking_id):
     try:
         booking = get_object_or_404(HostelBooking, id=booking_id)
         
-        # Optional: Instead of hard delete, you might want to soft delete
-        # booking.is_active = False
-        # booking.save()
+        # Make bed available again when booking is deleted
+        if booking.bed:
+            booking.bed.is_available = True
+            booking.bed.save()
         
         # Hard delete
         booking.delete()
@@ -12910,15 +12917,15 @@ def booking_stats_ajax(request):
             total_bookings = HostelBooking.objects.filter(academic_year=current_year).count()
             confirmed_bookings = HostelBooking.objects.filter(
                 academic_year=current_year,
-                status='confirmed'
+                booking_status='approved'  # Use booking_status
             ).count()
             pending_bookings = HostelBooking.objects.filter(
                 academic_year=current_year,
-                status='pending'
+                booking_status='pending'  # Use booking_status
             ).count()
             cancelled_bookings = HostelBooking.objects.filter(
                 academic_year=current_year,
-                status='cancelled'
+                booking_status__in=['cancelled', 'rejected']  # Use booking_status
             ).count()
         else:
             total_bookings = confirmed_bookings = pending_bookings = cancelled_bookings = 0
@@ -12960,13 +12967,32 @@ def bulk_update_bookings_ajax(request):
         bookings = HostelBooking.objects.filter(id__in=booking_ids)
         
         if action == 'confirm':
-            bookings.update(status='confirmed')
+            # Update beds availability and booking status
+            for booking in bookings:
+                booking.booking_status = 'approved'
+                if booking.bed:
+                    booking.bed.is_available = False
+                    booking.bed.save()
+                booking.save()
             message = f'{bookings.count()} bookings confirmed successfully'
+            
         elif action == 'cancel':
-            bookings.update(status='cancelled')
+            # Update beds availability and booking status
+            for booking in bookings:
+                booking.booking_status = 'cancelled'
+                if booking.bed:
+                    booking.bed.is_available = True
+                    booking.bed.save()
+                booking.save()
             message = f'{bookings.count()} bookings cancelled successfully'
+            
         elif action == 'delete':
             count = bookings.count()
+            # Make beds available before deleting
+            for booking in bookings:
+                if booking.bed:
+                    booking.bed.is_available = True
+                    booking.bed.save()
             bookings.delete()
             message = f'{count} bookings deleted successfully'
         else:
