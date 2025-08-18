@@ -341,5 +341,23 @@ urlpatterns = [
      path('admin-hostel/bookings/stats/', views.booking_stats_ajax, name='booking_stats_ajax'),
      path('admin-hostel/bookings/bulk-update/', views.bulk_update_bookings_ajax, name='bulk_update_bookings_ajax'),
 
+     # Student Exam Management URLs
+    path('student-exams/', views.student_exam_programmes_list, name='student_exam_programmes_list'),
+    path('student-exams/programme/<int:programme_id>/', views.student_exam_programme_detail, name='student_exam_programme_detail'),
+    path('student-exams/programme/<int:programme_id>/course/<int:course_id>/semester/<int:semester_id>/', 
+         views.course_exam_students_list, name='course_exam_students_list'),
+    
+    # AJAX endpoints
+    path('api/programme/<int:programme_id>/academic-year/<int:academic_year_id>/year-data/', 
+         views.get_programme_year_data, name='get_programme_year_data'),
+    path('api/programme/<int:programme_id>/academic-year/<int:academic_year_id>/year/<int:year>/semester/<int:semester_num>/courses/', 
+         views.get_academic_year_courses, name='get_academic_year_courses'),
+    
+    # Download URLs
+    path('download/eligible-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
+         views.download_eligible_students_csv, name='download_eligible_students_csv'),
+    path('download/all-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
+         views.download_all_students_csv, name='download_all_students_csv'),
+
 
 ]
