@@ -344,7 +344,7 @@ urlpatterns = [
      # Student Exam Management URLs
     path('student-exams/', views.student_exam_programmes_list, name='student_exam_programmes_list'),
     path('student-exams/programme/<int:programme_id>/', views.student_exam_programme_detail, name='student_exam_programme_detail'),
-    path('student-exams/programme/<int:programme_id>/course/<int:course_id>/semester/<int:semester_id>/', 
+    path('exams/course-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
          views.course_exam_students_list, name='course_exam_students_list'),
     
     # AJAX endpoints
