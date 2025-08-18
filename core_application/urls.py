@@ -350,8 +350,8 @@ urlpatterns = [
     # AJAX endpoints
     path('api/programme/<int:programme_id>/academic-year/<int:academic_year_id>/year-data/', 
          views.get_programme_year_data, name='get_programme_year_data'),
-    path('api/programme/<int:programme_id>/academic-year/<int:academic_year_id>/year/<int:year>/semester/<int:semester_num>/courses/', 
-         views.get_academic_year_courses, name='get_academic_year_courses'),
+    path('exams/ajax/academic-year-courses/<int:programme_id>/<int:academic_year_id>/<int:year>/<int:semester_num>/', 
+     views.get_academic_year_courses, name='get_academic_year_courses'),
     
     # Download URLs
     path('download/eligible-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
