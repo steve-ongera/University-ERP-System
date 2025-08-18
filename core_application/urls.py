@@ -312,31 +312,16 @@ urlpatterns = [
 
 
     # Student Reporting Management URLs
-    path('admin-student-reporting/', 
-         views.student_reporting_list, 
-         name='student_reporting_list'),
-    
-    path('admin-student-reporting/<int:student_id>/', 
-         views.student_reporting_detail, 
-         name='student_reporting_detail'),
-    
-    path('admin-student-reporting/export/', 
-         views.export_reporting_data, 
-         name='export_reporting_data'),
+    path('admin-student-reporting/',  views.student_reporting_list,  name='student_reporting_list'),
+    path('admin-student-reporting/<int:student_id>/', views.student_reporting_detail, name='student_reporting_detail'),
+    path('admin-student-reporting/export/', views.export_reporting_data, name='export_reporting_data'),
     
     # AJAX endpoints
-    path('ajax/process-student-report/', 
-         views.process_student_report, 
-         name='process_student_report'),
-    
-    path('ajax/bulk-approve-reports/', 
-         views.bulk_approve_reports, 
-         name='bulk_approve_reports'),
+    path('ajax/process-student-report/', views.process_student_report, name='process_student_report'),  
+    path('ajax/bulk-approve-reports/', views.bulk_approve_reports,  name='bulk_approve_reports'),
 
    # Main hostel management dashboard
-    path('admin-hostel-management/', views.admin_hostel_management, name='admin_hostel_management'),
-    
-    # Individual hostel detail view
+    path('admin-hostel-management/', views.admin_hostel_management, name='admin_hostel_management'),                    
     path('admin-hostel-management/<int:hostel_id>/', views.hostel_detail_view, name='hostel_detail_view'),
     
     # AJAX endpoints for hostel management
