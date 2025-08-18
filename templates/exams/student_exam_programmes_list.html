@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-clipboard-check me-2"></i>Student Exam Management
+                        </h2>
+                        <p class="text-muted mb-0">
+                            Select a programme to view student exam eligibility by academic year, semester, and course
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ programmes.count }}</h4>
+                            <small class="text-muted">Active Programmes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programmes Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-mortarboard me-2"></i>Academic Programmes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if programmes %}
+                    <div class="row">
+                        {% for programme in programmes %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100 programme-card">
+                                <div class="card-header d-flex justify-content-between">
+                                    <span class="badge bg-{% if programme.programme_type == 'bachelor' %}primary{% elif programme.programme_type == 'master' %}success{% elif programme.programme_type == 'phd' %}danger{% else %}secondary{% endif %}">
+                                        {{ programme.get_programme_type_display }}
+                                    </span>
+                                    <span class="badge bg-info">{{ programme.duration_years }} Years</span>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ programme.name }}</h6>
+                                    <p class="small text-muted mb-2">
+                                        <strong>{{ programme.code }}</strong>
+                                    </p>
+                                    <p class="small text-muted mb-2">
+                                        <i class="bi bi-building me-1"></i>{{ programme.faculty.name }}
+                                    </p>
+                                    <p class="small text-muted mb-2">
+                                        <i class="bi bi-diagram-3 me-1"></i>{{ programme.department.name }}
+                                    </p>
+                                    
+                                    <div class="row text-center mt-3">
+                                        <div class="col-6">
+                                            <small class="text-muted">Total Students</small>
+                                            <h6 class="text-primary">{{ programme.total_students }}</h6>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Active Students</small>
+                                            <h6 class="text-success">{{ programme.active_students }}</h6>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row text-center mt-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Study Mode</small>
+                                            <p class="small">{{ programme.get_study_mode_display }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Semesters/Year</small>
+                                            <p class="small">{{ programme.semesters_per_year }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-grid">
+                                        <a href="{% url 'student_exam_programme_detail' programme.id %}" 
+                                           class="btn btn-primary">
+                                            <i class="bi bi-eye me-1"></i>View Exam Management
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-mortarboard display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Programmes Available</h5>
+                        <p class="text-muted">No active programmes found in the system.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.programme-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.programme-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+.text-center h6 {
+    margin-bottom: 0;
+}
+</style>
+
+{% endblock %}

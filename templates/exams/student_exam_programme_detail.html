@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Programme Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ programme.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ programme.code }}</span> | 
+                            <span class="badge bg-{% if programme.programme_type == 'bachelor' %}primary{% elif programme.programme_type == 'master' %}success{% else %}secondary{% endif %}">
+                                {{ programme.get_programme_type_display }}
+                            </span> |
+                            <span class="badge bg-info">{{ programme.duration_years }} Years</span> |
+                            <span class="badge bg-warning">{{ programme.semesters_per_year }} Semesters/Year</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ programme.faculty.name }} - {{ programme.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-award me-1"></i>{{ programme.credit_hours_required }} Credit Hours Required
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'student_exam_programmes_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-calendar me-1"></i>{{ academic_year.year }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="academicYearTabsContent">
+                        {% for academic_year in academic_years %}
+                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                             id="year-{{ academic_year.id }}" 
+                             role="tabpanel">
+                            
+                            <!-- Loading indicator -->
+                            <div id="loading-{{ academic_year.id }}" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading academic year data...</p>
+                            </div>
+                            
+                            <!-- Year Content (will be populated by JavaScript) -->
+                            <div id="year-content-{{ academic_year.id }}" style="display: none;">
+                                <!-- Programme Years Navigation -->
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <div class="d-flex justify-content-center">
+                                            <div class="btn-group" role="group" id="year-buttons-{{ academic_year.id }}">
+                                                {% for year in programme_years %}
+                                                <button type="button" 
+                                                        class="btn btn-outline-primary year-btn {% if forloop.first %}active{% endif %}"
+                                                        data-year="{{ year }}"
+                                                        data-academic-year-id="{{ academic_year.id }}">
+                                                    Year {{ year }}
+                                                </button>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Year Content -->
+                                {% for year in programme_years %}
+                                <div id="year-{{ year }}-content-{{ academic_year.id }}" 
+                                     class="year-content {% if not forloop.first %}d-none{% endif %}">
+                                    
+                                    <!-- Semester Tabs -->
+                                    <ul class="nav nav-pills justify-content-center mb-3" 
+                                        id="semester-tabs-{{ academic_year.id }}-{{ year }}" role="tablist">
+                                        {% for sem in programme_semesters %}
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                                    id="sem-{{ sem }}-tab-{{ academic_year.id }}-{{ year }}" 
+                                                    data-bs-toggle="pill" 
+                                                    data-bs-target="#sem-{{ sem }}-{{ academic_year.id }}-{{ year }}"
+                                                    data-semester="{{ sem }}"
+                                                    data-year="{{ year }}"
+                                                    data-academic-year-id="{{ academic_year.id }}"
+                                                    type="button" role="tab">
+                                                <i class="bi bi-calendar3 me-1"></i>Semester {{ sem }}
+                                            </button>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    
+                                    <!-- Semester Content -->
+                                    <div class="tab-content" id="semester-content-{{ academic_year.id }}-{{ year }}">
+                                        {% for sem in programme_semesters %}
+                                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                             id="sem-{{ sem }}-{{ academic_year.id }}-{{ year }}" 
+                                             role="tabpanel">
+                                            
+                                            <!-- Courses will be loaded here by JavaScript -->
+                                            <div id="courses-loading-{{ academic_year.id }}-{{ year }}-{{ sem }}" 
+                                                 class="text-center py-3">
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                    <span class="visually-hidden">Loading courses...</span>
+                                                </div>
+                                                <p class="mt-2 text-muted small">Loading courses...</p>
+                                            </div>
+                                            
+                                            <div id="courses-content-{{ academic_year.id }}-{{ year }}-{{ sem }}" 
+                                                 style="display: none;">
+                                                <!-- Course cards will be populated here -->
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let loadedData = {};
+    
+    // Initialize Bootstrap tabs
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+            
+            // Load year data when academic year tab is clicked
+            const academicYearId = this.getAttribute('data-academic-year-id');
+            if (academicYearId && !loadedData[academicYearId]) {
+                loadYearData(academicYearId);
+            }
+        });
+    });
+    
+    // Year button click handlers
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('year-btn')) {
+            const academicYearId = e.target.getAttribute('data-academic-year-id');
+            const year = e.target.getAttribute('data-year');
+            
+            // Update active year button
+            const yearButtons = document.querySelectorAll(`#year-buttons-${academicYearId} .year-btn`);
+            yearButtons.forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Show corresponding year content
+            const yearContents = document.querySelectorAll(`div[id^="year-"][id*="content-${academicYearId}"]`);
+            yearContents.forEach(content => content.classList.add('d-none'));
+            document.getElementById(`year-${year}-content-${academicYearId}`).classList.remove('d-none');
+        }
+    });
+    
+    // Semester tab click handlers
+    document.addEventListener('click', function(e) {
+        if (e.target.getAttribute('data-bs-toggle') === 'pill') {
+            const academicYearId = e.target.getAttribute('data-academic-year-id');
+            const year = e.target.getAttribute('data-year');
+            const semester = e.target.getAttribute('data-semester');
+            
+            if (academicYearId && year && semester) {
+                loadCourses(academicYearId, year, semester);
+            }
+        }
+    });
+    
+    // Load first academic year data on page load
+    const firstAcademicYearTab = document.querySelector('button[data-academic-year-id]');
+    if (firstAcademicYearTab) {
+        const firstAcademicYearId = firstAcademicYearTab.getAttribute('data-academic-year-id');
+        loadYearData(firstAcademicYearId);
+    }
+    
+    function loadYearData(academicYearId) {
+        if (loadedData[academicYearId]) return;
+        
+        const programmeId = {{ programme.id }};
+        
+        fetch(`/api/programme/${programmeId}/academic-year/${academicYearId}/year-data/`)
+            .then(response => response.json())
+            .then(data => {
+                loadedData[academicYearId] = data;
+                
+                // Hide loading indicator
+                document.getElementById(`loading-${academicYearId}`).style.display = 'none';
+                document.getElementById(`year-content-${academicYearId}`).style.display = 'block';
+                
+                // Load courses for the first active year and semester
+                loadCourses(academicYearId, 1, 1);
+            })
+            .catch(error => {
+                console.error('Error loading year data:', error);
+                document.getElementById(`loading-${academicYearId}`).innerHTML = 
+                    '<div class="alert alert-danger">Error loading data. Please refresh the page.</div>';
+            });
+    }
+    
+    function loadCourses(academicYearId, year, semesterNum) {
+        const programmeId = {{ programme.id }};
+        const loadingElement = document.getElementById(`courses-loading-${academicYearId}-${year}-${semesterNum}`);
+        const contentElement = document.getElementById(`courses-content-${academicYearId}-${year}-${semesterNum}`);
+        
+        if (!loadingElement || !contentElement) return;
+        
+        loadingElement.style.display = 'block';
+        contentElement.style.display = 'none';
+        
+        fetch(`/api/programme/${programmeId}/academic-year/${academicYearId}/year/${year}/semester/${semesterNum}/courses/`)
+            .then(response => response.json())
+            .then(data => {
+                renderCourses(data.courses, academicYearId, year, semesterNum, data.semester_id);
+                loadingElement.style.display = 'none';
+                contentElement.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error loading courses:', error);
+                loadingElement.innerHTML = 
+                    '<div class="alert alert-danger">Error loading courses. Please try again.</div>';
+            });
+    }
+    
+    function renderCourses(courses, academicYearId, year, semesterNum, semesterId) {
+        const contentElement = document.getElementById(`courses-content-${academicYearId}-${year}-${semesterNum}`);
+        
+        if (courses.length === 0) {
+            contentElement.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-journal-text display-4 text-muted"></i>
+                    <h5 class="text-muted mt-3">No Courses Found</h5>
+                    <p class="text-muted">No courses are available for Year ${year} Semester ${semesterNum}.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let coursesHtml = '<div class="row">';
+        
+        courses.forEach(course => {
+            const eligibilityPercentage = course.enrollment_count > 0 ? 
+                Math.round((course.eligible_count / course.enrollment_count) * 100) : 0;
+            
+            coursesHtml += `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 course-card border-left-${course.eligible_count === course.enrollment_count ? 'success' : (course.eligible_count === 0 ? 'danger' : 'warning')}">
+                        <div class="card-header d-flex justify-content-between">
+                            <h6 class="mb-0">${course.code}</h6>
+                            <span class="badge bg-${course.course_type === 'core' ? 'danger' : 'success'}">
+                                ${course.course_type}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">${course.name}</h6>
+                            <p class="small text-muted mb-2">
+                                <i class="bi bi-person-circle me-1"></i>
+                                ${course.lecturer_name}
+                            </p>
+                            <p class="small text-muted mb-2">
+                                <i class="bi bi-award me-1"></i>${course.credit_hours} Credit Hours
+                            </p>
+                            
+                            <!-- Student Statistics -->
+                            <div class="row text-center mt-3">
+                                <div class="col-4">
+                                    <small class="text-muted">Total</small>
+                                    <h6 class="text-primary">${course.enrollment_count}</h6>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Eligible</small>
+                                    <h6 class="text-success">${course.eligible_count}</h6>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Ineligible</small>
+                                    <h6 class="text-danger">${course.ineligible_count}</h6>
+                                </div>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="progress mt-3" style="height: 15px;">
+                                <div class="progress-bar bg-success" 
+                                     style="width: ${eligibilityPercentage}%"
+                                     title="${eligibilityPercentage}% Eligible">
+                                    ${eligibilityPercentage}%
+                                </div>
+                            </div>
+                            <small class="text-muted">Exam Eligibility Rate</small>
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-grid gap-2">
+                                <a href="/student-exams/programme/{{ programme.id }}/course/${course.id}/semester/${semesterId}/" 
+                                   class="btn btn-primary btn-sm">
+                                    <i class="bi bi-eye me-1"></i>View Students
+                                </a>
+                                ${course.eligible_count > 0 ? `
+                                <a href="/download/eligible-students/{{ programme.id }}/${course.id}/${semesterId}/" 
+                                   class="btn btn-success btn-sm">
+                                    <i class="bi bi-download me-1"></i>Download Eligible (${course.eligible_count})
+                                </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        coursesHtml += '</div>';
+        contentElement.innerHTML = coursesHtml;
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer, .nav-pills {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .tab-content .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+
+.border-left-danger {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.course-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.year-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+</style>
+
+{% endblock %}

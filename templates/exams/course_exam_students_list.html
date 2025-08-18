@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container onprintContainer">
+    <!-- Course Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ course.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ course.code }}</span> | 
+                            <span class="badge bg-{% if course.course_type == 'core' %}danger{% elif course.course_type == 'elective' %}success{% else %}secondary{% endif %}">
+                                {{ course.get_course_type_display }}
+                            </span> |
+                            <span class="badge bg-info">{{ course.credit_hours }} Credits</span> |
+                            <span class="badge bg-warning">{{ course.level }} Level</span>
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-building me-1"></i>{{ programme.name }} ({{ programme.code }})
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-calendar me-1"></i>{{ semester.academic_year.year }} - Semester {{ semester.semester_number }}
+                        </p>
+                        {% if lecturer_assignment %}
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ lecturer_assignment.lecturer.user.get_full_name }} 
+                            ({{ lecturer_assignment.lecturer.academic_rank|title }})
+                        </p>
+                        {% if lecturer_assignment.lecture_venue %}
+                        <p class="mb-0">
+                            <i class="bi bi-geo-alt me-1"></i>{{ lecturer_assignment.lecture_venue }}
+                        </p>
+                        {% endif %}
+                        {% if lecturer_assignment.lecture_time %}
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>{{ lecturer_assignment.lecture_time }}
+                        </p>
+                        {% endif %}
+                        {% else %}
+                        <p class="mb-0 text-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>No lecturer assigned
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group-vertical">
+                            <a href="{% url 'student_exam_programme_detail' programme.id %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Programme
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h5 class="text-primary">{{ total_students }}</h5>
+                            <p class="small text-muted mb-0">Total Enrolled</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-success">{{ eligible_count }}</h5>
+                            <p class="small text-muted mb-0">Exam Eligible</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-danger">{{ ineligible_count }}</h5>
+                            <p class="small text-muted mb-0">Ineligible</p>
+                        </div>
+                        <div class="col-md-3">
+                            {% if total_students > 0 %}
+                            {% widthratio eligible_count total_students 100 as eligibility_rate %}
+                            <h5 class="text-info">{{ eligibility_rate }}%</h5>
+                            {% else %}
+                            <h5 class="text-info">0%</h5>
+                            {% endif %}
+                            <p class="small text-muted mb-0">Eligibility Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Information -->
+    {% if fee_structure %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Fee Structure Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Total Fee:</strong> KES {{ fee_structure.total_fee|floatformat:2 }}</p>
+                            <p class="mb-1"><strong>Government Subsidy:</strong> KES {{ fee_structure.government_subsidy|floatformat:2 }}</p>
+                            <p class="mb-1"><strong>Scholarship Amount:</strong> KES {{ fee_structure.scholarship_amount|floatformat:2 }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Net Fee (Payable):</strong> 
+                                <span class="text-primary fw-bold">KES {{ fee_structure.net_fee|floatformat:2 }}</span>
+                            </p>
+                            <p class="small text-muted">Students must clear this amount to be eligible for exams</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Download Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Download Options</h5>
+                    <div class="btn-group">
+                        <a href="{% url 'download_eligible_students_csv' programme.id course.id semester.id %}" 
+                           class="btn btn-success">
+                            <i class="bi bi-download me-1"></i>Download Eligible Students ({{ eligible_count }})
+                        </a>
+                        <a href="{% url 'download_all_students_csv' programme.id course.id semester.id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-download me-1"></i>Download All Students ({{ total_students }})
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="studentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="eligible-tab" data-bs-toggle="tab" data-bs-target="#eligible" type="button" role="tab">
+                                <i class="bi bi-check-circle me-1"></i>Eligible Students ({{ eligible_count }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ineligible-tab" data-bs-toggle="tab" data-bs-target="#ineligible" type="button" role="tab">
+                                <i class="bi bi-x-circle me-1"></i>Ineligible Students ({{ ineligible_count }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                                <i class="bi bi-people me-1"></i>All Students ({{ total_students }})
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="studentTabsContent">
+                        <!-- Eligible Students Tab -->
+                        <div class="tab-pane fade show active" id="eligible" role="tabpanel">
+                            {% if students_data %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Phone</th>
+                                            <th>Email</th>
+                                            <th>Required Fee</th>
+                                            <th>Amount Paid</th>
+                                            <th>Balance</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for data in students_data %}
+                                        {% if data.is_eligible %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td><strong>{{ data.student.student_id }}</strong></td>
+                                            <td>{{ data.student.user.get_full_name }}</td>
+                                            <td>{{ data.student.user.phone|default:"N/A" }}</td>
+                                            <td>{{ data.student.user.email }}</td>
+                                            <td>KES {{ data.required_fee|floatformat:2 }}</td>
+                                            <td>KES {{ data.total_paid|floatformat:2 }}</td>
+                                            <td>
+                                                <span class="badge bg-success">
+                                                    KES {{ data.fee_balance|floatformat:2 }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Eligible
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-people display-4 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Eligible Students</h5>
+                                <p class="text-muted">No students are currently eligible for exams in this course.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Ineligible Students Tab -->
+                        <div class="tab-pane fade" id="ineligible" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-danger">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Phone</th>
+                                            <th>Email</th>
+                                            <th>Required Fee</th>
+                                            <th>Amount Paid</th>
+                                            <th>Outstanding Balance</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for data in students_data %}
+                                        {% if not data.is_eligible %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td><strong>{{ data.student.student_id }}</strong></td>
+                                            <td>{{ data.student.user.get_full_name }}</td>
+                                            <td>{{ data.student.user.phone|default:"N/A" }}</td>
+                                            <td>{{ data.student.user.email }}</td>
+                                            <td>KES {{ data.required_fee|floatformat:2 }}</td>
+                                            <td>KES {{ data.total_paid|floatformat:2 }}</td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    KES {{ data.fee_balance|floatformat:2 }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>Ineligible
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- All Students Tab -->
+                        <div class="tab-pane fade" id="all" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Phone</th>
+                                            <th>Email</th>
+                                            <th>Current Year</th>
+                                            <th>Required Fee</th>
+                                            <th>Amount Paid</th>
+                                            <th>Balance</th>
+                                            <th>Exam Status</th>
+                                            <th>Student Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for data in students_data %}
+                                        <tr class="{% if data.is_eligible %}table-success{% else %}table-danger{% endif %}">
+                                            <td>{{ forloop
