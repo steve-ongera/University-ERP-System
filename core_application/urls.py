@@ -354,9 +354,9 @@ urlpatterns = [
      views.get_academic_year_courses, name='get_academic_year_courses'),
     
     # Download URLs
-    path('download/eligible-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
+    path('exams/download-eligible-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
          views.download_eligible_students_csv, name='download_eligible_students_csv'),
-    path('download/all-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
+    path('exams/download-all-students/<int:programme_id>/<int:course_id>/<int:semester_id>/', 
          views.download_all_students_csv, name='download_all_students_csv'),
 
 
