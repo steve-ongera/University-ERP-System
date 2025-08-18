@@ -13016,3 +13016,482 @@ def bulk_update_bookings_ajax(request):
             'success': False,
             'error': str(e)
         })
+
+
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Count, Sum, Prefetch
+from django.utils import timezone
+from django.template.loader import render_to_string
+import csv
+from io import StringIO
+from .models import (
+    Programme, AcademicYear, Semester, Student, Enrollment, 
+    FeeStructure, FeePayment, LecturerCourseAssignment, Course
+)
+
+@login_required
+def student_exam_programmes_list(request):
+    """View to display all programmes for exam management"""
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'department', 'faculty'
+    ).annotate(
+        total_students=Count('students', distinct=True),
+        active_students=Count('students', filter=Q(students__status='active'), distinct=True)
+    ).order_by('faculty__name', 'name')
+    
+    context = {
+        'programmes': programmes,
+        'page_title': 'Student Exam Management - Programmes',
+    }
+    return render(request, 'exams/student_exam_programmes_list.html', context)
+
+@login_required
+def student_exam_programme_detail(request, programme_id):
+    """Detailed view of a specific programme showing academic years and students"""
+    programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+    
+    # Get all academic years that have enrollments for this programme
+    academic_years = AcademicYear.objects.filter(
+        semesters__enrollments__student__programme=programme
+    ).distinct().order_by('-year')
+    
+    # Get programme course structure to determine years and semesters
+    programme_years = list(range(1, programme.duration_years + 1))
+    programme_semesters = list(range(1, programme.semesters_per_year + 1))
+    
+    context = {
+        'programme': programme,
+        'academic_years': academic_years,
+        'programme_years': programme_years,
+        'programme_semesters': programme_semesters,
+        'page_title': f'Exam Management - {programme.name}',
+    }
+    return render(request, 'exams/student_exam_programme_detail.html', context)
+
+@login_required
+def get_programme_year_data(request, programme_id, academic_year_id):
+    """AJAX endpoint to get student data for a specific programme and academic year"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    # Get all semesters for this academic year
+    semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number')
+    
+    year_data = {}
+    for year in range(1, programme.duration_years + 1):
+        year_data[year] = {
+            'year_number': year,
+            'semesters': []
+        }
+        
+        for semester in semesters:
+            if semester.semester_number <= programme.semesters_per_year:
+                # Get students for this year and semester
+                students = Student.objects.filter(
+                    programme=programme,
+                    current_year=year,
+                    status='active',
+                    enrollments__semester=semester
+                ).select_related('user').distinct()
+                
+                # Get courses for this year and semester
+                courses = Course.objects.filter(
+                    course_programmes__programme=programme,
+                    course_programmes__year=year,
+                    course_programmes__semester=semester.semester_number,
+                    course_programmes__is_active=True
+                ).select_related('department')
+                
+                semester_data = {
+                    'semester': semester,
+                    'student_count': students.count(),
+                    'courses': []
+                }
+                
+                for course in courses:
+                    # Get lecturer assignment for this course
+                    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+                        course=course,
+                        academic_year=academic_year,
+                        semester=semester,
+                        is_active=True
+                    ).select_related('lecturer__user').first()
+                    
+                    # Get enrolled students for this specific course
+                    enrolled_students = students.filter(
+                        enrollments__course=course,
+                        enrollments__semester=semester,
+                        enrollments__is_active=True
+                    )
+                    
+                    course_data = {
+                        'course': course,
+                        'lecturer_assignment': lecturer_assignment,
+                        'enrolled_count': enrolled_students.count(),
+                        'course_id': course.id,
+                        'semester_id': semester.id,
+                    }
+                    semester_data['courses'].append(course_data)
+                
+                year_data[year]['semesters'].append(semester_data)
+    
+    return JsonResponse({
+        'year_data': year_data,
+        'programme_name': programme.name,
+        'academic_year': academic_year.year
+    })
+
+@login_required
+def course_exam_students_list(request, programme_id, course_id, semester_id):
+    """View to show all students enrolled in a specific course with exam eligibility"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    course = get_object_or_404(Course, id=course_id)
+    semester = get_object_or_404(Semester, id=semester_id)
+    
+    # Get lecturer assignment
+    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+        course=course,
+        academic_year=semester.academic_year,
+        semester=semester,
+        is_active=True
+    ).select_related('lecturer__user').first()
+    
+    # Get all enrolled students for this course
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        semester=semester,
+        is_active=True,
+        student__programme=programme
+    ).select_related(
+        'student__user', 'student__programme'
+    ).prefetch_related(
+        'student__fee_payments'
+    )
+    
+    # Get fee structure for the semester
+    fee_structure = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=semester.academic_year,
+        semester=semester.semester_number
+    ).first()
+    
+    # Process student eligibility
+    students_data = []
+    eligible_count = 0
+    ineligible_count = 0
+    
+    for enrollment in enrollments:
+        student = enrollment.student
+        
+        # Calculate fee payment status
+        total_paid = 0
+        if fee_structure:
+            payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or 0
+            total_paid = payments
+            
+            required_fee = fee_structure.net_fee()
+            fee_balance = required_fee - total_paid
+            is_eligible = fee_balance <= 0  # Eligible if no outstanding balance
+        else:
+            required_fee = 0
+            fee_balance = 0
+            is_eligible = True  # If no fee structure, assume eligible
+        
+        if is_eligible:
+            eligible_count += 1
+        else:
+            ineligible_count += 1
+        
+        student_data = {
+            'enrollment': enrollment,
+            'student': student,
+            'total_paid': total_paid,
+            'required_fee': fee_structure.net_fee() if fee_structure else 0,
+            'fee_balance': fee_balance,
+            'is_eligible': is_eligible,
+        }
+        students_data.append(student_data)
+    
+    # Sort by eligibility first, then by student name
+    students_data.sort(key=lambda x: (not x['is_eligible'], x['student'].user.get_full_name()))
+    
+    context = {
+        'programme': programme,
+        'course': course,
+        'semester': semester,
+        'lecturer_assignment': lecturer_assignment,
+        'students_data': students_data,
+        'fee_structure': fee_structure,
+        'eligible_count': eligible_count,
+        'ineligible_count': ineligible_count,
+        'total_students': len(students_data),
+        'page_title': f'Exam Eligibility - {course.name}',
+    }
+    
+    return render(request, 'exams/course_exam_students_list.html', context)
+
+@login_required
+def download_eligible_students_csv(request, programme_id, course_id, semester_id):
+    """Download CSV of eligible students for exams"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    course = get_object_or_404(Course, id=course_id)
+    semester = get_object_or_404(Semester, id=semester_id)
+    
+    # Get lecturer assignment
+    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+        course=course,
+        academic_year=semester.academic_year,
+        semester=semester,
+        is_active=True
+    ).select_related('lecturer__user').first()
+    
+    # Get eligible students
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        semester=semester,
+        is_active=True,
+        student__programme=programme
+    ).select_related('student__user', 'student__programme')
+    
+    # Get fee structure
+    fee_structure = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=semester.academic_year,
+        semester=semester.semester_number
+    ).first()
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="exam_eligible_students_{course.code}_{semester.academic_year.year}_S{semester.semester_number}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Student ID', 'Student Name', 'Programme', 'Year', 'Semester',
+        'Course Code', 'Course Name', 'Lecturer', 'Phone', 'Email',
+        'Required Fee', 'Amount Paid', 'Balance', 'Exam Eligible'
+    ])
+    
+    # Write student data
+    for enrollment in enrollments:
+        student = enrollment.student
+        
+        # Calculate fee eligibility
+        if fee_structure:
+            payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or 0
+            
+            required_fee = fee_structure.net_fee()
+            fee_balance = required_fee - payments
+            is_eligible = fee_balance <= 0
+        else:
+            required_fee = 0
+            payments = 0
+            fee_balance = 0
+            is_eligible = True
+        
+        # Only include eligible students
+        if is_eligible:
+            writer.writerow([
+                student.student_id,
+                student.user.get_full_name(),
+                student.programme.name,
+                student.current_year,
+                semester.semester_number,
+                course.code,
+                course.name,
+                lecturer_assignment.lecturer.user.get_full_name() if lecturer_assignment else 'Not Assigned',
+                student.user.phone or 'N/A',
+                student.user.email,
+                f"{required_fee:,.2f}",
+                f"{payments:,.2f}",
+                f"{fee_balance:,.2f}",
+                'Yes' if is_eligible else 'No'
+            ])
+    
+    return response
+
+@login_required
+def download_all_students_csv(request, programme_id, course_id, semester_id):
+    """Download CSV of all students (both eligible and ineligible) for exams"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    course = get_object_or_404(Course, id=course_id)
+    semester = get_object_or_404(Semester, id=semester_id)
+    
+    # Get lecturer assignment
+    lecturer_assignment = LecturerCourseAssignment.objects.filter(
+        course=course,
+        academic_year=semester.academic_year,
+        semester=semester,
+        is_active=True
+    ).select_related('lecturer__user').first()
+    
+    # Get all enrolled students
+    enrollments = Enrollment.objects.filter(
+        course=course,
+        semester=semester,
+        is_active=True,
+        student__programme=programme
+    ).select_related('student__user', 'student__programme')
+    
+    # Get fee structure
+    fee_structure = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=semester.academic_year,
+        semester=semester.semester_number
+    ).first()
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="all_students_{course.code}_{semester.academic_year.year}_S{semester.semester_number}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Student ID', 'Student Name', 'Programme', 'Year', 'Semester',
+        'Course Code', 'Course Name', 'Lecturer', 'Phone', 'Email',
+        'Required Fee', 'Amount Paid', 'Balance', 'Exam Eligible', 'Status'
+    ])
+    
+    # Write student data
+    for enrollment in enrollments:
+        student = enrollment.student
+        
+        # Calculate fee eligibility
+        if fee_structure:
+            payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or 0
+            
+            required_fee = fee_structure.net_fee()
+            fee_balance = required_fee - payments
+            is_eligible = fee_balance <= 0
+        else:
+            required_fee = 0
+            payments = 0
+            fee_balance = 0
+            is_eligible = True
+        
+        writer.writerow([
+            student.student_id,
+            student.user.get_full_name(),
+            student.programme.name,
+            student.current_year,
+            semester.semester_number,
+            course.code,
+            course.name,
+            lecturer_assignment.lecturer.user.get_full_name() if lecturer_assignment else 'Not Assigned',
+            student.user.phone or 'N/A',
+            student.user.email,
+            f"{required_fee:,.2f}",
+            f"{payments:,.2f}",
+            f"{fee_balance:,.2f}",
+            'Yes' if is_eligible else 'No',
+            student.status.title()
+        ])
+    
+    return response
+
+@login_required
+def get_academic_year_courses(request, programme_id, academic_year_id, year, semester_num):
+    """AJAX endpoint to get courses for a specific year and semester"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    # Get semester
+    semester = get_object_or_404(Semester, 
+        academic_year=academic_year, 
+        semester_number=semester_num
+    )
+    
+    # Get courses for this programme, year, and semester
+    courses = Course.objects.filter(
+        course_programmes__programme=programme,
+        course_programmes__year=year,
+        course_programmes__semester=semester_num,
+        course_programmes__is_active=True
+    ).select_related('department').distinct()
+    
+    courses_data = []
+    for course in courses:
+        # Get lecturer assignment
+        lecturer_assignment = LecturerCourseAssignment.objects.filter(
+            course=course,
+            academic_year=academic_year,
+            semester=semester,
+            is_active=True
+        ).select_related('lecturer__user').first()
+        
+        # Get enrollment count
+        enrollment_count = Enrollment.objects.filter(
+            course=course,
+            semester=semester,
+            student__programme=programme,
+            student__current_year=year,
+            is_active=True
+        ).count()
+        
+        # Calculate eligible students count
+        enrollments = Enrollment.objects.filter(
+            course=course,
+            semester=semester,
+            student__programme=programme,
+            student__current_year=year,
+            is_active=True
+        ).select_related('student')
+        
+        eligible_count = 0
+        fee_structure = FeeStructure.objects.filter(
+            programme=programme,
+            academic_year=academic_year,
+            year=year,
+            semester=semester_num
+        ).first()
+        
+        if fee_structure:
+            for enrollment in enrollments:
+                payments = FeePayment.objects.filter(
+                    student=enrollment.student,
+                    fee_structure=fee_structure,
+                    payment_status='completed'
+                ).aggregate(total=Sum('amount_paid'))['total'] or 0
+                
+                fee_balance = fee_structure.net_fee() - payments
+                if fee_balance <= 0:
+                    eligible_count += 1
+        else:
+            eligible_count = enrollment_count  # If no fee structure, all are eligible
+        
+        course_data = {
+            'id': course.id,
+            'code': course.code,
+            'name': course.name,
+            'credit_hours': course.credit_hours,
+            'course_type': course.get_course_type_display(),
+            'lecturer_name': lecturer_assignment.lecturer.user.get_full_name() if lecturer_assignment else 'Not Assigned',
+            'lecturer_id': lecturer_assignment.lecturer.id if lecturer_assignment else None,
+            'enrollment_count': enrollment_count,
+            'eligible_count': eligible_count,
+            'ineligible_count': enrollment_count - eligible_count,
+        }
+        courses_data.append(course_data)
+    
+    return JsonResponse({
+        'courses': courses_data,
+        'semester_id': semester.id,
+        'year': year,
+        'semester_number': semester_num
+    })
