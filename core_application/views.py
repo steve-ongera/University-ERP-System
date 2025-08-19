@@ -13654,21 +13654,37 @@ def admin_student_transcript(request, student_id):
     
     return render(request, 'admin/admin_student_transcript.html', context)
 
+import os
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.utils import timezone
+from django.conf import settings
+from decimal import Decimal, ROUND_HALF_UP
+import pdfkit
+from io import BytesIO
+import base64
+
+# Import your models
+from .models import (
+    Student, Enrollment, AcademicYear, Semester, 
+    Grade, Programme, Faculty, Department
+)
+
+def is_admin(user):
+    """Check if user is admin"""
+    return user.is_authenticated and user.user_type == 'admin'
+
 @login_required
 @user_passes_test(is_admin)
 def download_transcript_pdf(request, student_id):
-    """Generate and download official transcript PDF"""
+    """Generate and download beautiful HTML-based transcript PDF"""
     student = get_object_or_404(Student, student_id=student_id)
     
-    # Create the HttpResponse object with PDF headers
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="transcript_{student.student_id}.pdf"'
-    
-    # Generate PDF
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
-    # Get transcript data (reuse logic from student_transcript view)
+    # Get transcript data
     enrollments = Enrollment.objects.filter(
         student=student
     ).select_related(
@@ -13678,217 +13694,53 @@ def download_transcript_pdf(request, student_id):
     )
     
     # Calculate GPA and other metrics
-    transcript_data, stats = calculate_transcript_data(enrollments)
+    transcript_data, stats = calculate_transcript_data(enrollments, student)
     
-    # Build PDF content
-    story = []
-    styles = getSampleStyleSheet()
+    # Prepare context for template
+    context = {
+        'student': student,
+        'programme': student.programme,
+        'faculty': student.programme.faculty,
+        'department': student.programme.department,
+        'transcript_data': transcript_data,
+        'stats': stats,
+        'generated_date': timezone.now(),
+        'university_name': 'MURANGA UNIVERSITY OF TECHNOLOGY',
+        'grading_system': get_grading_system(),
+    }
     
-    # Custom styles
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        textColor=colors.darkblue
-    )
+    # Render HTML template
+    html_string = render_to_string('transcripts/transcript_template.html', context)
     
-    header_style = ParagraphStyle(
-        'CustomHeader',
-        parent=styles['Normal'],
-        fontSize=12,
-        alignment=TA_CENTER,
-        spaceAfter=20
-    )
-    
-    # University Header
-    story.append(Paragraph("UNIVERSITY NAME", title_style))
-    story.append(Paragraph("OFFICE OF THE REGISTRAR", header_style))
-    story.append(Paragraph("OFFICIAL ACADEMIC TRANSCRIPT", header_style))
-    story.append(Spacer(1, 20))
-    
-    # Student Information
-    student_info_data = [
-        ['Student ID:', student.student_id, 'Programme:', student.programme.name],
-        ['Names:', f"{student.user.first_name} {student.user.last_name}".upper(), 'Faculty:', student.programme.faculty.name],
-        ['Date of Birth:', student.user.date_of_birth.strftime('%B %d, %Y') if student.user.date_of_birth else 'N/A', 'Department:', student.programme.department.name],
-        ['Admission Date:', student.admission_date.strftime('%B %d, %Y'), 'Study Mode:', student.programme.get_study_mode_display()],
-    ]
-    
-    student_info_table = Table(student_info_data, colWidths=[1.2*inch, 2.3*inch, 1.2*inch, 2.3*inch])
-    student_info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    
-    story.append(student_info_table)
-    story.append(Spacer(1, 20))
-    
-    # Academic Records by Year and Semester
-    for year in sorted(transcript_data.keys()):
-        story.append(Paragraph(f"ACADEMIC YEAR: {year}", styles['Heading2']))
+    # Generate PDF from HTML
+    try:
+        # Configure wkhtmltopdf options
+        options = {
+            'page-size': 'A4',
+            'margin-top': '0.5in',
+            'margin-right': '0.5in',
+            'margin-bottom': '0.5in',
+            'margin-left': '0.5in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'enable-local-file-access': None,
+            'print-media-type': None,
+        }
         
-        for semester in sorted(transcript_data[year].keys()):
-            story.append(Paragraph(f"Semester {semester}", styles['Heading3']))
-            
-            # Create table for semester courses
-            table_data = [['Course Code', 'Course Title', 'Credit Hours', 'Grade', 'Grade Points']]
-            
-            for enrollment_data in transcript_data[year][semester]['enrollments']:
-                course = enrollment_data['course']
-                grade = enrollment_data['grade']
-                grade_points = enrollment_data['grade_points'] if enrollment_data['grade_points'] else '0.00'
-                
-                table_data.append([
-                    course.code,
-                    course.name[:40] + '...' if len(course.name) > 40 else course.name,
-                    str(course.credit_hours),
-                    grade,
-                    str(grade_points)
-                ])
-            
-            # Add semester summary
-            semester_data = transcript_data[year][semester]
-            table_data.append([
-                '', 'SEMESTER TOTALS:', 
-                str(semester_data['semester_credits']), 
-                f"GPA: {semester_data['semester_gpa']}", 
-                str(semester_data['semester_quality_points'])
-            ])
-            
-            course_table = Table(table_data, colWidths=[1*inch, 3*inch, 1*inch, 0.8*inch, 1*inch])
-            course_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('ALIGN', (1, 1), (1, -2), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            
-            story.append(course_table)
-            story.append(Spacer(1, 15))
-    
-    # Overall Summary
-    story.append(Paragraph("ACADEMIC SUMMARY", styles['Heading2']))
-    
-    summary_data = [
-        ['Total Credit Hours Attempted:', str(stats['total_credit_hours'])],
-        ['Total Units Passed:', str(stats['passed_units'])],
-        ['Total Units Failed:', str(stats['failed_units'])],
-        ['Cumulative GPA:', str(stats['overall_gpa'])],
-        ['Class of Degree:', stats['graduation_class']],
-        ['Programme Status:', 'COMPLETED' if stats['programme_completed'] else 'IN PROGRESS']
-    ]
-    
-    summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
-    summary_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    story.append(summary_table)
-    story.append(Spacer(1, 30))
-    
-    # Grading System
-    story.append(Paragraph("GRADING SYSTEM", styles['Heading3']))
-    grading_data = [
-        ['Grade', 'Grade Points', 'Percentage'],
-        ['A+', '4.0', '90-100'],
-        ['A', '4.0', '80-89'],
-        ['A-', '3.7', '75-79'],
-        ['B+', '3.3', '70-74'],
-        ['B', '3.0', '65-69'],
-        ['B-', '2.7', '60-64'],
-        ['C+', '2.3', '55-59'],
-        ['C', '2.0', '50-54'],
-        ['C-', '1.7', '45-49'],
-        ['D+', '1.3', '40-44'],
-        ['D', '1.0', '35-39'],
-        ['F', '0.0', 'Below 35']
-    ]
-    
-    grading_table = Table(grading_data, colWidths=[1*inch, 1*inch, 1.5*inch])
-    grading_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
-    
-    story.append(grading_table)
-    story.append(Spacer(1, 40))
-    
-    # Signature Section
-    story.append(Paragraph("CERTIFICATION", styles['Heading3']))
-    story.append(Paragraph("This is to certify that the above is a true and complete record of the academic performance of the above-named student.", styles['Normal']))
-    story.append(Spacer(1, 30))
-    
-    # Signature boxes
-    sig_data = [
-        ['', '', ''],
-        ['Dean\'s Signature:', 'Registrar\'s Signature:', 'Vice-Chancellor\'s Signature:'],
-        ['', '', ''],
-        ['Date: _______________', 'Date: _______________', 'Date: _______________'],
-        ['', '', ''],
-        ['Official Stamp:', 'Official Stamp:', 'Official Stamp:']
-    ]
-    
-    sig_table = Table(sig_data, colWidths=[2.3*inch, 2.3*inch, 2.3*inch])
-    sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 3), (-1, 3), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 5), (-1, 5), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
-        ('LINEBELOW', (0, 2), (-1, 2), 1, colors.black),
-        ('LINEBELOW', (0, 4), (-1, 4), 1, colors.black),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-    ]))
-    
-    story.append(sig_table)
-    
-    # Footer
-    story.append(Spacer(1, 30))
-    footer_text = f"Generated on {timezone.now().strftime('%B %d, %Y at %I:%M %p')}"
-    story.append(Paragraph(footer_text, header_style))
-    
-    # Build PDF
-    doc.build(story)
-    
-    # Get the value of the BytesIO buffer and write it to the response
-    pdf = buffer.getvalue()
-    buffer.close()
-    response.write(pdf)
-    
-    return response
+        # Generate PDF
+        config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_CMD)
+        pdf = pdfkit.from_string(html_string, False, options=options, configuration=config)
+        
+        
+        # Create response
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="transcript_{student.student_id}.pdf"'
+        
+        return response
+        
+    except Exception as e:
+        messages.error(request, f'Error generating PDF: {str(e)}')
+        return redirect('admin_student_transcript', student_id=student_id)
 
 @login_required
 @user_passes_test(is_admin)
@@ -13896,121 +13748,62 @@ def download_certificate_pdf(request, student_id):
     """Generate completion certificate for graduated students"""
     student = get_object_or_404(Student, student_id=student_id)
     
-    # Check if student has completed programme
+    # Get transcript data to check completion
     enrollments = Enrollment.objects.filter(student=student).prefetch_related('grade')
-    transcript_data, stats = calculate_transcript_data(enrollments)
+    transcript_data, stats = calculate_transcript_data(enrollments,  student)
     
     if not stats['programme_completed']:
         messages.error(request, 'Certificate can only be generated for students who have completed their programme.')
-        return redirect('student_transcript', student_id=student_id)
+        return redirect('admin_student_transcript', student_id=student_id)
     
-    # Create the HttpResponse object with PDF headers
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="certificate_{student.student_id}.pdf"'
+    # Prepare context for certificate template
+    context = {
+        'student': student,
+        'programme': student.programme,
+        'faculty': student.programme.faculty,
+        'department': student.programme.department,
+        'stats': stats,
+        'completion_date': timezone.now().date(),
+        'generated_date': timezone.now(),
+        'university_name': 'MURANGA UNIVERSITY OF TECHNOLOGY',
+        'university_motto': 'INNOVATING FOR DEVELOPMENT',
+    }
     
-    # Generate Certificate PDF
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    # Render HTML template
+    html_string = render_to_string('certificates/certificate_template.html', context)
     
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Custom certificate styles
-    cert_title_style = ParagraphStyle(
-        'CertTitle',
-        parent=styles['Title'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        textColor=colors.darkblue,
-        fontName='Helvetica-Bold'
-    )
-    
-    cert_subtitle_style = ParagraphStyle(
-        'CertSubtitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=20,
-        alignment=TA_CENTER,
-        textColor=colors.darkblue
-    )
-    
-    cert_body_style = ParagraphStyle(
-        'CertBody',
-        parent=styles['Normal'],
-        fontSize=12,
-        spaceAfter=12,
-        alignment=TA_CENTER,
-        leading=16
-    )
-    
-    cert_name_style = ParagraphStyle(
-        'CertName',
-        parent=styles['Normal'],
-        fontSize=18,
-        spaceAfter=20,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
-        textColor=colors.darkblue
-    )
-    
-    # Certificate content
-    story.append(Spacer(1, 50))
-    story.append(Paragraph("UNIVERSITY NAME", cert_title_style))
-    story.append(Paragraph("CERTIFICATE OF COMPLETION", cert_subtitle_style))
-    story.append(Spacer(1, 40))
-    
-    story.append(Paragraph("This is to certify that", cert_body_style))
-    story.append(Spacer(1, 20))
-    
-    story.append(Paragraph(f"{student.user.first_name.upper()} {student.user.last_name.upper()}", cert_name_style))
-    story.append(Spacer(1, 20))
-    
-    story.append(Paragraph(f"has successfully completed the requirements for the degree of", cert_body_style))
-    story.append(Spacer(1, 15))
-    
-    story.append(Paragraph(f"<b>{student.programme.name.upper()}</b>", cert_body_style))
-    story.append(Spacer(1, 15))
-    
-    story.append(Paragraph(f"with a Cumulative Grade Point Average of <b>{stats['overall_gpa']}</b>", cert_body_style))
-    story.append(Paragraph(f"and is awarded <b>{stats['graduation_class'].upper()}</b> honors", cert_body_style))
-    story.append(Spacer(1, 30))
-    
-    story.append(Paragraph(f"Given this {timezone.now().strftime('%d')} day of {timezone.now().strftime('%B')}, {timezone.now().year}", cert_body_style))
-    story.append(Spacer(1, 80))
-    
-    # Signature section for certificate
-    cert_sig_data = [
-        ['', '', ''],
-        ['_' * 30, '_' * 30, '_' * 30],
-        ['Dean', 'Registrar', 'Vice-Chancellor'],
-        ['', '', ''],
-        ['University Seal:', '', 'Date: _______________']
-    ]
-    
-    cert_sig_table = Table(cert_sig_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch])
-    cert_sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 4), (-1, 4), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-    ]))
-    
-    story.append(cert_sig_table)
-    
-    # Build PDF
-    doc.build(story)
-    
-    # Get the value of the BytesIO buffer and write it to the response
-    pdf = buffer.getvalue()
-    buffer.close()
-    response.write(pdf)
-    
-    return response
+    # Generate PDF from HTML
+    try:
+        # Configure wkhtmltopdf options for certificate (landscape might be better)
+        options = {
+            'page-size': 'A4',
+            'orientation': 'Landscape',
+            'margin-top': '0.3in',
+            'margin-right': '0.3in',
+            'margin-bottom': '0.3in',
+            'margin-left': '0.3in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'enable-local-file-access': None,
+            'print-media-type': None,
+        }
+        
+        # Generate PDF
+       
+        config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_CMD)
+        pdf = pdfkit.from_string(html_string, False, options=options, configuration=config)
+        
+        # Create response
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="certificate_{student.student_id}.pdf"'
+        
+        return response
+        
+    except Exception as e:
+        messages.error(request, f'Error generating certificate PDF: {str(e)}')
+        return redirect('admin_student_transcript', student_id=student_id)
 
-def calculate_transcript_data(enrollments):
+def calculate_transcript_data(enrollments, student):
     """Helper function to calculate transcript data and statistics"""
     transcript_data = {}
     total_credit_hours = 0
@@ -14033,27 +13826,28 @@ def calculate_transcript_data(enrollments):
             }
         
         # Add enrollment data
+        grade_obj = getattr(enrollment, 'grade', None)
         enrollment_data = {
             'enrollment': enrollment,
             'course': enrollment.course,
-            'grade_obj': getattr(enrollment, 'grade', None),
-            'grade': getattr(enrollment, 'grade', None).grade if hasattr(enrollment, 'grade') else 'N/A',
-            'grade_points': getattr(enrollment, 'grade', None).grade_points if hasattr(enrollment, 'grade') else 0,
-            'quality_points': getattr(enrollment, 'grade', None).quality_points if hasattr(enrollment, 'grade') else 0,
-            'is_passed': getattr(enrollment, 'grade', None).is_passed if hasattr(enrollment, 'grade') else False,
+            'grade_obj': grade_obj,
+            'grade': grade_obj.grade if grade_obj else 'N/A',
+            'grade_points': grade_obj.grade_points if grade_obj else 0,
+            'quality_points': grade_obj.quality_points if grade_obj else 0,
+            'is_passed': grade_obj.is_passed if grade_obj else False,
         }
         
         transcript_data[year_key][semester_key]['enrollments'].append(enrollment_data)
         
         # Calculate totals
-        if hasattr(enrollment, 'grade') and enrollment.grade.quality_points:
+        if grade_obj and grade_obj.quality_points:
             transcript_data[year_key][semester_key]['semester_credits'] += enrollment.course.credit_hours
-            transcript_data[year_key][semester_key]['semester_quality_points'] += enrollment.grade.quality_points
+            transcript_data[year_key][semester_key]['semester_quality_points'] += grade_obj.quality_points
             
             total_credit_hours += enrollment.course.credit_hours
-            total_quality_points += enrollment.grade.quality_points
+            total_quality_points += grade_obj.quality_points
             
-            if enrollment.grade.is_passed:
+            if grade_obj.is_passed:
                 passed_units += 1
             else:
                 failed_units += 1
@@ -14073,7 +13867,7 @@ def calculate_transcript_data(enrollments):
     
     # Determine graduation class and programme completion
     graduation_class = get_graduation_class(overall_gpa)
-    programme_completed = check_programme_completion_simple(total_credit_hours, passed_units)
+    programme_completed = check_programme_completion(student, total_credit_hours, passed_units)
     
     stats = {
         'total_credit_hours': total_credit_hours,
@@ -14111,7 +13905,21 @@ def check_programme_completion(student, total_credit_hours, passed_units):
     # Simple check - can be enhanced with more complex logic
     return total_credit_hours >= required_credits and passed_units > 0
 
-def check_programme_completion_simple(total_credit_hours, passed_units):
-    """Simple programme completion check"""
-    # This is a simplified version - adjust based on your university's requirements
-    return total_credit_hours >= 120 and passed_units >= 30  # Example thresholds
+
+
+def get_grading_system():
+    """Return grading system for display in transcript"""
+    return [
+        {'grade': 'A+', 'points': '4.0', 'percentage': '90-100'},
+        {'grade': 'A', 'points': '4.0', 'percentage': '80-89'},
+        {'grade': 'A-', 'points': '3.7', 'percentage': '75-79'},
+        {'grade': 'B+', 'points': '3.3', 'percentage': '70-74'},
+        {'grade': 'B', 'points': '3.0', 'percentage': '65-69'},
+        {'grade': 'B-', 'points': '2.7', 'percentage': '60-64'},
+        {'grade': 'C+', 'points': '2.3', 'percentage': '55-59'},
+        {'grade': 'C', 'points': '2.0', 'percentage': '50-54'},
+        {'grade': 'C-', 'points': '1.7', 'percentage': '45-49'},
+        {'grade': 'D+', 'points': '1.3', 'percentage': '40-44'},
+        {'grade': 'D', 'points': '1.0', 'percentage': '35-39'},
+        {'grade': 'F', 'points': '0.0', 'percentage': 'Below 35'},
+    ]

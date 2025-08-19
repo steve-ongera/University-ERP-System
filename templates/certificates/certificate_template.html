@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate of Completion</title>
+    <style>
+        @page {
+            size: landscape;
+            margin: 0;
+        }
+        
+        body {
+            font-family: 'Times New Roman', serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        
+        .certificate-container {
+            width: 11in;
+            height: 8.5in;
+            margin: 0 auto;
+            background-color: white;
+            position: relative;
+            border: 20px solid #1a3c6e;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><text x="200" y="200" font-family="Arial" font-size="60" fill="rgba(26,60,110,0.05)" text-anchor="middle" transform="rotate(45 200 200)">MURANGA UNIVERSITY OF TECHNOLOGY</text></svg>');
+            background-repeat: repeat;
+            opacity: 0.1;
+            z-index: 0;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px 0 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .university-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1a3c6e;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+        
+        .university-motto {
+            font-size: 16px;
+            font-style: italic;
+            color: #8b0000;
+            margin-bottom: 20px;
+        }
+        
+        .seal {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            background-color: #f0f0f0;
+            border: 2px solid #1a3c6e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #1a3c6e;
+            margin-bottom: 20px;
+        }
+        
+        .certificate-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #1a3c6e;
+            margin: 20px 0;
+            letter-spacing: 3px;
+        }
+        
+        .certificate-body {
+            text-align: center;
+            padding: 0 80px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .certificate-text {
+            font-size: 18px;
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+        
+        .student-name {
+            font-size: 28px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #1a3c6e;
+            margin: 15px 0;
+            border-bottom: 2px solid #1a3c6e;
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+        
+        .programme-details {
+            font-size: 18px;
+            margin: 15px 0;
+        }
+        
+        .honors {
+            font-size: 20px;
+            font-weight: bold;
+            color: #8b0000;
+            margin: 15px 0;
+        }
+        
+        .signature-area {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 80px;
+            margin-top: 40px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .signature {
+            text-align: center;
+            width: 200px;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #333;
+            width: 180px;
+            margin: 50px auto 10px;
+        }
+        
+        .signature-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .signature-title {
+            font-size: 14px;
+            font-style: italic;
+        }
+        
+        .date {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 16px;
+        }
+        
+        .certificate-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .university-address {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .official-stamp {
+            position: absolute;
+            top: 50%;
+            right: 80px;
+            opacity: 0.8;
+            transform: rotate(15deg);
+            color: #8b0000;
+            font-weight: bold;
+            font-size: 16px;
+            border: 2px solid #8b0000;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate-container">
+        <div class="watermark"></div>
+        
+        <div class="header">
+            <div class="university-name">{{ university_name }}</div>
+            <div class="university-motto">{{ university_motto }}</div>
+            
+            <div class="seal">
+                OFFICIAL SEAL<br>
+                {{ university_name }}
+            </div>
+        </div>
+        
+        <div class="certificate-title">Certificate of Completion</div>
+        
+        <div class="certificate-body">
+            <div class="certificate-text">
+                This is to certify that
+            </div>
+            
+            <div class="student-name">
+                {{ student.user.get_full_name|default:student.user.username }}
+            </div>
+            
+            <div class="certificate-text">
+                has satisfactorily completed the requirements for the degree of
+            </div>
+            
+            <div class="programme-details">
+                <strong>{{ student.programme.get_programme_type_display }}</strong> in
+                <strong>{{ student.programme.name }}</strong>
+            </div>
+            
+            {% if stats.graduation_class != "Fail" %}
+            <div class="honors">
+                with {{ stats.graduation_class }}
+            </div>
+            {% endif %}
+            
+            <div class="programme-details">
+                Cumulative GPA: <strong>{{ stats.overall_gpa }}</strong>
+            </div>
+            
+            <div class="date">
+                Awarded on this {{ completion_date|date:"jS \o\f F, Y" }}
+            </div>
+        </div>
+        
+        <div class="signature-area">
+            <div class="signature">
+                <div class="signature-line"></div>
+                <div class="signature-name">Prof. James Mwangi</div>
+                <div class="signature-title">Vice Chancellor</div>
+            </div>
+            
+            <div class="signature">
+                <div class="signature-line"></div>
+                <div class="signature-name">Dr. Susan Kamau</div>
+                <div class="signature-title">Registrar, Academic Affairs</div>
+            </div>
+            
+            <div class="signature">
+                <div class="signature-line"></div>
+                <div class="signature-name">Dr. Peter Njoroge</div>
+                <div class="signature-title">Dean, {{ student.programme.faculty.name }}</div>
+            </div>
+        </div>
+        
+        <div class="official-stamp">
+            OFFICIALLY SIGNED AND SEALED
+        </div>
+        
+        <div class="university-address">
+            Muranga University of Technology<br>
+            P.O. Box 123-10200, Muranga<br>
+            Kenya
+        </div>
+        
+        <div class="certificate-number">
+            Certificate No: {{ student.student_id }}-{{ completion_date|date:"Ymd" }}
+        </div>
+    </div>
+</body>
+</html>
