@@ -1,0 +1,65 @@
+/* Message Containers */
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 0;
+    z-index: 10000;
+    width: 100%;
+    max-width: 400px;
+    pointer-events: none;
+}
+
+/* Base Message Style */
+.alert-message, .app-message {
+    position: relative;
+    padding: 15px 20px;
+    margin: 10px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: auto;
+}
+
+/* Visible State */
+.alert-message.show, .app-message.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Message Types */
+.alert-success {
+    background: #4CAF50;
+    color: white;
+}
+
+.alert-error {
+    background: #F44336;
+    color: white;
+}
+
+.alert-info {
+    background: #2196F3;
+    color: white;
+}
+
+.app-message {
+    background: #333;
+    color: white;
+    border-right: 4px solid #FF5722;
+}
+
+/* Close Button */
+.close-message {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 1.2em;
+    opacity: 0.8;
+}
+
+.close-message:hover {
+    opacity: 1;
+}

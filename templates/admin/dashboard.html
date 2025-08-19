@@ -12,17 +12,14 @@
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 
-<div class="row mt-3">
-    <div class="col-md-12">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-    </div>
-</div>
+<div class="message-container" id="system-messages">
+                                {% for message in messages %}
+                                <div class="alert-message alert-{{ message.tags }}">
+                                    {{ message }}
+                                    <span class="close-message">&times;</span>
+                                </div>
+                                {% endfor %}
+                            </div>
 
 <div class="container onprintContainer">
     <div class="row p-3">

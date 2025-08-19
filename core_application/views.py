@@ -1,12 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login , logout
 from django.contrib import messages
 from django.db.models import Count, Avg
 from .models import Student, Enrollment,  Semester, Grade
 from decimal import Decimal
 from .models import *
-def student_login(request):
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.http import JsonResponse, HttpResponseForbidden
+import json
+
+#student login view using student ID as username and password eg ( SC211/0540/2025)
+""" This view logs in 3 user types student , lecturer and hostel warden """
+
+def login_view(request):
     """Custom login view for students"""
     if request.method == 'POST':
         username = request.POST['username']
@@ -30,19 +38,19 @@ def student_login(request):
     
     return render(request, 'student/auth/login.html')
 
-from django.contrib.auth import logout
-from django.shortcuts import redirect
 
-def student_logout(request):
+
+def logout_view(request):
     logout(request)
-    return redirect('student_login')  # This should match your login URL name
+    messages.success(request, "logged out sucessfully !")
+    return redirect('login_view')  # This should match your login URL name
 
 
 @login_required
 def student_dashboard(request):
     """Main dashboard for logged-in students"""
     if request.user.user_type != 'student':
-        return redirect('student_login')
+        return redirect('login_view')
     
     student = get_object_or_404(Student, user=request.user)
     current_semester = Semester.objects.filter(is_current=True).first()
@@ -75,14 +83,7 @@ def student_dashboard(request):
     return render(request, 'student/dashboard.html', context)
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth import authenticate
-from django.http import JsonResponse
-import json
+
 
 @login_required
 def student_profile(request):
@@ -90,7 +91,7 @@ def student_profile(request):
         student = request.user.student_profile
     except:
         messages.error(request, 'Student profile not found.')
-        return redirect('student_login')  # or wherever you want to redirect
+        return redirect('login_view')  # or wherever you want to redirect
     
     if request.method == 'POST':
         # Handle AJAX profile picture upload
@@ -194,12 +195,10 @@ def student_profile(request):
     return render(request, 'student/student_profile.html', context)
 
 
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
+
 from django.utils import timezone
 from django.db import transaction
-from django.http import JsonResponse
+
 from .models import Student, Semester, Course, ProgrammeCourse, Enrollment
 
 @login_required
@@ -600,7 +599,7 @@ def student_reporting(request):
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from .models import (
@@ -1184,7 +1183,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+
 from django.views.decorators.http import require_http_methods
 import logging
 
@@ -1259,7 +1258,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from django.db.models import Count, Avg, Sum, Q
-from django.http import JsonResponse
+
 from datetime import datetime, timedelta
 import json
 from django.utils import timezone
@@ -1751,7 +1750,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+
 from django.views.decorators.http import require_http_methods
 from .models import Student, Programme, Department, User
 from django.urls import reverse
@@ -3062,7 +3061,6 @@ def student_transcript_preview(request, academic_year_id=None, semester_id=None)
     pass
 
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
@@ -13660,7 +13658,7 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.shortcuts import redirect
+
 from django.utils import timezone
 from django.conf import settings
 from decimal import Decimal, ROUND_HALF_UP

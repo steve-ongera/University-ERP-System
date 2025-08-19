@@ -26,6 +26,8 @@
     <!-- Custom CSS -->
     <link href="{% static 'main.css' %}" rel="stylesheet" />
     <link href="{% static 'site.css' %}" rel="stylesheet" />
+    <link href="{% static 'messages.css'%}" rel="stylesheet">
+    <script src="{% static 'messages.js'%}"></script>
     
     <color theme="#1a73e8" tab="#1d2aed" secondary="#1a73e8" hidden></color>
     <script src="{% static 'color.js'%}"></script>
@@ -118,32 +120,14 @@
                 <div class="card login-card">
                     <div class="row mt-3" style="margin-top: 1rem; margin-right: 2rem;  margin-left: 2rem">
                         <div class="col-md-12" style="width: 100%;">
-                            {% for message in messages %}
-                            <div style="
-                                padding: 15px;
-                                margin-bottom: 15px;
-                                border: 1px solid {% if message.tags == 'success' %}#28a745{% else %}#dc3545{% endif %};
-                                background-color: {% if message.tags == 'success' %}#d4edda{% else %}#f8d7da{% endif %};
-                                color: {% if message.tags == 'success' %}#155724{% else %}#721c24{% endif %};
-                                border-radius: 5px;
-                                position: relative;
-                            ">
-                                <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %}" style="margin-right: 8px;"></i>
-                                {{ message }}
-                                <button type="button" style="
-                                    position: absolute;
-                                    top: 10px;
-                                    right: 10px;
-                                    background: none;
-                                    border: none;
-                                    font-weight: bold;
-                                    font-size: 16px;
-                                    line-height: 1;
-                                    color: inherit;
-                                    cursor: pointer;
-                                " onclick="this.parentElement.style.display='none';">&times;</button>
+                            <div class="message-container" id="system-messages">
+                                {% for message in messages %}
+                                <div class="alert-message alert-{{ message.tags }}">
+                                    {{ message }}
+                                    <span class="close-message">&times;</span>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                     </div>
 
