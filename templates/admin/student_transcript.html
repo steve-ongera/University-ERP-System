@@ -1,0 +1,314 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1 fw-bold text-primary">
+                                <i class="bi bi-search me-2"></i>Student Transcript Search
+                            </h2>
+                            <p class="text-muted mb-0">Search for students to view their academic transcripts and generate official documents</p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-info fs-6">Admin Portal</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" action="{% url 'student_search' %}" class="mb-3">
+                        <div class="row align-items-end">
+                            <div class="col-md-8">
+                                <label for="search_query" class="form-label fw-bold">Search Student</label>
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg" 
+                                    id="search_query" 
+                                    name="q" 
+                                    value="{{ search_query }}"
+                                    placeholder="Enter Student ID, Name, or Username..."
+                                    autofocus
+                                >
+                                <small class="form-text text-muted">
+                                    Search by Student ID, First Name, Last Name, or Username
+                                </small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-search me-2"></i>Search Students
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    {% if search_query %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-list-ul me-2"></i>Search Results
+                        {% if students %}
+                            <span class="badge bg-success ms-2">{{ students|length }} found</span>
+                        {% endif %}
+                    </h5>
+                    {% if search_query %}
+                    <small class="text-muted">Search term: "{{ search_query }}"</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if students %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Student ID</th>
+                                        <th scope="col">Full Name</th>
+                                        <th scope="col">Programme</th>
+                                        <th scope="col">Faculty</th>
+                                        <th scope="col">Year/Semester</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                    <tr>
+                                        <td>
+                                            <strong class="text-primary">{{ student.student_id }}</strong>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ student.user.get_full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ student.user.username }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ student.programme.name|truncatechars:30 }}</strong>
+                                                <br>
+                                                <span class="badge bg-primary">{{ student.programme.code }}</span>
+                                                <span class="badge bg-info">{{ student.programme.get_programme_type_display }}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ student.programme.faculty.name|truncatechars:20 }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ student.programme.department.name|truncatechars:25 }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">Year {{ student.current_year }}</span>
+                                            <br>
+                                            <span class="badge bg-outline-secondary">Sem {{ student.current_semester }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}primary{% elif student.status == 'suspended' %}danger{% else %}warning{% endif %}">
+                                                {{ student.get_status_display }}
+                                            </span>
+                                            {% if student.cumulative_gpa %}
+                                            <br>
+                                            <small class="text-muted">GPA: {{ student.cumulative_gpa }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group-vertical btn-group-sm">
+                                                <a href="{% url 'student_transcript' student.student_id %}" 
+                                                   class="btn btn-outline-primary">
+                                                    <i class="bi bi-file-text me-1"></i>View Transcript
+                                                </a>
+                                                <a href="{% url 'download_transcript_pdf' student.student_id %}" 
+                                                   class="btn btn-outline-success"
+                                                   target="_blank">
+                                                    <i class="bi bi-download me-1"></i>Download PDF
+                                                </a>
+                                                {% if student.status == 'graduated' %}
+                                                <a href="{% url 'download_certificate_pdf' student.student_id %}" 
+                                                   class="btn btn-outline-info"
+                                                   target="_blank">
+                                                    <i class="bi bi-award me-1"></i>Certificate
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-search display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Students Found</h5>
+                            <p class="text-muted">
+                                No students match your search criteria "{{ search_query }}".
+                                <br>
+                                Try searching with different terms like Student ID, name, or username.
+                            </p>
+                            <a href="{% url 'student_search' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left me-1"></i>New Search
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Search Instructions -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-info-circle display-1 text-info"></i>
+                    <h4 class="text-info mt-3">Search Instructions</h4>
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-white">
+                                <div class="card-body">
+                                    <i class="bi bi-person-badge display-4 text-primary"></i>
+                                    <h6 class="mt-2">Student ID</h6>
+                                    <p class="small text-muted">Search using the student's unique ID number</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-white">
+                                <div class="card-body">
+                                    <i class="bi bi-person display-4 text-success"></i>
+                                    <h6 class="mt-2">Full Name</h6>
+                                    <p class="small text-muted">Search by first name or last name</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-white">
+                                <div class="card-body">
+                                    <i class="bi bi-at display-4 text-warning"></i>
+                                    <h6 class="mt-2">Username</h6>
+                                    <p class="small text-muted">Search using login username</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-white">
+                                <div class="card-body">
+                                    <i class="bi bi-file-earmark-text display-4 text-info"></i>
+                                    <h6 class="mt-2">View Transcripts</h6>
+                                    <p class="small text-muted">Generate official transcripts and certificates</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 2px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+@media (max-width: 768px) {
+    .btn-group-vertical {
+        width: 100%;
+    }
+    
+    .btn-group-vertical .btn {
+        width: 100%;
+        margin-bottom: 3px;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus search input
+    const searchInput = document.getElementById('search_query');
+    if (searchInput && !searchInput.value) {
+        searchInput.focus();
+    }
+    
+    // Handle search form submission
+    const searchForm = document.querySelector('form');
+    searchForm.addEventListener('submit', function(e) {
+        const searchValue = searchInput.value.trim();
+        if (!searchValue) {
+            e.preventDefault();
+            alert('Please enter a search term');
+            searchInput.focus();
+        }
+    });
+    
+    // Add click handler to table rows for better UX
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('a, button')) {
+                const transcriptLink = this.querySelector('a[href*="transcript"]');
+                if (transcriptLink) {
+                    window.location.href = transcriptLink.href;
+                }
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

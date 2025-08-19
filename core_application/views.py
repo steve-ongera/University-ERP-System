@@ -13557,7 +13557,7 @@ def student_search(request):
 
 @login_required
 @user_passes_test(is_admin)
-def student_transcript(request, student_id):
+def admin_student_transcript(request, student_id):
     """Display detailed student transcript"""
     student = get_object_or_404(Student, student_id=student_id)
     
@@ -13652,7 +13652,7 @@ def student_transcript(request, student_id):
         'semester_gpas': semester_gpas,
     }
     
-    return render(request, 'admin/student_transcript.html', context)
+    return render(request, 'admin/admin_student_transcript.html', context)
 
 @login_required
 @user_passes_test(is_admin)

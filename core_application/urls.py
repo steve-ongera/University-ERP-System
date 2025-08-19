@@ -360,11 +360,10 @@ urlpatterns = [
          views.download_all_students_csv, name='download_all_students_csv'),
 
      # Student transcript management URLs
-    path('admin/students/search/', views.student_search, name='student_search'),
-    path('admin/students/<str:student_id>/transcript/', views.student_transcript, name='student_transcript'),
-    path('admin/students/<str:student_id>/transcript/download/', views.download_transcript_pdf, name='download_transcript_pdf'),
-    path('admin/students/<str:student_id>/certificate/download/', views.download_certificate_pdf, name='download_certificate_pdf'),
-
+    path('admin-students/search/', views.student_search, name='student_search'),
+    path('admin-students/<str:student_id>/transcript/', views.admin_student_transcript, name='admin_student_transcript'),
+    path('admin-students/<str:student_id>/transcript/download/', views.download_transcript_pdf, name='download_transcript_pdf'),
+    path('admin-students/<str:student_id>/certificate/download/', views.download_certificate_pdf, name='download_certificate_pdf'),
 
 
 ]

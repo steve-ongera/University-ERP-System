@@ -1,0 +1,561 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container-fluid onprintContainer">
+    <!-- Student Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold text-primary">
+                            <i class="bi bi-person-circle me-2"></i>{{ student.user.get_full_name }}
+                        </h2>
+                        <div class="mb-2">
+                            <span class="badge bg-primary fs-6">{{ student.student_id }}</span>
+                            <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'graduated' %}info{% else %}warning{% endif %} fs-6">
+                                {{ student.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="mb-1">
+                            <i class="bi bi-mortarboard me-1"></i>
+                            <strong>{{ student.programme.name }}</strong> ({{ student.programme.code }})
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-building me-1"></i>{{ student.programme.faculty.name }}
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-diagram-3 me-1"></i>{{ student.programme.department.name }}
+                        </p>
+                        <p class="mb-1">
+                            <i class="bi bi-calendar-event me-1"></i>Admitted: {{ student.admission_date|date:"M d, Y" }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-workspace me-1"></i>Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3 mb-2">
+                                    <h3 class="mb-1 text-primary">{{ overall_gpa|default:"0.00" }}</h3>
+                                    <small class="text-muted">Overall GPA</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3 mb-2">
+                                    <h3 class="mb-1 text-success">{{ total_credit_hours }}</h3>
+                                    <small class="text-muted">Credit Hours</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3">
+                                    <h4 class="mb-1 text-success">{{ passed_units }}</h4>
+                                    <small class="text-muted">Passed</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light rounded p-3">
+                                    <h4 class="mb-1 text-danger">{{ failed_units }}</h4>
+                                    <small class="text-muted">Failed</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'student_search' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Search
+                            </a>
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                            <a href="{% url 'download_transcript_pdf' student.student_id %}" 
+                               class="btn btn-success" target="_blank">
+                                <i class="bi bi-download"></i> Download PDF
+                            </a>
+                            {% if programme_completed %}
+                            <a href="{% url 'download_certificate_pdf' student.student_id %}" 
+                               class="btn btn-warning" target="_blank">
+                                <i class="bi bi-award"></i> Certificate
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Summary -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-graph-up me-2"></i>Academic Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2">
+                            <h4 class="text-primary">{{ total_units }}</h4>
+                            <p class="small text-muted mb-0">Total Units</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-success">{{ passed_units }}</h4>
+                            <p class="small text-muted mb-0">Units Passed</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-danger">{{ failed_units }}</h4>
+                            <p class="small text-muted mb-0">Units Failed</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-info">{{ total_credit_hours }}</h4>
+                            <p class="small text-muted mb-0">Credit Hours</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-warning">{{ overall_gpa|default:"0.00" }}</h4>
+                            <p class="small text-muted mb-0">Cumulative GPA</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-secondary">{{ graduation_class|default:"N/A" }}</h4>
+                            <p class="small text-muted mb-0">Classification</p>
+                        </div>
+                    </div>
+                    
+                    {% if programme_completed %}
+                    <div class="alert alert-success mt-3" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-check-circle-fill me-2"></i>Programme Completed!
+                        </h4>
+                        <p class="mb-0">
+                            This student has successfully completed their programme requirements with <strong>{{ graduation_class }}</strong>.
+                            You can now generate their completion certificate.
+                        </p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mt-3" role="alert">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-info-circle-fill me-2"></i>Programme In Progress
+                        </h4>
+                        <p class="mb-0">
+                            This student is currently pursuing their {{ student.programme.name }} programme.
+                            Certificate generation will be available upon programme completion.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Records -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-journal-text me-2"></i>Academic Records
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if transcript_data %}
+                        {% for year, semesters in transcript_data.items %}
+                        <div class="academic-year-section mb-4">
+                            <h4 class="text-primary border-bottom pb-2">
+                                <i class="bi bi-calendar3 me-2"></i>Academic Year: {{ year }}
+                            </h4>
+                            
+                            {% for semester_num, semester_data in semesters.items %}
+                            <div class="semester-section mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="text-secondary">
+                                        <i class="bi bi-bookmark me-1"></i>Semester {{ semester_num }}
+                                    </h5>
+                                    <div class="text-end">
+                                        <span class="badge bg-info">{{ semester_data.semester_credits }} Credits</span>
+                                        <span class="badge bg-success">GPA: {{ semester_data.semester_gpa }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 15%">Course Code</th>
+                                                <th style="width: 35%">Course Title</th>
+                                                <th style="width: 10%" class="text-center">Credits</th>
+                                                <th style="width: 8%" class="text-center">Grade</th>
+                                                <th style="width: 10%" class="text-center">Grade Points</th>
+                                                <th style="width: 12%" class="text-center">Quality Points</th>
+                                                <th style="width: 10%" class="text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for enrollment_data in semester_data.enrollments %}
+                                            <tr>
+                                                <td>
+                                                    <strong class="text-primary">{{ enrollment_data.course.code }}</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ enrollment_data.course.name }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        {{ enrollment_data.course.get_course_type_display }} • 
+                                                        {{ enrollment_data.course.get_level_display }}
+                                                    </small>
+                                                </td>
+                                                <td class="text-center">{{ enrollment_data.course.credit_hours }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-{% if enrollment_data.grade == 'A+' or enrollment_data.grade == 'A' %}success{% elif enrollment_data.grade == 'A-' or enrollment_data.grade == 'B+' or enrollment_data.grade == 'B' %}primary{% elif enrollment_data.grade == 'B-' or enrollment_data.grade == 'C+' or enrollment_data.grade == 'C' %}warning{% elif enrollment_data.grade == 'F' %}danger{% else %}secondary{% endif %}">
+                                                        {{ enrollment_data.grade }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">{{ enrollment_data.grade_points|default:"0.00" }}</td>
+                                                <td class="text-center">{{ enrollment_data.quality_points|default:"0.00" }}</td>
+                                                <td class="text-center">
+                                                    {% if enrollment_data.is_passed %}
+                                                    <span class="badge bg-success">Pass</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger">Fail</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                            <!-- Semester Summary Row -->
+                                            <tr class="table-secondary fw-bold">
+                                                <td colspan="2" class="text-end">Semester Totals:</td>
+                                                <td class="text-center">{{ semester_data.semester_credits }}</td>
+                                                <td class="text-center">-</td>
+                                                <td class="text-center">{{ semester_data.semester_gpa }}</td>
+                                                <td class="text-center">{{ semester_data.semester_quality_points }}</td>
+                                                <td class="text-center">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-journal-x display-1 text-muted"></i>
+                            <h5 class="text-muted mt-3">No Academic Records</h5>
+                            <p class="text-muted">This student has no enrollment records yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grading Scale Reference and Additional Information -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-list-ol me-2"></i>Grading Scale
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Grade</th>
+                                    <th>Points</th>
+                                    <th>Percentage</th>
+                                    <th>Classification</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge bg-success">A+</span></td><td>4.0</td><td>90-100</td><td>Excellent</td></tr>
+                                <tr><td><span class="badge bg-success">A</span></td><td>4.0</td><td>80-89</td><td>Excellent</td></tr>
+                                <tr><td><span class="badge bg-primary">A-</span></td><td>3.7</td><td>75-79</td><td>Very Good</td></tr>
+                                <tr><td><span class="badge bg-primary">B+</span></td><td>3.3</td><td>70-74</td><td>Very Good</td></tr>
+                                <tr><td><span class="badge bg-primary">B</span></td><td>3.0</td><td>65-69</td><td>Good</td></tr>
+                                <tr><td><span class="badge bg-warning">B-</span></td><td>2.7</td><td>60-64</td><td>Good</td></tr>
+                                <tr><td><span class="badge bg-warning">C+</span></td><td>2.3</td><td>55-59</td><td>Average</td></tr>
+                                <tr><td><span class="badge bg-warning">C</span></td><td>2.0</td><td>50-54</td><td>Average</td></tr>
+                                <tr><td><span class="badge bg-secondary">C-</span></td><td>1.7</td><td>45-49</td><td>Below Average</td></tr>
+                                <tr><td><span class="badge bg-secondary">D+</span></td><td>1.3</td><td>40-44</td><td>Poor</td></tr>
+                                <tr><td><span class="badge bg-secondary">D</span></td><td>1.0</td><td>35-39</td><td>Poor</td></tr>
+                                <tr><td><span class="badge bg-danger">F</span></td><td>0.0</td><td>Below 35</td><td>Fail</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-award me-2"></i>Classification System
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>GPA Range</th>
+                                    <th>Classification</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold text-success">3.70 - 4.00</td>
+                                    <td><span class="badge bg-success">First Class Honors</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-primary">3.30 - 3.69</td>
+                                    <td><span class="badge bg-primary">Second Class Honors (Upper)</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-info">2.70 - 3.29</td>
+                                    <td><span class="badge bg-info">Second Class Honors (Lower)</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-warning">2.00 - 2.69</td>
+                                    <td><span class="badge bg-warning">Third Class Honors</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-secondary">1.00 - 1.99</td>
+                                    <td><span class="badge bg-secondary">Pass</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-danger">0.00 - 0.99</td>
+                                    <td><span class="badge bg-danger">Fail</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6 class="fw-bold">Programme Information</h6>
+                        <div class="small text-muted">
+                            <p class="mb-1"><strong>Duration:</strong> {{ student.programme.duration_years }} Years</p>
+                            <p class="mb-1"><strong>Required Credits:</strong> {{ student.programme.credit_hours_required }}</p>
+                            <p class="mb-1"><strong>Total Semesters:</strong> {{ student.programme.total_semesters }}</p>
+                            <p class="mb-0"><strong>Study Mode:</strong> {{ student.programme.get_study_mode_display }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Personal Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-person-vcard me-2"></i>Personal Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-muted" style="width: 30%;">Full Name:</td>
+                                        <td>{{ student.user.get_full_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Student ID:</td>
+                                        <td><span class="badge bg-primary">{{ student.student_id }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Date of Birth:</td>
+                                        <td>{{ student.user.date_of_birth|date:"F d, Y"|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Gender:</td>
+                                        <td>{{ student.user.get_gender_display|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">National ID:</td>
+                                        <td>{{ student.user.national_id|default:"Not provided" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-muted" style="width: 30%;">Email:</td>
+                                        <td>{{ student.user.email|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Phone:</td>
+                                        <td>{{ student.user.phone|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Admission Type:</td>
+                                        <td>{{ student.get_admission_type_display }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Sponsor:</td>
+                                        <td>{{ student.get_sponsor_type_display }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Entry Points:</td>
+                                        <td>{{ student.entry_points|default:"Not available" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guardian Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-people me-2"></i>Guardian/Next of Kin Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Primary Guardian</h6>
+                            <table class="table table-borderless table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-muted" style="width: 30%;">Name:</td>
+                                        <td>{{ student.guardian_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Relationship:</td>
+                                        <td>{{ student.guardian_relationship }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Phone:</td>
+                                        <td>{{ student.guardian_phone }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Address:</td>
+                                        <td>{{ student.guardian_address }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Emergency Contact</h6>
+                            <table class="table table-borderless table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold text-muted" style="width: 30%;">Emergency Phone:</td>
+                                        <td>{{ student.emergency_contact }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Blood Group:</td>
+                                        <td>{{ student.blood_group|default:"Not provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Medical Conditions:</td>
+                                        <td>{{ student.medical_conditions|default:"None reported" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold text-muted">Accommodation:</td>
+                                        <td>{{ student.accommodation_type|default:"Not specified" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Print Styles -->
+<style>
+@media print {
+    .btn-group, .alert {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .row.p-3 {
+        padding: 0.5rem !important;
+    }
+    
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    .table {
+        font-size: 0.85rem !important;
+    }
+    
+    .badge {
+        background-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    .text-primary, .text-success, .text-danger, .text-warning, .text-info {
+        color: #212529 !important;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    /* Force page breaks between major sections */
+    .academic-year-section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    
+    /* Keep semester data together */
+    .semester-section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+}
+</style>
+
+{% endblock %}
