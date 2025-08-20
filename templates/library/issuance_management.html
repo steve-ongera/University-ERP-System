@@ -1,0 +1,830 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Library Issuance Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Library Issuance Management</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-arrow-left-right me-1"></i>Book Borrowing & Returns System
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ user.get_full_name }} (Librarian)
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ "now"|date:"M d, Y H:i" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-warning">{{ stats.active_borrowings }}</h4>
+                            <small class="text-muted">active borrowings</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <button class="btn btn-success" onclick="openBorrowModal()">
+                                <i class="bi bi-plus-circle"></i> New Borrowing
+                            </button>
+                            <a href="{% url 'book_management' %}" class="btn btn-info">
+                                <i class="bi bi-book"></i> Book Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_transactions }}</h5>
+                            <p class="small text-muted mb-0">Total Transactions</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.active_borrowings }}</h5>
+                            <p class="small text-muted mb-0">Active Borrowings</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.overdue_transactions }}</h5>
+                            <p class="small text-muted mb-0">Overdue</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.returned_books }}</h5>
+                            <p class="small text-muted mb-0">Returned</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">KSh {{ stats.total_fines|floatformat:2 }}</h5>
+                            <p class="small text-muted mb-0">Total Fines</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.active_borrowings|add:stats.returned_books }}</h5>
+                            <p class="small text-muted mb-0">All Records</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="User name, book title, call number...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Transaction Type</label>
+                            <select class="form-select" name="transaction_type">
+                                <option value="">All Types</option>
+                                {% for value, display in transaction_types %}
+                                <option value="{{ value }}" {% if transaction_type == value %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">All Status</option>
+                                {% for value, display in status_choices %}
+                                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">Filter</button>
+                            <a href="{% url 'issuance_management' %}" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="issuanceDetailTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab">
+                                <i class="bi bi-list-check me-1"></i>All Transactions ({{ transactions.paginator.count }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="overdue-tab" data-bs-toggle="tab" data-bs-target="#overdue" type="button" role="tab">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Overdue Books
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="quick-actions-tab" data-bs-toggle="tab" data-bs-target="#quick-actions" type="button" role="tab">
+                                <i class="bi bi-lightning me-1"></i>Quick Actions
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="issuanceDetailTabsContent">
+                        <!-- All Transactions Tab -->
+                        <div class="tab-pane fade show active" id="transactions" role="tabpanel">
+                            {% if transactions %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Transaction ID</th>
+                                            <th>User</th>
+                                            <th>Book Details</th>
+                                            <th>Type</th>
+                                            <th>Dates</th>
+                                            <th>Status</th>
+                                            <th>Fine</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transaction in transactions %}
+                                        <tr class="{% if transaction.is_overdue and transaction.status == 'active' %}table-warning{% endif %}">
+                                            <td><span class="badge bg-secondary">#{{ transaction.id }}</span></td>
+                                            <td>
+                                                <strong>{{ transaction.user.get_full_name|default:transaction.user.username }}</strong>
+                                                <br><small class="text-muted">{{ transaction.user.email }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ transaction.library_resource.title|truncatechars:30 }}</strong>
+                                                <br><small class="text-muted">{{ transaction.library_resource.call_number }}</small>
+                                                <br><small class="text-info">{{ transaction.library_resource.author|truncatechars:25 }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if transaction.transaction_type == 'borrow' %}primary{% elif transaction.transaction_type == 'return' %}success{% elif transaction.transaction_type == 'renew' %}info{% else %}secondary{% endif %}">
+                                                    {{ transaction.get_transaction_type_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small><strong>Issued:</strong> {{ transaction.transaction_date|date:"M d, Y" }}</small>
+                                                <br><small><strong>Due:</strong> {{ transaction.due_date|date:"M d, Y" }}</small>
+                                                {% if transaction.return_date %}
+                                                <br><small><strong>Returned:</strong> {{ transaction.return_date|date:"M d, Y" }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if transaction.status == 'active' %}warning{% elif transaction.status == 'returned' %}success{% elif transaction.status == 'overdue' %}danger{% else %}secondary{% endif %}">
+                                                    {{ transaction.get_status_display }}
+                                                </span>
+                                                {% if transaction.is_overdue and transaction.status == 'active' %}
+                                                <br><span class="badge bg-danger">Overdue</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if transaction.fine_amount > 0 %}
+                                                <span class="badge bg-danger">KSh {{ transaction.fine_amount }}</span>
+                                                {% else %}
+                                                <span class="badge bg-success">KSh 0</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" onclick="viewTransactionDetails({{ transaction.id }})" title="View Details">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    {% if transaction.status == 'active' %}
+                                                    <button class="btn btn-outline-success" onclick="returnBook({{ transaction.id }})" title="Return Book">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-info" onclick="renewBook({{ transaction.id }})" title="Renew">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            {% if transactions.has_other_pages %}
+                            <nav aria-label="Transactions pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if transactions.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if transaction_type %}transaction_type={{ transaction_type }}&{% endif %}{% if status %}status={{ status }}&{% endif %}page={{ transactions.previous_page_number }}">Previous</a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    {% for num in transactions.paginator.page_range %}
+                                    {% if transactions.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                    {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if transaction_type %}transaction_type={{ transaction_type }}&{% endif %}{% if status %}status={{ status }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if transactions.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if transaction_type %}transaction_type={{ transaction_type }}&{% endif %}{% if status %}status={{ status }}&{% endif %}page={{ transactions.next_page_number }}">Next</a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-list-check display-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">No Transactions Found</h5>
+                                <p class="text-muted">No transactions match your current filters.</p>
+                                <button class="btn btn-success" onclick="openBorrowModal()">
+                                    <i class="bi bi-plus-circle me-1"></i>Create First Transaction
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Overdue Books Tab -->
+                        <div class="tab-pane fade" id="overdue" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Overdue Books</h6>
+                                <span class="badge bg-danger">{{ stats.overdue_transactions }} overdue</span>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Book</th>
+                                            <th>Due Date</th>
+                                            <th>Days Overdue</th>
+                                            <th>Calculated Fine</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transaction in transactions %}
+                                        {% if transaction.is_overdue and transaction.status == 'active' %}
+                                        <tr class="table-danger">
+                                            <td>
+                                                <strong>{{ transaction.user.get_full_name|default:transaction.user.username }}</strong>
+                                                <br><small>{{ transaction.user.email }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ transaction.library_resource.title|truncatechars:25 }}</strong>
+                                                <br><small>{{ transaction.library_resource.call_number }}</small>
+                                            </td>
+                                            <td>{{ transaction.due_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    {{ transaction.due_date|timesince|slice:":10" }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">
+                                                    KSh {{ transaction.calculate_fine|floatformat:2 }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-success" onclick="returnBook({{ transaction.id }})" title="Return">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-primary" onclick="contactUser({{ transaction.user.id }})" title="Contact User">
+                                                        <i class="bi bi-envelope"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">
+                                                <i class="bi bi-check-circle text-success display-4"></i>
+                                                <h5 class="text-success mt-2">No Overdue Books</h5>
+                                                <p class="text-muted">All books are returned on time!</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions Tab -->
+                        <div class="tab-pane fade" id="quick-actions" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Quick Borrow</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <form id="quickBorrowForm">
+                                                <div class="mb-3">
+                                                    <label class="form-label">User</label>
+                                                    <select class="form-select" name="user_id" required>
+                                                        <option value="">Select User</option>
+                                                        {% for user in users %}
+                                                        <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} ({{ user.email }})</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Book</label>
+                                                    <select class="form-select" name="library_resource_id" required>
+                                                        <option value="">Select Book</option>
+                                                        {% for book in available_books %}
+                                                        <option value="{{ book.id }}">{{ book.title }} ({{ book.call_number }}) - {{ book.available_copies }} available</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Due Date</label>
+                                                    <input type="date" class="form-control" name="due_date" required>
+                                                </div>
+                                                <button type="submit" class="btn btn-success w-100">
+                                                    <i class="bi bi-check-circle me-1"></i>Borrow Book
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning">
+                                            <h6 class="mb-0"><i class="bi bi-search me-2"></i>Quick Return</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <form id="quickReturnForm">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Search Transaction</label>
+                                                    <input type="text" class="form-control" id="transactionSearch" 
+                                                           placeholder="Enter user name or book title...">
+                                                </div>
+                                                <div id="activeTransactions" class="mb-3">
+                                                    <!-- Active transactions will be loaded here -->
+                                                </div>
+                                                <button type="button" class="btn btn-warning w-100" onclick="searchActiveTransactions()">
+                                                    <i class="bi bi-search me-1"></i>Find Active Borrowings
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recent Statistics -->
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Today's Activity Summary</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row text-center">
+                                                <div class="col-md-3">
+                                                    <h4 class="text-success">5</h4>
+                                                    <small class="text-muted">Books Borrowed Today</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <h4 class="text-warning">3</h4>
+                                                    <small class="text-muted">Books Returned Today</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <h4 class="text-info">2</h4>
+                                                    <small class="text-muted">Books Renewed Today</small>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <h4 class="text-danger">1</h4>
+                                                    <small class="text-muted">New Overdue Today</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Borrow Book Modal -->
+<div class="modal fade" id="borrowModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Book Borrowing</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="borrowForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">User *</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select User</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} ({{ user.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Book *</label>
+                        <select class="form-select" name="library_resource_id" required>
+                            <option value="">Select Book</option>
+                            {% for book in available_books %}
+                            <option value="{{ book.id }}">{{ book.title }} ({{ book.call_number }}) - {{ book.available_copies }} available</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Due Date *</label>
+                        <input type="date" class="form-control" name="due_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Remarks</label>
+                        <textarea class="form-control" name="remarks" rows="2"></textarea>
+                    </div>
+                    <input type="hidden" name="transaction_type" value="borrow">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Borrow Book</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Return Book Modal -->
+<div class="modal fade" id="returnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Return Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="returnForm">
+                <div class="modal-body">
+                    <div id="returnBookDetails">
+                        <!-- Book details will be loaded here -->
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Return Remarks</label>
+                        <textarea class="form-control" name="remarks" rows="2" 
+                                  placeholder="Book condition, any issues, etc."></textarea>
+                    </div>
+                    <div id="fineCalculation" class="alert alert-info" style="display: none;">
+                        <!-- Fine calculation will appear here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Return Book</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Details Modal -->
+<div class="modal fade" id="transactionDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Transaction Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="transactionDetailsContent">
+                <!-- Details loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+@media print {
+    .btn, .modal, .card-footer, .nav-tabs {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.table-warning {
+    background-color: #fff3cd !important;
+}
+
+.table-danger {
+    background-color: #f8d7da !important;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.border-success {
+    border-color: #198754 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.card-header.bg-success {
+    background-color: #198754 !important;
+}
+
+.card-header.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.text-warning {
+    color: #ffc107 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.text-info {
+    color: #0dcaf0 !important;
+}
+
+.display-1 {
+    font-size: 6rem;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+.display-4 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    line-height: 1.2;
+}
+</style>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentTransactionId = null;
+    
+    // Set default due date (14 days from today)
+    const dueDateInputs = document.querySelectorAll('input[name="due_date"]');
+    dueDateInputs.forEach(input => {
+        const today = new Date();
+        const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+        input.value = twoWeeksLater.toISOString().split('T')[0];
+        input.min = today.toISOString().split('T')[0];
+    });
+    
+    // Open Borrow Modal
+    window.openBorrowModal = function() {
+        const modal = new bootstrap.Modal(document.getElementById('borrowModal'));
+        modal.show();
+    };
+
+    // View Transaction Details
+    window.viewTransactionDetails = function(transactionId) {
+        fetch(`/library/api/transactions/${transactionId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const transaction = data.transaction;
+                    document.getElementById('transactionDetailsContent').innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>User Information</h6>
+                                <p><strong>Name:</strong> ${transaction.user_name}</p>
+                                <p><strong>Email:</strong> ${transaction.user_email}</p>
+                                
+                                <h6>Book Information</h6>
+                                <p><strong>Title:</strong> ${transaction.book_title}</p>
+                                <p><strong>Call Number:</strong> ${transaction.call_number}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Transaction Details</h6>
+                                <p><strong>Type:</strong> ${transaction.transaction_type_display}</p>
+                                <p><strong>Status:</strong> <span class="badge bg-secondary">${transaction.status_display}</span></p>
+                                <p><strong>Transaction Date:</strong> ${transaction.transaction_date}</p>
+                                <p><strong>Due Date:</strong> ${transaction.due_date}</p>
+                                ${transaction.return_date ? `<p><strong>Return Date:</strong> ${transaction.return_date}</p>` : ''}
+                                <p><strong>Fine Amount:</strong> KSh ${transaction.fine_amount}</p>
+                                ${transaction.is_overdue ? '<p><span class="badge bg-danger">OVERDUE</span></p>' : ''}
+                            </div>
+                        </div>
+                        ${transaction.remarks ? `<div class="row"><div class="col-md-12"><h6>Remarks</h6><p>${transaction.remarks}</p></div></div>` : ''}
+                        ${transaction.librarian ? `<div class="row"><div class="col-md-12"><p><small class="text-muted">Processed by: ${transaction.librarian}</small></p></div></div>` : ''}
+                    `;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
+                    modal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    };
+
+    // Return Book
+    window.returnBook = function(transactionId) {
+        currentTransactionId = transactionId;
+        
+        fetch(`/library/api/transactions/${transactionId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const transaction = data.transaction;
+                    document.getElementById('returnBookDetails').innerHTML = `
+                        <div class="alert alert-info">
+                            <h6>Returning Book</h6>
+                            <p><strong>User:</strong> ${transaction.user_name}</p>
+                            <p><strong>Book:</strong> ${transaction.book_title}</p>
+                            <p><strong>Due Date:</strong> ${transaction.due_date}</p>
+                            ${transaction.is_overdue ? '<p class="text-danger"><strong>Status:</strong> OVERDUE</p>' : '<p class="text-success"><strong>Status:</strong> On Time</p>'}
+                        </div>
+                    `;
+                    
+                    if (transaction.is_overdue) {
+                        const fineCalculation = document.getElementById('fineCalculation');
+                        fineCalculation.style.display = 'block';
+                        fineCalculation.innerHTML = `
+                            <h6>Fine Calculation</h6>
+                            <p>This book is overdue. A fine will be calculated based on the number of overdue days.</p>
+                            <p class="text-danger"><strong>Estimated Fine:</strong> KSh ${transaction.fine_amount}</p>
+                        `;
+                    }
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('returnModal'));
+                    modal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    };
+
+    // Renew Book
+    window.renewBook = function(transactionId) {
+        if (confirm('Are you sure you want to renew this book borrowing?')) {
+            // You can implement renewal logic here
+            alert('Renewal functionality would be implemented here');
+        }
+    };
+
+    // Contact User (placeholder)
+    window.contactUser = function(userId) {
+        alert('Contact user functionality would be implemented here');
+    };
+
+    // Search Active Transactions
+    window.searchActiveTransactions = function() {
+        const searchTerm = document.getElementById('transactionSearch').value;
+        if (!searchTerm) {
+            alert('Please enter a search term');
+            return;
+        }
+        
+        // This would search for active transactions
+        document.getElementById('activeTransactions').innerHTML = `
+            <div class="alert alert-info">
+                <p>Search functionality would show active transactions matching: <strong>${searchTerm}</strong></p>
+            </div>
+        `;
+    };
+
+    // Handle Borrow Form Submission
+    const borrowForm = document.getElementById('borrowForm');
+    if (borrowForm) {
+        borrowForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            fetch('/library/api/transactions/create/', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.reset();
+                    // Set default due date again
+                    const dueDateInput = this.querySelector('input[name="due_date"]');
+                    const today = new Date();
+                    const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+                    dueDateInput.value = twoWeeksLater.toISOString().split('T')[0];
+                    
+                    alert('Book borrowed successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing the borrowing.');
+            });
+        });
+    }
+
+    // Initialize Bootstrap tabs
+    const tabElms = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabElms.forEach(tabEl => {
+        tabEl.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tab = new bootstrap.Tab(this);
+            tab.show();
+        });
+    });
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+
+{% endblock %}

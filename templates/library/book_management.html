@@ -1,0 +1,557 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Library Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Library Book Management</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-building me-1"></i>University Library System
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-person-circle me-1"></i>{{ user.get_full_name }} (Librarian)
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-calendar me-1"></i>{{ "now"|date:"M d, Y H:i" }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ stats.total_books }}</h4>
+                            <small class="text-muted">total books</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                            <button class="btn btn-success" onclick="openAddBookModal()">
+                                <i class="bi bi-plus-circle"></i> Add New Book
+                            </button>
+                            <a href="{% url 'issuance_management' %}" class="btn btn-info">
+                                <i class="bi bi-arrow-left-right"></i> Issuance Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_books }}</h5>
+                            <p class="small text-muted mb-0">Total Books</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.available_books }}</h5>
+                            <p class="small text-muted mb-0">Available</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.total_copies }}</h5>
+                            <p class="small text-muted mb-0">Total Copies</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.borrowed_books }}</h5>
+                            <p class="small text-muted mb-0">Borrowed</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.overdue_books }}</h5>
+                            <p class="small text-muted mb-0">Overdue</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.total_copies }}</h5>
+                            <p class="small text-muted mb-0">In Use</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Title, Author, ISBN, Call Number...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resource Type</label>
+                            <select class="form-select" name="resource_type">
+                                <option value="">All Types</option>
+                                {% for value, display in resource_types %}
+                                <option value="{{ value }}" {% if resource_type == value %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Availability</label>
+                            <select class="form-select" name="availability">
+                                <option value="">All Books</option>
+                                <option value="available" {% if availability == 'available' %}selected{% endif %}>Available</option>
+                                <option value="unavailable" {% if availability == 'unavailable' %}selected{% endif %}>Unavailable</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">Filter</button>
+                            <a href="{% url 'book_management' %}" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Books Table -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Library Books</h5>
+                        <span class="badge bg-info">{{ books.paginator.count }} books found</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if books %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Call Number</th>
+                                    <th>Title & Author</th>
+                                    <th>Type</th>
+                                    <th>Publication</th>
+                                    <th>Copies</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in books %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">{{ book.call_number }}</span></td>
+                                    <td>
+                                        <strong>{{ book.title|truncatechars:40 }}</strong>
+                                        <br><small class="text-muted">by {{ book.author|truncatechars:30 }}</small>
+                                        {% if book.isbn %}<br><small class="text-info">ISBN: {{ book.isbn }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if book.resource_type == 'book' %}primary{% elif book.resource_type == 'ebook' %}success{% elif book.resource_type == 'journal' %}info{% else %}secondary{% endif %}">
+                                            {{ book.get_resource_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if book.publisher %}<small>{{ book.publisher|truncatechars:20 }}</small><br>{% endif %}
+                                        {% if book.publication_year %}<small class="text-muted">{{ book.publication_year }}</small>{% endif %}
+                                        {% if book.edition %}<br><small class="text-info">{{ book.edition }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="text-center">
+                                            <span class="badge bg-success">{{ book.available_copies }}</span> / 
+                                            <span class="badge bg-info">{{ book.total_copies }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ book.location|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if book.is_available %}success{% else %}danger{% endif %}">
+                                            {% if book.is_available %}Available{% else %}Unavailable{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewBookDetails({{ book.id }})" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning" onclick="editBook({{ book.id }})" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteBook({{ book.id }})" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            {% if book.digital_copy_url %}
+                                            <a href="{{ book.digital_copy_url }}" class="btn btn-outline-info" target="_blank" title="Digital Copy">
+                                                <i class="bi bi-link-45deg"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if books.has_other_pages %}
+                    <nav aria-label="Books pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if books.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_type %}resource_type={{ resource_type }}&{% endif %}{% if availability %}availability={{ availability }}&{% endif %}page={{ books.previous_page_number }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in books.paginator.page_range %}
+                            {% if books.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > books.number|add:'-3' and num < books.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_type %}resource_type={{ resource_type }}&{% endif %}{% if availability %}availability={{ availability }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if books.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_type %}resource_type={{ resource_type }}&{% endif %}{% if availability %}availability={{ availability }}&{% endif %}page={{ books.next_page_number }}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-book display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Books Found</h5>
+                        <p class="text-muted">No books match your current filters.</p>
+                        <button class="btn btn-success" onclick="openAddBookModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Add First Book
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Book Modal -->
+<div class="modal fade" id="bookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bookModalTitle">Add New Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bookForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Title *</label>
+                                <input type="text" class="form-control" name="title" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Author *</label>
+                                <input type="text" class="form-control" name="author" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ISBN</label>
+                                <input type="text" class="form-control" name="isbn">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Resource Type *</label>
+                                <select class="form-select" name="resource_type" required>
+                                    <option value="">Select Type</option>
+                                    {% for value, display in resource_types %}
+                                    <option value="{{ value }}">{{ display }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Call Number *</label>
+                                <input type="text" class="form-control" name="call_number" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Publisher</label>
+                                <input type="text" class="form-control" name="publisher">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Publication Year</label>
+                                <input type="number" class="form-control" name="publication_year" min="1000" max="2030">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Edition</label>
+                                <input type="text" class="form-control" name="edition">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Total Copies</label>
+                                <input type="number" class="form-control" name="total_copies" min="1" value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" name="location">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Subject Area</label>
+                                <input type="text" class="form-control" name="subject_area">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Digital Copy URL</label>
+                        <input type="url" class="form-control" name="digital_copy_url">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Book</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Book Details Modal -->
+<div class="modal fade" id="bookDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Book Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="bookDetailsContent">
+                <!-- Details loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentBookId = null;
+    
+    // Open Add Book Modal
+    window.openAddBookModal = function() {
+        currentBookId = null;
+        document.getElementById('bookModalTitle').textContent = 'Add New Book';
+        document.getElementById('bookForm').reset();
+        const modal = new bootstrap.Modal(document.getElementById('bookModal'));
+        modal.show();
+    };
+
+    // Edit Book
+    window.editBook = function(bookId) {
+        currentBookId = bookId;
+        document.getElementById('bookModalTitle').textContent = 'Edit Book';
+        
+        fetch(`/library/api/books/${bookId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const form = document.getElementById('bookForm');
+                    const book = data.book;
+                    
+                    Object.keys(book).forEach(key => {
+                        const field = form.querySelector(`[name="${key}"]`);
+                        if (field) {
+                            field.value = book[key] || '';
+                        }
+                    });
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('bookModal'));
+                    modal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    };
+
+    // View Book Details
+    window.viewBookDetails = function(bookId) {
+        fetch(`/library/api/books/${bookId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const book = data.book;
+                    document.getElementById('bookDetailsContent').innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Title:</strong> ${book.title}</p>
+                                <p><strong>Author:</strong> ${book.author}</p>
+                                <p><strong>ISBN:</strong> ${book.isbn || 'N/A'}</p>
+                                <p><strong>Resource Type:</strong> ${book.resource_type_display}</p>
+                                <p><strong>Call Number:</strong> ${book.call_number}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Publisher:</strong> ${book.publisher || 'N/A'}</p>
+                                <p><strong>Publication Year:</strong> ${book.publication_year || 'N/A'}</p>
+                                <p><strong>Edition:</strong> ${book.edition || 'N/A'}</p>
+                                <p><strong>Copies:</strong> ${book.available_copies}/${book.total_copies}</p>
+                                <p><strong>Location:</strong> ${book.location || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <p><strong>Subject Area:</strong> ${book.subject_area || 'N/A'}</p>
+                                <p><strong>Description:</strong> ${book.description || 'N/A'}</p>
+                                <p><strong>Digital Copy:</strong> ${book.digital_copy_url ? `<a href="${book.digital_copy_url}" target="_blank">View Online</a>` : 'N/A'}</p>
+                                <p><strong>Added Date:</strong> ${book.added_date}</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('bookDetailsModal'));
+                    modal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    };
+
+    // Delete Book
+    window.deleteBook = function(bookId) {
+        if (confirm('Are you sure you want to delete this book?')) {
+            fetch(`/library/api/books/${bookId}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the book.');
+            });
+        }
+    };
+
+    // Handle Book Form Submission
+    const bookForm = document.getElementById('bookForm');
+    if (bookForm) {
+        bookForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            const url = currentBookId 
+                ? `/library/api/books/${currentBookId}/update/`
+                : '/library/api/books/create/';
+            
+            const method = currentBookId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the book.');
+            });
+        });
+    }
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+{% endblock %}
