@@ -376,5 +376,11 @@ urlpatterns = [
     path('library/api/transactions/<int:transaction_id>/return/', views.return_book, name='return_book'),
     path('library/api/transactions/<int:transaction_id>/details/', views.get_transaction_details, name='get_transaction_details'),
 
+    path('admin-events/', views.event_list, name='event_list'),
+    path('events/create/', views.create_event, name='create_event'),
+    path('events/<int:event_id>/update/', views.update_event, name='update_event'),
+    path('events/<int:event_id>/delete/', views.delete_event, name='delete_event'),
+    path('events/<int:event_id>/details/', views.get_event_details, name='get_event_details'),
+
 
 ]

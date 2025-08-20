@@ -14371,3 +14371,165 @@ def get_transaction_details(request, transaction_id):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
 
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from .models import Event
+import json
+
+@login_required
+def event_list(request):
+    """Event list view"""
+    events = Event.objects.all().order_by('-start_date')
+    
+    # Filter by event type if provided
+    event_type = request.GET.get('event_type')
+    if event_type:
+        events = events.filter(event_type=event_type)
+    
+    # Calculate counts
+    upcoming_count = events.filter(start_date__gte=timezone.now()).count()
+    past_count = events.filter(start_date__lt=timezone.now()).count()
+    my_events_count = events.filter(organizer=request.user).count()
+    
+    # Pagination
+    paginator = Paginator(events, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'events': page_obj,
+        'event_types': Event.EVENT_TYPES,
+        'selected_event_type': event_type,
+        'upcoming_count': upcoming_count,
+        'past_count': past_count,
+        'my_events_count': my_events_count,
+    }
+    return render(request, 'events/event_list.html', context)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def create_event(request):
+    """Create event via AJAX"""
+    try:
+        data = json.loads(request.body)
+        
+        event = Event(
+            title=data['title'],
+            description=data['description'],
+            event_type=data['event_type'],
+            start_date=data['start_date'],
+            end_date=data['end_date'],
+            venue=data['venue'],
+            organizer=request.user,
+            is_public=data.get('is_public', True),
+            max_participants=data.get('max_participants'),
+            registration_required=data.get('registration_required', False)
+        )
+        event.save()
+        
+        return JsonResponse({
+            'success': True,
+            'event': {
+                'id': event.id,
+                'title': event.title,
+                'event_type': event.get_event_type_display(),
+                'start_date': event.start_date.strftime('%Y-%m-%d %H:%M'),
+                'end_date': event.end_date.strftime('%Y-%m-%d %H:%M'),
+                'venue': event.venue,
+                'organizer': event.organizer.get_full_name(),
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def update_event(request, event_id):
+    """Update event via AJAX"""
+    try:
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Check if user is the organizer
+        if event.organizer != request.user and not request.user.is_staff:
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        
+        data = json.loads(request.body)
+        
+        event.title = data['title']
+        event.description = data['description']
+        event.event_type = data['event_type']
+        event.start_date = data['start_date']
+        event.end_date = data['end_date']
+        event.venue = data['venue']
+        event.is_public = data.get('is_public', True)
+        event.max_participants = data.get('max_participants')
+        event.registration_required = data.get('registration_required', False)
+        
+        event.save()
+        
+        return JsonResponse({
+            'success': True,
+            'event': {
+                'id': event.id,
+                'title': event.title,
+                'event_type': event.get_event_type_display(),
+                'start_date': event.start_date.strftime('%Y-%m-%d %H:%M'),
+                'end_date': event.end_date.strftime('%Y-%m-%d %H:%M'),
+                'venue': event.venue,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@login_required
+def delete_event(request, event_id):
+    """Delete event via AJAX"""
+    try:
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Check if user is the organizer
+        if event.organizer != request.user and not request.user.is_staff:
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        
+        event.delete()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+def get_event_details(request, event_id):
+    """Get event details for editing"""
+    try:
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Check if user is the organizer
+        if event.organizer != request.user and not request.user.is_staff:
+            return JsonResponse({'success': False, 'error': 'Permission denied'})
+        
+        return JsonResponse({
+            'success': True,
+            'event': {
+                'id': event.id,
+                'title': event.title,
+                'description': event.description,
+                'event_type': event.event_type,
+                'start_date': event.start_date.strftime('%Y-%m-%dT%H:%M'),
+                'end_date': event.end_date.strftime('%Y-%m-%dT%H:%M'),
+                'venue': event.venue,
+                'is_public': event.is_public,
+                'max_participants': event.max_participants,
+                'registration_required': event.registration_required,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
