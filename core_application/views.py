@@ -13921,3 +13921,453 @@ def get_grading_system():
         {'grade': 'D', 'points': '1.0', 'percentage': '35-39'},
         {'grade': 'F', 'points': '0.0', 'percentage': 'Below 35'},
     ]
+
+# views.py
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum
+from django.contrib import messages
+from django.utils import timezone
+from datetime import datetime, timedelta
+import json
+
+def is_librarian(user):
+    """Check if user is a librarian (you can customize this logic)"""
+    return user.is_staff or user.groups.filter(name='Librarians').exists()
+
+@login_required
+@user_passes_test(is_librarian)
+def library_book_management(request):
+    """Main library book management view"""
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    resource_type = request.GET.get('resource_type', '')
+    availability = request.GET.get('availability', '')
+    
+    # Build queryset with filters
+    books = Library.objects.all()
+    
+    if search_query:
+        books = books.filter(
+            Q(title__icontains=search_query) |
+            Q(author__icontains=search_query) |
+            Q(isbn__icontains=search_query) |
+            Q(call_number__icontains=search_query)
+        )
+    
+    if resource_type:
+        books = books.filter(resource_type=resource_type)
+    
+    if availability == 'available':
+        books = books.filter(available_copies__gt=0)
+    elif availability == 'unavailable':
+        books = books.filter(available_copies=0)
+    
+    # Pagination
+    paginator = Paginator(books, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_books': Library.objects.count(),
+        'available_books': Library.objects.filter(available_copies__gt=0).count(),
+        'total_copies': Library.objects.aggregate(total=Sum('total_copies'))['total'] or 0,
+        'borrowed_books': LibraryTransaction.objects.filter(status='active').count(),
+        'overdue_books': LibraryTransaction.objects.filter(
+            status='active', due_date__lt=timezone.now().date()
+        ).count(),
+    }
+    
+    context = {
+        'books': page_obj,
+        'stats': stats,
+        'resource_types': Library.RESOURCE_TYPES,
+        'search_query': search_query,
+        'resource_type': resource_type,
+        'availability': availability,
+    }
+    
+    return render(request, 'library/book_management.html', context)
+
+@login_required
+@user_passes_test(is_librarian)
+def library_issuance(request):
+    """Library book issuance and return management"""
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    transaction_type = request.GET.get('transaction_type', '')
+    status = request.GET.get('status', '')
+    
+    # Build queryset with filters
+    transactions = LibraryTransaction.objects.select_related('user', 'library_resource', 'librarian')
+    
+    if search_query:
+        transactions = transactions.filter(
+            Q(user__username__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(library_resource__title__icontains=search_query) |
+            Q(library_resource__call_number__icontains=search_query)
+        )
+    
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+    
+    if status:
+        transactions = transactions.filter(status=status)
+    
+    # Pagination
+    paginator = Paginator(transactions, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_transactions': LibraryTransaction.objects.count(),
+        'active_borrowings': LibraryTransaction.objects.filter(status='active').count(),
+        'overdue_transactions': LibraryTransaction.objects.filter(
+            status='active', due_date__lt=timezone.now().date()
+        ).count(),
+        'total_fines': LibraryTransaction.objects.aggregate(total=Sum('fine_amount'))['total'] or 0,
+        'returned_books': LibraryTransaction.objects.filter(status='returned').count(),
+    }
+    
+    # Get all users for borrowing dropdown
+    users = User.objects.filter(is_active=True).order_by('username')
+    available_books = Library.objects.filter(available_copies__gt=0).order_by('title')
+    
+    context = {
+        'transactions': page_obj,
+        'stats': stats,
+        'transaction_types': LibraryTransaction.TRANSACTION_TYPES,
+        'status_choices': LibraryTransaction.STATUS_CHOICES,
+        'users': users,
+        'available_books': available_books,
+        'search_query': search_query,
+        'transaction_type': transaction_type,
+        'status': status,
+    }
+    
+    return render(request, 'library/issuance_management.html', context)
+
+# AJAX Views for CRUD Operations
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+@user_passes_test(is_librarian)
+def create_book(request):
+    """Create a new library book"""
+    try:
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['title', 'author', 'call_number', 'resource_type']
+        for field in required_fields:
+            if not data.get(field):
+                return JsonResponse({'success': False, 'message': f'{field} is required'})
+        
+        # Check if call_number already exists
+        if Library.objects.filter(call_number=data['call_number']).exists():
+            return JsonResponse({'success': False, 'message': 'Call number already exists'})
+        
+        book = Library.objects.create(
+            title=data['title'],
+            author=data['author'],
+            isbn=data.get('isbn', ''),
+            resource_type=data['resource_type'],
+            publisher=data.get('publisher', ''),
+            publication_year=data.get('publication_year') or None,
+            edition=data.get('edition', ''),
+            total_copies=int(data.get('total_copies', 1)),
+            available_copies=int(data.get('total_copies', 1)),
+            location=data.get('location', ''),
+            call_number=data['call_number'],
+            subject_area=data.get('subject_area', ''),
+            description=data.get('description', ''),
+            digital_copy_url=data.get('digital_copy_url', ''),
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Book created successfully',
+            'book': {
+                'id': book.id,
+                'title': book.title,
+                'author': book.author,
+                'call_number': book.call_number,
+                'resource_type': book.get_resource_type_display(),
+                'total_copies': book.total_copies,
+                'available_copies': book.available_copies,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+@login_required
+@user_passes_test(is_librarian)
+def update_book(request, book_id):
+    """Update an existing book"""
+    try:
+        book = get_object_or_404(Library, id=book_id)
+        data = json.loads(request.body)
+        
+        # Update fields
+        book.title = data.get('title', book.title)
+        book.author = data.get('author', book.author)
+        book.isbn = data.get('isbn', book.isbn)
+        book.resource_type = data.get('resource_type', book.resource_type)
+        book.publisher = data.get('publisher', book.publisher)
+        book.publication_year = data.get('publication_year') or book.publication_year
+        book.edition = data.get('edition', book.edition)
+        book.location = data.get('location', book.location)
+        book.subject_area = data.get('subject_area', book.subject_area)
+        book.description = data.get('description', book.description)
+        book.digital_copy_url = data.get('digital_copy_url', book.digital_copy_url)
+        
+        # Handle copy count updates
+        if 'total_copies' in data:
+            old_total = book.total_copies
+            new_total = int(data['total_copies'])
+            difference = new_total - old_total
+            book.total_copies = new_total
+            book.available_copies = max(0, book.available_copies + difference)
+        
+        book.update_availability()
+        book.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Book updated successfully',
+            'book': {
+                'id': book.id,
+                'title': book.title,
+                'author': book.author,
+                'total_copies': book.total_copies,
+                'available_copies': book.available_copies,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@login_required
+@user_passes_test(is_librarian)
+def delete_book(request, book_id):
+    """Delete a book"""
+    try:
+        book = get_object_or_404(Library, id=book_id)
+        
+        # Check if book has active transactions
+        active_transactions = LibraryTransaction.objects.filter(
+            library_resource=book, status='active'
+        ).exists()
+        
+        if active_transactions:
+            return JsonResponse({
+                'success': False,
+                'message': 'Cannot delete book with active borrowings'
+            })
+        
+        book_title = book.title
+        book.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Book "{book_title}" deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+@user_passes_test(is_librarian)
+def create_transaction(request):
+    """Create a new library transaction (borrow/return/etc)"""
+    try:
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['user_id', 'library_resource_id', 'transaction_type', 'due_date']
+        for field in required_fields:
+            if not data.get(field):
+                return JsonResponse({'success': False, 'message': f'{field} is required'})
+        
+        user = get_object_or_404(User, id=data['user_id'])
+        library_resource = get_object_or_404(Library, id=data['library_resource_id'])
+        
+        # Check availability for borrowing
+        if data['transaction_type'] == 'borrow':
+            if library_resource.available_copies <= 0:
+                return JsonResponse({'success': False, 'message': 'Book not available'})
+            
+            # Check if user already has this book borrowed
+            active_borrow = LibraryTransaction.objects.filter(
+                user=user,
+                library_resource=library_resource,
+                transaction_type='borrow',
+                status='active'
+            ).exists()
+            
+            if active_borrow:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'User already has this book borrowed'
+                })
+        
+        # Parse due_date
+        due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+        
+        transaction = LibraryTransaction.objects.create(
+            user=user,
+            library_resource=library_resource,
+            transaction_type=data['transaction_type'],
+            due_date=due_date,
+            librarian=request.user,
+            remarks=data.get('remarks', '')
+        )
+        
+        # Update book availability
+        if data['transaction_type'] == 'borrow':
+            library_resource.available_copies -= 1
+            library_resource.update_availability()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{data["transaction_type"].title()} transaction created successfully',
+            'transaction': {
+                'id': transaction.id,
+                'user': user.get_full_name() or user.username,
+                'book': library_resource.title,
+                'transaction_type': transaction.get_transaction_type_display(),
+                'due_date': transaction.due_date.strftime('%Y-%m-%d'),
+                'status': transaction.get_status_display(),
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+@login_required
+@user_passes_test(is_librarian)
+def return_book(request, transaction_id):
+    """Process book return"""
+    try:
+        transaction = get_object_or_404(LibraryTransaction, id=transaction_id)
+        data = json.loads(request.body)
+        
+        if transaction.status != 'active':
+            return JsonResponse({'success': False, 'message': 'Transaction is not active'})
+        
+        # Update transaction
+        transaction.status = 'returned'
+        transaction.return_date = timezone.now().date()
+        transaction.remarks = data.get('remarks', transaction.remarks)
+        
+        # Calculate and update fine
+        if transaction.is_overdue():
+            fine_amount = transaction.calculate_fine()
+            transaction.fine_amount = fine_amount
+            transaction.status = 'returned' if fine_amount == 0 else 'returned'
+        
+        transaction.save()
+        
+        # Update book availability
+        library_resource = transaction.library_resource
+        library_resource.available_copies += 1
+        library_resource.update_availability()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Book returned successfully',
+            'fine_amount': float(transaction.fine_amount),
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(is_librarian)
+def get_book_details(request, book_id):
+    """Get detailed information about a book"""
+    try:
+        book = get_object_or_404(Library, id=book_id)
+        
+        return JsonResponse({
+            'success': True,
+            'book': {
+                'id': book.id,
+                'title': book.title,
+                'author': book.author,
+                'isbn': book.isbn,
+                'resource_type': book.resource_type,
+                'resource_type_display': book.get_resource_type_display(),
+                'publisher': book.publisher,
+                'publication_year': book.publication_year,
+                'edition': book.edition,
+                'total_copies': book.total_copies,
+                'available_copies': book.available_copies,
+                'location': book.location,
+                'call_number': book.call_number,
+                'subject_area': book.subject_area,
+                'description': book.description,
+                'digital_copy_url': book.digital_copy_url,
+                'is_available': book.is_available,
+                'added_date': book.added_date.strftime('%Y-%m-%d'),
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(is_librarian)
+def get_transaction_details(request, transaction_id):
+    """Get detailed information about a transaction"""
+    try:
+        transaction = get_object_or_404(LibraryTransaction, id=transaction_id)
+        
+        return JsonResponse({
+            'success': True,
+            'transaction': {
+                'id': transaction.id,
+                'user_id': transaction.user.id,
+                'user_name': transaction.user.get_full_name() or transaction.user.username,
+                'user_email': transaction.user.email,
+                'library_resource_id': transaction.library_resource.id,
+                'book_title': transaction.library_resource.title,
+                'call_number': transaction.library_resource.call_number,
+                'transaction_type': transaction.transaction_type,
+                'transaction_type_display': transaction.get_transaction_type_display(),
+                'transaction_date': transaction.transaction_date.strftime('%Y-%m-%d %H:%M'),
+                'due_date': transaction.due_date.strftime('%Y-%m-%d'),
+                'return_date': transaction.return_date.strftime('%Y-%m-%d') if transaction.return_date else None,
+                'status': transaction.status,
+                'status_display': transaction.get_status_display(),
+                'fine_amount': float(transaction.fine_amount),
+                'is_overdue': transaction.is_overdue(),
+                'librarian': transaction.librarian.get_full_name() if transaction.librarian else None,
+                'remarks': transaction.remarks,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
