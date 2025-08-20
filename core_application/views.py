@@ -559,6 +559,32 @@ def student_reporting(request):
             semester=current_semester
         ).exists()
     
+    # Calculate student's current semester number (across all years)
+    total_semesters_completed = StudentReporting.objects.filter(
+        student=student, 
+        status='approved'
+    ).count()
+    
+    current_semester_number = total_semesters_completed + 1
+    
+    # Check if student can report to this semester based on programme limits
+    can_report = True
+    error_message = ""
+    
+    if current_semester:
+        # Check if student has exceeded programme semester limit
+        if current_semester_number > student.programme.total_semesters:
+            can_report = False
+            error_message = f"Cannot report. Your programme ({student.programme.name}) has a maximum of {student.programme.total_semesters} semesters."
+        
+        # Check if student is trying to report to a semester that doesn't match their programme structure
+        programme_semesters_per_year = student.programme.semesters_per_year
+        current_semester_in_year = (current_semester_number - 1) % programme_semesters_per_year + 1
+        
+        if current_semester.semester_number != current_semester_in_year:
+            can_report = False
+            error_message = f"Cannot report to Semester {current_semester.semester_number}. Your programme structure requires Semester {current_semester_in_year} at this stage."
+    
     if request.method == 'POST':
         if not current_semester:
             messages.error(request, "No active semester found for reporting.")
@@ -566,6 +592,10 @@ def student_reporting(request):
         
         if has_reported:
             messages.error(request, f"You have already reported for {current_semester}.")
+            return redirect('student_reporting')
+        
+        if not can_report:
+            messages.error(request, error_message)
             return redirect('student_reporting')
         
         remarks = request.POST.get('remarks', '')
@@ -591,9 +621,13 @@ def student_reporting(request):
         'current_semester': current_semester,
         'reports': reports,
         'has_reported': has_reported,
+        'can_report': can_report,
+        'error_message': error_message,
+        'current_semester_number': current_semester_number,
+        'total_semesters_completed': total_semesters_completed,
+        'programme_max_semesters': student.programme.total_semesters,
     }
     return render(request, 'student/student_reporting.html', context)
-
 
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -6103,6 +6137,10 @@ def student_grades(request):
         'grades': grades,
         'overall_gpa': overall_gpa,
         'total_credit_hours': total_credit_hours,
+        'passed_courses_count': Grade.objects.filter(
+            enrollment__student=student, 
+            is_passed=True
+        ).count(),
     }
     
     return render(request, 'student/grades_student.html', context)
@@ -6560,7 +6598,7 @@ def timetable_management(request):
     return render(request, 'admin/timetable_management.html', context)
 
 @login_required
-def get_programme_courses(request, programme_id):
+def admin_get_programme_courses(request, programme_id):
     """Get courses for a specific programme and year"""
     if not request.user.user_type == 'admin':
         return JsonResponse({'error': 'Access denied'}, status=403)

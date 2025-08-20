@@ -7,13 +7,13 @@
 
 <!-- System Messages -->
 <div class="message-container" id="system-messages">
-                                {% for message in messages %}
-                                <div class="alert-message alert-{{ message.tags }}">
-                                    {{ message }}
-                                    <span class="close-message">&times;</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+    {% for message in messages %}
+       <div class="alert-message alert-{{ message.tags }}">
+           {{ message }}
+           <span class="close-message">&times;</span>
+        </div>
+    {% endfor %}
+</div>
 
 <div class="container onprintContainer">
     <div class="row mt-3">

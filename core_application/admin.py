@@ -842,3 +842,4 @@ class StudentNotificationAdmin(admin.ModelAdmin):
 admin.site.site_header = "University Management System - Complete"
 admin.site.site_title = "UMS Admin Portal"
 admin.site.index_title = "Welcome to University Management System Administration"
+

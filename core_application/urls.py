@@ -180,7 +180,7 @@ urlpatterns = [
     # Main timetable management page
     path('admin-timetable-management/', views.timetable_management, name='timetable_management'),
     # AJAX endpoints
-    path('admin-get-programme-courses/<int:programme_id>/', views.get_programme_courses, name='get_programme_courses'),
+    path('admin-get-programme-courses/<int:programme_id>/', views.admin_get_programme_courses, name='admin_get_programme_courses'),
     path('admin-get-programme-timetable/<int:programme_id>/', views.get_programme_timetable, name='get_programme_timetable'),
     path('admin-save-timetable-entry/', views.save_timetable_entry, name='save_timetable_entry'),
     path('admin-delete-timetable-entry/<int:entry_id>/', views.delete_timetable_entry, name='delete_timetable_entry'),

@@ -6,7 +6,7 @@
     <div class="row mt-3">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
             <h3 class="primary-text">Semester Reporting</h3>
-            {% if not has_reported and current_semester %}
+            {% if not has_reported and current_semester and can_report %}
                 <button class="btn primary-btn" data-bs-toggle="modal" data-bs-target="#reportModal">
                     <i class="ri-add-line"></i> Report for Current Semester
                 </button>
@@ -24,11 +24,54 @@
         {% endfor %}
     {% endif %}
 
+    <!-- Programme Information -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="ri-book-open-line"></i>
+                        Programme Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Programme:</strong> {{ student.programme.name }}</p>
+                    <p class="mb-1"><strong>Duration:</strong> {{ student.programme.duration_years }} years</p>
+                    <p class="mb-1"><strong>Semesters per Year:</strong> {{ student.programme.semesters_per_year }}</p>
+                    <p class="mb-0"><strong>Total Semesters:</strong> {{ student.programme.total_semesters }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="ri-progress-4-line"></i>
+                        My Progress
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Completed Semesters:</strong> {{ total_semesters_completed }}</p>
+                    <p class="mb-1"><strong>Remaining Semesters:</strong> {{ programme_max_semesters|add:"-total_semesters_completed" }}</p>
+                    <div class="progress mt-2" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {% widthratio total_semesters_completed programme_max_semesters 100 %}%;" 
+                             aria-valuenow="{{ total_semesters_completed }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="{{ programme_max_semesters }}">
+                            {% widthratio total_semesters_completed programme_max_semesters 100 %}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Current Semester Status -->
     {% if current_semester %}
     <div class="row mt-4">
         <div class="col-md-12">
-            <div class="card {% if has_reported %}bg-light-success{% else %}bg-light-warning{% endif %}">
+            <div class="card {% if has_reported %}bg-light-success{% elif can_report %}bg-light-info{% else %}bg-light-warning{% endif %}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -38,18 +81,38 @@
                             </h5>
                             <p class="card-text mb-0">
                                 Status: 
-                                <span class="badge bg-{% if has_reported %}success{% else %}warning{% endif %}">
-                                    {% if has_reported %}Reported{% else %}Not Reported{% endif %}
+                                <span class="badge bg-{% if has_reported %}success{% elif can_report %}info{% else %}danger{% endif %}">
+                                    {% if has_reported %}Reported
+                                    {% elif can_report %}Ready to Report (Semester {{ current_semester_number }} of {{ programme_max_semesters }})
+                                    {% else %}Cannot Report{% endif %}
                                 </span>
                             </p>
+                            {% if not can_report and not has_reported %}
+                                <p class="text-danger mt-2 mb-0">
+                                    <i class="ri-error-warning-line"></i> {{ error_message }}
+                                </p>
+                            {% endif %}
                         </div>
                         <div class="text-end">
                             <small class="text-muted">
                                 {{ current_semester.start_date|date:"M j, Y" }} - {{ current_semester.end_date|date:"M j, Y" }}
                             </small>
+                            <br>
+                            <small class="text-muted">
+                                Registration: {{ current_semester.registration_start_date|date:"M j, Y" }} - {{ current_semester.registration_end_date|date:"M j, Y" }}
+                            </small>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-warning">
+                <h5><i class="ri-calendar-close-line"></i> No Active Semester</h5>
+                <p class="mb-0">There is currently no active semester for reporting. Please check back later.</p>
             </div>
         </div>
     </div>
@@ -75,6 +138,7 @@
                                     <th>Date Reported</th>
                                     <th>Type</th>
                                     <th>Status</th>
+                                    <th>Processed By</th>
                                     <th>Remarks</th>
                                 </tr>
                             </thead>
@@ -92,6 +156,13 @@
                                         <span class="badge bg-{% if report.status == 'approved' %}success{% elif report.status == 'rejected' %}danger{% else %}warning{% endif %}">
                                             {{ report.get_status_display }}
                                         </span>
+                                    </td>
+                                    <td>
+                                        {% if report.processed_by %}
+                                            {{ report.processed_by.get_full_name }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ report.remarks|default:"-" }}</td>
                                 </tr>
@@ -111,7 +182,7 @@
     </div>
 
     <!-- Reporting Modal -->
-    {% if current_semester and not has_reported %}
+    {% if current_semester and not has_reported and can_report %}
     <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -124,6 +195,12 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="ri-information-line"></i>
+                            You are reporting for <strong>Semester {{ current_semester_number }}</strong> of 
+                            <strong>{{ programme_max_semesters }}</strong> total semesters in your programme.
+                        </div>
+                        
                         <div class="mb-3">
                             <label class="form-label">Remarks (Optional)</label>
                             <textarea class="form-control" name="remarks" rows="3" 
@@ -132,7 +209,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="confirmReporting" required>
                             <label class="form-check-label" for="confirmReporting">
-                                I confirm that I am reporting for the correct semester.
+                                I confirm that I am reporting for the correct semester (Semester {{ current_semester_number }}).
                             </label>
                         </div>
                     </div>
@@ -161,6 +238,12 @@ $(document).ready(function() {
             alert('Please confirm that you are reporting for the correct semester.');
         }
     });
+    
+    // Show modal if there are error messages related to reporting
+    {% if not can_report and not has_reported and current_semester %}
+        // You could show a modal with the error message if needed
+        console.log("Reporting not allowed: {{ error_message }}");
+    {% endif %}
 });
 </script>
 {% endblock %}

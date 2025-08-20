@@ -1,4 +1,4 @@
-{% extends 'student_base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
@@ -79,12 +79,8 @@
         <div class="col-md-3">
             <div class="card bg-info text-white">
                 <div class="card-body text-center">
-                    <h4 class="mb-1">
-                        {% for grade in grades %}
-                            {% if grade.is_passed %}{{ forloop.counter0|add:"1" }}{% endif %}
-                        {% empty %}0{% endfor %}
-                    </h4>
-                    <small>Courses Passed</small>
+                    <h4 class="mb-1">{{passed_courses_count}}</h4>
+                    <small>Units Passed</small>
                 </div>
             </div>
         </div>
@@ -197,29 +193,15 @@
                                 </h6>
                             </div>
                             <div class="col-md-4 text-end">
+                                {% load grade_filters %}
+
                                 {% with semester_group.list as semester_grades_list %}
-                                {% with semester_grades_list|length as total_courses %}
-                                {% with semester_grades_list|first as first_grade %}
-                                    <small class="text-muted">
-                                        {{ total_courses }} Course{{ total_courses|pluralize }} | 
-                                        <!-- Calculate semester GPA -->
-                                        {% for grade in semester_grades_list %}
-                                            {% if forloop.first %}
-                                                {% with 0 as sem_quality_points %}
-                                                {% with 0 as sem_credit_hours %}
-                                            {% endif %}
-                                            {% if grade.quality_points %}
-                                                {% with sem_quality_points|add:grade.quality_points as sem_quality_points %}
-                                                {% with sem_credit_hours|add:grade.enrollment.course.credit_hours as sem_credit_hours %}
-                                            {% endif %}
-                                            {% if forloop.last and sem_credit_hours > 0 %}
-                                                Semester GPA: {{ sem_quality_points|floatformat:2 }}/{{ sem_credit_hours }} = 
-                                                {% widthratio sem_quality_points sem_credit_hours 1 %}
-                                            {% endif %}
-                                        {% endfor %}
-                                    </small>
-                                {% endwith %}
-                                {% endwith %}
+                                    {% with semester_grades_list|length as total_courses %}
+                                        <small class="text-muted">
+                                            {{ total_courses }} Course{{ total_courses|pluralize }} | 
+                                            Semester GPA: {{ semester_grades_list|calculate_semester_gpa|floatformat:2 }}
+                                        </small>
+                                    {% endwith %}
                                 {% endwith %}
                             </div>
                         </div>
@@ -229,8 +211,8 @@
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Course Code</th>
-                                        <th>Course Name</th>
+                                        <th>Unit Code</th>
+                                        <th>Unit Name</th>
                                         <th class="text-center">Credit Hours</th>
                                         <th class="text-center">CAT (40%)</th>
                                         <th class="text-center">Exam (60%)</th>
@@ -314,7 +296,7 @@
                         <div class="row mt-3 pt-3 border-top">
                             <div class="col-md-8">
                                 <small class="text-muted">
-                                    Courses: {{ semester_group.list|length }} | 
+                                    Units: {{ semester_group.list|length }} | 
                                     Passed: 
                                     {% for grade in semester_group.list %}
                                         {% if grade.is_passed %}{{ forloop.counter0|add:"1" }}{% endif %}
@@ -327,25 +309,26 @@
                             </div>
                             <div class="col-md-4 text-end">
                                 <small class="text-muted">
-                                    <!-- Calculate and display semester GPA -->
-                                    {% with 0|floatformat:2 as semester_gpa %}
-                                    {% with 0 as semester_quality_points %}
-                                    {% with 0 as semester_credit_hours %}
-                                    {% for grade in semester_group.list %}
-                                        {% if grade.quality_points %}
-                                            {% with semester_quality_points|add:grade.quality_points as semester_quality_points %}
-                                            {% with semester_credit_hours|add:grade.enrollment.course.credit_hours as semester_credit_hours %}
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if semester_credit_hours > 0 %}
-                                        {% widthratio semester_quality_points semester_credit_hours 100 as temp_gpa %}
-                                        Semester GPA: {{ temp_gpa|floatformat:2 }}
-                                    {% else %}
-                                        Semester GPA: N/A
-                                    {% endif %}
-                                    {% endwith %}
-                                    {% endwith %}
-                                    {% endwith %}
+                                    <div class="row mt-3 pt-3 border-top">
+                                        <div class="col-md-8">
+                                            <small class="text-muted">
+                                                Units: {{ semester_group.list|length }} | 
+                                                Passed: {{ semester_group.list|passed_courses_count }} | 
+                                                Failed: {{ semester_group.list|failed_courses_count }}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <small class="text-muted">
+                                                {% with semester_group.list|calculate_semester_gpa as semester_gpa %}
+                                                    {% if semester_gpa is not None %}
+                                                        Semester GPA: {{ semester_gpa }}
+                                                    {% else %}
+                                                        Semester GPA: N/A
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </small>
+                                        </div>
+                                    </div>
                                 </small>
                             </div>
                         </div>
@@ -546,9 +529,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Download PDF functionality (would require backend implementation)
     window.downloadPDF = function() {
         // This would typically make a request to a backend endpoint that generates a PDF
-        alert('PDF download functionality would be implemented on the backend.');
+        //alert('PDF download functionality would be implemented on the backend.');
         // Example:
-        // window.location.href = '/student/transcript/pdf/';
+        window.location.href = '/transcript/pdf/';
     };
     
     // Add tooltips to grade points
