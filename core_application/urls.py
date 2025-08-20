@@ -366,4 +366,15 @@ urlpatterns = [
     path('admin-students/<str:student_id>/certificate/download/', views.download_certificate_pdf, name='download_certificate_pdf'),
 
 
+    path('books/', views.library_book_management, name='book_management'),
+    path('issuance/', views.library_issuance, name='issuance_management'),
+    path('api/books/create/', views.create_book, name='create_book'),
+    path('api/books/<int:book_id>/update/', views.update_book, name='update_book'),
+    path('api/books/<int:book_id>/delete/', views.delete_book, name='delete_book'),
+    path('api/books/<int:book_id>/details/', views.get_book_details, name='get_book_details'),
+    path('api/transactions/create/', views.create_transaction, name='create_transaction'),
+    path('api/transactions/<int:transaction_id>/return/', views.return_book, name='return_book'),
+    path('api/transactions/<int:transaction_id>/details/', views.get_transaction_details, name='get_transaction_details'),
+
+
 ]
