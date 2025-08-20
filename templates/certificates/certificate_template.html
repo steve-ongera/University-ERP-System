@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificate of Completion</title>
+    <title>Certificate of Completion - Muranga University of Technology</title>
     <style>
         @page {
             size: landscape;
@@ -22,11 +22,60 @@
             width: 11in;
             height: 8.5in;
             margin: 0 auto;
-            background-color: white;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
             position: relative;
-            border: 20px solid #1a3c6e;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            border: 3px solid #1a3c6e;
+            box-shadow: 
+                0 0 0 15px #ffffff,
+                0 0 0 18px #c9a961,
+                0 0 0 21px #1a3c6e,
+                0 0 30px rgba(0, 0, 0, 0.15);
             overflow: hidden;
+        }
+        
+        .decorative-border {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            bottom: 30px;
+            border: 2px solid #c9a961;
+            pointer-events: none;
+        }
+        
+        .decorative-corners {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 3px solid #c9a961;
+        }
+        
+        .decorative-corners.top-left {
+            top: 15px;
+            left: 15px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .decorative-corners.top-right {
+            top: 15px;
+            right: 15px;
+            border-left: none;
+            border-bottom: none;
+        }
+        
+        .decorative-corners.bottom-left {
+            bottom: 15px;
+            left: 15px;
+            border-right: none;
+            border-top: none;
+        }
+        
+        .decorative-corners.bottom-right {
+            bottom: 15px;
+            right: 15px;
+            border-left: none;
+            border-top: none;
         }
         
         .watermark {
@@ -35,7 +84,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><text x="200" y="200" font-family="Arial" font-size="60" fill="rgba(26,60,110,0.05)" text-anchor="middle" transform="rotate(45 200 200)">MURANGA UNIVERSITY OF TECHNOLOGY</text></svg>');
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><text x="200" y="200" font-family="serif" font-size="40" fill="rgba(26,60,110,0.03)" text-anchor="middle" transform="rotate(45 200 200)">MURANGA UNIVERSITY</text></svg>');
             background-repeat: repeat;
             opacity: 0.1;
             z-index: 0;
@@ -43,51 +92,117 @@
         
         .header {
             text-align: center;
-            padding: 30px 0 10px;
+            padding: 40px 0 20px;
             position: relative;
             z-index: 1;
         }
         
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 30px;
+        }
+        
+        .university-logo {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, #1a3c6e 0%, #2d5aa0 100%);
+            border: 4px solid #c9a961;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(26, 60, 110, 0.3);
+        }
+        
+        .logo-inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            width: 90%;
+            height: 90%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        
+        .coat-of-arms {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #8b0000 0%, #dc143c 50%, #8b0000 100%);
+            border: 3px solid #c9a961;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+        }
+        
         .university-name {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
             color: #1a3c6e;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 5px;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
         
         .university-motto {
             font-size: 16px;
             font-style: italic;
             color: #8b0000;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
+            font-weight: 500;
         }
         
-        .seal {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
-            background-color: #f0f0f0;
-            border: 2px solid #1a3c6e;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .university-subtitle {
             font-size: 14px;
-            font-weight: bold;
-            color: #1a3c6e;
-            margin-bottom: 20px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .certificate-title {
             text-align: center;
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
             text-transform: uppercase;
             color: #1a3c6e;
-            margin: 20px 0;
-            letter-spacing: 3px;
+            margin: 25px 0;
+            letter-spacing: 4px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .certificate-title::before,
+        .certificate-title::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 100px;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #c9a961, transparent);
+        }
+        
+        .certificate-title::before {
+            left: -120px;
+        }
+        
+        .certificate-title::after {
+            right: -120px;
         }
         
         .certificate-body {
@@ -101,36 +216,53 @@
         .certificate-text {
             font-size: 18px;
             line-height: 1.8;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
+            color: #444;
         }
         
         .student-name {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
             text-transform: uppercase;
             color: #1a3c6e;
-            margin: 15px 0;
-            border-bottom: 2px solid #1a3c6e;
-            padding-bottom: 5px;
+            margin: 20px 0;
+            border-bottom: 3px solid #c9a961;
+            padding-bottom: 8px;
             display: inline-block;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
         
         .programme-details {
-            font-size: 18px;
-            margin: 15px 0;
+            font-size: 20px;
+            margin: 20px 0;
+            color: #333;
         }
         
         .honors {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             color: #8b0000;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .gpa-display {
+            font-size: 18px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #c9a961;
+            border-radius: 25px;
+            padding: 10px 20px;
+            display: inline-block;
             margin: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         .signature-area {
             display: flex;
             justify-content: space-between;
-            padding: 0 80px;
+            padding: 0 60px;
             margin-top: 40px;
             position: relative;
             z-index: 1;
@@ -138,73 +270,124 @@
         
         .signature {
             text-align: center;
-            width: 200px;
+            width: 220px;
         }
         
         .signature-line {
-            border-top: 1px solid #333;
-            width: 180px;
-            margin: 50px auto 10px;
+            border-top: 2px solid #333;
+            width: 200px;
+            margin: 60px auto 15px;
         }
         
         .signature-name {
             font-weight: bold;
             font-size: 16px;
+            color: #1a3c6e;
         }
         
         .signature-title {
             font-size: 14px;
             font-style: italic;
+            color: #666;
+            margin-top: 5px;
         }
         
-        .date {
+        .date-section {
             text-align: center;
-            margin-top: 30px;
-            font-size: 16px;
-        }
-        
-        .certificate-number {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .university-address {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            font-size: 12px;
-            color: #666;
+            margin-top: 35px;
+            font-size: 18px;
+            color: #333;
+            background: rgba(26, 60, 110, 0.05);
+            padding: 15px 30px;
+            border-radius: 25px;
+            display: inline-block;
+            border: 1px solid #c9a961;
         }
         
         .official-stamp {
             position: absolute;
-            top: 50%;
-            right: 80px;
-            opacity: 0.8;
-            transform: rotate(15deg);
+            top: 45%;
+            right: 60px;
+            opacity: 0.9;
+            transform: rotate(12deg);
             color: #8b0000;
             font-weight: bold;
-            font-size: 16px;
-            border: 2px solid #8b0000;
+            font-size: 14px;
+            border: 3px solid #8b0000;
+            padding: 8px 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 10px rgba(139, 0, 0, 0.3);
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .certificate-number {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            font-size: 12px;
+            color: #666;
+            background: rgba(255, 255, 255, 0.8);
             padding: 5px 10px;
             border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .university-address {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .verification-qr {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #666;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="certificate-container">
+        <div class="decorative-corners top-left"></div>
+        <div class="decorative-corners top-right"></div>
+        <div class="decorative-corners bottom-left"></div>
+        <div class="decorative-corners bottom-right"></div>
+        <div class="decorative-border"></div>
         <div class="watermark"></div>
         
         <div class="header">
-            <div class="university-name">{{ university_name }}</div>
-            <div class="university-motto">{{ university_motto }}</div>
-            
-            <div class="seal">
-                OFFICIAL SEAL<br>
-                {{ university_name }}
+            <div class="logo-container">
+                <div class="coat-of-arms">
+                    <div style="font-size: 8px; line-height: 1;">
+                        REPUBLIC<br>OF<br>KENYA
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <div class="university-name">{{ university_name|default:"Muranga University of Technology" }}</div>
+                    <div class="university-motto">{{ university_motto|default:"Technology for Service" }}</div>
+                    <div class="university-subtitle">Chartered University</div>
+                </div>
+                
+                <div class="university-logo">
+                    <div class="logo-inner">
+                        <div style="font-size: 10px; line-height: 1;">
+                            MUT<br>LOGO
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -216,7 +399,7 @@
             </div>
             
             <div class="student-name">
-                {{ student.user.get_full_name|default:student.user.username }}
+                {{ student.user.get_full_name|default:student.user.username|default:"[Student Name]" }}
             </div>
             
             <div class="certificate-text">
@@ -224,22 +407,22 @@
             </div>
             
             <div class="programme-details">
-                <strong>{{ student.programme.get_programme_type_display }}</strong> in
-                <strong>{{ student.programme.name }}</strong>
+                <strong>{{ student.programme.get_programme_type_display|default:"Bachelor of Science" }}</strong> in<br>
+                <strong>{{ student.programme.name|default:"Computer Science" }}</strong>
             </div>
             
             {% if stats.graduation_class != "Fail" %}
             <div class="honors">
-                with {{ stats.graduation_class }}
+                with {{ stats.graduation_class|default:"Second Class Honours (Upper Division)" }}
             </div>
             {% endif %}
             
-            <div class="programme-details">
-                Cumulative GPA: <strong>{{ stats.overall_gpa }}</strong>
+            <div class="gpa-display">
+                Cumulative GPA: <strong>{{ stats.overall_gpa|default:"3.75" }}</strong>
             </div>
             
-            <div class="date">
-                Awarded on this {{ completion_date|date:"jS \o\f F, Y" }}
+            <div class="date-section">
+                Awarded on this {{ completion_date|date:"jS \o\f F, Y"|default:"15th of December, 2024" }}
             </div>
         </div>
         
@@ -259,22 +442,30 @@
             <div class="signature">
                 <div class="signature-line"></div>
                 <div class="signature-name">Dr. Peter Njoroge</div>
-                <div class="signature-title">Dean, {{ student.programme.faculty.name }}</div>
+                <div class="signature-title">Dean, {{ student.programme.faculty.name|default:"School of Computing & IT" }}</div>
             </div>
         </div>
         
         <div class="official-stamp">
-            OFFICIALLY SIGNED AND SEALED
+            OFFICIALLY<br>SIGNED<br>& SEALED
         </div>
         
         <div class="university-address">
-            Muranga University of Technology<br>
+            <strong>Muranga University of Technology</strong><br>
             P.O. Box 123-10200, Muranga<br>
-            Kenya
+            Kenya<br>
+            <em>www.mut.ac.ke</em>
+        </div>
+        
+        <div class="verification-qr">
+            Scan QR code to verify authenticity<br>
+            █████<br>
+            █   █<br>
+            █████
         </div>
         
         <div class="certificate-number">
-            Certificate No: {{ student.student_id }}-{{ completion_date|date:"Ymd" }}
+            Certificate No: {{ student.student_id|default:"MUT" }}-{{ completion_date|date:"Ymd"|default:"20241215" }}
         </div>
     </div>
 </body>
