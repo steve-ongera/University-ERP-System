@@ -1,0 +1,270 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-bell me-2"></i>
+                            {% if notification_type == 'student' %}Student{% else %}General{% endif %} Notification Management
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Manage and send notifications to 
+                            {% if notification_type == 'student' %}individual students{% else %}system users{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="?type=student" class="btn btn-{% if notification_type == 'student' %}primary{% else %}outline-primary{% endif %}">
+                                <i class="bi bi-person"></i> Student
+                            </a>
+                            <a href="?type=general" class="btn btn-{% if notification_type == 'general' %}success{% else %}outline-success{% endif %}">
+                                <i class="bi bi-broadcast"></i> General
+                            </a>
+                            <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#createNotificationModal">
+                                <i class="bi bi-plus-circle"></i> Create New
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        {% if notification_type == 'student' %}
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_notifications }}</h5>
+                            <p class="small text-muted mb-0">Total Notifications</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.read_notifications }}</h5>
+                            <p class="small text-muted mb-0">Read</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.unread_notifications }}</h5>
+                            <p class="small text-muted mb-0">Unread</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.exam_notifications }}</h5>
+                            <p class="small text-muted mb-0">Exam Related</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-purple">{{ stats.assignment_notifications }}</h5>
+                            <p class="small text-muted mb-0">Assignments</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.today_notifications }}</h5>
+                            <p class="small text-muted mb-0">Today</p>
+                        </div>
+                        {% else %}
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_notifications }}</h5>
+                            <p class="small text-muted mb-0">Total Notifications</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.active_notifications }}</h5>
+                            <p class="small text-muted mb-0">Active</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.expired_notifications }}</h5>
+                            <p class="small text-muted mb-0">Expired</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.high_priority }}</h5>
+                            <p class="small text-muted mb-0">High Priority</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.urgent_priority }}</h5>
+                            <p class="small text-muted mb-0">Urgent</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.today_notifications }}</h5>
+                            <p class="small text-muted mb-0">Today</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm" class="row g-3">
+                        <input type="hidden" name="type" value="{{ notification_type }}">
+                        <div class="col-md-3">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search notifications..." onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                {% if notification_type == 'student' %}
+                                <option value="read" {% if status_filter == 'read' %}selected{% endif %}>Read</option>
+                                <option value="unread" {% if status_filter == 'unread' %}selected{% endif %}>Unread</option>
+                                {% else %}
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Type</label>
+                            <select class="form-select" name="filter_type" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                {% if notification_type == 'student' %}
+                                {% for type_key, type_label in student_notification_types %}
+                                <option value="{{ type_key }}" {% if type_filter == type_key %}selected{% endif %}>{{ type_label }}</option>
+                                {% endfor %}
+                                {% else %}
+                                {% for type_key, type_label in general_notification_types %}
+                                <option value="{{ type_key }}" {% if type_filter == type_key %}selected{% endif %}>{{ type_label }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date</label>
+                            <select class="form-select" name="date" onchange="this.form.submit()">
+                                <option value="">All Time</option>
+                                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+                                <option value="week" {% if date_filter == 'week' %}selected{% endif %}>This Week</option>
+                                <option value="month" {% if date_filter == 'month' %}selected{% endif %}>This Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <div class="btn-group">
+                                    <a href="?type={{ notification_type }}" class="btn btn-outline-secondary">Clear</a>
+                                    <button class="btn btn-success" id="bulkActionBtn" disabled>
+                                        <i class="bi bi-check-all"></i> Bulk Actions
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="row p-3" id="bulkActionsBar" style="display: none;">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <span id="selectedCount">0</span> notifications selected
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group btn-group-sm">
+                                {% if notification_type == 'student' %}
+                                <button class="btn btn-success" onclick="bulkAction('mark_read')">
+                                    <i class="bi bi-check-circle"></i> Mark Read
+                                </button>
+                                <button class="btn btn-warning" onclick="bulkAction('mark_unread')">
+                                    <i class="bi bi-circle"></i> Mark Unread
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-danger" onclick="bulkAction('delete')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if notifications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="3%">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    {% if notification_type == 'student' %}
+                                    <th width="15%">Student</th>
+                                    <th width="25%">Title</th>
+                                    <th width="20%">Message</th>
+                                    <th width="10%">Type</th>
+                                    <th width="10%">Date</th>
+                                    <th width="7%">Status</th>
+                                    <th width="10%">Actions</th>
+                                    {% else %}
+                                    <th width="15%">Sender</th>
+                                    <th width="20%">Title</th>
+                                    <th width="25%">Message</th>
+                                    <th width="8%">Type</th>
+                                    <th width="8%">Priority</th>
+                                    <th width="8%">Recipients</th>
+                                    <th width="8%">Date</th>
+                                    <th width="5%">Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for notification in notifications %}
+                                <tr data-notification-id="{{ notification.id }}" class="notification-row">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input notification-checkbox" value="{{ notification.id }}">
+                                    </td>
+                                    {% if notification_type == 'student' %}
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-2">
+                                                {{ notification.student.user.first_name.0 }}{{ notification.student.user.last_name.0 }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ notification.student.user.get_full_name }}</div>
+                                                <small class="text-muted">{{ notification.student.student_id }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ notification.title|truncatechars:40 }}</div>
+                                    </td>
+                                    <td>
+                                        <p class="mb-0 text-muted">{{ notification.message|truncatechars:60 }}</p>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ notification.get_notification_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        <div>{{ notification.created_date|date:"M d" }}</div>

@@ -15316,3 +15316,404 @@ def bulk_action_comments(request):
         })
 
 
+# views.py
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.db.models import Q, CharField, Value, Count, Case, When, IntegerField
+from django.db.models.functions import Concat
+from django.utils import timezone
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib import messages
+import json
+from datetime import datetime, timedelta
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def notification_management(request):
+    """Main notification management view"""
+    # Get notification type from URL parameter
+    notification_type = request.GET.get('type', 'student')  # 'student' or 'general'
+    
+    if notification_type == 'student':
+        notifications = StudentNotification.objects.select_related(
+            'student__user'
+        ).annotate(
+            student_name=Concat(
+                'student__user__first_name',
+                Value(' '),
+                'student__user__last_name',
+                output_field=CharField()
+            )
+        ).order_by('-created_date')
+        
+        # Student notification statistics
+        stats = {
+            'total_notifications': StudentNotification.objects.count(),
+            'read_notifications': StudentNotification.objects.filter(is_read=True).count(),
+            'unread_notifications': StudentNotification.objects.filter(is_read=False).count(),
+            'today_notifications': StudentNotification.objects.filter(
+                created_date__date=timezone.now().date()
+            ).count(),
+            'exam_notifications': StudentNotification.objects.filter(
+                notification_type='exam_schedule'
+            ).count(),
+            'assignment_notifications': StudentNotification.objects.filter(
+                notification_type='assignment_due'
+            ).count(),
+        }
+        
+    else:  # general notifications
+        notifications = Notification.objects.select_related(
+            'sender'
+        ).prefetch_related('recipients').annotate(
+            recipient_count=Count('recipients')
+        ).order_by('-created_at')
+        
+        # General notification statistics
+        stats = {
+            'total_notifications': Notification.objects.count(),
+            'active_notifications': Notification.objects.filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+            ).count(),
+            'expired_notifications': Notification.objects.filter(
+                expires_at__lte=timezone.now()
+            ).count(),
+            'today_notifications': Notification.objects.filter(
+                created_at__date=timezone.now().date()
+            ).count(),
+            'high_priority': Notification.objects.filter(priority='high').count(),
+            'urgent_priority': Notification.objects.filter(priority='urgent').count(),
+        }
+    
+    # Common filtering
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    type_filter = request.GET.get('filter_type', '')
+    date_filter = request.GET.get('date', '')
+    
+    if search_query:
+        if notification_type == 'student':
+            notifications = notifications.filter(
+                Q(title__icontains=search_query) |
+                Q(message__icontains=search_query) |
+                Q(student__user__first_name__icontains=search_query) |
+                Q(student__user__last_name__icontains=search_query) |
+                Q(student__student_id__icontains=search_query)
+            )
+        else:
+            notifications = notifications.filter(
+                Q(title__icontains=search_query) |
+                Q(message__icontains=search_query) |
+                Q(sender__first_name__icontains=search_query) |
+                Q(sender__last_name__icontains=search_query)
+            )
+    
+    if status_filter:
+        if notification_type == 'student':
+            if status_filter == 'read':
+                notifications = notifications.filter(is_read=True)
+            elif status_filter == 'unread':
+                notifications = notifications.filter(is_read=False)
+        else:
+            if status_filter == 'active':
+                notifications = notifications.filter(
+                    Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+                )
+            elif status_filter == 'expired':
+                notifications = notifications.filter(expires_at__lte=timezone.now())
+    
+    if type_filter:
+        notifications = notifications.filter(notification_type=type_filter)
+    
+    if date_filter:
+        today = timezone.now().date()
+        date_field = 'created_date' if notification_type == 'student' else 'created_at'
+        
+        if date_filter == 'today':
+            notifications = notifications.filter(**{f'{date_field}__date': today})
+        elif date_filter == 'week':
+            week_ago = today - timedelta(days=7)
+            notifications = notifications.filter(**{f'{date_field}__date__gte': week_ago})
+        elif date_filter == 'month':
+            month_ago = today - timedelta(days=30)
+            notifications = notifications.filter(**{f'{date_field}__date__gte': month_ago})
+    
+    # Pagination
+    paginator = Paginator(notifications, 15)
+    page = request.GET.get('page')
+    notifications_page = paginator.get_page(page)
+    
+    context = {
+        'notifications': notifications_page,
+        'notification_type': notification_type,
+        'stats': stats,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'type_filter': type_filter,
+        'date_filter': date_filter,
+        'student_notification_types': StudentNotification.NOTIFICATION_TYPES,
+        'general_notification_types': Notification.NOTIFICATION_TYPES,
+        'priority_levels': Notification.PRIORITY_LEVELS,
+    }
+    
+    return render(request, 'admin/notification_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def notification_detail(request, notification_id):
+    """Get notification details for viewing"""
+    notification_type = request.GET.get('type', 'student')
+    
+    try:
+        if notification_type == 'student':
+            notification = get_object_or_404(
+                StudentNotification.objects.select_related('student__user'),
+                id=notification_id
+            )
+            data = {
+                'success': True,
+                'notification': {
+                    'id': notification.id,
+                    'title': notification.title,
+                    'message': notification.message,
+                    'notification_type': notification.get_notification_type_display(),
+                    'student_name': notification.student.user.get_full_name(),
+                    'student_id': notification.student.student_id,
+                    'student_email': notification.student.user.email,
+                    'is_read': notification.is_read,
+                    'created_date': notification.created_date.strftime('%B %d, %Y at %H:%M'),
+                    'read_date': notification.read_date.strftime('%B %d, %Y at %H:%M') if notification.read_date else None,
+                    'related_url': notification.related_url,
+                }
+            }
+        else:
+            notification = get_object_or_404(
+                Notification.objects.select_related('sender').prefetch_related('recipients'),
+                id=notification_id
+            )
+            recipients = [f"{user.get_full_name()} ({user.email})" for user in notification.recipients.all()]
+            
+            data = {
+                'success': True,
+                'notification': {
+                    'id': notification.id,
+                    'title': notification.title,
+                    'message': notification.message,
+                    'notification_type': notification.get_notification_type_display(),
+                    'priority': notification.get_priority_display(),
+                    'sender_name': notification.sender.get_full_name(),
+                    'sender_email': notification.sender.email,
+                    'recipients': recipients,
+                    'recipient_count': notification.recipients.count(),
+                    'send_email': notification.send_email,
+                    'send_sms': notification.send_sms,
+                    'created_at': notification.created_at.strftime('%B %d, %Y at %H:%M'),
+                    'scheduled_time': notification.scheduled_time.strftime('%B %d, %Y at %H:%M') if notification.scheduled_time else None,
+                    'expires_at': notification.expires_at.strftime('%B %d, %Y at %H:%M') if notification.expires_at else None,
+                }
+            }
+            
+    except Exception as e:
+        data = {
+            'success': False,
+            'message': f'Error loading notification: {str(e)}'
+        }
+    
+    return JsonResponse(data)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def create_notification(request):
+    """Create a new notification"""
+    try:
+        notification_type = request.POST.get('notification_type')
+        
+        if notification_type == 'student':
+            student_id = request.POST.get('student_id')
+            student = get_object_or_404(Student, id=student_id)
+            
+            notification = StudentNotification.objects.create(
+                student=student,
+                title=request.POST.get('title'),
+                message=request.POST.get('message'),
+                notification_type=request.POST.get('type'),
+                related_url=request.POST.get('related_url', '')
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Student notification created successfully!'
+            })
+            
+        else:  # general notification
+            recipient_ids = request.POST.getlist('recipients')
+            
+            notification = Notification.objects.create(
+                title=request.POST.get('title'),
+                message=request.POST.get('message'),
+                notification_type=request.POST.get('type'),
+                priority=request.POST.get('priority', 'medium'),
+                sender=request.user,
+                send_email=request.POST.get('send_email') == 'on',
+                send_sms=request.POST.get('send_sms') == 'on',
+                scheduled_time=request.POST.get('scheduled_time') or None,
+                expires_at=request.POST.get('expires_at') or None,
+            )
+            
+            # Add recipients
+            if recipient_ids:
+                recipients = User.objects.filter(id__in=recipient_ids)
+                notification.recipients.set(recipients)
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'General notification created successfully!'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating notification: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def mark_as_read(request, notification_id):
+    """Mark student notification as read"""
+    try:
+        notification = get_object_or_404(StudentNotification, id=notification_id)
+        notification.is_read = True
+        notification.read_date = timezone.now()
+        notification.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Notification marked as read!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating notification: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def delete_notification(request, notification_id):
+    """Delete a notification"""
+    try:
+        notification_type = request.POST.get('type', 'student')
+        
+        if notification_type == 'student':
+            notification = get_object_or_404(StudentNotification, id=notification_id)
+        else:
+            notification = get_object_or_404(Notification, id=notification_id)
+        
+        notification.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Notification deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting notification: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def bulk_action(request):
+    """Handle bulk actions on notifications"""
+    try:
+        action = request.POST.get('action')
+        notification_ids = request.POST.getlist('notification_ids')
+        notification_type = request.POST.get('type', 'student')
+        
+        if not notification_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No notifications selected.'
+            })
+        
+        if notification_type == 'student':
+            notifications = StudentNotification.objects.filter(id__in=notification_ids)
+            
+            if action == 'mark_read':
+                notifications.update(is_read=True, read_date=timezone.now())
+                message = f'{len(notification_ids)} notifications marked as read.'
+            elif action == 'mark_unread':
+                notifications.update(is_read=False, read_date=None)
+                message = f'{len(notification_ids)} notifications marked as unread.'
+            elif action == 'delete':
+                notifications.delete()
+                message = f'{len(notification_ids)} notifications deleted.'
+        else:
+            notifications = Notification.objects.filter(id__in=notification_ids)
+            
+            if action == 'delete':
+                notifications.delete()
+                message = f'{len(notification_ids)} notifications deleted.'
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid action for general notifications.'
+                })
+        
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error performing bulk action: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def get_students(request):
+    """Get students for notification creation"""
+    try:
+        search = request.GET.get('search', '')
+        students = Student.objects.select_related('user').all()
+        
+        if search:
+            students = students.filter(
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(student_id__icontains=search)
+            )
+        
+        student_data = []
+        for student in students[:20]:  # Limit to 20 results
+            student_data.append({
+                'id': student.id,
+                'name': student.user.get_full_name(),
+                'student_id': student.student_id,
+                'email': student.user.email
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'students': student_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading students: {str(e)}'
+        })

@@ -405,5 +405,16 @@ urlpatterns = [
     path('admin-student-comments/<int:comment_id>/delete/', views.delete_student_comment, name='delete_student_comment'),
     path('admin-student-comments/bulk-action/', views.bulk_action_comments, name='bulk_action_comments'),
 
+    # Main notification management page
+    path('admin-notifications/', views.notification_management, name='notification_management'),
+    
+    # AJAX endpoints
+    path('admin-notifications/<int:notification_id>/', views.notification_detail, name='notification_detail'),
+    path('admin-notifications/create/', views.create_notification, name='create_notification'),
+    path('admin-notifications/<int:notification_id>/mark-read/', views.mark_as_read, name='mark_notification_read'),
+    path('admin-notifications/<int:notification_id>/delete/', views.delete_notification, name='delete_notification'),
+    path('admin-notifications/bulk-action/', views.bulk_action, name='notification_bulk_action'),
+    path('admin-notifications/get-students/', views.get_students, name='get_students'),
+
 
 ]
