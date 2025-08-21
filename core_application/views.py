@@ -10,6 +10,8 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import JsonResponse, HttpResponseForbidden
 import json
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 #student login view using student ID as username and password eg ( SC211/0540/2025)
 """ This view logs in 3 user types student , lecturer and hostel warden """
@@ -1252,7 +1254,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth.models import User
+
 
 from django.views.decorators.http import require_http_methods
 import logging
@@ -1339,7 +1341,9 @@ from .models import (
 )
 from django.utils import timezone
 from django.db.models import Avg
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 def is_admin(user):
     """Check if user is admin"""
@@ -15734,7 +15738,6 @@ from django.core.files.base import ContentFile
 import json
 from datetime import datetime, timedelta
 from .models import NewsArticle
-from django.contrib.auth.models import User
 
 def is_admin_or_staff(user):
     return user.is_staff or user.is_superuser
