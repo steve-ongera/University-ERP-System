@@ -9313,6 +9313,408 @@ def get_fee_structure(request):
     return JsonResponse(data)
 
 
+from django.http import HttpResponse
+from django.template.loader import get_template
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import get_object_or_404
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from io import BytesIO
+import os
+from decimal import Decimal
+from django.conf import settings
+
+@staff_member_required
+def download_payment_receipt_pdf(request, payment_id):
+    """
+    Generate and download a professional PDF receipt for a fee payment
+    """
+    try:
+        # Get the payment record
+        payment = get_object_or_404(FeePayment, id=payment_id, payment_status='completed')
+        
+        # Get related data
+        student = payment.student
+        fee_structure = payment.fee_structure
+        academic_year = fee_structure.academic_year
+        
+        # Calculate totals
+        total_payments = FeePayment.objects.filter(
+            student=student,
+            fee_structure=fee_structure,
+            payment_status='completed'
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        
+        balance = fee_structure.net_fee() - total_payments
+        
+        # Get overpayment details if any
+        overpayment_details = []
+        if hasattr(payment, 'overpayment_allocations'):
+            overpayment_details = payment.overpayment_allocations.all()
+        
+        # Create PDF response
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"Receipt-{payment.receipt_number}-{payment.payment_date.strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Create PDF document
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=0.5*inch,
+            leftMargin=0.5*inch,
+            topMargin=1*inch,
+            bottomMargin=1*inch,
+            title=f"Payment Receipt - {payment.receipt_number}"
+        )
+        
+        # Container for the 'Flowable' objects
+        elements = []
+        
+        # Define styles
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.navy
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CustomSubTitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        
+        header_style = ParagraphStyle(
+            'CustomHeader',
+            parent=styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            spaceAfter=10
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=6
+        )
+        
+        # Add university header
+        university_name = getattr(settings, 'UNIVERSITY_NAME', 'UNIVERSITY NAME')
+        university_address = getattr(settings, 'UNIVERSITY_ADDRESS', 'University Address, City, Country')
+        university_contact = getattr(settings, 'UNIVERSITY_CONTACT', 'Tel: +254-XXX-XXXXXX | Email: finance@university.edu')
+        
+        elements.append(Paragraph(f"<b>{university_name}</b>", title_style))
+        elements.append(Paragraph(university_address, header_style))
+        elements.append(Paragraph(university_contact, header_style))
+        elements.append(Spacer(1, 12))
+        
+        # Add receipt title
+        elements.append(Paragraph("<b>OFFICIAL FEE PAYMENT RECEIPT</b>", subtitle_style))
+        elements.append(Spacer(1, 20))
+        
+        # Receipt details table
+        receipt_data = [
+            ['Receipt Details', 'Student Information'],
+            [
+                f"Receipt No: {payment.receipt_number}\n" +
+                f"Date: {payment.payment_date.strftime('%B %d, %Y')}\n" +
+                f"Academic Year: {academic_year.year}\n" +
+                f"Payment Method: {payment.get_payment_method_display()}",
+                
+                f"Student ID: {student.student_id}\n" +
+                f"Name: {student.user.get_full_name()}\n" +
+                f"Programme: {student.programme.name}\n" +
+                f"Year/Semester: Year {fee_structure.year} - Semester {fee_structure.semester}"
+            ]
+        ]
+        
+        receipt_table = Table(receipt_data, colWidths=[3*inch, 3*inch])
+        receipt_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        
+        elements.append(receipt_table)
+        elements.append(Spacer(1, 20))
+        
+        # Fee breakdown table
+        fee_breakdown_data = [
+            ['Fee Component', 'Amount (KES)'],
+            ['Tuition Fee', f"{fee_structure.tuition_fee:,.2f}"],
+            ['Registration Fee', f"{fee_structure.registration_fee:,.2f}"],
+            ['Examination Fee', f"{fee_structure.examination_fee:,.2f}"],
+            ['Other Fees', f"{fee_structure.other_fees:,.2f}"],
+            ['Total Fee for Semester', f"{fee_structure.total_fee():,.2f}"],
+        ]
+        
+        # Add subsidies and scholarships if applicable
+        if fee_structure.government_subsidy > 0:
+            fee_breakdown_data.append(['Less: Government Subsidy', f"-{fee_structure.government_subsidy:,.2f}"])
+        
+        if fee_structure.scholarship_amount > 0:
+            fee_breakdown_data.append(['Less: Scholarship', f"-{fee_structure.scholarship_amount:,.2f}"])
+        
+        fee_breakdown_data.extend([
+            ['Net Amount Payable', f"{fee_structure.net_fee():,.2f}"],
+            ['Previous Payments', f"{(total_payments - payment.amount_paid):,.2f}"],
+            ['Amount Paid Today', f"{payment.amount_paid:,.2f}"],
+            ['Current Balance', f"{balance:,.2f}"]
+        ])
+        
+        fee_table = Table(fee_breakdown_data, colWidths=[4*inch, 2*inch])
+        fee_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.navy),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            
+            # Highlight important rows
+            ('BACKGROUND', (0, 5), (-1, 5), colors.lightgrey),  # Total fee
+            ('BACKGROUND', (0, -4), (-1, -4), colors.lightblue),  # Net payable
+            ('BACKGROUND', (0, -2), (-1, -2), colors.lightgreen),  # Amount paid today
+            ('BACKGROUND', (0, -1), (-1, -1), colors.yellow if balance > 0 else colors.lightgreen),  # Balance
+            
+            # Bold important rows
+            ('FONTNAME', (0, 5), (-1, 5), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -4), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        
+        elements.append(Paragraph("<b>Payment Breakdown</b>", styles['Heading3']))
+        elements.append(fee_table)
+        elements.append(Spacer(1, 20))
+        
+        # Add overpayment details if any
+        if overpayment_details:
+            elements.append(Paragraph("<b>Overpayment Allocation Details</b>", styles['Heading3']))
+            elements.append(Paragraph(
+                f"Total Amount Paid: KES {(payment.amount_paid + sum(detail.amount for detail in overpayment_details)):,.2f}<br/>" +
+                f"Applied to Current Semester: KES {payment.amount_paid:,.2f}<br/>" +
+                f"Overpayment Amount: KES {sum(detail.amount for detail in overpayment_details):,.2f}",
+                normal_style
+            ))
+            elements.append(Spacer(1, 10))
+            
+            overpayment_table_data = [['Allocation Type', 'Period', 'Amount (KES)', 'Receipt/Reference']]
+            
+            for detail in overpayment_details:
+                allocation_type = "Advanced Payment" if detail.allocation_type == 'advance_payment' else "Credit Balance"
+                period = f"Year {detail.target_year} Semester {detail.target_semester} ({detail.target_academic_year})" if detail.allocation_type == 'advance_payment' else "N/A"
+                overpayment_table_data.append([
+                    allocation_type,
+                    period,
+                    f"{detail.amount:,.2f}",
+                    detail.reference_number or "-"
+                ])
+            
+            overpayment_table = Table(overpayment_table_data, colWidths=[1.5*inch, 2.5*inch, 1*inch, 1*inch])
+            overpayment_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.orange),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            
+            elements.append(overpayment_table)
+            elements.append(Spacer(1, 20))
+        
+        # Add payment reference details if available
+        if payment.mpesa_receipt or payment.transaction_reference or payment.bank_slip_number:
+            elements.append(Paragraph("<b>Payment Reference Details</b>", styles['Heading3']))
+            ref_details = []
+            if payment.mpesa_receipt:
+                ref_details.append(f"M-Pesa Receipt: {payment.mpesa_receipt}")
+            if payment.transaction_reference:
+                ref_details.append(f"Transaction Reference: {payment.transaction_reference}")
+            if payment.bank_slip_number:
+                ref_details.append(f"Bank Slip Number: {payment.bank_slip_number}")
+            if payment.remarks:
+                ref_details.append(f"Remarks: {payment.remarks}")
+            
+            elements.append(Paragraph("<br/>".join(ref_details), normal_style))
+            elements.append(Spacer(1, 20))
+        
+        # Add authorization section
+        auth_data = [
+            ['Processed by:', 'Authorized Signature:'],
+            [
+                f"{payment.processed_by.get_full_name()}\n" +
+                f"Date & Time: {payment.payment_date.strftime('%B %d, %Y %H:%M')}",
+                "\n\n\n_______________________\nFinance Office"
+            ]
+        ]
+        
+        auth_table = Table(auth_data, colWidths=[3*inch, 3*inch])
+        auth_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+        ]))
+        
+        elements.append(auth_table)
+        elements.append(Spacer(1, 30))
+        
+        # Add important notes
+        notes_data = [
+            "• This is an official receipt issued by the University Finance Office",
+            "• Keep this receipt safe for your records",
+            "• For any queries, contact the Finance Office during working hours",
+        ]
+        
+        if balance > 0:
+            notes_data.append(f"• Outstanding balance: KES {balance:,.2f}")
+        
+        if overpayment_details:
+            notes_data.append("• Advanced payments have been allocated to future semesters")
+        
+        elements.append(Paragraph("<b>Important Notes:</b>", styles['Heading4']))
+        for note in notes_data:
+            elements.append(Paragraph(note, normal_style))
+        
+        # Add footer
+        elements.append(Spacer(1, 20))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            textColor=colors.grey
+        )
+        
+        elements.append(Paragraph(
+            f"Generated on {timezone.now().strftime('%B %d, %Y at %H:%M')} | " +
+            f"Receipt #{payment.receipt_number} | " +
+            f"Page 1",
+            footer_style
+        ))
+        
+        # Build PDF
+        doc.build(elements)
+        
+        # Get the value of the BytesIO buffer and write it to the response
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+        
+        return response
+        
+    except Exception as e:
+        # Log the error
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating PDF receipt for payment {payment_id}: {str(e)}")
+        
+        # Return error response
+        return HttpResponse(
+            f"Error generating PDF receipt: {str(e)}", 
+            status=500,
+            content_type='text/plain'
+        )
+
+
+# Alternative view for generating receipt data (for use with frontend PDF generation)
+@staff_member_required
+def get_receipt_data_json(request, payment_id):
+    """
+    Return receipt data as JSON for frontend PDF generation
+    """
+    from django.http import JsonResponse
+    
+    try:
+        payment = get_object_or_404(FeePayment, id=payment_id, payment_status='completed')
+        student = payment.student
+        fee_structure = payment.fee_structure
+        academic_year = fee_structure.academic_year
+        
+        # Calculate totals
+        total_payments = FeePayment.objects.filter(
+            student=student,
+            fee_structure=fee_structure,
+            payment_status='completed'
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        
+        balance = fee_structure.net_fee() - total_payments
+        
+        receipt_data = {
+            'payment': {
+                'receipt_number': payment.receipt_number,
+                'amount_paid': str(payment.amount_paid),
+                'payment_date': payment.payment_date.strftime('%Y-%m-%d'),
+                'payment_method': payment.get_payment_method_display(),
+                'transaction_reference': payment.transaction_reference or '',
+                'mpesa_receipt': payment.mpesa_receipt or '',
+                'bank_slip_number': payment.bank_slip_number or '',
+                'remarks': payment.remarks or '',
+                'processed_by': payment.processed_by.get_full_name(),
+            },
+            'student': {
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'year': fee_structure.year,
+                'semester': fee_structure.semester,
+            },
+            'academic_year': {
+                'year': academic_year.year,
+            },
+            'fee_structure': {
+                'tuition_fee': str(fee_structure.tuition_fee),
+                'registration_fee': str(fee_structure.registration_fee),
+                'examination_fee': str(fee_structure.examination_fee),
+                'other_fees': str(fee_structure.other_fees),
+                'total_fee': str(fee_structure.total_fee()),
+                'government_subsidy': str(fee_structure.government_subsidy),
+                'scholarship_amount': str(fee_structure.scholarship_amount),
+                'net_fee': str(fee_structure.net_fee()),
+            },
+            'totals': {
+                'total_paid': str(total_payments),
+                'previous_payments': str(total_payments - payment.amount_paid),
+                'balance': str(balance),
+            }
+        }
+        
+        return JsonResponse({'success': True, 'data': receipt_data})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    
 # views.py - Student Services Views
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
