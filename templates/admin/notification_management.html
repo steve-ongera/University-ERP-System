@@ -268,3 +268,776 @@
                                     </td>
                                     <td>
                                         <div>{{ notification.created_date|date:"M d" }}</div>
+                                        <small class="text-muted">{{ notification.created_date|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if notification.is_read %}
+                                        <span class="badge bg-success">Read</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Unread</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    onclick="viewNotification({{ notification.id }}, '{{ notification_type }}')" 
+                                                    title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            {% if not notification.is_read %}
+                                            <button class="btn btn-outline-success btn-sm" 
+                                                    onclick="markAsRead({{ notification.id }})" 
+                                                    title="Mark as Read">
+                                                <i class="bi bi-check"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteNotification({{ notification.id }}, '{{ notification_type }}')" 
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    {% else %}
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-success text-white me-2">
+                                                {{ notification.sender.first_name.0 }}{{ notification.sender.last_name.0 }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ notification.sender.get_full_name }}</div>
+                                                <small class="text-muted">{{ notification.sender.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ notification.title|truncatechars:30 }}</div>
+                                    </td>
+                                    <td>
+                                        <p class="mb-0 text-muted">{{ notification.message|truncatechars:50 }}</p>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ notification.get_notification_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if notification.priority == 'urgent' %}
+                                        <span class="badge bg-danger">{{ notification.get_priority_display }}</span>
+                                        {% elif notification.priority == 'high' %}
+                                        <span class="badge bg-warning">{{ notification.get_priority_display }}</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ notification.get_priority_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ notification.recipient_count }}</span>
+                                    </td>
+                                    <td>
+                                        <div>{{ notification.created_at|date:"M d" }}</div>
+                                        <small class="text-muted">{{ notification.created_at|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    onclick="viewNotification({{ notification.id }}, '{{ notification_type }}')" 
+                                                    title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteNotification({{ notification.id }}, '{{ notification_type }}')" 
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if notifications.has_other_pages %}
+                    <nav aria-label="Notification pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if notifications.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?type={{ notification_type }}&page={{ notifications.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&filter_type={{ type_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in notifications.paginator.page_range %}
+                                {% if notifications.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > notifications.number|add:'-3' and num < notifications.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?type={{ notification_type }}&page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&filter_type={{ type_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if notifications.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?type={{ notification_type }}&page={{ notifications.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&filter_type={{ type_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-bell-slash display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No notifications found</h4>
+                        <p class="text-muted">There are no notifications matching your criteria.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNotificationModal">
+                            <i class="bi bi-plus-circle"></i> Create First Notification
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Notification Modal -->
+<div class="modal fade" id="createNotificationModal" tabindex="-1" aria-labelledby="createNotificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createNotificationModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Create {% if notification_type == 'student' %}Student{% else %}General{% endif %} Notification
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createNotificationForm" method="POST" action="{% url 'create_notification' %}">
+                {% csrf_token %}
+                <input type="hidden" name="notification_type" value="{{ notification_type }}">
+                <div class="modal-body">
+                    {% if notification_type == 'student' %}
+                    <div class="mb-3">
+                        <label for="student_search" class="form-label">Select Student *</label>
+                        <input type="text" class="form-control" id="student_search" placeholder="Search for student..." autocomplete="off">
+                        <input type="hidden" name="student_id" id="selected_student_id" required>
+                        <div id="student_results" class="mt-2"></div>
+                        <div id="selected_student" class="mt-2" style="display: none;">
+                            <div class="alert alert-info">
+                                <strong>Selected:</strong> <span id="selected_student_name"></span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearStudentSelection()">Change</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label for="recipients" class="form-label">Recipients *</label>
+                        <select class="form-select" name="recipients" multiple size="5" required>
+                            <!-- This should be populated with users from your User model -->
+                            <option value="all">All Users</option>
+                            <!-- Add actual users here -->
+                        </select>
+                        <small class="text-muted">Hold Ctrl to select multiple recipients</small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title *</label>
+                        <input type="text" class="form-control" name="title" required maxlength="200" placeholder="Notification title">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message *</label>
+                        <textarea class="form-control" name="message" rows="4" required placeholder="Notification message"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Notification Type *</label>
+                        <select class="form-select" name="type" required>
+                            <option value="">Select type...</option>
+                            {% if notification_type == 'student' %}
+                            {% for type_key, type_label in student_notification_types %}
+                            <option value="{{ type_key }}">{{ type_label }}</option>
+                            {% endfor %}
+                            {% else %}
+                            {% for type_key, type_label in general_notification_types %}
+                            <option value="{{ type_key }}">{{ type_label }}</option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    {% if notification_type == 'student' %}
+                    <div class="mb-3">
+                        <label for="related_url" class="form-label">Related URL</label>
+                        <input type="url" class="form-control" name="related_url" placeholder="Optional related URL">
+                    </div>
+                    {% else %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="priority" class="form-label">Priority</label>
+                            <select class="form-select" name="priority">
+                                {% for priority_key, priority_label in priority_levels %}
+                                <option value="{{ priority_key }}" {% if priority_key == 'medium' %}selected{% endif %}>{{ priority_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Delivery Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="send_email" id="send_email" checked>
+                                <label class="form-check-label" for="send_email">Send Email</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="send_sms" id="send_sms">
+                                <label class="form-check-label" for="send_sms">Send SMS</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="scheduled_time" class="form-label">Schedule For Later</label>
+                            <input type="datetime-local" class="form-control" name="scheduled_time">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="expires_at" class="form-label">Expires At</label>
+                            <input type="datetime-local" class="form-control" name="expires_at">
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Create Notification
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Notification Modal -->
+<div class="modal fade" id="viewNotificationModal" tabindex="-1" aria-labelledby="viewNotificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewNotificationModalLabel">
+                    <i class="bi bi-eye me-2"></i>
+                    Notification Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="notificationDetails">
+                <!-- Content will be loaded via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.text-purple {
+    color: #6f42c1;
+}
+
+.notification-row:hover {
+    background-color: #f8f9fa;
+}
+
+.student-result {
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.student-result:hover {
+    background-color: #e9ecef;
+}
+
+.alert-message {
+    position: relative;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}
+
+.close-message {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select All functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const notificationCheckboxes = document.querySelectorAll('.notification-checkbox');
+    const bulkActionBtn = document.getElementById('bulkActionBtn');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            notificationCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkActions();
+        });
+    }
+
+    notificationCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll('.notification-checkbox:checked');
+        const count = checkedBoxes.length;
+        
+        if (count > 0) {
+            bulkActionsBar.style.display = 'block';
+            bulkActionBtn.disabled = false;
+            selectedCount.textContent = count;
+        } else {
+            bulkActionsBar.style.display = 'none';
+            bulkActionBtn.disabled = true;
+            selectedCount.textContent = '0';
+        }
+        
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
+            if (count === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (count === notificationCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
+    // Student search functionality
+    const studentSearch = document.getElementById('student_search');
+    const studentResults = document.getElementById('student_results');
+    const selectedStudentId = document.getElementById('selected_student_id');
+    const selectedStudent = document.getElementById('selected_student');
+    const selectedStudentName = document.getElementById('selected_student_name');
+
+    if (studentSearch) {
+        let searchTimeout;
+        studentSearch.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                studentResults.innerHTML = '';
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                fetch(`{% url 'get_students' %}?search=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            displayStudentResults(data.students);
+                        } else {
+                            studentResults.innerHTML = '<div class="alert alert-danger">Error loading students</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        studentResults.innerHTML = '<div class="alert alert-danger">Error loading students</div>';
+                    });
+            }, 300);
+        });
+    }
+
+    function displayStudentResults(students) {
+        if (students.length === 0) {
+            studentResults.innerHTML = '<div class="text-muted">No students found</div>';
+            return;
+        }
+
+        let html = '';
+        students.forEach(student => {
+            html += `
+                <div class="student-result" onclick="selectStudent(${student.id}, '${student.name}', '${student.student_id}')">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-circle bg-primary text-white me-3">
+                            ${student.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                            <div class="fw-bold">${student.name}</div>
+                            <small class="text-muted">${student.student_id} - ${student.email}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        studentResults.innerHTML = html;
+    }
+
+    // Close messages
+    document.querySelectorAll('.close-message').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+
+    // Auto-hide messages after 5 seconds
+    setTimeout(() => {
+        document.querySelectorAll('.alert-message').forEach(msg => {
+            msg.style.opacity = '0';
+            setTimeout(() => msg.remove(), 300);
+        });
+    }, 5000);
+});
+
+function selectStudent(id, name, studentId) {
+    document.getElementById('selected_student_id').value = id;
+    document.getElementById('selected_student_name').textContent = `${name} (${studentId})`;
+    document.getElementById('selected_student').style.display = 'block';
+    document.getElementById('student_search').style.display = 'none';
+    document.getElementById('student_results').innerHTML = '';
+}
+
+function clearStudentSelection() {
+    document.getElementById('selected_student_id').value = '';
+    document.getElementById('selected_student').style.display = 'none';
+    document.getElementById('student_search').style.display = 'block';
+    document.getElementById('student_search').value = '';
+    document.getElementById('student_search').focus();
+}
+
+function viewNotification(notificationId, type) {
+    fetch(`{% url 'notification_detail' 0 %}`.replace('0', notificationId) + `?type=${type}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayNotificationDetails(data.notification, type);
+                const modal = new bootstrap.Modal(document.getElementById('viewNotificationModal'));
+                modal.show();
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Error loading notification details', 'error');
+        });
+}
+
+function displayNotificationDetails(notification, type) {
+    let html = '';
+    
+    if (type === 'student') {
+        html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">STUDENT</h6>
+                    <p class="fw-bold">${notification.student_name}</p>
+                    <small class="text-muted">ID: ${notification.student_id} | ${notification.student_email}</small>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">STATUS</h6>
+                    <span class="badge bg-${notification.is_read ? 'success' : 'warning'}">${notification.is_read ? 'Read' : 'Unread'}</span>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">TYPE</h6>
+                    <span class="badge bg-info">${notification.notification_type}</span>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">CREATED</h6>
+                    <p>${notification.created_date}</p>
+                </div>
+            </div>
+            ${notification.read_date ? `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">READ DATE</h6>
+                    <p>${notification.read_date}</p>
+                </div>
+            </div>
+            ` : ''}
+            <hr>
+            <h6 class="text-muted mb-1">TITLE</h6>
+            <h5>${notification.title}</h5>
+            <h6 class="text-muted mb-1 mt-3">MESSAGE</h6>
+            <p>${notification.message}</p>
+            ${notification.related_url ? `
+            <h6 class="text-muted mb-1 mt-3">RELATED URL</h6>
+            <p><a href="${notification.related_url}" target="_blank">${notification.related_url}</a></p>
+            ` : ''}
+        `;
+    } else {
+        html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">SENDER</h6>
+                    <p class="fw-bold">${notification.sender_name}</p>
+                    <small class="text-muted">${notification.sender_email}</small>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">PRIORITY</h6>
+                    <span class="badge bg-${notification.priority === 'urgent' ? 'danger' : notification.priority === 'high' ? 'warning' : 'info'}">${notification.priority}</span>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-1">TYPE</h6>
+                    <span class="badge bg-secondary">${notification.notification_type}</span>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-1">RECIPIENTS</h6>
+                    <span class="badge bg-primary">${notification.recipient_count}</span>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-1">CREATED</h6>
+                    <p>${notification.created_at}</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">DELIVERY OPTIONS</h6>
+                    <div>
+                        <span class="badge bg-${notification.send_email ? 'success' : 'secondary'}">${notification.send_email ? '✓' : '✗'} Email</span>
+                        <span class="badge bg-${notification.send_sms ? 'success' : 'secondary'}">${notification.send_sms ? '✓' : '✗'} SMS</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    ${notification.scheduled_time ? `
+                    <h6 class="text-muted mb-1">SCHEDULED FOR</h6>
+                    <p>${notification.scheduled_time}</p>
+                    ` : ''}
+                </div>
+            </div>
+            ${notification.expires_at ? `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">EXPIRES AT</h6>
+                    <p>${notification.expires_at}</p>
+                </div>
+            </div>
+            ` : ''}
+            <hr>
+            <h6 class="text-muted mb-1">TITLE</h6>
+            <h5>${notification.title}</h5>
+            <h6 class="text-muted mb-1 mt-3">MESSAGE</h6>
+            <p>${notification.message}</p>
+            <h6 class="text-muted mb-1 mt-3">RECIPIENTS</h6>
+            <div class="recipients-list" style="max-height: 150px; overflow-y: auto;">
+                ${notification.recipients.map(recipient => `<div class="badge bg-light text-dark me-1 mb-1">${recipient}</div>`).join('')}
+            </div>
+        `;
+    }
+    
+    document.getElementById('notificationDetails').innerHTML = html;
+}
+
+function markAsRead(notificationId) {
+    if (!confirm('Mark this notification as read?')) return;
+    
+    fetch(`{% url 'mark_notification_read' 0 %}`.replace('0', notificationId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error updating notification', 'error');
+    });
+}
+
+function deleteNotification(notificationId, type) {
+    if (!confirm('Are you sure you want to delete this notification? This action cannot be undone.')) return;
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('type', type);
+    
+    fetch(`{% url 'delete_notification' 0 %}`.replace('0', notificationId), {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error deleting notification', 'error');
+    });
+}
+
+function bulkAction(action) {
+    const checkedBoxes = document.querySelectorAll('.notification-checkbox:checked');
+    const notificationIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    if (notificationIds.length === 0) {
+        showMessage('No notifications selected', 'error');
+        return;
+    }
+    
+    let confirmMessage = '';
+    switch(action) {
+        case 'mark_read':
+            confirmMessage = `Mark ${notificationIds.length} notifications as read?`;
+            break;
+        case 'mark_unread':
+            confirmMessage = `Mark ${notificationIds.length} notifications as unread?`;
+            break;
+        case 'delete':
+            confirmMessage = `Delete ${notificationIds.length} notifications? This action cannot be undone.`;
+            break;
+    }
+    
+    if (!confirm(confirmMessage)) return;
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('action', action);
+    formData.append('type', '{{ notification_type }}');
+    notificationIds.forEach(id => formData.append('notification_ids', id));
+    
+    fetch('{% url "notification_bulk_action" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error performing bulk action', 'error');
+    });
+}
+
+// Create notification form submission
+document.getElementById('createNotificationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{% url "create_notification" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createNotificationModal'));
+            modal.hide();
+            this.reset();
+            clearStudentSelection();
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error creating notification', 'error');
+    });
+});
+
+function showMessage(message, type) {
+    const messageContainer = document.getElementById('system-messages');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+    
+    const messageHtml = `
+        <div class="alert-message ${alertClass}">
+            ${message}
+            <span class="close-message">&times;</span>
+        </div>
+    `;
+    
+    messageContainer.insertAdjacentHTML('beforeend', messageHtml);
+    
+    // Add click handler to new close button
+    const newMessage = messageContainer.lastElementChild;
+    const closeBtn = newMessage.querySelector('.close-message');
+    closeBtn.addEventListener('click', function() {
+        newMessage.remove();
+    });
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        if (newMessage.parentNode) {
+            newMessage.style.opacity = '0';
+            setTimeout(() => {
+                if (newMessage.parentNode) {
+                    newMessage.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+</script>
+
+{% endblock %}
