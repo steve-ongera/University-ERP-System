@@ -396,5 +396,14 @@ urlpatterns = [
     path('admin-club-events/<int:event_id>/update/', views.update_club_event, name='update_club_event'),
     path('admin-club-events/<int:event_id>/delete/', views.delete_club_event, name='delete_club_event'),
 
+     # Admin/Staff Comment Management URLs
+    path('admin-student-comments/', views.student_comments_management, name='student_comments_management'),
+    path('admin-student-comments/<int:comment_id>/', views.get_student_comment, name='get_student_comment'),
+    path('admin-student-comments/<int:comment_id>/respond/', views.add_admin_response, name='add_admin_response'),
+    path('admin-student-comments/<int:comment_id>/update-response/', views.update_admin_response, name='update_admin_response'),
+    path('admin-student-comments/<int:comment_id>/toggle-status/', views.toggle_comment_status, name='toggle_comment_status'),
+    path('admin-student-comments/<int:comment_id>/delete/', views.delete_student_comment, name='delete_student_comment'),
+    path('admin-student-comments/bulk-action/', views.bulk_action_comments, name='bulk_action_comments'),
+
 
 ]

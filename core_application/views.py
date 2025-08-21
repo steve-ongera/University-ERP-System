@@ -15010,3 +15010,309 @@ def delete_club_event(request, event_id):
             'success': False,
             'message': f'Error deleting event: {str(e)}'
         })
+
+
+# views.py - Student Comments Management
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.contrib import messages
+from django.urls import reverse
+from django.utils import timezone
+from django.forms.models import model_to_dict
+import json
+from django.db.models.functions import Concat
+from .models import StudentComment, Student
+from .forms import StudentCommentForm, AdminResponseForm
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.db.models import Q, CharField, Value
+from django.db.models.functions import Concat
+from django.utils import timezone
+from django.shortcuts import render
+from django.db import models
+
+def is_admin_or_staff(user):
+    """Check if user is admin or staff"""
+    return user.is_superuser or user.is_staff
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def student_comments_management(request):
+    """Main student comments management view"""
+    comments = StudentComment.objects.select_related(
+        'student__user', 'responded_by'
+    ).annotate(
+        student_name=Concat(
+            'student__user__first_name',
+            Value(' '),
+            'student__user__last_name',
+            output_field=CharField()
+        )
+    ).order_by('-created_at')
+    
+    # Filtering
+    search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date', '')
+    
+    if search_query:
+        comments = comments.filter(
+            Q(comment__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(student__student_id__icontains=search_query) |
+            Q(admin_response__icontains=search_query)
+        )
+    
+    if status_filter:
+        if status_filter == 'resolved':
+            comments = comments.filter(is_resolved=True)
+        elif status_filter == 'pending':
+            comments = comments.filter(is_resolved=False)
+        elif status_filter == 'responded':
+            comments = comments.filter(admin_response__isnull=False)
+        elif status_filter == 'unresponded':
+            comments = comments.filter(admin_response__isnull=True)
+    
+    if date_filter:
+        from datetime import datetime, timedelta
+        today = timezone.now().date()
+        
+        if date_filter == 'today':
+            comments = comments.filter(created_at__date=today)
+        elif date_filter == 'week':
+            week_ago = today - timedelta(days=7)
+            comments = comments.filter(created_at__date__gte=week_ago)
+        elif date_filter == 'month':
+            month_ago = today - timedelta(days=30)
+            comments = comments.filter(created_at__date__gte=month_ago)
+    
+    # Pagination
+    paginator = Paginator(comments, 15)
+    page = request.GET.get('page')
+    comments_page = paginator.get_page(page)
+    
+    # Statistics
+    stats = {
+        'total_comments': StudentComment.objects.count(),
+        'pending_comments': StudentComment.objects.filter(is_resolved=False).count(),
+        'resolved_comments': StudentComment.objects.filter(is_resolved=True).count(),
+        'responded_comments': StudentComment.objects.filter(admin_response__isnull=False).count(),
+        'unresponded_comments': StudentComment.objects.filter(admin_response__isnull=True).count(),
+        'today_comments': StudentComment.objects.filter(
+            created_at__date=timezone.now().date()
+        ).count(),
+    }
+    
+    context = {
+        'comments': comments_page,
+        'stats': stats,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'date_filter': date_filter,
+    }
+    
+    return render(request, 'comments/student_comments_management.html', context)
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def get_student_comment(request, comment_id):
+    """AJAX endpoint to get comment details"""
+    try:
+        comment = get_object_or_404(StudentComment, id=comment_id)
+        
+        data = {
+            'id': comment.id,
+            'student_name': comment.student.user.get_full_name(),
+            'student_id': comment.student.student_id,
+            'student_email': comment.student.user.email,
+            'comment': comment.comment,
+            'created_at': comment.created_at.strftime('%B %d, %Y %I:%M %p'),
+            'updated_at': comment.updated_at.strftime('%B %d, %Y %I:%M %p'),
+            'is_resolved': comment.is_resolved,
+            'admin_response': comment.admin_response,
+            'responded_by': comment.responded_by.get_full_name() if comment.responded_by else None,
+            'response_date': comment.updated_at.strftime('%B %d, %Y %I:%M %p') if comment.admin_response else None,
+        }
+        
+        return JsonResponse({'success': True, 'comment': data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def add_admin_response(request, comment_id):
+    """AJAX endpoint to add admin response to comment"""
+    try:
+        comment = get_object_or_404(StudentComment, id=comment_id)
+        
+        admin_response = request.POST.get('admin_response', '').strip()
+        is_resolved = request.POST.get('is_resolved') == 'on'
+        
+        if not admin_response:
+            return JsonResponse({
+                'success': False,
+                'message': 'Admin response cannot be empty.'
+            })
+        
+        comment.admin_response = admin_response
+        comment.is_resolved = is_resolved
+        comment.responded_by = request.user
+        comment.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Response added successfully!',
+            'comment': {
+                'id': comment.id,
+                'admin_response': comment.admin_response,
+                'is_resolved': comment.is_resolved,
+                'responded_by': comment.responded_by.get_full_name(),
+                'response_date': comment.updated_at.strftime('%B %d, %Y %I:%M %p'),
+                'updated_at': comment.updated_at.strftime('%B %d, %Y %I:%M %p'),
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error adding response: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def update_admin_response(request, comment_id):
+    """AJAX endpoint to update admin response"""
+    try:
+        comment = get_object_or_404(StudentComment, id=comment_id)
+        
+        admin_response = request.POST.get('admin_response', '').strip()
+        is_resolved = request.POST.get('is_resolved') == 'on'
+        
+        if not admin_response:
+            return JsonResponse({
+                'success': False,
+                'message': 'Admin response cannot be empty.'
+            })
+        
+        comment.admin_response = admin_response
+        comment.is_resolved = is_resolved
+        comment.responded_by = request.user
+        comment.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Response updated successfully!',
+            'comment': {
+                'id': comment.id,
+                'admin_response': comment.admin_response,
+                'is_resolved': comment.is_resolved,
+                'responded_by': comment.responded_by.get_full_name(),
+                'response_date': comment.updated_at.strftime('%B %d, %Y %I:%M %p'),
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating response: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def toggle_comment_status(request, comment_id):
+    """AJAX endpoint to toggle comment resolved status"""
+    try:
+        comment = get_object_or_404(StudentComment, id=comment_id)
+        comment.is_resolved = not comment.is_resolved
+        comment.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Comment marked as {"resolved" if comment.is_resolved else "pending"}.',
+            'is_resolved': comment.is_resolved
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating status: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def delete_student_comment(request, comment_id):
+    """AJAX endpoint to delete comment"""
+    try:
+        comment = get_object_or_404(StudentComment, id=comment_id)
+        student_name = comment.student.user.get_full_name()
+        comment.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Comment by {student_name} deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting comment: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def bulk_action_comments(request):
+    """AJAX endpoint for bulk actions on comments"""
+    try:
+        action = request.POST.get('action')
+        comment_ids = request.POST.getlist('comment_ids')
+        
+        if not comment_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No comments selected.'
+            })
+        
+        comments = StudentComment.objects.filter(id__in=comment_ids)
+        
+        if action == 'mark_resolved':
+            comments.update(is_resolved=True)
+            message = f'{comments.count()} comments marked as resolved.'
+        elif action == 'mark_pending':
+            comments.update(is_resolved=False)
+            message = f'{comments.count()} comments marked as pending.'
+        elif action == 'delete':
+            count = comments.count()
+            comments.delete()
+            message = f'{count} comments deleted.'
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid action.'
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error performing bulk action: {str(e)}'
+        })
+
+

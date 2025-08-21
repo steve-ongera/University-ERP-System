@@ -1,0 +1,833 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Student Comments Management</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-chat-dots me-1"></i>Manage student comments and provide responses
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-info" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Report
+                            </button>
+                            <button class="btn btn-success" id="bulkActionBtn" disabled>
+                                <i class="bi bi-check-all"></i> Bulk Actions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_comments }}</h5>
+                            <p class="small text-muted mb-0">Total Comments</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.pending_comments }}</h5>
+                            <p class="small text-muted mb-0">Pending</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.resolved_comments }}</h5>
+                            <p class="small text-muted mb-0">Resolved</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.responded_comments }}</h5>
+                            <p class="small text-muted mb-0">Responded</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ stats.unresponded_comments }}</h5>
+                            <p class="small text-muted mb-0">No Response</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.today_comments }}</h5>
+                            <p class="small text-muted mb-0">Today</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search comments, students..." onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                                <option value="responded" {% if status_filter == 'responded' %}selected{% endif %}>Responded</option>
+                                <option value="unresponded" {% if status_filter == 'unresponded' %}selected{% endif %}>Not Responded</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" name="date" onchange="this.form.submit()">
+                                <option value="">All Time</option>
+                                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+                                <option value="week" {% if date_filter == 'week' %}selected{% endif %}>This Week</option>
+                                <option value="month" {% if date_filter == 'month' %}selected{% endif %}>This Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'student_comments_management' %}" class="btn btn-outline-secondary">Clear</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="row p-3" id="bulkActionsBar" style="display: none;">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <span id="selectedCount">0</span> comments selected
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-success" onclick="bulkAction('mark_resolved')">
+                                    <i class="bi bi-check-circle"></i> Mark Resolved
+                                </button>
+                                <button class="btn btn-warning" onclick="bulkAction('mark_pending')">
+                                    <i class="bi bi-clock"></i> Mark Pending
+                                </button>
+                                <button class="btn btn-danger" onclick="bulkAction('delete')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if comments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="5%">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    <th width="15%">Student</th>
+                                    <th width="35%">Comment</th>
+                                    <th width="15%">Date</th>
+                                    <th width="10%">Status</th>
+                                    <th width="10%">Response</th>
+                                    <th width="10%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commentsTableBody">
+                                {% for comment in comments %}
+                                <tr data-comment-id="{{ comment.id }}" class="comment-row">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input comment-checkbox" value="{{ comment.id }}">
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-2">
+                                                {{ comment.student.user.first_name.0 }}{{ comment.student.user.last_name.0 }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ comment.student.user.get_full_name }}</div>
+                                                <small class="text-muted">{{ comment.student.student_id }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <p class="mb-1">{{ comment.comment|truncatechars:100 }}</p>
+                                        {% if comment.admin_response %}
+                                        <div class="admin-response-preview bg-light p-2 rounded mt-1">
+                                            <small class="text-muted">Admin Response:</small>
+                                            <p class="mb-0 small">{{ comment.admin_response|truncatechars:80 }}</p>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>{{ comment.created_at|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ comment.created_at|date:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if comment.is_resolved %}success{% else %}warning{% endif %}">
+                                            {% if comment.is_resolved %}Resolved{% else %}Pending{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if comment.admin_response %}
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-check-circle"></i> Responded
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-clock"></i> No Response
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewComment({{ comment.id }})" 
+                                                    data-bs-toggle="modal" data-bs-target="#viewCommentModal" title="View">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success" onclick="respondToComment({{ comment.id }})" 
+                                                    data-bs-toggle="modal" data-bs-target="#responseModal" title="Respond">
+                                                <i class="bi bi-reply"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning" onclick="toggleStatus({{ comment.id }})" 
+                                                    title="Toggle Status">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteComment({{ comment.id }}, '{{ comment.student.user.get_full_name }}')" 
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if comments.has_other_pages %}
+                    <nav aria-label="Comments pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if comments.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ comments.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in comments.paginator.page_range %}
+                                {% if comments.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > comments.number|add:'-3' and num < comments.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if comments.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ comments.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-chat-dots display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Comments Found</h5>
+                        <p class="text-muted">No student comments match your current filters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Comment Modal -->
+<div class="modal fade" id="viewCommentModal" tabindex="-1" aria-labelledby="viewCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewCommentModalLabel">Comment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewCommentContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="respondFromViewBtn" onclick="respondFromView()">
+                    <i class="bi bi-reply"></i> Respond
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Response Modal -->
+<div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="responseModalLabel">Admin Response</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="responseForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="responseCommentId" name="comment_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Student Comment</label>
+                        <div class="bg-light p-3 rounded" id="originalComment">
+                            <!-- Original comment will be displayed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adminResponse" class="form-label">Your Response *</label>
+                        <textarea class="form-control" id="adminResponse" name="admin_response" rows="5" 
+                                  placeholder="Enter your response to the student..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="markResolved" name="is_resolved">
+                            <label class="form-check-label" for="markResolved">
+                                Mark as resolved
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveResponseBtn">Save Response</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<script>
+// AJAX CSRF Token Setup
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Show loading spinner
+function showLoading() {
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+}
+
+// Hide loading spinner
+function hideLoading() {
+    document.getElementById('loadingSpinner').classList.add('d-none');
+}
+
+// Show notification
+function showNotification(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert-message alert-${type}`;
+    alertDiv.innerHTML = `
+        ${message}
+        <span class="close-message">&times;</span>
+    `;
+    
+    document.getElementById('system-messages').appendChild(alertDiv);
+    
+    // Auto close after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+    
+    // Close button functionality
+    alertDiv.querySelector('.close-message').addEventListener('click', () => {
+        alertDiv.remove();
+    });
+}
+
+// Global variable to store current comment for response
+let currentCommentId = null;
+
+// View Comment Details
+function viewComment(commentId) {
+    showLoading();
+    
+    fetch(`/admin/student-comments/${commentId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const comment = data.comment;
+            document.getElementById('viewCommentContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">${comment.student_name}</h6>
+                                        <small class="text-muted">Student ID: ${comment.student_id} | ${comment.student_email}</small>
+                                    </div>
+                                    <span class="badge bg-${comment.is_resolved ? 'success' : 'warning'}">
+                                        ${comment.is_resolved ? 'Resolved' : 'Pending'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <h6>Student Comment:</h6>
+                                <p class="mb-3">${comment.comment}</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar"></i> Submitted: ${comment.created_at}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock"></i> Updated: ${comment.updated_at}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${comment.admin_response ? `
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Admin Response</h6>
+                                    <small>By: ${comment.responded_by}</small>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p>${comment.admin_response}</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> Responded: ${comment.response_date}
+                                </small>
+                            </div>
+                        </div>
+                        ` : '<div class="alert alert-info">No admin response yet.</div>'}
+                    </div>
+                </div>
+            `;
+            currentCommentId = commentId;
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading comment details.', 'danger');
+    });
+}
+
+// Respond to Comment
+function respondToComment(commentId) {
+    showLoading();
+    currentCommentId = commentId;
+    
+    fetch(`/admin/student-comments/${commentId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const comment = data.comment;
+            
+            // Populate the response form
+            document.getElementById('responseCommentId').value = commentId;
+            document.getElementById('originalComment').innerHTML = `
+                <div class="mb-2">
+                    <strong>${comment.student_name} (${comment.student_id})</strong>
+                    <span class="badge bg-secondary ms-2">${comment.created_at}</span>
+                </div>
+                <p class="mb-0">${comment.comment}</p>
+            `;
+            
+            // If there's already a response, populate it
+            if (comment.admin_response) {
+                document.getElementById('adminResponse').value = comment.admin_response;
+                document.getElementById('markResolved').checked = comment.is_resolved;
+                document.getElementById('responseModalLabel').textContent = 'Edit Admin Response';
+                document.getElementById('saveResponseBtn').textContent = 'Update Response';
+            } else {
+                document.getElementById('adminResponse').value = '';
+                document.getElementById('markResolved').checked = false;
+                document.getElementById('responseModalLabel').textContent = 'Add Admin Response';
+                document.getElementById('saveResponseBtn').textContent = 'Save Response';
+            }
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading comment details.', 'danger');
+    });
+}
+
+// Respond from view modal
+function respondFromView() {
+    if (currentCommentId) {
+        document.getElementById('viewCommentModal').querySelector('.btn-close').click();
+        respondToComment(currentCommentId);
+        const responseModal = new bootstrap.Modal(document.getElementById('responseModal'));
+        responseModal.show();
+    }
+}
+
+// Submit Response Form
+document.getElementById('responseForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showLoading();
+    
+    const formData = new FormData(this);
+    const commentId = document.getElementById('responseCommentId').value;
+    const hasExistingResponse = document.getElementById('adminResponse').value && 
+                               document.getElementById('saveResponseBtn').textContent === 'Update Response';
+    
+    const url = hasExistingResponse ? 
+                `/admin/student-comments/${commentId}/update-response/` : 
+                `/admin/student-comments/${commentId}/respond/`;
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showNotification(data.message, 'success');
+            document.getElementById('responseModal').querySelector('.btn-close').click();
+            location.reload(); // Refresh to show updated data
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('An error occurred. Please try again.', 'danger');
+    });
+});
+
+// Toggle Comment Status
+function toggleStatus(commentId) {
+    showLoading();
+    
+    fetch(`/admin/student-comments/${commentId}/toggle-status/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showNotification(data.message, 'success');
+            location.reload(); // Refresh to show updated status
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error updating status.', 'danger');
+    });
+}
+
+// Delete Comment
+function deleteComment(commentId, studentName) {
+    if (confirm(`Are you sure you want to delete the comment by "${studentName}"? This action cannot be undone.`)) {
+        showLoading();
+        
+        fetch(`/admin/student-comments/${commentId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Remove the row from the table
+                document.querySelector(`[data-comment-id="${commentId}"]`).remove();
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showNotification('Error deleting comment.', 'danger');
+        });
+    }
+}
+
+// Bulk Actions Functionality
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.comment-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateBulkActionsBar();
+});
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('comment-checkbox')) {
+        updateBulkActionsBar();
+    }
+});
+
+function updateBulkActionsBar() {
+    const checkedBoxes = document.querySelectorAll('.comment-checkbox:checked');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const bulkActionBtn = document.getElementById('bulkActionBtn');
+    
+    if (checkedBoxes.length > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCount.textContent = checkedBoxes.length;
+        bulkActionBtn.disabled = false;
+    } else {
+        bulkActionsBar.style.display = 'none';
+        bulkActionBtn.disabled = true;
+    }
+}
+
+function bulkAction(action) {
+    const checkedBoxes = document.querySelectorAll('.comment-checkbox:checked');
+    const commentIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    if (commentIds.length === 0) {
+        showNotification('No comments selected.', 'warning');
+        return;
+    }
+    
+    let confirmMessage = '';
+    switch(action) {
+        case 'mark_resolved':
+            confirmMessage = `Mark ${commentIds.length} comments as resolved?`;
+            break;
+        case 'mark_pending':
+            confirmMessage = `Mark ${commentIds.length} comments as pending?`;
+            break;
+        case 'delete':
+            confirmMessage = `Delete ${commentIds.length} comments? This action cannot be undone.`;
+            break;
+    }
+    
+    if (confirm(confirmMessage)) {
+        showLoading();
+        
+        const formData = new FormData();
+        formData.append('action', action);
+        commentIds.forEach(id => formData.append('comment_ids', id));
+        
+        fetch('/admin/student-comments/bulk-action/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                location.reload(); // Refresh to show updated data
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showNotification('Error performing bulk action.', 'danger');
+        });
+    }
+}
+
+// Close message functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('close-message')) {
+        e.target.parentElement.remove();
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer, #bulkActionsBar {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .table th:first-child,
+    .table td:first-child,
+    .table th:last-child,
+    .table td:last-child {
+        display: none !important;
+    }
+}
+
+.comment-row:hover {
+    background-color: #f8f9fa;
+}
+
+.avatar-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.admin-response-preview {
+    border-left: 3px solid #007bff;
+}
+
+.alert-message {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+
+.alert-warning {
+    color: #664d03;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+}
+
+.alert-info {
+    color: #055160;
+    background-color: #cff4fc;
+    border-color: #b6effb;
+}
+
+.close-message {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+}
+
+#loadingSpinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+
+.table-responsive {
+    min-height: 400px;
+}
+
+#bulkActionsBar {
+    border-left: 4px solid #007bff;
+}
+</style>
+
+{% endblock %}

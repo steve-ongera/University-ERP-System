@@ -855,3 +855,64 @@ class ClubEventForm(forms.ModelForm):
                 raise forms.ValidationError("Start date/time must be before end date/time.")
                 
         return cleaned_data
+    
+
+class AdminResponseForm(forms.ModelForm):
+    class Meta:
+        model = StudentComment
+        fields = ['admin_response', 'is_resolved']
+        widgets = {
+            'admin_response': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Enter your response to the student...',
+                'required': True
+            }),
+            'is_resolved': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            })
+        }
+        
+    def clean_admin_response(self):
+        admin_response = self.cleaned_data.get('admin_response')
+        if admin_response and len(admin_response.strip()) < 5:
+            raise forms.ValidationError("Response must be at least 5 characters long.")
+        return admin_response
+
+
+class CommentFilterForm(forms.Form):
+    SEARCH_CHOICES = [
+        ('', 'All Comments'),
+        ('resolved', 'Resolved'),
+        ('pending', 'Pending'),
+        ('responded', 'Responded'),
+        ('unresponded', 'Not Responded'),
+    ]
+    
+    DATE_CHOICES = [
+        ('', 'All Time'),
+        ('today', 'Today'),
+        ('week', 'This Week'),
+        ('month', 'This Month'),
+    ]
+    
+    search = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search comments, student names, or responses...'
+        })
+    )
+    
+    status = forms.ChoiceField(
+        choices=SEARCH_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    date = forms.ChoiceField(
+        choices=DATE_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
