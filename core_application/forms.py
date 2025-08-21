@@ -724,3 +724,135 @@ class DepartmentFilterForm(forms.Form):
             'class': 'form-select'
         })
     )
+
+
+# forms.py
+from django import forms
+from django.contrib.auth.models import User
+from .models import StudentClub, ClubEvent
+
+
+class StudentClubForm(forms.ModelForm):
+    chairperson = forms.ModelChoiceField(
+        queryset=User.objects.filter(is_active=True),
+        required=False,
+        empty_label="Select Chairperson",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    class Meta:
+        model = StudentClub
+        fields = [
+            'name', 'category', 'description', 'chairperson', 
+            'contact_phone', 'email', 'meeting_schedule', 
+            'membership_fee', 'logo', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter club name'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 4, 
+                'placeholder': 'Describe the club...'
+            }),
+            'contact_phone': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': '+254 xxx xxx xxx'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'club@university.edu'
+            }),
+            'meeting_schedule': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'When does the club meet?'
+            }),
+            'membership_fee': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01',
+                'min': '0'
+            }),
+            'logo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email:
+            # Check if email is already taken by another club
+            existing_club = StudentClub.objects.filter(email=email)
+            if self.instance.pk:
+                existing_club = existing_club.exclude(pk=self.instance.pk)
+            if existing_club.exists():
+                raise forms.ValidationError("A club with this email already exists.")
+        return email
+
+
+class ClubEventForm(forms.ModelForm):
+    club = forms.ModelChoiceField(
+        queryset=StudentClub.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    organizer = forms.ModelChoiceField(
+        queryset=User.objects.filter(is_active=True),
+        required=False,
+        empty_label="Select Organizer",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    class Meta:
+        model = ClubEvent
+        fields = [
+            'club', 'title', 'description', 'start_datetime', 
+            'end_datetime', 'location', 'organizer', 'status',
+            'image', 'registration_required', 'max_participants'
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Enter event title'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 4, 
+                'placeholder': 'Describe the event...'
+            }),
+            'start_datetime': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local'
+            }),
+            'end_datetime': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local'
+            }),
+            'location': forms.TextInput(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Event location'
+            }),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'registration_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'max_participants': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1'
+            }),
+        }
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        start_datetime = cleaned_data.get('start_datetime')
+        end_datetime = cleaned_data.get('end_datetime')
+        
+        if start_datetime and end_datetime:
+            if start_datetime >= end_datetime:
+                raise forms.ValidationError("Start date/time must be before end date/time.")
+                
+        return cleaned_data

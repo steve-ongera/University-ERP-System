@@ -382,5 +382,19 @@ urlpatterns = [
     path('events/<int:event_id>/delete/', views.delete_event, name='delete_event'),
     path('events/<int:event_id>/details/', views.get_event_details, name='get_event_details'),
 
+    # Club Management URLs
+    path('clubs/', views.clubs_management, name='clubs_management'),
+    path('clubs/create/', views.create_club, name='create_club'),
+    path('clubs/<int:club_id>/', views.get_club, name='get_club'),
+    path('clubs/<int:club_id>/update/', views.update_club, name='update_club'),
+    path('clubs/<int:club_id>/delete/', views.delete_club, name='delete_club'),
+    
+    # Club Events Management URLs
+    path('club-events/', views.club_events_management, name='club_events_management'),
+    path('club-events/create/', views.create_club_event, name='create_club_event'),
+    path('club-events/<int:event_id>/', views.get_club_event, name='get_club_event'),
+    path('club-events/<int:event_id>/update/', views.update_club_event, name='update_club_event'),
+    path('club-events/<int:event_id>/delete/', views.delete_club_event, name='delete_club_event'),
+
 
 ]

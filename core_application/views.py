@@ -14607,3 +14607,406 @@ def get_event_details(request, event_id):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.contrib import messages
+from django.urls import reverse
+from django.utils import timezone
+from django.forms.models import model_to_dict
+import json
+
+from .models import StudentClub, ClubMembership, ClubEvent
+from .forms import StudentClubForm, ClubEventForm
+
+
+@login_required
+def clubs_management(request):
+    """Main clubs management view"""
+    clubs = StudentClub.objects.annotate(
+        members_count=Count('members', filter=Q(members__is_active=True)),
+        events_count=Count('events')
+    ).select_related('chairperson').order_by('-created_at')
+    
+    # Filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')
+    
+    if search_query:
+        clubs = clubs.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    if category_filter:
+        clubs = clubs.filter(category=category_filter)
+    
+    if status_filter:
+        clubs = clubs.filter(is_active=(status_filter == 'active'))
+    
+    # Pagination
+    paginator = Paginator(clubs, 12)
+    page = request.GET.get('page')
+    clubs_page = paginator.get_page(page)
+    
+    # Statistics
+    stats = {
+        'total_clubs': StudentClub.objects.count(),
+        'active_clubs': StudentClub.objects.filter(is_active=True).count(),
+        'total_members': ClubMembership.objects.filter(is_active=True).count(),
+        'categories_count': StudentClub.objects.values('category').distinct().count(),
+    }
+    
+    context = {
+        'clubs': clubs_page,
+        'stats': stats,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+        'categories': StudentClub.CATEGORY_CHOICES,
+    }
+    
+    return render(request, 'clubs/clubs_management.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_club(request):
+    """AJAX endpoint to create a new club"""
+    try:
+        form = StudentClubForm(request.POST, request.FILES)
+        if form.is_valid():
+            club = form.save()
+            
+            # Create membership for chairperson if specified
+            if club.chairperson:
+                ClubMembership.objects.get_or_create(
+                    student=club.chairperson,
+                    club=club,
+                    defaults={
+                        'is_executive': True,
+                        'position': 'Chairperson'
+                    }
+                )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Club created successfully!',
+                'club': {
+                    'id': club.id,
+                    'name': club.name,
+                    'category': club.get_category_display(),
+                    'description': club.description,
+                    'chairperson': club.chairperson.get_full_name() if club.chairperson else 'Not assigned',
+                    'contact_phone': club.contact_phone,
+                    'email': club.email,
+                    'membership_fee': str(club.membership_fee),
+                    'is_active': club.is_active,
+                    'created_at': club.created_at.strftime('%B %d, %Y'),
+                    'members_count': 0,
+                    'events_count': 0,
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating club: {str(e)}'
+        })
+
+
+@login_required
+def get_club(request, club_id):
+    """AJAX endpoint to get club details"""
+    try:
+        club = get_object_or_404(StudentClub, id=club_id)
+        members_count = club.members.filter(is_active=True).count()
+        events_count = club.events.count()
+        
+        data = {
+            'id': club.id,
+            'name': club.name,
+            'category': club.category,
+            'description': club.description,
+            'chairperson_id': club.chairperson.id if club.chairperson else None,
+            'chairperson_name': club.chairperson.get_full_name() if club.chairperson else 'Not assigned',
+            'contact_phone': club.contact_phone,
+            'email': club.email,
+            'meeting_schedule': club.meeting_schedule,
+            'membership_fee': str(club.membership_fee),
+            'is_active': club.is_active,
+            'created_at': club.created_at.strftime('%B %d, %Y'),
+            'members_count': members_count,
+            'events_count': events_count,
+            'logo_url': club.logo.url if club.logo else None,
+        }
+        
+        return JsonResponse({'success': True, 'club': data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_club(request, club_id):
+    """AJAX endpoint to update club"""
+    try:
+        club = get_object_or_404(StudentClub, id=club_id)
+        form = StudentClubForm(request.POST, request.FILES, instance=club)
+        
+        if form.is_valid():
+            updated_club = form.save()
+            
+            # Update chairperson membership
+            if updated_club.chairperson:
+                membership, created = ClubMembership.objects.get_or_create(
+                    student=updated_club.chairperson,
+                    club=updated_club,
+                    defaults={
+                        'is_executive': True,
+                        'position': 'Chairperson'
+                    }
+                )
+                if not created:
+                    membership.is_executive = True
+                    membership.position = 'Chairperson'
+                    membership.is_active = True
+                    membership.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Club updated successfully!',
+                'club': {
+                    'id': updated_club.id,
+                    'name': updated_club.name,
+                    'category': updated_club.get_category_display(),
+                    'description': updated_club.description,
+                    'chairperson': updated_club.chairperson.get_full_name() if updated_club.chairperson else 'Not assigned',
+                    'contact_phone': updated_club.contact_phone,
+                    'email': updated_club.email,
+                    'membership_fee': str(updated_club.membership_fee),
+                    'is_active': updated_club.is_active,
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating club: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_club(request, club_id):
+    """AJAX endpoint to delete club"""
+    try:
+        club = get_object_or_404(StudentClub, id=club_id)
+        club_name = club.name
+        club.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Club "{club_name}" deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting club: {str(e)}'
+        })
+
+
+@login_required
+def club_events_management(request):
+    """Main club events management view"""
+    events = ClubEvent.objects.select_related('club', 'organizer').order_by('-start_datetime')
+    
+    # Filtering
+    search_query = request.GET.get('search', '')
+    club_filter = request.GET.get('club', '')
+    status_filter = request.GET.get('status', '')
+    
+    if search_query:
+        events = events.filter(
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(location__icontains=search_query)
+        )
+    
+    if club_filter:
+        events = events.filter(club_id=club_filter)
+    
+    if status_filter:
+        events = events.filter(status=status_filter)
+    
+    # Pagination
+    paginator = Paginator(events, 12)
+    page = request.GET.get('page')
+    events_page = paginator.get_page(page)
+    
+    # Statistics
+    now = timezone.now()
+    stats = {
+        'total_events': ClubEvent.objects.count(),
+        'upcoming_events': ClubEvent.objects.filter(start_datetime__gt=now).count(),
+        'ongoing_events': ClubEvent.objects.filter(
+            start_datetime__lte=now,
+            end_datetime__gte=now
+        ).count(),
+        'completed_events': ClubEvent.objects.filter(end_datetime__lt=now).count(),
+    }
+    
+    context = {
+        'events': events_page,
+        'stats': stats,
+        'search_query': search_query,
+        'club_filter': club_filter,
+        'status_filter': status_filter,
+        'clubs': StudentClub.objects.filter(is_active=True),
+        'status_choices': ClubEvent.EVENT_STATUS_CHOICES,
+    }
+    
+    return render(request, 'clubs/club_events_management.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_club_event(request):
+    """AJAX endpoint to create a new club event"""
+    try:
+        form = ClubEventForm(request.POST, request.FILES)
+        if form.is_valid():
+            event = form.save(commit=False)
+            if not event.organizer:
+                event.organizer = request.user
+            event.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Event created successfully!',
+                'event': {
+                    'id': event.id,
+                    'title': event.title,
+                    'club_name': event.club.name,
+                    'description': event.description,
+                    'start_datetime': event.start_datetime.strftime('%B %d, %Y %I:%M %p'),
+                    'end_datetime': event.end_datetime.strftime('%B %d, %Y %I:%M %p'),
+                    'location': event.location,
+                    'organizer': event.organizer.get_full_name() if event.organizer else 'Unknown',
+                    'status': event.get_status_display(),
+                    'registration_required': event.registration_required,
+                    'max_participants': event.max_participants,
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating event: {str(e)}'
+        })
+
+
+@login_required
+def get_club_event(request, event_id):
+    """AJAX endpoint to get club event details"""
+    try:
+        event = get_object_or_404(ClubEvent, id=event_id)
+        
+        data = {
+            'id': event.id,
+            'title': event.title,
+            'club_id': event.club.id,
+            'club_name': event.club.name,
+            'description': event.description,
+            'start_datetime': event.start_datetime.strftime('%Y-%m-%dT%H:%M'),
+            'end_datetime': event.end_datetime.strftime('%Y-%m-%dT%H:%M'),
+            'location': event.location,
+            'organizer_id': event.organizer.id if event.organizer else None,
+            'organizer_name': event.organizer.get_full_name() if event.organizer else 'Unknown',
+            'status': event.status,
+            'registration_required': event.registration_required,
+            'max_participants': event.max_participants,
+            'image_url': event.image.url if event.image else None,
+        }
+        
+        return JsonResponse({'success': True, 'event': data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_club_event(request, event_id):
+    """AJAX endpoint to update club event"""
+    try:
+        event = get_object_or_404(ClubEvent, id=event_id)
+        form = ClubEventForm(request.POST, request.FILES, instance=event)
+        
+        if form.is_valid():
+            updated_event = form.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Event updated successfully!',
+                'event': {
+                    'id': updated_event.id,
+                    'title': updated_event.title,
+                    'club_name': updated_event.club.name,
+                    'description': updated_event.description,
+                    'start_datetime': updated_event.start_datetime.strftime('%B %d, %Y %I:%M %p'),
+                    'end_datetime': updated_event.end_datetime.strftime('%B %d, %Y %I:%M %p'),
+                    'location': updated_event.location,
+                    'organizer': updated_event.organizer.get_full_name() if updated_event.organizer else 'Unknown',
+                    'status': updated_event.get_status_display(),
+                    'registration_required': updated_event.registration_required,
+                    'max_participants': updated_event.max_participants,
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating event: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_club_event(request, event_id):
+    """AJAX endpoint to delete club event"""
+    try:
+        event = get_object_or_404(ClubEvent, id=event_id)
+        event_title = event.title
+        event.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Event "{event_title}" deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting event: {str(e)}'
+        })
