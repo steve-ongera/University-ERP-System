@@ -71,16 +71,39 @@
         background-color: var(--primary-color);
         border-color: var(--primary-color);
     }
+
+    .fee-balance-positive {
+        color: #e4061cff !important;
+        font-weight: bold;
+    }
+
+    .fee-balance-negative {
+        color: #28a745 !important;
+        font-weight: bold;
+    }
+
+    .fee-balance-zero {
+        color: #28a745 !important;
+        font-weight: bold;
+    }
+
+    .holiday-message {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+    }
 </style>
 
 <div class="message-container" id="system-messages">
-                                {% for message in messages %}
-                                <div class="alert-message alert-{{ message.tags }}">
-                                    {{ message }}
-                                    <span class="close-message">&times;</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="container onprintContainer">
     <div class="row p-3">
@@ -96,6 +119,7 @@
             </div>
         </div>
     </div>
+    
     <div class="row p-2">
         <!--left-->
         <div class="col-md-8">
@@ -108,10 +132,12 @@
                                 <div class="card-body">
                                     <h3 class="card-title fw-bolder primary-text p-2">
                                         Welcome back,<span class="card-stitle">
-                                            {{request.user.first_name }}                                    </span>
+                                            {{request.user.first_name }}
+                                        </span>
                                     </h3>
                                     <p class="card-text p-2">
-                                        We're delighted to have you. Need help on system walk through? Navigate to virtual assistant on the side menu                                </p>
+                                        We're delighted to have you. Need help on system walk through? Navigate to virtual assistant on the side menu
+                                    </p>
                                 </div>
                             </div>
                             <div class="col-md-3 p-3 text-center">
@@ -125,44 +151,63 @@
             <!--current enrollments-->
             <div class="row pt-2 mt-3">
                 <div class="col-md-9 text-start">
-                    <p class="card-stitle text-start fw-semibold primary-text fs-5 ms-3">Current Semester Enrollments</p>
-                    {% if current_semester %}
-                        <small class="ms-3">{{ current_semester }}</small>
+                    {% if is_on_holiday %}
+                        <p class="card-stitle text-start fw-semibold primary-text fs-5 ms-3">🌴 Holiday Period</p>
+                        <small class="ms-3">Enjoy your break! Next semester starts soon.</small>
+                    {% else %}
+                        <p class="card-stitle text-start fw-semibold primary-text fs-5 ms-3">Current Semester Enrollments</p>
+                        {% if current_semester %}
+                            <small class="ms-3">{{ current_semester }}</small>
+                        {% endif %}
                     {% endif %}
                 </div>
                 <div class="col-md-3 text-end">
-                    <a class="card-stitle text-end small primary-text fs-5 mx-3" href="#">Enroll in Units</a>
+                    {% if not is_on_holiday %}
+                        <a class="card-stitle text-end small primary-text fs-5 mx-3" href="#">Enroll in Units</a>
+                    {% endif %}
                 </div>
             </div>
             
             <!--enrollments table-->
             <div class="row g-0 card bg-white shadow-sm" id="dashboardUnits">
                 <div class="mb-3 table-responsive">
-                    {% if current_enrollments %}
-                    <table class="table border table-responsive">
-                        <thead class="thead">
-                            <tr>
-                                <th>Unit Code</th>
-                                <th>Unit Name</th>
-                                <th>Credit Hours</th>
-                                <th>Type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for enrollment in current_enrollments %}
-                            <tr>
-                                <td>{{ enrollment.course.code }}</td>
-                                <td>{{ enrollment.course.name }}</td>
-                                <td>{{ enrollment.course.credit_hours }}</td>
-                                <td>{{ enrollment.course.get_course_type_display }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    {% if is_on_holiday %}
+                        <div class="holiday-message text-center">
+                            <h4><i class="fas fa-umbrella-beach"></i> Happy Holidays!</h4>
+                            <p class="mb-2">You're currently on a semester break. Time to relax and recharge!</p>
+                            {% if next_semester_date %}
+                                <small>Expected next semester start: <strong>{{ next_semester_date|date:"F d, Y" }}</strong></small>
+                            {% endif %}
+                        </div>
+                    {% elif current_enrollments %}
+                        <table class="table border table-responsive">
+                            <thead class="thead">
+                                <tr>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Credit Hours</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in current_enrollments %}
+                                <tr>
+                                    <td>{{ enrollment.course.code }}</td>
+                                    <td>{{ enrollment.course.name }}</td>
+                                    <td>{{ enrollment.course.credit_hours }}</td>
+                                    <td>{{ enrollment.course.get_course_type_display }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="p-2">
+                            <small class="text-muted">Total enrolled units: {{ total_enrolled_units }}</small>
+                        </div>
                     {% else %}
-                    <div class="p-3 text-center">
-                        <p>No enrollments for current semester.</p>
-                    </div>
+                        <div class="p-3 text-center">
+                            <p>No enrollments for current semester.</p>
+                            <small class="text-muted">Contact your academic advisor if you need assistance with course enrollment.</small>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -176,16 +221,43 @@
                     <div class="row">
                         <div class="col-md-4 text-center">
                             <div class="text-content-center">
-                                <i class="ri-coin-fill fa-4x"></i>
+                                {% if fee_balance == 0 %}
+                                    <i class="ri-checkbox-circle-fill fa-4x"></i>
+                                {% elif fee_balance < 0 %}
+                                    <i class="ri-coin-fill fa-4x"></i>
+                                {% else %}
+                                    <i class="ri-coin-fill fa-4x"></i>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-8">
                             <div class="card-body mt-3">
                                 <h5 class="card-title fw-bold">Fee Balance</h5>
                                 <p class="card-text" id="studBalance">
-                                    KES {{ fee_balance|floatformat:2 }}
+                                    {% if fee_balance == 0 %}
+                                        <span class="fee-balance-zero">KES 0.00</span><br>
+                                        <small style="font-size: 0.8em;">
+                                            <i class="bi bi-check-circle-fill text-success"></i> Fully Paid
+                                        </small>
+                                    {% elif fee_balance < 0 %}
+                                        <span class="fee-balance-negative">KES {{ fee_balance|floatformat:2 }}</span><br>
+                                        <small style="font-size: 0.8em;">
+                                            <i class="bi bi-cash-stack text-primary"></i> Overpayment
+                                        </small>
+                                    {% else %}
+                                        <span class="fee-balance-positive">KES {{ fee_balance|floatformat:2 }}</span><br>
+                                        <small style="font-size: 0.8em;">
+                                            <i class="bi bi-exclamation-triangle-fill text-warning"></i> Outstanding
+                                        </small>
+                                    {% endif %}
                                 </p>
-                                <a href="#" class="btn btn-light btn-sm">Pay Fees</a>
+                                {% if fee_balance > 0 %}
+                                    <a href="#" class="btn btn-light btn-sm">Pay Fees</a>
+                                {% elif fee_balance < 0 %}
+                                    <a href="#" class="btn btn-light btn-sm">View Statement</a>
+                                {% else %}
+                                    <a href="#" class="btn btn-light btn-sm">View Receipt</a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -229,16 +301,22 @@
                     <div class="row ms-2 d-flex flex-row flex-sm-row">
                         <div class="col-12">
                             <div class="d-grid gap-2">
-                                <a href="{% url 'student_units'%}" class="btn btn-outline-primary">
-                                    Available Units for Enrollment
-                                </a>
+                                {% if not is_on_holiday %}
+                                    <a href="{% url 'student_units'%}" class="btn btn-outline-primary">
+                                        Available Units for Enrollment
+                                    </a>
+                                {% endif %}
                                 <a href="{% url 'student_profile'%}" class="btn btn-outline-secondary">
                                     My Profile
                                 </a>
-
-                                 <a href="{% url 'student_transcript'%}" class="btn btn-outline-success">
+                                <a href="{% url 'student_transcript'%}" class="btn btn-outline-success">
                                     Academic Records
                                 </a>
+                                {% if is_on_holiday %}
+                                    <a href="#" class="btn btn-outline-info">
+                                        Holiday Resources
+                                    </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

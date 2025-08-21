@@ -48,6 +48,17 @@ def logout_view(request):
     return redirect('login_view')  # This should match your login URL name
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Sum
+from decimal import Decimal
+from datetime import datetime, timedelta
+from .models import (
+    Student, Semester, AcademicYear, Enrollment, 
+    FeeStructure, FeePayment
+)
+
 @login_required
 def student_dashboard(request):
     """Main dashboard for logged-in students"""
@@ -56,30 +67,115 @@ def student_dashboard(request):
     
     student = get_object_or_404(Student, user=request.user)
     current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     
-    # Get current semester enrollments
-    current_enrollments = Enrollment.objects.filter(
-        student=student,
-        semester=current_semester,
-        is_active=True
-    ).select_related('course')
+    # Initialize variables
+    current_enrollments = []
+    is_on_holiday = False
+    next_semester_date = None
+    fee_balance = Decimal('0.00')
+    
+    # Check if student is on holiday (semester mismatch logic)
+    if current_semester and student.programme.semesters_per_year >= current_semester.semester_number:
+        # Student is in a valid semester period
+        if student.current_semester != current_semester.semester_number:
+            # Check if student is ahead (on holiday)
+            if student.current_semester > current_semester.semester_number:
+                is_on_holiday = True
+                # Calculate approximate next semester start date
+                next_semester_date = current_semester.end_date + timedelta(days=30)  # Approximate
+                messages.info(
+                    request, 
+                    f"🌴 Happy holidays! Enjoy your break. The next semester is expected to start around {next_semester_date.strftime('%B %d, %Y')}."
+                )
+    
+    # Get current semester enrollments (only if not on holiday)
+    if not is_on_holiday and current_semester:
+        current_enrollments = Enrollment.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course')
+    
+    # Calculate fee balance for current semester and academic year
+    if current_academic_year:
+        # Get fee structure for current student's year, semester, and programme
+        fee_structure = FeeStructure.objects.filter(
+            programme=student.programme,
+            academic_year=current_academic_year,
+            year=student.current_year,
+            semester=student.current_semester
+        ).first()
+        
+        if fee_structure:
+            # Calculate total fee required
+            total_fee_required = fee_structure.net_fee()  # This includes subsidies
+            
+            # Calculate total payments made for this fee structure
+            total_payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(
+                total=Sum('amount_paid')
+            )['total'] or Decimal('0.00')
+            
+            # Calculate balance (negative means overpayment)
+            fee_balance = total_fee_required - total_payments
+        else:
+            # No fee structure found - check if there are any payments
+            # for current academic year and student's current semester
+            fee_structures = FeeStructure.objects.filter(
+                programme=student.programme,
+                academic_year=current_academic_year,
+                year=student.current_year
+            )
+            
+            if fee_structures.exists():
+                # Use the first available fee structure as fallback
+                fee_structure = fee_structures.first()
+                total_fee_required = fee_structure.net_fee()
+                
+                total_payments = FeePayment.objects.filter(
+                    student=student,
+                    fee_structure__in=fee_structures,
+                    payment_status='completed'
+                ).aggregate(
+                    total=Sum('amount_paid')
+                )['total'] or Decimal('0.00')
+                
+                fee_balance = total_fee_required - total_payments
     
     # Calculate semester progress
     total_semesters = student.programme.total_semesters
     completed_semesters = (student.current_year - 1) * student.programme.semesters_per_year + (student.current_semester - 1)
     progress_percentage = (completed_semesters / total_semesters) * 100 if total_semesters > 0 else 0
     
-    # Calculate GPA (mock fee balance for now)
-    fee_balance = Decimal('45000.00')  # This should come from a Fee model
+    # Add contextual message for fee balance
+    if fee_balance == 0:
+        fee_status_message = "✅ Fees fully paid for current semester"
+        messages.success(request, fee_status_message)
+    elif fee_balance < 0:
+        overpayment = abs(fee_balance)
+        fee_status_message = f"💰 You have an overpayment of KES {overpayment:,.2f}"
+        messages.info(request, fee_status_message)
+    else:
+        fee_status_message = f"⚠️ Outstanding fee balance: KES {fee_balance:,.2f}"
+        if fee_balance > 10000:  # High balance warning
+            messages.warning(request, "Please settle your fee balance to avoid academic holds.")
     
     context = {
         'student': student,
         'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
         'current_enrollments': current_enrollments,
         'progress_percentage': round(progress_percentage, 1),
         'completed_semesters': completed_semesters,
         'total_semesters': total_semesters,
         'fee_balance': fee_balance,
+        'is_on_holiday': is_on_holiday,
+        'next_semester_date': next_semester_date,
+        'total_enrolled_units': len(current_enrollments),
     }
     
     return render(request, 'student/dashboard.html', context)
