@@ -1,0 +1,652 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Student Clubs Management</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-people-fill me-1"></i>Manage student clubs and their activities
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clubModal" onclick="resetClubForm()">
+                            <i class="bi bi-plus-circle"></i> Add New Club
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ stats.total_clubs }}</h5>
+                            <p class="small text-muted mb-0">Total Clubs</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-success">{{ stats.active_clubs }}</h5>
+                            <p class="small text-muted mb-0">Active Clubs</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-info">{{ stats.total_members }}</h5>
+                            <p class="small text-muted mb-0">Total Members</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-warning">{{ stats.categories_count }}</h5>
+                            <p class="small text-muted mb-0">Categories</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search clubs..." onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" name="category" onchange="this.form.submit()">
+                                <option value="">All Categories</option>
+                                {% for value, display in categories %}
+                                <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'clubs_management' %}" class="btn btn-outline-secondary">Clear</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clubs Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if clubs %}
+                    <div class="row" id="clubsContainer">
+                        {% for club in clubs %}
+                        <div class="col-md-4 mb-4" data-club-id="{{ club.id }}">
+                            <div class="card h-100 club-card">
+                                {% if club.logo %}
+                                <img src="{{ club.logo.url }}" class="card-img-top" alt="{{ club.name }}" style="height: 150px; object-fit: cover;">
+                                {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;">
+                                    <i class="bi bi-people-fill display-4 text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ club.name }}</h5>
+                                    <span class="badge bg-{% if club.category == 'academic' %}primary{% elif club.category == 'cultural' %}info{% elif club.category == 'sports' %}success{% elif club.category == 'religious' %}warning{% else %}secondary{% endif %} mb-2">
+                                        {{ club.get_category_display }}
+                                    </span>
+                                    <p class="card-text small">{{ club.description|truncatechars:100 }}</p>
+                                    
+                                    <div class="row text-center mt-3">
+                                        <div class="col-6">
+                                            <small class="text-muted">Members</small>
+                                            <h6>{{ club.members_count }}</h6>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Events</small>
+                                            <h6>{{ club.events_count }}</h6>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    <p class="small mb-1">
+                                        <i class="bi bi-person-circle me-1"></i>
+                                        {{ club.chairperson.get_full_name|default:"No chairperson" }}
+                                    </p>
+                                    <p class="small mb-1">
+                                        <i class="bi bi-envelope me-1"></i>{{ club.email }}
+                                    </p>
+                                    <p class="small mb-1">
+                                        <i class="bi bi-telephone me-1"></i>{{ club.contact_phone }}
+                                    </p>
+                                    <p class="small mb-0">
+                                        <i class="bi bi-currency-dollar me-1"></i>Fee: Ksh {{ club.membership_fee }}
+                                    </p>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <span class="badge bg-{% if club.is_active %}success{% else %}secondary{% endif %}">
+                                                {% if club.is_active %}Active{% else %}Inactive{% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewClub({{ club.id }})" data-bs-toggle="modal" data-bs-target="#viewClubModal">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="editClub({{ club.id }})" data-bs-toggle="modal" data-bs-target="#clubModal">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" onclick="deleteClub({{ club.id }}, '{{ club.name }}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if clubs.has_other_pages %}
+                    <nav aria-label="Clubs pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if clubs.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ clubs.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in clubs.paginator.page_range %}
+                                {% if clubs.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > clubs.number|add:'-3' and num < clubs.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if clubs.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ clubs.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-people-fill display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Clubs Found</h5>
+                        <p class="text-muted">No clubs match your current filters.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clubModal" onclick="resetClubForm()">
+                            <i class="bi bi-plus-circle"></i> Create First Club
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Club Modal (Create/Edit) -->
+<div class="modal fade" id="clubModal" tabindex="-1" aria-labelledby="clubModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clubModalLabel">Add New Club</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="clubForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="clubId" name="club_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubName" class="form-label">Club Name *</label>
+                                <input type="text" class="form-control" id="clubName" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubCategory" class="form-label">Category *</label>
+                                <select class="form-select" id="clubCategory" name="category" required>
+                                    <option value="">Select Category</option>
+                                    {% for value, display in categories %}
+                                    <option value="{{ value }}">{{ display }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="clubDescription" class="form-label">Description *</label>
+                        <textarea class="form-control" id="clubDescription" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubChairperson" class="form-label">Chairperson</label>
+                                <select class="form-select" id="clubChairperson" name="chairperson">
+                                    <option value="">Select Chairperson</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubEmail" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="clubEmail" name="email" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubPhone" class="form-label">Contact Phone *</label>
+                                <input type="tel" class="form-control" id="clubPhone" name="contact_phone" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="membershipFee" class="form-label">Membership Fee (Ksh)</label>
+                                <input type="number" class="form-control" id="membershipFee" name="membership_fee" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="meetingSchedule" class="form-label">Meeting Schedule</label>
+                        <textarea class="form-control" id="meetingSchedule" name="meeting_schedule" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="clubLogo" class="form-label">Club Logo</label>
+                                <input type="file" class="form-control" id="clubLogo" name="logo" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="isActive" name="is_active" checked>
+                                    <label class="form-check-label" for="isActive">
+                                        Active Club
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveClubBtn">Save Club</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Club Modal -->
+<div class="modal fade" id="viewClubModal" tabindex="-1" aria-labelledby="viewClubModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewClubModalLabel">Club Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewClubContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<script>
+// AJAX CSRF Token Setup
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Show loading spinner
+function showLoading() {
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+}
+
+// Hide loading spinner
+function hideLoading() {
+    document.getElementById('loadingSpinner').classList.add('d-none');
+}
+
+// Show notification
+function showNotification(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert-message alert-${type}`;
+    alertDiv.innerHTML = `
+        ${message}
+        <span class="close-message">&times;</span>
+    `;
+    
+    document.getElementById('system-messages').appendChild(alertDiv);
+    
+    // Auto close after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+    
+    // Close button functionality
+    alertDiv.querySelector('.close-message').addEventListener('click', () => {
+        alertDiv.remove();
+    });
+}
+
+// Reset club form
+function resetClubForm() {
+    document.getElementById('clubForm').reset();
+    document.getElementById('clubId').value = '';
+    document.getElementById('clubModalLabel').textContent = 'Add New Club';
+    document.getElementById('saveClubBtn').textContent = 'Save Club';
+}
+
+// Load users for chairperson dropdown
+function loadUsers() {
+    // This would typically fetch users via AJAX
+    // For now, assuming users are loaded via server-side rendering
+}
+
+// Create/Update Club
+document.getElementById('clubForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showLoading();
+    
+    const formData = new FormData(this);
+    const clubId = document.getElementById('clubId').value;
+    const url = clubId ? `/clubs/${clubId}/update/` : '/clubs/create/';
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showNotification(data.message, 'success');
+            document.getElementById('clubModal').querySelector('.btn-close').click();
+            location.reload(); // Reload to show updated data
+        } else {
+            if (data.errors) {
+                let errorMsg = 'Please fix the following errors:\n';
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    errorMsg += `${field}: ${errors.join(', ')}\n`;
+                }
+                showNotification(errorMsg, 'danger');
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('An error occurred. Please try again.', 'danger');
+    });
+});
+
+// View Club
+function viewClub(clubId) {
+    showLoading();
+    
+    fetch(`/clubs/${clubId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const club = data.club;
+            document.getElementById('viewClubContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        ${club.logo_url ? `<img src="${club.logo_url}" class="img-fluid mb-3" alt="${club.name}">` : ''}
+                        <h4>${club.name}</h4>
+                        <span class="badge bg-primary mb-2">${club.category}</span>
+                        <p>${club.description}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Club Information</h6>
+                        <p><strong>Chairperson:</strong> ${club.chairperson_name}</p>
+                        <p><strong>Email:</strong> ${club.email}</p>
+                        <p><strong>Phone:</strong> ${club.contact_phone}</p>
+                        <p><strong>Membership Fee:</strong> Ksh ${club.membership_fee}</p>
+                        <p><strong>Members:</strong> ${club.members_count}</p>
+                        <p><strong>Events:</strong> ${club.events_count}</p>
+                        <p><strong>Created:</strong> ${club.created_at}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-${club.is_active ? 'success' : 'secondary'}">
+                                ${club.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </p>
+                        ${club.meeting_schedule ? `<p><strong>Meeting Schedule:</strong><br>${club.meeting_schedule}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading club details.', 'danger');
+    });
+}
+
+// Edit Club
+function editClub(clubId) {
+    showLoading();
+    
+    fetch(`/clubs/${clubId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const club = data.club;
+            
+            // Populate form
+            document.getElementById('clubId').value = club.id;
+            document.getElementById('clubName').value = club.name;
+            document.getElementById('clubCategory').value = club.category;
+            document.getElementById('clubDescription').value = club.description;
+            document.getElementById('clubEmail').value = club.email;
+            document.getElementById('clubPhone').value = club.contact_phone;
+            document.getElementById('membershipFee').value = club.membership_fee;
+            document.getElementById('meetingSchedule').value = club.meeting_schedule || '';
+            document.getElementById('isActive').checked = club.is_active;
+            
+            if (club.chairperson_id) {
+                document.getElementById('clubChairperson').value = club.chairperson_id;
+            }
+            
+            // Update modal title
+            document.getElementById('clubModalLabel').textContent = 'Edit Club';
+            document.getElementById('saveClubBtn').textContent = 'Update Club';
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading club details.', 'danger');
+    });
+}
+
+// Delete Club
+function deleteClub(clubId, clubName) {
+    if (confirm(`Are you sure you want to delete "${clubName}"? This action cannot be undone.`)) {
+        showLoading();
+        
+        fetch(`/clubs/${clubId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Remove the club card from the DOM
+                document.querySelector(`[data-club-id="${clubId}"]`).remove();
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showNotification('Error deleting club.', 'danger');
+        });
+    }
+}
+
+// Close message functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('close-message')) {
+        e.target.parentElement.remove();
+    }
+});
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.club-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.alert-message {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+}
+
+#loadingSpinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+</style>
+
+{% endblock %}

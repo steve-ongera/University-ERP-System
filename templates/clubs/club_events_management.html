@@ -1,0 +1,718 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Club Events Management</h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-calendar-event me-1"></i>Manage club events and activities
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <a href="{% url 'clubs_management' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-people"></i> Manage Clubs
+                            </a>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#eventModal" onclick="resetEventForm()">
+                                <i class="bi bi-plus-circle"></i> Add New Event
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-primary">{{ stats.total_events }}</h5>
+                            <p class="small text-muted mb-0">Total Events</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-info">{{ stats.upcoming_events }}</h5>
+                            <p class="small text-muted mb-0">Upcoming</p>
+                        </div>
+                        <div class="col-md-3 border-end">
+                            <h5 class="text-warning">{{ stats.ongoing_events }}</h5>
+                            <p class="small text-muted mb-0">Ongoing</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h5 class="text-success">{{ stats.completed_events }}</h5>
+                            <p class="small text-muted mb-0">Completed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search events..." onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Club</label>
+                            <select class="form-select" name="club" onchange="this.form.submit()">
+                                <option value="">All Clubs</option>
+                                {% for club in clubs %}
+                                <option value="{{ club.id }}" {% if club_filter == club.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ club.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                {% for value, display in status_choices %}
+                                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'club_events_management' %}" class="btn btn-outline-secondary">Clear</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if events %}
+                    <div class="row" id="eventsContainer">
+                        {% for event in events %}
+                        <div class="col-md-6 mb-4" data-event-id="{{ event.id }}">
+                            <div class="card h-100 event-card border-left-{% if event.status == 'upcoming' %}primary{% elif event.status == 'ongoing' %}warning{% elif event.status == 'completed' %}success{% else %}danger{% endif %}">
+                                {% if event.image %}
+                                <img src="{{ event.image.url }}" class="card-img-top" alt="{{ event.title }}" style="height: 150px; object-fit: cover;">
+                                {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;">
+                                    <i class="bi bi-calendar-event display-4 text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="card-title mb-0">{{ event.title|truncatechars:30 }}</h5>
+                                        <span class="badge bg-{% if event.status == 'upcoming' %}primary{% elif event.status == 'ongoing' %}warning{% elif event.status == 'completed' %}success{% else %}danger{% endif %}">
+                                            {{ event.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-2">
+                                        <i class="bi bi-people me-1"></i>{{ event.club.name }}
+                                    </p>
+                                    <p class="card-text small">{{ event.description|truncatechars:120 }}</p>
+                                    
+                                    <div class="row text-center mt-3">
+                                        <div class="col-6">
+                                            <small class="text-muted">Start Date</small>
+                                            <p class="small mb-0">{{ event.start_datetime|date:"M d, Y" }}</p>
+                                            <p class="small mb-0">{{ event.start_datetime|date:"H:i" }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">End Date</small>
+                                            <p class="small mb-0">{{ event.end_datetime|date:"M d, Y" }}</p>
+                                            <p class="small mb-0">{{ event.end_datetime|date:"H:i" }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    <p class="small mb-1">
+                                        <i class="bi bi-geo-alt me-1"></i>{{ event.location }}
+                                    </p>
+                                    <p class="small mb-1">
+                                        <i class="bi bi-person-circle me-1"></i>{{ event.organizer.get_full_name|default:"No organizer" }}
+                                    </p>
+                                    {% if event.registration_required %}
+                                    <p class="small mb-1">
+                                        <i class="bi bi-check-circle me-1 text-info"></i>Registration Required
+                                    </p>
+                                    {% endif %}
+                                    {% if event.max_participants %}
+                                    <p class="small mb-0">
+                                        <i class="bi bi-people me-1"></i>Max Participants: {{ event.max_participants }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer">
+                                    <div class="row align-items-center">
+                                        <div class="col-6">
+                                            <small class="text-muted">Created: {{ event.created_at|date:"M d, Y" }}</small>
+                                        </div>
+                                        <div class="col-6 text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewEvent({{ event.id }})" data-bs-toggle="modal" data-bs-target="#viewEventModal">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="editEvent({{ event.id }})" data-bs-toggle="modal" data-bs-target="#eventModal">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" onclick="deleteEvent({{ event.id }}, '{{ event.title }}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if events.has_other_pages %}
+                    <nav aria-label="Events pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if events.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ events.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if club_filter %}&club={{ club_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in events.paginator.page_range %}
+                                {% if events.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > events.number|add:'-3' and num < events.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if club_filter %}&club={{ club_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if events.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ events.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if club_filter %}&club={{ club_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-calendar-event display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">No Events Found</h5>
+                        <p class="text-muted">No events match your current filters.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#eventModal" onclick="resetEventForm()">
+                            <i class="bi bi-plus-circle"></i> Create First Event
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Modal (Create/Edit) -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalLabel">Add New Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="eventForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="eventId" name="event_id">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="eventTitle" class="form-label">Event Title *</label>
+                                <input type="text" class="form-control" id="eventTitle" name="title" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="eventClub" class="form-label">Club *</label>
+                                <select class="form-select" id="eventClub" name="club" required>
+                                    <option value="">Select Club</option>
+                                    {% for club in clubs %}
+                                    <option value="{{ club.id }}">{{ club.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventDescription" class="form-label">Description *</label>
+                        <textarea class="form-control" id="eventDescription" name="description" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="startDateTime" class="form-label">Start Date & Time *</label>
+                                <input type="datetime-local" class="form-control" id="startDateTime" name="start_datetime" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="endDateTime" class="form-label">End Date & Time *</label>
+                                <input type="datetime-local" class="form-control" id="endDateTime" name="end_datetime" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventLocation" class="form-label">Location *</label>
+                                <input type="text" class="form-control" id="eventLocation" name="location" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="eventOrganizer" class="form-label">Organizer</label>
+                                <select class="form-select" id="eventOrganizer" name="organizer">
+                                    <option value="">Select Organizer</option>
+                                    <!-- Users would be loaded here -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="eventStatus" class="form-label">Status</label>
+                                <select class="form-select" id="eventStatus" name="status">
+                                    {% for value, display in status_choices %}
+                                    <option value="{{ value }}">{{ display }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="maxParticipants" class="form-label">Max Participants</label>
+                                <input type="number" class="form-control" id="maxParticipants" name="max_participants" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="eventImage" class="form-label">Event Image</label>
+                                <input type="file" class="form-control" id="eventImage" name="image" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="registrationRequired" name="registration_required">
+                            <label class="form-check-label" for="registrationRequired">
+                                Registration Required
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveEventBtn">Save Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Event Modal -->
+<div class="modal fade" id="viewEventModal" tabindex="-1" aria-labelledby="viewEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewEventModalLabel">Event Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="viewEventContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<script>
+// AJAX CSRF Token Setup
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Show loading spinner
+function showLoading() {
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+}
+
+// Hide loading spinner
+function hideLoading() {
+    document.getElementById('loadingSpinner').classList.add('d-none');
+}
+
+// Show notification
+function showNotification(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert-message alert-${type}`;
+    alertDiv.innerHTML = `
+        ${message}
+        <span class="close-message">&times;</span>
+    `;
+    
+    document.getElementById('system-messages').appendChild(alertDiv);
+    
+    // Auto close after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+    
+    // Close button functionality
+    alertDiv.querySelector('.close-message').addEventListener('click', () => {
+        alertDiv.remove();
+    });
+}
+
+// Reset event form
+function resetEventForm() {
+    document.getElementById('eventForm').reset();
+    document.getElementById('eventId').value = '';
+    document.getElementById('eventModalLabel').textContent = 'Add New Event';
+    document.getElementById('saveEventBtn').textContent = 'Save Event';
+    
+    // Set default status to upcoming
+    document.getElementById('eventStatus').value = 'upcoming';
+}
+
+// Create/Update Event
+document.getElementById('eventForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showLoading();
+    
+    const formData = new FormData(this);
+    const eventId = document.getElementById('eventId').value;
+    const url = eventId ? `/club-events/${eventId}/update/` : '/club-events/create/';
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showNotification(data.message, 'success');
+            document.getElementById('eventModal').querySelector('.btn-close').click();
+            location.reload(); // Reload to show updated data
+        } else {
+            if (data.errors) {
+                let errorMsg = 'Please fix the following errors:\n';
+                for (const [field, errors] of Object.entries(data.errors)) {
+                    errorMsg += `${field}: ${errors.join(', ')}\n`;
+                }
+                showNotification(errorMsg, 'danger');
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('An error occurred. Please try again.', 'danger');
+    });
+});
+
+// View Event
+function viewEvent(eventId) {
+    showLoading();
+    
+    fetch(`/club-events/${eventId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const event = data.event;
+            document.getElementById('viewEventContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        ${event.image_url ? `<img src="${event.image_url}" class="img-fluid mb-3" alt="${event.title}">` : ''}
+                        <h4>${event.title}</h4>
+                        <p class="text-primary"><i class="bi bi-people me-1"></i>${event.club_name}</p>
+                        <p>${event.description}</p>
+                        
+                        <h6 class="mt-4">Event Schedule</h6>
+                        <p><strong>Start:</strong> ${event.start_datetime}</p>
+                        <p><strong>End:</strong> ${event.end_datetime}</p>
+                        <p><strong>Location:</strong> ${event.location}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Event Information</h6>
+                        <p><strong>Organizer:</strong> ${event.organizer_name}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-${event.status === 'upcoming' ? 'primary' : event.status === 'ongoing' ? 'warning' : event.status === 'completed' ? 'success' : 'danger'}">
+                                ${event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                            </span>
+                        </p>
+                        <p><strong>Registration Required:</strong> ${event.registration_required ? 'Yes' : 'No'}</p>
+                        ${event.max_participants ? `<p><strong>Max Participants:</strong> ${event.max_participants}</p>` : ''}
+                        
+                        <h6 class="mt-4">Additional Details</h6>
+                        <p><strong>Created:</strong> ${new Date(event.created_at).toLocaleDateString()}</p>
+                        <p><strong>Last Updated:</strong> ${new Date(event.updated_at).toLocaleDateString()}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading event details.', 'danger');
+    });
+}
+
+// Edit Event
+function editEvent(eventId) {
+    showLoading();
+    
+    fetch(`/club-events/${eventId}/`)
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            const event = data.event;
+            
+            // Populate form
+            document.getElementById('eventId').value = event.id;
+            document.getElementById('eventTitle').value = event.title;
+            document.getElementById('eventClub').value = event.club_id;
+            document.getElementById('eventDescription').value = event.description;
+            document.getElementById('startDateTime').value = event.start_datetime;
+            document.getElementById('endDateTime').value = event.end_datetime;
+            document.getElementById('eventLocation').value = event.location;
+            document.getElementById('eventStatus').value = event.status;
+            document.getElementById('registrationRequired').checked = event.registration_required;
+            
+            if (event.organizer_id) {
+                document.getElementById('eventOrganizer').value = event.organizer_id;
+            }
+            
+            if (event.max_participants) {
+                document.getElementById('maxParticipants').value = event.max_participants;
+            }
+            
+            // Update modal title
+            document.getElementById('eventModalLabel').textContent = 'Edit Event';
+            document.getElementById('saveEventBtn').textContent = 'Update Event';
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showNotification('Error loading event details.', 'danger');
+    });
+}
+
+// Delete Event
+function deleteEvent(eventId, eventTitle) {
+    if (confirm(`Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`)) {
+        showLoading();
+        
+        fetch(`/club-events/${eventId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                // Remove the event card from the DOM
+                document.querySelector(`[data-event-id="${eventId}"]`).remove();
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showNotification('Error deleting event.', 'danger');
+        });
+    }
+}
+
+// Close message functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('close-message')) {
+        e.target.parentElement.remove();
+    }
+});
+
+// Validate end date is after start date
+document.getElementById('startDateTime').addEventListener('change', validateDates);
+document.getElementById('endDateTime').addEventListener('change', validateDates);
+
+function validateDates() {
+    const startDate = new Date(document.getElementById('startDateTime').value);
+    const endDate = new Date(document.getElementById('endDateTime').value);
+    
+    if (startDate && endDate && startDate >= endDate) {
+        showNotification('End date/time must be after start date/time.', 'danger');
+        document.getElementById('endDateTime').value = '';
+    }
+}
+</script>
+
+<style>
+@media print {
+    .btn, .modal, .card-footer {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.event-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.border-left-danger {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.alert-message {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+}
+
+#loadingSpinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+</style>
+
+{% endblock %}
