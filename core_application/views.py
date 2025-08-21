@@ -9396,9 +9396,9 @@ def download_payment_receipt_pdf(request, payment_id):
             'balance': balance,
             'overpayment_details': overpayment_details,
             'overpayment_total': overpayment_total,
-            'university_name': getattr(settings, 'UNIVERSITY_NAME', 'UNIVERSITY NAME'),
-            'university_address': getattr(settings, 'UNIVERSITY_ADDRESS', 'University Address, City, Country'),
-            'university_contact': getattr(settings, 'UNIVERSITY_CONTACT', 'Tel: +254-XXX-XXXXXX | Email: finance@university.edu'),
+            'university_name': getattr(settings, 'UNIVERSITY_NAME', 'MURANGA UNIVERSITY OF TECHNOLOGY '),
+            'university_address': getattr(settings, 'UNIVERSITY_ADDRESS', 'Muranga Town 351, Kiambu, Kenya'),
+            'university_contact': getattr(settings, 'UNIVERSITY_CONTACT', 'Tel: +254-763-7474893 | Email: finance@mutuniversity.edu'),
             'logo_url': getattr(settings, 'LOGO_URL', ''),
         }
         

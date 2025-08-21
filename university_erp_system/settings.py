@@ -135,3 +135,13 @@ WKHTMLTOPDF_CMD = r"C:\wkhtmltopdf\bin\wkhtmltopdf.exe"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# University Information
+UNIVERSITY_NAME = "MURANGA UNIVERSITY OF TECHNOLOGY"
+UNIVERSITY_ADDRESS = "Muranga Town 351, Kiambu, Kenya"
+UNIVERSITY_CONTACT = "Tel: +254-763-7474893 | Email: finance@mutuniversity.edu"
+
+# Logo (static or media path)
+# Example if stored in static/
+LOGO_URL = "/static/logo.png"
+
