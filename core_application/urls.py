@@ -431,12 +431,12 @@ urlpatterns = [
     path('report-dashboard/', views.analytics_dashboard, name='report_dashboard'),
     
     # API endpoints for chart data
-    path('api/student-enrollment/', views.student_enrollment_data, name='student_enrollment_data'),
-    path('api/academic-performance/', views.academic_performance_data, name='academic_performance_data'),
-    path('api/financial-data/', views.financial_data, name='financial_data'),
-    path('api/hostel-occupancy/', views.hostel_occupancy_data, name='hostel_occupancy_data'),
-    path('api/library-usage/', views.library_usage_data, name='library_usage_data'),
-    path('api/attendance-analytics/', views.attendance_analytics_data, name='attendance_analytics_data'),
+    path('analytics/api/student-enrollment/', views.student_enrollment_data, name='student_enrollment_data'),
+    path('analytics/api/academic-performance/', views.academic_performance_data, name='academic_performance_data'),
+    path('analytics/api/financial-data/', views.financial_data, name='financial_data'),
+    path('analytics/api/hostel-occupancy/', views.hostel_occupancy_data, name='hostel_occupancy_data'),
+    path('analytics/api/library-usage/', views.library_usage_data, name='library_usage_data'),
+    path('analytics/api/attendance-analytics/', views.attendance_analytics_data, name='attendance_analytics_data'),
 
 
 ]
