@@ -220,7 +220,7 @@ urlpatterns = [
     #  Fee Management
     path('student/fees/', views.student_fee_management, name='student_fee_management'),
     path('admin-fee-payment/', views.admin_fee_payment, name='admin_fee_payment'),
-    path('admin-ajax/student-info/', views.get_student_info, name='get_student_info'),
+    path('admin-fee-get-student-info/', views.get_student_data_info, name='get_student_data_info'), #used in fee management
     path('admin-ajax/fee-structure/', views.get_fee_structure, name='get_fee_structure'),
 
     # Exam Repository URLs

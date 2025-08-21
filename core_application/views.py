@@ -8940,11 +8940,12 @@ def student_fee_management(request):
 @staff_member_required
 def admin_fee_payment(request):
     """
-    View for admin to process student fee payments
+    View for admin to process student fee payments with overpayment handling
     """
     receipt_data = None
     student = None
     fee_structure = None
+    overpayment_details = None
     
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
@@ -8972,15 +8973,29 @@ def admin_fee_payment(request):
                 semester=int(semester_number)
             )
             
+            # Calculate current balance
+            previous_payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+            
+            current_balance = fee_structure.net_fee() - previous_payments
+            amount_paid_decimal = Decimal(amount_paid)
+            
             # Generate receipt number
             receipt_number = f"RCT-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
             
-            # Create payment record
+            # Create payment record for current semester
+            current_payment_amount = min(amount_paid_decimal, current_balance)
+            overpayment_amount = amount_paid_decimal - current_payment_amount
+            
+            # Main payment record
             payment = FeePayment.objects.create(
                 student=student,
                 fee_structure=fee_structure,
                 receipt_number=receipt_number,
-                amount_paid=Decimal(amount_paid),
+                amount_paid=current_payment_amount,
                 payment_date=payment_date,
                 payment_method=payment_method,
                 payment_status='completed',
@@ -8991,14 +9006,26 @@ def admin_fee_payment(request):
                 processed_by=request.user
             )
             
-            # Calculate totals for receipt
-            previous_payments = FeePayment.objects.filter(
+            # Handle overpayment
+            overpayment_details = []
+            remaining_overpayment = overpayment_amount
+            
+            if remaining_overpayment > 0:
+                overpayment_details = handle_overpayment(
+                    student, academic_year, int(student_year), int(semester_number),
+                    remaining_overpayment, payment_method, payment_date,
+                    transaction_reference, mpesa_receipt, bank_slip_number,
+                    f"Overpayment from {receipt_number}", request.user
+                )
+            
+            # Calculate totals for receipt (including overpayment)
+            total_payments_current = FeePayment.objects.filter(
                 student=student,
                 fee_structure=fee_structure,
                 payment_status='completed'
             ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
             
-            balance = fee_structure.net_fee() - previous_payments
+            balance = fee_structure.net_fee() - total_payments_current
             
             receipt_data = {
                 'payment': payment,
@@ -9006,12 +9033,19 @@ def admin_fee_payment(request):
                 'fee_structure': fee_structure,
                 'academic_year': academic_year,
                 'total_fee': fee_structure.net_fee(),
-                'total_paid': previous_payments,
+                'total_paid': total_payments_current,
                 'balance': balance,
-                'payment_date': payment_date
+                'payment_date': payment_date,
+                'total_amount_paid': amount_paid_decimal,
+                'overpayment_amount': overpayment_amount,
+                'overpayment_details': overpayment_details
             }
             
-            messages.success(request, f'Payment recorded successfully. Receipt: {receipt_number}')
+            success_message = f'Payment recorded successfully. Receipt: {receipt_number}'
+            if overpayment_amount > 0:
+                success_message += f'. Overpayment of KES {overpayment_amount} allocated to future semesters.'
+            
+            messages.success(request, success_message)
             
         except Student.DoesNotExist:
             messages.error(request, 'Student not found.')
@@ -9020,30 +9054,188 @@ def admin_fee_payment(request):
         except Exception as e:
             messages.error(request, f'Error processing payment: {str(e)}')
     
-    # Get data for form
+    # Get data for form with current defaults
     academic_years = AcademicYear.objects.all().order_by('-year')
     payment_methods = FeePayment.PAYMENT_METHODS
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
     
     context = {
         'academic_years': academic_years,
         'payment_methods': payment_methods,
         'receipt_data': receipt_data,
         'student': student,
-        'fee_structure': fee_structure
+        'fee_structure': fee_structure,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester
     }
     
     return render(request, 'admin/fee_payment.html', context)
 
 
-@staff_member_required
-def get_student_info(request):
+def handle_overpayment(student, current_academic_year, current_year, current_semester, 
+                      overpayment_amount, payment_method, payment_date, 
+                      transaction_reference, mpesa_receipt, bank_slip_number, 
+                      remarks, processed_by):
     """
-    AJAX view to get student information
+    Handle overpayment by allocating to future semesters/years
+    """
+    overpayment_details = []
+    remaining_amount = overpayment_amount
+    
+    # Get programme details
+    programme = student.programme
+    max_years = programme.duration_years
+    max_semesters = programme.semesters_per_year
+    
+    # Calculate next semester/year
+    next_year = current_year
+    next_semester = current_semester + 1
+    next_academic_year = current_academic_year
+    
+    # Handle semester overflow
+    if next_semester > max_semesters:
+        next_semester = 1
+        next_year += 1
+        
+        # Check if we need next academic year
+        if next_year <= max_years:
+            # Get next academic year
+            next_academic_year_obj = AcademicYear.objects.filter(
+                year__gt=current_academic_year.year
+            ).order_by('year').first()
+            
+            if next_academic_year_obj:
+                next_academic_year = next_academic_year_obj
+    
+    # Don't allocate if student is in final year and final semester
+    is_final_year = current_year == max_years
+    is_final_semester = current_semester == max_semesters
+    
+    if is_final_year and is_final_semester:
+        # Create a credit balance record (you might want to create a separate model for this)
+        overpayment_details.append({
+            'type': 'credit_balance',
+            'amount': remaining_amount,
+            'description': f'Credit balance - Student completed programme'
+        })
+        return overpayment_details
+    
+    # Allocate overpayment to future periods
+    while remaining_amount > 0 and next_year <= max_years:
+        try:
+            # Get fee structure for next period
+            next_fee_structure = FeeStructure.objects.get(
+                programme=programme,
+                academic_year=next_academic_year,
+                year=next_year,
+                semester=next_semester
+            )
+            
+            # Check existing payments for this period
+            existing_payments = FeePayment.objects.filter(
+                student=student,
+                fee_structure=next_fee_structure,
+                payment_status='completed'
+            ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+            
+            # Calculate how much can be allocated
+            balance_needed = next_fee_structure.net_fee() - existing_payments
+            
+            if balance_needed > 0:
+                allocation_amount = min(remaining_amount, balance_needed)
+                
+                # Create payment record for future period
+                receipt_number = f"ADV-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+                
+                FeePayment.objects.create(
+                    student=student,
+                    fee_structure=next_fee_structure,
+                    receipt_number=receipt_number,
+                    amount_paid=allocation_amount,
+                    payment_date=payment_date,
+                    payment_method=payment_method,
+                    payment_status='completed',
+                    transaction_reference=transaction_reference,
+                    mpesa_receipt=mpesa_receipt,
+                    bank_slip_number=bank_slip_number,
+                    remarks=f"Advanced payment - {remarks}",
+                    processed_by=processed_by
+                )
+                
+                overpayment_details.append({
+                    'type': 'advance_payment',
+                    'academic_year': next_academic_year.year,
+                    'year': next_year,
+                    'semester': next_semester,
+                    'amount': allocation_amount,
+                    'receipt_number': receipt_number,
+                    'description': f'Advanced payment for Year {next_year} Semester {next_semester} ({next_academic_year.year})'
+                })
+                
+                remaining_amount -= allocation_amount
+            
+            # Move to next semester/year
+            next_semester += 1
+            if next_semester > max_semesters:
+                next_semester = 1
+                next_year += 1
+                
+                # Get next academic year if needed
+                if next_year <= max_years:
+                    next_academic_year_obj = AcademicYear.objects.filter(
+                        year__gt=next_academic_year.year
+                    ).order_by('year').first()
+                    
+                    if next_academic_year_obj:
+                        next_academic_year = next_academic_year_obj
+                    else:
+                        break  # No more academic years available
+                        
+        except FeeStructure.DoesNotExist:
+            # No fee structure for this period, move to next
+            next_semester += 1
+            if next_semester > max_semesters:
+                next_semester = 1
+                next_year += 1
+                
+                if next_year <= max_years:
+                    next_academic_year_obj = AcademicYear.objects.filter(
+                        year__gt=next_academic_year.year
+                    ).order_by('year').first()
+                    
+                    if next_academic_year_obj:
+                        next_academic_year = next_academic_year_obj
+                    else:
+                        break
+    
+    # If there's still remaining amount, create credit balance
+    if remaining_amount > 0:
+        overpayment_details.append({
+            'type': 'credit_balance',
+            'amount': remaining_amount,
+            'description': f'Credit balance - Excess payment'
+        })
+    
+    return overpayment_details
+
+
+@staff_member_required
+def get_student_data_info(request): #used in fee management
+    """
+    AJAX view to get student information with current academic period
     """
     student_id = request.GET.get('student_id')
     
     try:
         student = Student.objects.get(student_id=student_id)
+        
+        # Get current academic year and semester
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
         data = {
             'success': True,
             'student': {
@@ -9052,7 +9244,9 @@ def get_student_info(request):
                 'current_year': student.current_year,
                 'current_semester': student.current_semester,
                 'status': student.status
-            }
+            },
+            'current_academic_year_id': current_academic_year.id if current_academic_year else None,
+            'current_semester_number': current_semester.semester_number if current_semester else None
         }
     except Student.DoesNotExist:
         data = {

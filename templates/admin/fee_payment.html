@@ -4,13 +4,13 @@
 {% block content %}
 
 <div class="message-container" id="system-messages">
-                                {% for message in messages %}
-                                <div class="alert-message alert-{{ message.tags }}">
-                                    {{ message }}
-                                    <span class="close-message">&times;</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="container onprintContainer">
     <!-- Header -->
@@ -99,7 +99,11 @@
                                                 <select class="form-select" name="academic_year_id" id="academic_year_id" required>
                                                     <option value="">Select Academic Year</option>
                                                     {% for year in academic_years %}
-                                                    <option value="{{ year.id }}">{{ year.year }}</option>
+                                                    <option value="{{ year.id }}" 
+                                                        {% if current_academic_year and year.id == current_academic_year.id %}selected{% endif %}>
+                                                        {{ year.year }}
+                                                        {% if current_academic_year and year.id == current_academic_year.id %} (Current){% endif %}
+                                                    </option>
                                                     {% endfor %}
                                                 </select>
                                             </div>
@@ -121,9 +125,18 @@
                                                 <label class="form-label fw-bold">Semester *</label>
                                                 <select class="form-select" name="semester_number" id="semester_number" required>
                                                     <option value="">Select Semester</option>
-                                                    <option value="1">Semester 1</option>
-                                                    <option value="2">Semester 2</option>
-                                                    <option value="3">Semester 3</option>
+                                                    <option value="1" 
+                                                        {% if current_semester and current_semester.semester_number == 1 %}selected{% endif %}>
+                                                        Semester 1 {% if current_semester and current_semester.semester_number == 1 %}(Current){% endif %}
+                                                    </option>
+                                                    <option value="2" 
+                                                        {% if current_semester and current_semester.semester_number == 2 %}selected{% endif %}>
+                                                        Semester 2 {% if current_semester and current_semester.semester_number == 2 %}(Current){% endif %}
+                                                    </option>
+                                                    <option value="3" 
+                                                        {% if current_semester and current_semester.semester_number == 3 %}selected{% endif %}>
+                                                        Semester 3 {% if current_semester and current_semester.semester_number == 3 %}(Current){% endif %}
+                                                    </option>
                                                 </select>
                                             </div>
                                         </div>
@@ -153,6 +166,24 @@
                                                             <!-- Fee breakdown will be loaded here -->
                                                         </tbody>
                                                     </table>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Overpayment Warning -->
+                                        <div class="row mt-3" id="overpaymentWarning" style="display: none;">
+                                            <div class="col-md-12">
+                                                <div class="alert alert-warning">
+                                                    <h6 class="alert-heading">
+                                                        <i class="bi bi-exclamation-triangle me-2"></i>Overpayment Alert
+                                                    </h6>
+                                                    <p class="mb-2">
+                                                        The amount entered exceeds the current semester balance. 
+                                                        The excess amount will be automatically allocated as follows:
+                                                    </p>
+                                                    <div id="overpaymentAllocation">
+                                                        <!-- Overpayment allocation details will be shown here -->
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -256,12 +287,15 @@
     <!-- Receipt Section -->
     <div class="row p-3">
         <div class="col-md-12">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm" id="receiptCard">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Payment Receipt</h5>
-                    <div class="btn-group">
+                    <div class="btn-group no-print">
                         <button class="btn btn-light btn-sm" onclick="window.print()">
                             <i class="bi bi-printer"></i> Print Receipt
+                        </button>
+                        <button class="btn btn-light btn-sm" onclick="downloadReceiptAsPDF()">
+                            <i class="bi bi-download"></i> Download PDF
                         </button>
                         <a href="{% url 'admin_fee_payment' %}" class="btn btn-light btn-sm">
                             <i class="bi bi-plus"></i> New Payment
@@ -373,11 +407,11 @@
                                         </tr>
                                         <tr class="table-warning">
                                             <td><strong>Previous Payments</strong></td>
-                                            <td class="text-end"><strong>{{ receipt_data.total_paid|add:receipt_data.payment.amount_paid|floatformat:2 }}</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.total_paid|floatformat:2 }}</strong></td>
                                         </tr>
                                         <tr class="table-success">
                                             <td><strong>Amount Paid Today</strong></td>
-                                            <td class="text-end"><strong>{{ receipt_data.payment.amount_paid|floatformat:2 }}</strong></td>
+                                            <td class="text-end"><strong>{{ receipt_data.total_amount_paid|floatformat:2 }}</strong></td>
                                         </tr>
                                         <tr class="table-{% if receipt_data.balance <= 0 %}success{% else %}danger{% endif %}">
                                             <td><strong>Balance</strong></td>
@@ -388,6 +422,65 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Overpayment Details -->
+                    {% if receipt_data.overpayment_details %}
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold mb-3 text-primary">Overpayment Allocation Details</h6>
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-info-circle me-2"></i>Excess Payment Processing
+                                </h6>
+                                <p class="mb-2">
+                                    <strong>Total Amount Paid:</strong> KES {{ receipt_data.total_amount_paid|floatformat:2 }}<br>
+                                    <strong>Applied to Current Semester:</strong> KES {{ receipt_data.payment.amount_paid|floatformat:2 }}<br>
+                                    <strong>Overpayment Amount:</strong> KES {{ receipt_data.overpayment_amount|floatformat:2 }}
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Allocation Type</th>
+                                                <th>Period</th>
+                                                <th>Amount (KES)</th>
+                                                <th>Receipt/Reference</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for detail in receipt_data.overpayment_details %}
+                                            <tr>
+                                                <td>
+                                                    {% if detail.type == 'advance_payment' %}
+                                                        <span class="badge bg-success">Advanced Payment</span>
+                                                    {% elif detail.type == 'credit_balance' %}
+                                                        <span class="badge bg-warning">Credit Balance</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if detail.type == 'advance_payment' %}
+                                                        Year {{ detail.year }} Semester {{ detail.semester }} ({{ detail.academic_year }})
+                                                    {% else %}
+                                                        N/A
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ detail.amount|floatformat:2 }}</td>
+                                                <td>
+                                                    {% if detail.receipt_number %}
+                                                        {{ detail.receipt_number }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Payment Method Details -->
                     {% if receipt_data.payment.mpesa_receipt or receipt_data.payment.transaction_reference or receipt_data.payment.bank_slip_number %}
@@ -440,6 +533,9 @@
                                     {% if receipt_data.balance > 0 %}
                                     <li class="text-danger"><strong>Outstanding balance: KES {{ receipt_data.balance|floatformat:2 }}</strong></li>
                                     {% endif %}
+                                    {% if receipt_data.overpayment_details %}
+                                    <li class="text-success"><strong>Advanced payments have been allocated to future semesters</strong></li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>
@@ -463,7 +559,11 @@
     </div>
 </div>
 
+<!-- Include jsPDF and html2canvas for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
 <script>
 $(document).ready(function() {
     let studentData = null;
@@ -499,7 +599,7 @@ $(document).ready(function() {
     
     function loadStudentInfo(studentId) {
         showLoading();
-        $.get('{% url "get_student_info" %}', {student_id: studentId})
+        $.get('{% url "get_student_data_info" %}', {student_id: studentId})
             .done(function(data) {
                 if (data.success) {
                     studentData = data.student;
@@ -686,6 +786,7 @@ $(document).ready(function() {
         feeStructureData = null;
         $('#feeStructureSection').hide();
         $('#feeBreakdown').hide();
+        $('#overpaymentWarning').hide();
     }
     
     // Global functions for button actions
@@ -695,6 +796,7 @@ $(document).ready(function() {
             if (balance > 0) {
                 $('#amount_paid').val(balance.toFixed(2));
                 $('#amount_paid').focus();
+                validateAmountInput();
             } else {
                 showAlert('info', 'No outstanding balance to pay.');
             }
@@ -703,6 +805,58 @@ $(document).ready(function() {
     
     window.toggleFeeBreakdown = function() {
         $('#feeBreakdown').toggle();
+    };
+    
+    // PDF Download function
+    window.downloadReceiptAsPDF = function() {
+        const { jsPDF } = window.jspdf;
+        const receiptElement = document.getElementById('receiptCard');
+        
+        // Hide no-print elements
+        const noPrintElements = document.querySelectorAll('.no-print');
+        noPrintElements.forEach(el => el.style.display = 'none');
+        
+        html2canvas(receiptElement, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 295; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            
+            let position = 0;
+            
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            
+            // Generate filename with receipt number and date
+            const receiptNumber = '{{ receipt_data.payment.receipt_number|default:"RECEIPT" }}';
+            const date = new Date().toISOString().split('T')[0];
+            const filename = `Receipt-${receiptNumber}-${date}.pdf`;
+            
+            pdf.save(filename);
+            
+            // Show no-print elements again
+            noPrintElements.forEach(el => el.style.display = '');
+        }).catch(error => {
+            console.error('Error generating PDF:', error);
+            showAlert('error', 'Error generating PDF. Please try printing instead.');
+            
+            // Show no-print elements again
+            noPrintElements.forEach(el => el.style.display = '');
+        });
     };
     
     // Payment method change handler
@@ -724,9 +878,10 @@ $(document).ready(function() {
         }
     });
     
-    // Amount validation
+    // Amount validation with overpayment handling
     $('#amount_paid').on('input', function() {
         validateAmountInput();
+        checkOverpayment();
     });
     
     function validateAmountInput() {
@@ -740,14 +895,56 @@ $(document).ready(function() {
         amountInput.removeClass('is-valid is-invalid');
         
         if (amountPaid > 0) {
-            if (amountPaid > balance && balance > 0) {
-                amountInput.addClass('is-invalid');
-                showAmountWarning(`Amount exceeds outstanding balance of KES ${formatCurrency(balance)}`);
-            } else {
-                amountInput.addClass('is-valid');
-                hideAmountWarning();
-            }
+            amountInput.addClass('is-valid');
+            hideAmountWarning();
         }
+    }
+    
+    function checkOverpayment() {
+        if (!feeStructureData || !studentData) return;
+        
+        const amountPaid = parseFloat($('#amount_paid').val()) || 0;
+        const balance = parseFloat(feeStructureData.balance);
+        
+        if (amountPaid > balance && balance > 0) {
+            const overpayment = amountPaid - balance;
+            showOverpaymentWarning(overpayment);
+        } else {
+            $('#overpaymentWarning').hide();
+        }
+    }
+    
+    function showOverpaymentWarning(overpaymentAmount) {
+        // Simulate overpayment allocation logic (based on your backend logic)
+        const currentYear = parseInt($('#student_year').val()) || 1;
+        const currentSemester = parseInt($('#semester_number').val()) || 1;
+        
+        // Simple allocation preview (you can enhance this)
+        let allocationText = '';
+        
+        // Assuming 2 semesters per year and programme duration
+        const nextSemester = currentSemester + 1;
+        const maxSemesters = 2; // You can make this dynamic based on programme
+        const maxYears = 4; // You can make this dynamic based on programme
+        
+        if (nextSemester <= maxSemesters) {
+            allocationText = `<li>Next allocation: Year ${currentYear} Semester ${nextSemester}</li>`;
+        } else if (currentYear < maxYears) {
+            allocationText = `<li>Next allocation: Year ${currentYear + 1} Semester 1</li>`;
+        } else {
+            allocationText = `<li>Credit balance will be maintained (Final year/semester)</li>`;
+        }
+        
+        const warningHtml = `
+            <ul class="mb-0">
+                <li><strong>Overpayment Amount:</strong> KES ${formatCurrency(overpaymentAmount)}</li>
+                ${allocationText}
+                <li>Advanced payments will generate separate receipt numbers</li>
+            </ul>
+        `;
+        
+        $('#overpaymentAllocation').html(warningHtml);
+        $('#overpaymentWarning').show();
     }
     
     function showAmountWarning(message) {
@@ -766,11 +963,19 @@ $(document).ready(function() {
             return false;
         }
         
-        // Show confirmation dialog
+        // Show confirmation dialog with overpayment details
         const amountPaid = parseFloat($('#amount_paid').val());
+        const balance = parseFloat(feeStructureData.balance);
         const studentName = studentData ? studentData.name : $('#student_id').val();
         
-        if (!confirm(`Confirm payment of KES ${formatCurrency(amountPaid)} for ${studentName}?`)) {
+        let confirmMessage = `Confirm payment of KES ${formatCurrency(amountPaid)} for ${studentName}?`;
+        
+        if (amountPaid > balance && balance > 0) {
+            const overpayment = amountPaid - balance;
+            confirmMessage += `\n\nNote: This includes an overpayment of KES ${formatCurrency(overpayment)} which will be allocated to future semesters.`;
+        }
+        
+        if (!confirm(confirmMessage)) {
             e.preventDefault();
             return false;
         }
@@ -854,7 +1059,16 @@ $(document).ready(function() {
         clearFeeStructure();
         $('.is-invalid, .is-valid').removeClass('is-invalid is-valid');
         $('#mpesa_receipt_div, #bank_slip_div').hide();
+        $('#overpaymentWarning').hide();
         $('#submitBtn').prop('disabled', false).html('<i class="bi bi-credit-card"></i> Process Payment');
+        
+        // Reset to defaults
+        {% if current_academic_year %}
+        $('#academic_year_id').val('{{ current_academic_year.id }}');
+        {% endif %}
+        {% if current_semester %}
+        $('#semester_number').val('{{ current_semester.semester_number }}');
+        {% endif %}
     }
     
     // Utility function to show alerts
@@ -883,7 +1097,7 @@ $(document).ready(function() {
         }
     }
     
-    // Auto-save form data to prevent loss (using sessionStorage alternative)
+    // Auto-save form data to prevent loss (using in-memory storage)
     let formData = {};
     
     function saveFormData() {
@@ -955,12 +1169,12 @@ $(document).ready(function() {
     // Print functionality enhancement
     window.addEventListener('beforeprint', function() {
         // Hide non-essential elements when printing
-        $('.btn, .alert, .form-text').hide();
+        $('.btn, .alert, .form-text, .no-print').hide();
     });
     
     window.addEventListener('afterprint', function() {
         // Show elements after printing
-        $('.btn, .alert, .form-text').show();
+        $('.btn, .alert, .form-text, .no-print').show();
     });
 });
 
@@ -1102,6 +1316,23 @@ function showToast(message) {
 
 .alert-warning {
     border-left-color: #ffc107;
+}
+
+/* Overpayment warning styling */
+#overpaymentWarning .alert {
+    border-left-color: #ff8c00;
+    background-color: #fff3cd;
+}
+
+/* Badge styling for overpayment details */
+.badge {
+    font-size: 0.75em;
+}
+
+/* PDF download button styling */
+.btn-light:hover {
+    background-color: #e2e6ea;
+    border-color: #dae0e5;
 }
 </style>
 
