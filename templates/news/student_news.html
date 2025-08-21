@@ -4,114 +4,58 @@
 {% block content %}
 
 <div class="container onprintContainer">
-        <!-- System Messages -->
-        <div class="row mt-3">
-            <div class="col-md-12">
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-                    <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    
+
+    <!-- News Header -->
+    <div class="row news-header mb-4">
+        <div class="col-12">
+            <div class="news-masthead">
+                <div class="newspaper-title">
+                    <h1 class="display-4 fw-bold text-center mb-1">UNIVERSITY HERALD</h1>
+                    <div class="newspaper-subtitle text-center">
+                        <span class="badge bg-primary me-2">{% now "l, F j, Y" %}</span>
+                        <span class="text-muted">|</span>
+                        <span class="badge bg-secondary ms-2">Latest Campus News</span>
+                    </div>
+                    <hr class="newspaper-divider">
                 </div>
-                {% endfor %}
             </div>
         </div>
+    </div>
 
-        <!-- Page Header -->
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h4 class="primary-text"><i class="bi bi-newspaper me-2"></i>University News</h4>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="row shadow-lg mt-4 p-3 card default-height academic">
-            <div class="col-md-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-primary text-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0"><i class="bi bi-megaphone me-2"></i>Latest Updates</h5>
-                            <span class="badge bg-light text-dark">
-                                {{ news_articles|length }} article{{ news_articles|length|pluralize }}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body">
-                        <!-- Featured Article -->
-                        {% if featured_article %}
-                        <div class="mb-5">
-                            <div class="card border-0 shadow-sm">
-                                {% if featured_article.image %}
-                                <img src="{{ featured_article.image.url }}" class="card-img-top" alt="{{ featured_article.title }}" style="max-height: 400px; object-fit: cover;">
-                                {% endif %}
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="badge bg-primary">{{ featured_article.category }}</span>
-                                        <small class="text-muted">{{ featured_article.publish_date|date:"M d, Y" }}</small>
-                                    </div>
-                                    <h3 class="card-title">{{ featured_article.title }}</h3>
-                                    <p class="card-text">{{ featured_article.summary }}</p>
-                                    <a href="#" class="btn btn-primary">Read More</a>
-                                </div>
+    <!-- Featured Story Section -->
+    {% if featured_article %}
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="featured-story-container">
+                <div class="featured-badge">
+                    <span class="badge bg-danger">BREAKING NEWS</span>
+                </div>
+                <div class="row">
+                    <div class="col-lg-8">
+                        {% if featured_article.image %}
+                        <div class="featured-image-container">
+                            <img src="{{ featured_article.image.url }}" class="featured-image" alt="{{ featured_article.title }}">
+                            <div class="image-overlay">
+                                <span class="badge bg-dark category-tag">{{ featured_article.category }}</span>
                             </div>
                         </div>
                         {% endif %}
-                        
-                        <!-- Regular Articles -->
-                        <div class="row mb-4">
-                            {% for article in regular_articles %}
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100 border-0 shadow-sm">
-                                    {% if article.image %}
-                                    <img src="{{ article.image.url }}" class="card-img-top" alt="{{ article.title }}" style="height: 180px; object-fit: cover;">
-                                    {% endif %}
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="badge bg-secondary">{{ article.category }}</span>
-                                            <small class="text-muted">{{ article.publish_date|date:"M d" }}</small>
-                                        </div>
-                                        <h5 class="card-title">{{ article.title }}</h5>
-                                        <p class="card-text text-muted small">{{ article.summary|truncatewords:20 }}</p>
-                                    </div>
-                                    <div class="card-footer bg-transparent">
-                                        <a href="#" class="btn btn-sm btn-outline-primary w-100">Read More</a>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        
-                        <!-- Older Articles -->
-                        {% if older_articles %}
-                        <h5 class="text-primary mb-3"><i class="bi bi-clock-history me-2"></i>Older News</h5>
-                        <div class="list-group">
-                            {% for article in older_articles %}
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-1">{{ article.title }}</h6>
-                                        <small class="text-muted">{{ article.summary|truncatewords:15 }}</small>
-                                    </div>
-                                    <div class="text-end">
-                                        <span class="badge bg-light text-dark">{{ article.category }}</span>
-                                        <small class="text-muted d-block">{{ article.publish_date|date:"M d" }}</small>
-                                    </div>
-                                </div>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
                     </div>
-                    
-                    <div class="card-footer bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle me-1"></i>
-                                Last updated: {% now "M d, Y H:i" %}
-                            </small>
-                            <a href="#" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-archive me-1"></i> View News Archive
+                    <div class="col-lg-4">
+                        <div class="featured-content">
+                            <h2 class="featured-headline">{{ featured_article.title }}</h2>
+                            <div class="featured-meta">
+                                <span class="publish-date">
+                                    <i class="bi bi-calendar3"></i> {{ featured_article.publish_date|date:"F j, Y" }}
+                                </span>
+                                <span class="read-time ms-3">
+                                    <i class="bi bi-clock"></i> 5 min read
+                                </span>
+                            </div>
+                            <p class="featured-summary">{{ featured_article.summary }}</p>
+                            <a href="#" class="btn btn-primary btn-lg read-more-btn">
+                                Read Full Story <i class="bi bi-arrow-right"></i>
                             </a>
                         </div>
                     </div>
@@ -119,94 +63,704 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
+    <!-- Main News Grid -->
+    <div class="row">
+        <!-- Primary News Column -->
+        <div class="col-lg-8">
+            <div class="section-header mb-4">
+                <h3 class="section-title">
+                    <i class="bi bi-newspaper"></i> CAMPUS NEWS
+                </h3>
+                <div class="section-line"></div>
+            </div>
+            
+            <!-- News Articles Grid -->
+            <div class="row news-grid">
+                {% for article in regular_articles %}
+                <div class="col-md-6 mb-4">
+                    <article class="news-card">
+                        {% if article.image %}
+                        <div class="news-image-container">
+                            <img src="{{ article.image.url }}" class="news-image" alt="{{ article.title }}">
+                            <div class="category-overlay">
+                                <span class="category-badge bg-{{ article.category|lower }}">{{ article.category }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="news-content">
+                            <div class="news-meta">
+                                <span class="news-date">{{ article.publish_date|date:"M j" }}</span>
+                                <span class="news-separator">•</span>
+                                <span class="news-category">{{ article.category }}</span>
+                            </div>
+                            
+                            <h4 class="news-headline">
+                                <a href="#" class="headline-link">{{ article.title }}</a>
+                            </h4>
+                            
+                            <p class="news-excerpt">{{ article.summary|truncatewords:25 }}</p>
+                            
+                            <div class="news-footer">
+                                <a href="#" class="read-more-link">
+                                    Continue Reading <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Headlines -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h4 class="sidebar-title">
+                        <i class="bi bi-lightning-fill text-warning"></i> QUICK HEADLINES
+                    </h4>
+                </div>
+                
+                <div class="headlines-list">
+                    {% for article in older_articles|slice:":5" %}
+                    <div class="headline-item">
+                        <div class="headline-bullet"></div>
+                        <div class="headline-content">
+                            <a href="#" class="headline-text">{{ article.title }}</a>
+                            <div class="headline-meta">
+                                <span class="headline-date">{{ article.publish_date|date:"M j" }}</span>
+                                <span class="headline-category">{{ article.category }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Categories -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h4 class="sidebar-title">
+                        <i class="bi bi-grid-3x3-gap-fill"></i> CATEGORIES
+                    </h4>
+                </div>
+                
+                <div class="categories-grid">
+                    <a href="#" class="category-item academic">
+                        <i class="bi bi-mortarboard"></i>
+                        <span>Academic</span>
+                    </a>
+                    <a href="#" class="category-item sports">
+                        <i class="bi bi-trophy"></i>
+                        <span>Sports</span>
+                    </a>
+                    <a href="#" class="category-item events">
+                        <i class="bi bi-calendar-event"></i>
+                        <span>Events</span>
+                    </a>
+                    <a href="#" class="category-item research">
+                        <i class="bi bi-search"></i>
+                        <span>Research</span>
+                    </a>
+                    <a href="#" class="category-item student-life">
+                        <i class="bi bi-people"></i>
+                        <span>Student Life</span>
+                    </a>
+                    <a href="#" class="category-item announcements">
+                        <i class="bi bi-megaphone"></i>
+                        <span>Announcements</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Trending Section -->
+            <div class="sidebar-section trending-section">
+                <div class="sidebar-header">
+                    <h4 class="sidebar-title">
+                        <i class="bi bi-fire text-danger"></i> TRENDING NOW
+                    </h4>
+                </div>
+                
+                <div class="trending-list">
+                    {% for article in regular_articles|slice:":3" %}
+                    <div class="trending-item">
+                        <div class="trending-number">{{ forloop.counter }}</div>
+                        <div class="trending-content">
+                            <a href="#" class="trending-title">{{ article.title|truncatewords:8 }}</a>
+                            <div class="trending-stats">
+                                <span><i class="bi bi-eye"></i> 1.2k</span>
+                                <span><i class="bi bi-chat"></i> 23</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archive Section -->
+    {% if older_articles %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="archive-section">
+                <div class="section-header mb-4">
+                    <h3 class="section-title">
+                        <i class="bi bi-archive"></i> FROM THE ARCHIVES
+                    </h3>
+                    <div class="section-line"></div>
+                </div>
+                
+                <div class="row archive-grid">
+                    {% for article in older_articles|slice:"5:" %}
+                    <div class="col-md-4 col-lg-3 mb-3">
+                        <div class="archive-card">
+                            {% if article.image %}
+                            <div class="archive-image">
+                                <img src="{{ article.image.url }}" alt="{{ article.title }}">
+                            </div>
+                            {% endif %}
+                            <div class="archive-content">
+                                <div class="archive-date">{{ article.publish_date|date:"M j, Y" }}</div>
+                                <h5 class="archive-title">
+                                    <a href="#">{{ article.title|truncatewords:10 }}</a>
+                                </h5>
+                                <span class="archive-category">{{ article.category }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="#" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-archive"></i> View Complete Archive
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer Info -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="news-footer-info">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-0">
+                            <i class="bi bi-clock-history"></i>
+                            Last updated: {% now "F j, Y \a\t g:i A" %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="mb-0">
+                            <i class="bi bi-newspaper"></i>
+                            {{ news_articles|length }} articles published today
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
-    :root {
-        --primary: #1a73e8;
-        --secondary: #6C63FF;
-        --light: #F0EBFF;
-        --dark: #2A0080;
-    }
-    
-    .primary-text {
-        color: var(--primary);
-    }
-    
-    .bg-primary {
-        background-color: var(--primary) !important;
-    }
-    
-    .btn-primary {
-        background-color: var(--primary) !important;
-        border-color: var(--primary) !important;
-    }
-    
-    .btn-primary:hover {
-        background-color: var(--dark) !important;
-        border-color: var(--dark) !important;
-    }
-    
-    .border-nav {
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .default-height {
-        min-height: 500px;
-    }
-    
-    .avatar {
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .user-message .card {
-        background-color: #e3f2fd;
-    }
-    
-    .assistant-message .card {
-        background-color: #f8f9fa;
-    }
-    
-    .accordion-button:not(.collapsed) {
-        color: var(--primary);
-        background-color: rgba(67, 0, 255, 0.05);
-    }
-    
-    .accordion-button:focus {
-        box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
-    }
-    
-    .nav-tabs .nav-link {
-        color: #495057;
-        font-weight: 500;
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: var(--primary);
-        border-color: #dee2e6 #dee2e6 #fff;
-    }
+:root {
+    --primary-blue: #1e3a8a;
+    --secondary-gray: #64748b;
+    --accent-red: #dc2626;
+    --light-bg: #f8fafc;
+    --border-color: #e2e8f0;
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+}
 
-    .card-img-top {
-        border-top-left-radius: 0.375rem;
-        border-top-right-radius: 0.375rem;
+
+
+/* Newspaper Header */
+.news-masthead {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, #3b82f6 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.newspaper-title h1 {
+    font-family: 'Times New Roman', serif;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.newspaper-divider {
+    border: 2px solid rgba(255,255,255,0.3);
+    margin: 15px auto;
+    width: 200px;
+}
+
+/* Featured Story */
+.featured-story-container {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    position: relative;
+    border: 1px solid var(--border-color);
+}
+
+.featured-badge {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+}
+
+.featured-image-container {
+    position: relative;
+    height: 400px;
+    overflow: hidden;
+}
+
+.featured-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.featured-image:hover {
+    transform: scale(1.05);
+}
+
+.image-overlay {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.featured-content {
+    padding: 40px;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.featured-headline {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-dark);
+    margin-bottom: 15px;
+    line-height: 1.2;
+}
+
+.featured-meta {
+    color: var(--text-light);
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+}
+
+.featured-summary {
+    font-size: 1.1rem;
+    color: var(--secondary-gray);
+    margin-bottom: 25px;
+}
+
+.read-more-btn {
+    align-self: flex-start;
+    border-radius: 25px;
+    padding: 12px 30px;
+    font-weight: 600;
+}
+
+/* Section Headers */
+.section-header {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.section-title {
+    color: var(--primary-blue);
+    font-weight: bold;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.section-line {
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-blue) 0%, transparent 100%);
+    width: 100px;
+}
+
+/* News Cards */
+.news-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.news-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+}
+
+.news-image-container {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.news-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.news-card:hover .news-image {
+    transform: scale(1.1);
+}
+
+.category-overlay {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+}
+
+.category-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.news-content {
+    padding: 25px;
+}
+
+.news-meta {
+    display: flex;
+    align-items: center;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin-bottom: 15px;
+}
+
+.news-separator {
+    margin: 0 8px;
+}
+
+.news-headline {
+    margin-bottom: 15px;
+}
+
+.headline-link {
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.headline-link:hover {
+    color: var(--primary-blue);
+}
+
+.news-excerpt {
+    color: var(--secondary-gray);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.read-more-link {
+    color: var(--primary-blue);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.read-more-link:hover {
+    color: var(--accent-red);
+}
+
+/* Sidebar Sections */
+.sidebar-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+}
+
+.sidebar-header {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.sidebar-title {
+    color: var(--primary-blue);
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+/* Headlines List */
+.headline-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.headline-item:last-child {
+    border-bottom: none;
+}
+
+.headline-bullet {
+    width: 6px;
+    height: 6px;
+    background: var(--primary-blue);
+    border-radius: 50%;
+    margin-right: 15px;
+    margin-top: 8px;
+    flex-shrink: 0;
+}
+
+.headline-text {
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.headline-text:hover {
+    color: var(--primary-blue);
+}
+
+.headline-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+/* Categories Grid */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-dark);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.category-item:hover {
+    background: white;
+    border-color: var(--primary-blue);
+    color: var(--primary-blue);
+    transform: translateY(-2px);
+}
+
+.category-item i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+/* Trending Section */
+.trending-section {
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+}
+
+.trending-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(220,38,38,0.1);
+}
+
+.trending-item:last-child {
+    border-bottom: none;
+}
+
+.trending-number {
+    width: 30px;
+    height: 30px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.trending-title {
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.trending-title:hover {
+    color: var(--accent-red);
+}
+
+.trending-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+/* Archive Section */
+.archive-section {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+}
+
+.archive-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.archive-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.archive-image {
+    height: 120px;
+    overflow: hidden;
+}
+
+.archive-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.archive-content {
+    padding: 15px;
+}
+
+.archive-date {
+    color: var(--text-light);
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+}
+
+.archive-title a {
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.archive-title a:hover {
+    color: var(--primary-blue);
+}
+
+.archive-category {
+    display: inline-block;
+    background: var(--light-bg);
+    color: var(--text-light);
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    margin-top: 8px;
+}
+
+/* Footer Info */
+.news-footer-info {
+    background: var(--light-bg);
+    padding: 20px;
+    border-radius: 10px;
+    border-top: 3px solid var(--primary-blue);
+}
+
+/* Category Colors */
+.bg-academic { background-color: #3b82f6 !important; }
+.bg-sports { background-color: #10b981 !important; }
+.bg-events { background-color: #f59e0b !important; }
+.bg-research { background-color: #8b5cf6 !important; }
+.bg-student-life { background-color: #ef4444 !important; }
+.bg-announcements { background-color: #06b6d4 !important; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .news-container {
+        padding: 10px;
     }
     
-    .list-group-item {
-        transition: background-color 0.2s;
+    .featured-content {
+        padding: 25px;
+        height: auto;
     }
     
-    .list-group-item:hover {
-        background-color: var(--light);
+    .featured-headline {
+        font-size: 1.5rem;
     }
     
-    .news-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
+    .categories-grid {
+        grid-template-columns: 1fr;
     }
+    
+    .newspaper-title h1 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .featured-image-container {
+        height: 250px;
+    }
+    
+    .news-card .news-content {
+        padding: 20px;
+    }
+    
+    .sidebar-section {
+        padding: 20px;
+    }
+}
 </style>
 
 {% endblock %}
