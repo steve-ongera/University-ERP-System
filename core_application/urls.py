@@ -222,6 +222,7 @@ urlpatterns = [
     path('admin-fee-payment/', views.admin_fee_payment, name='admin_fee_payment'),
     path('admin-fee-get-student-info/', views.get_student_data_info, name='get_student_data_info'), #used in fee management
     path('admin-ajax/fee-structure/', views.get_fee_structure, name='get_fee_structure'),
+    path('"payments/<int:payment_id>/receipt/download/"', views.download_payment_receipt_pdf , name="download_payment_receipt_pdf"),
 
     # Exam Repository URLs
     path('exam-repository/', views.exam_repository, name='exam_repository'),

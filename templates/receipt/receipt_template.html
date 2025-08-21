@@ -1,0 +1,186 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Payment Receipt - {{ payment.receipt_number }}</title>
+</head>
+<body>
+    <div class="header">
+        {% if logo_url %}
+        <div class="logo">
+            <img src="{{ logo_url }}" alt="University Logo" style="height: 80px;">
+        </div>
+        {% endif %}
+        <div class="university-name">{{ university_name }}</div>
+        <div>{{ university_address }}</div>
+        <div>{{ university_contact }}</div>
+    </div>
+
+    <div class="receipt-title">OFFICIAL FEE PAYMENT RECEIPT</div>
+
+    <div class="two-columns section">
+        <div class="column">
+            <div class="section-title">Receipt Details</div>
+            <div><strong>Receipt No:</strong> {{ payment.receipt_number }}</div>
+            <div><strong>Date:</strong> {{ payment.payment_date|date:"F d, Y" }}</div>
+            <div><strong>Academic Year:</strong> {{ academic_year.year }}</div>
+            <div><strong>Payment Method:</strong> {{ payment.get_payment_method_display }}</div>
+        </div>
+        <div class="column">
+            <div class="section-title">Student Information</div>
+            <div><strong>Student ID:</strong> {{ student.student_id }}</div>
+            <div><strong>Name:</strong> {{ student.user.get_full_name }}</div>
+            <div><strong>Programme:</strong> {{ student.programme.name }}</div>
+            <div><strong>Year/Semester:</strong> Year {{ fee_structure.year }} - Semester {{ fee_structure.semester }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Payment Breakdown</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fee Component</th>
+                    <th class="text-right">Amount (KES)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tuition Fee</td>
+                    <td class="text-right">{{ fee_structure.tuition_fee|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Registration Fee</td>
+                    <td class="text-right">{{ fee_structure.registration_fee|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Examination Fee</td>
+                    <td class="text-right">{{ fee_structure.examination_fee|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Other Fees</td>
+                    <td class="text-right">{{ fee_structure.other_fees|floatformat:2 }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td>Total Fee for Semester</td>
+                    <td class="text-right">{{ fee_structure.total_fee|floatformat:2 }}</td>
+                </tr>
+                
+                {% if fee_structure.government_subsidy > 0 %}
+                <tr>
+                    <td>Less: Government Subsidy</td>
+                    <td class="text-right">-{{ fee_structure.government_subsidy|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                
+                {% if fee_structure.scholarship_amount > 0 %}
+                <tr>
+                    <td>Less: Scholarship</td>
+                    <td class="text-right">-{{ fee_structure.scholarship_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                
+                <tr class="total-row">
+                    <td>Net Amount Payable</td>
+                    <td class="text-right">{{ fee_structure.net_fee|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Previous Payments</td>
+                    <td class="text-right">{{ previous_payments|floatformat:2 }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td>Amount Paid Today</td>
+                    <td class="text-right">{{ payment.amount_paid|floatformat:2 }}</td>
+                </tr>
+                <tr class="balance-row">
+                    <td>Current Balance</td>
+                    <td class="text-right">{{ balance|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% if overpayment_details %}
+    <div class="section">
+        <div class="section-title">Overpayment Allocation Details</div>
+        <div>
+            <strong>Total Amount Paid:</strong> KES {{ payment.amount_paid|add:overpayment_total|floatformat:2 }}<br>
+            <strong>Applied to Current Semester:</strong> KES {{ payment.amount_paid|floatformat:2 }}<br>
+            <strong>Overpayment Amount:</strong> KES {{ overpayment_total|floatformat:2 }}
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Allocation Type</th>
+                    <th>Period</th>
+                    <th class="text-right">Amount (KES)</th>
+                    <th>Receipt/Reference</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detail in overpayment_details %}
+                <tr>
+                    <td>{{ detail.get_allocation_type_display }}</td>
+                    <td>
+                        {% if detail.allocation_type == 'advance_payment' %}
+                        Year {{ detail.target_year }} Semester {{ detail.target_semester }} ({{ detail.target_academic_year }})
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </td>
+                    <td class="text-right">{{ detail.amount|floatformat:2 }}</td>
+                    <td>{{ detail.reference_number|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if payment.mpesa_receipt or payment.transaction_reference or payment.bank_slip_number %}
+    <div class="section">
+        <div class="section-title">Payment Reference Details</div>
+        <div>
+            {% if payment.mpesa_receipt %}<div><strong>M-Pesa Receipt:</strong> {{ payment.mpesa_receipt }}</div>{% endif %}
+            {% if payment.transaction_reference %}<div><strong>Transaction Reference:</strong> {{ payment.transaction_reference }}</div>{% endif %}
+            {% if payment.bank_slip_number %}<div><strong>Bank Slip Number:</strong> {{ payment.bank_slip_number }}</div>{% endif %}
+            {% if payment.remarks %}<div><strong>Remarks:</strong> {{ payment.remarks }}</div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="two-columns signature-area">
+        <div class="column">
+            <div><strong>Processed by:</strong></div>
+            <div>{{ payment.processed_by.get_full_name }}</div>
+            <div>Date & Time: {{ payment.payment_date}}</div>
+        </div>
+        <div class="column">
+            <div><strong>Authorized Signature:</strong></div>
+            <div style="margin-top: 40px;">_______________________</div>
+            <div>Finance Office</div>
+        </div>
+    </div>
+
+    <div class="notes">
+        <div><strong>Important Notes:</strong></div>
+        <ul>
+            <li>This is an official receipt issued by the University Finance Office</li>
+            <li>Keep this receipt safe for your records</li>
+            <li>For any queries, contact the Finance Office during working hours</li>
+            {% if balance > 0 %}
+            <li>Outstanding balance: KES {{ balance|floatformat:2 }}</li>
+            {% endif %}
+            {% if overpayment_details %}
+            <li>Advanced payments have been allocated to future semesters</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="footer">
+        Generated on {% now "F d, Y at H:i" %} | Receipt #{{ payment.receipt_number }}
+    </div>
+</body>
+</html>

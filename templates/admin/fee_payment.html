@@ -29,7 +29,7 @@
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="btn-group">
-                            <a href="{% url 'admin:index' %}" class="btn btn-outline-primary">
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-left"></i> Back to Admin
                             </a>
                         </div>
@@ -294,9 +294,10 @@
                         <button class="btn btn-light btn-sm" onclick="window.print()">
                             <i class="bi bi-printer"></i> Print Receipt
                         </button>
-                        <button class="btn btn-light btn-sm" onclick="downloadReceiptAsPDF()">
-                            <i class="bi bi-download"></i> Download PDF
-                        </button>
+                        <a href="{% url 'download_payment_receipt_pdf' receipt_data.payment.id %}" 
+                           class="btn btn-primary btn-sm" target="_blank">
+                            <i class="bi bi-file-earmark-pdf"></i> Download Receipt 
+                        </a>
                         <a href="{% url 'admin_fee_payment' %}" class="btn btn-light btn-sm">
                             <i class="bi bi-plus"></i> New Payment
                         </a>
