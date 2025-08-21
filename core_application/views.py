@@ -16062,3 +16062,295 @@ def get_authors(request):
             'success': False,
             'message': f'Error loading authors: {str(e)}'
         })
+    
+
+# analytics/views.py
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q, Avg, Sum
+from django.http import JsonResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+import json
+
+from .models import (
+    Student, Lecturer, Faculty, Department, Programme, Course, 
+    Enrollment, Grade, AcademicYear, Semester, FeePayment, 
+    HostelBooking, Hostel, Assignment, AssignmentSubmission,
+    Library, LibraryTransaction, Attendance, AttendanceSession
+)
+
+@login_required
+def analytics_dashboard(request):
+    """Main analytics dashboard view"""
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Basic statistics
+    context = {
+        'total_students': Student.objects.filter(status='active').count(),
+        'total_lecturers': Lecturer.objects.filter(is_active=True).count(),
+        'total_courses': Course.objects.filter(is_active=True).count(),
+        'total_programmes': Programme.objects.filter(is_active=True).count(),
+        'total_faculties': Faculty.objects.filter(is_active=True).count(),
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+    }
+    
+    return render(request, 'analytics/dashboard.html', context)
+
+@login_required
+def student_enrollment_data(request):
+    """API endpoint for student enrollment trends"""
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get enrollment data by programme
+    programme_data = Programme.objects.annotate(
+        student_count=Count('students', filter=Q(students__status='active'))
+    ).values('name', 'student_count')
+    
+    # Get enrollment trends over semesters
+    semester_data = []
+    semesters = Semester.objects.filter(
+        academic_year__year__gte='2023/2024'
+    ).order_by('academic_year__start_date', 'semester_number')
+    
+    for semester in semesters:
+        enrollments = Enrollment.objects.filter(
+            semester=semester,
+            is_active=True
+        ).count()
+        semester_data.append({
+            'semester': f"{semester.academic_year.year} S{semester.semester_number}",
+            'enrollments': enrollments
+        })
+    
+    # Gender distribution
+    gender_data = Student.objects.filter(status='active').values('user__gender').annotate(
+        count=Count('id')
+    ).order_by('user__gender')
+    
+    return JsonResponse({
+        'programme_data': list(programme_data),
+        'semester_trends': semester_data,
+        'gender_distribution': list(gender_data)
+    })
+
+@login_required
+def academic_performance_data(request):
+    """API endpoint for academic performance metrics"""
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Grade distribution
+    grade_distribution = Grade.objects.filter(
+        enrollment__semester=current_semester,
+        grade__isnull=False
+    ).values('grade').annotate(
+        count=Count('id')
+    ).order_by('grade')
+    
+    # Programme performance averages
+    programme_performance = Programme.objects.annotate(
+        avg_gpa=Avg('students__enrollments__grade__grade_points',
+                   filter=Q(students__enrollments__semester=current_semester))
+    ).values('name', 'avg_gpa')
+    
+    # Assignment completion rates
+    assignment_completion = AssignmentSubmission.objects.filter(
+        assignment__lecturer_assignment__semester=current_semester,
+        is_submitted=True
+    ).count()
+    
+    total_assignments = Assignment.objects.filter(
+        lecturer_assignment__semester=current_semester,
+        is_published=True
+    ).count()
+    
+    completion_rate = (assignment_completion / total_assignments * 100) if total_assignments > 0 else 0
+    
+    return JsonResponse({
+        'grade_distribution': list(grade_distribution),
+        'programme_performance': list(programme_performance),
+        'assignment_completion_rate': completion_rate,
+        'total_assignments': total_assignments,
+        'submitted_assignments': assignment_completion
+    })
+
+@login_required
+def financial_data(request):
+    """API endpoint for financial analytics"""
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Fee collection by programme
+    fee_by_programme = FeePayment.objects.filter(
+        fee_structure__academic_year=current_year,
+        payment_status='completed'
+    ).values(
+        'fee_structure__programme__name'
+    ).annotate(
+        total_fees=Sum('amount_paid')
+    ).order_by('-total_fees')
+    
+    # Monthly fee collection trend
+    months = []
+    fee_collections = []
+    
+    for i in range(12):
+        month_date = timezone.now().replace(day=1) - timedelta(days=30*i)
+        monthly_fees = FeePayment.objects.filter(
+            payment_date__year=month_date.year,
+            payment_date__month=month_date.month,
+            payment_status='completed'
+        ).aggregate(total=Sum('amount_paid'))['total'] or 0
+        
+        months.insert(0, month_date.strftime('%b %Y'))
+        fee_collections.insert(0, float(monthly_fees))
+    
+    # Payment method distribution
+    payment_methods = FeePayment.objects.filter(
+        fee_structure__academic_year=current_year,
+        payment_status='completed'
+    ).values('payment_method').annotate(
+        count=Count('id'),
+        total_amount=Sum('amount_paid')
+    )
+    
+    return JsonResponse({
+        'fee_by_programme': list(fee_by_programme),
+        'monthly_trends': {
+            'months': months,
+            'collections': fee_collections
+        },
+        'payment_methods': list(payment_methods)
+    })
+
+@login_required
+def hostel_occupancy_data(request):
+    """API endpoint for hostel occupancy analytics"""
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Occupancy by hostel
+    hostel_occupancy = []
+    for hostel in Hostel.objects.filter(is_active=True):
+        total_beds = hostel.get_total_beds_count(current_year)
+        occupied_beds = hostel.get_occupied_beds_count(current_year)
+        occupancy_rate = (occupied_beds / total_beds * 100) if total_beds > 0 else 0
+        
+        hostel_occupancy.append({
+            'hostel_name': hostel.name,
+            'total_beds': total_beds,
+            'occupied_beds': occupied_beds,
+            'occupancy_rate': round(occupancy_rate, 2)
+        })
+    
+    # Gender-wise accommodation
+    gender_accommodation = HostelBooking.objects.filter(
+        academic_year=current_year,
+        booking_status='checked_in'
+    ).values(
+        'student__user__gender'
+    ).annotate(count=Count('id'))
+    
+    # Booking status distribution
+    booking_status = HostelBooking.objects.filter(
+        academic_year=current_year
+    ).values('booking_status').annotate(count=Count('id'))
+    
+    return JsonResponse({
+        'hostel_occupancy': hostel_occupancy,
+        'gender_accommodation': list(gender_accommodation),
+        'booking_status': list(booking_status)
+    })
+
+@login_required
+def library_usage_data(request):
+    """API endpoint for library usage analytics"""
+    # Most borrowed books
+    popular_books = LibraryTransaction.objects.filter(
+        transaction_type='borrow',
+        transaction_date__gte=timezone.now() - timedelta(days=30)
+    ).values(
+        'library_resource__title',
+        'library_resource__author'
+    ).annotate(
+        borrow_count=Count('id')
+    ).order_by('-borrow_count')[:10]
+    
+    # Daily library usage trend
+    daily_usage = []
+    for i in range(30):
+        date = timezone.now().date() - timedelta(days=i)
+        transactions = LibraryTransaction.objects.filter(
+            transaction_date__date=date
+        ).count()
+        daily_usage.insert(0, {
+            'date': date.strftime('%m/%d'),
+            'transactions': transactions
+        })
+    
+    # Resource type distribution
+    resource_types = Library.objects.values('resource_type').annotate(
+        count=Count('id')
+    )
+    
+    return JsonResponse({
+        'popular_books': list(popular_books),
+        'daily_usage': daily_usage,
+        'resource_types': list(resource_types)
+    })
+
+@login_required
+def attendance_analytics_data(request):
+    """API endpoint for attendance analytics"""
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Course-wise attendance rates
+    course_attendance = []
+    courses = Course.objects.filter(
+        enrollments__semester=current_semester,
+        is_active=True
+    ).distinct()
+    
+    for course in courses:
+        total_sessions = AttendanceSession.objects.filter(
+            timetable_slot__course=course,
+            semester=current_semester
+        ).count()
+        
+        total_possible_attendance = Enrollment.objects.filter(
+            course=course,
+            semester=current_semester,
+            is_active=True
+        ).count() * total_sessions
+        
+        present_count = Attendance.objects.filter(
+            timetable_slot__course=course,
+            attendance_session__semester=current_semester,
+            status='present'
+        ).count()
+        
+        attendance_rate = (present_count / total_possible_attendance * 100) if total_possible_attendance > 0 else 0
+        
+        course_attendance.append({
+            'course_code': course.code,
+            'course_name': course.name,
+            'attendance_rate': round(attendance_rate, 2)
+        })
+    
+    # Weekly attendance trends
+    weekly_attendance = []
+    for week in range(1, 13):
+        week_attendance = Attendance.objects.filter(
+            week_number=week,
+            attendance_session__semester=current_semester,
+            status='present'
+        ).count()
+        weekly_attendance.append({
+            'week': week,
+            'attendance': week_attendance
+        })
+    
+    return JsonResponse({
+        'course_attendance': course_attendance,
+        'weekly_trends': weekly_attendance
+    })

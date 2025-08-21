@@ -428,5 +428,15 @@ urlpatterns = [
     path('admin-news/bulk-action/', views.bulk_news_action, name='news_bulk_action'),
     path('admin-news/get-authors/', views.get_authors, name='get_authors'),
 
+    path('report-dashboard/', views.analytics_dashboard, name='report_dashboard'),
+    
+    # API endpoints for chart data
+    path('api/student-enrollment/', views.student_enrollment_data, name='student_enrollment_data'),
+    path('api/academic-performance/', views.academic_performance_data, name='academic_performance_data'),
+    path('api/financial-data/', views.financial_data, name='financial_data'),
+    path('api/hostel-occupancy/', views.hostel_occupancy_data, name='hostel_occupancy_data'),
+    path('api/library-usage/', views.library_usage_data, name='library_usage_data'),
+    path('api/attendance-analytics/', views.attendance_analytics_data, name='attendance_analytics_data'),
+
 
 ]
