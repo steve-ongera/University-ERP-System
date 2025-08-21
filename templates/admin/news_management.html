@@ -1,0 +1,905 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">
+                            <i class="bi bi-newspaper me-2"></i>
+                            News Article Management
+                        </h2>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Create, edit, and manage news articles for your institution
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNewsModal">
+                            <i class="bi bi-plus-circle"></i> Create Article
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ stats.total_articles }}</h5>
+                            <p class="small text-muted mb-0">Total Articles</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ stats.published_articles }}</h5>
+                            <p class="small text-muted mb-0">Published</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ stats.draft_articles }}</h5>
+                            <p class="small text-muted mb-0">Drafts</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ stats.academic_articles }}</h5>
+                            <p class="small text-muted mb-0">Academic</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-purple">{{ stats.event_articles }}</h5>
+                            <p class="small text-muted mb-0">Events</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ stats.today_articles }}</h5>
+                            <p class="small text-muted mb-0">Today</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" id="filterForm" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search articles..." onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" name="category" onchange="this.form.submit()">
+                                <option value="">All Categories</option>
+                                {% for category_key, category_label in category_choices %}
+                                <option value="{{ category_key }}" {% if category_filter == category_key %}selected{% endif %}>{{ category_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" onchange="this.form.submit()">
+                                <option value="">All Status</option>
+                                <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Published</option>
+                                <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date</label>
+                            <select class="form-select" name="date" onchange="this.form.submit()">
+                                <option value="">All Time</option>
+                                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+                                <option value="week" {% if date_filter == 'week' %}selected{% endif %}>This Week</option>
+                                <option value="month" {% if date_filter == 'month' %}selected{% endif %}>This Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <div class="btn-group">
+                                    <a href="{% url 'news_management' %}" class="btn btn-outline-secondary">Clear</a>
+                                    <button class="btn btn-success" id="bulkActionBtn" disabled>
+                                        <i class="bi bi-check-all"></i> Bulk Actions
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="row p-3" id="bulkActionsBar" style="display: none;">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <span id="selectedCount">0</span> articles selected
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-success" onclick="bulkAction('publish')">
+                                    <i class="bi bi-check-circle"></i> Publish
+                                </button>
+                                <button class="btn btn-warning" onclick="bulkAction('unpublish')">
+                                    <i class="bi bi-circle"></i> Unpublish
+                                </button>
+                                <button class="btn btn-danger" onclick="bulkAction('delete')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Articles List -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if articles %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="3%">
+                                        <input type="checkbox" id="selectAll" class="form-check-input">
+                                    </th>
+                                    <th width="8%">Image</th>
+                                    <th width="25%">Title</th>
+                                    <th width="20%">Summary</th>
+                                    <th width="10%">Category</th>
+                                    <th width="12%">Author</th>
+                                    <th width="8%">Status</th>
+                                    <th width="8%">Date</th>
+                                    <th width="6%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for article in articles %}
+                                <tr data-article-id="{{ article.id }}" class="article-row">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input article-checkbox" value="{{ article.id }}">
+                                    </td>
+                                    <td>
+                                        {% if article.image %}
+                                        <img src="{{ article.image.url }}" alt="Article Image" class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                        {% else %}
+                                        <div class="bg-light d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; border-radius: 5px;">
+                                            <i class="bi bi-image text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ article.title|truncatechars:50 }}</div>
+                                        <small class="text-muted">ID: {{ article.id }}</small>
+                                    </td>
+                                    <td>
+                                        <p class="mb-0 text-muted">{{ article.summary|truncatechars:80 }}</p>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ article.get_category_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if article.author %}
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-2">
+                                                {{ article.author.first_name.0 }}{{ article.author.last_name.0 }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold small">{{ article.author.get_full_name }}</div>
+                                                <small class="text-muted">{{ article.author.email|truncatechars:20 }}</small>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if article.is_published %}
+                                        <span class="badge bg-success">Published</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Draft</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>{{ article.created_at|date:"M d" }}</div>
+                                        <small class="text-muted">{{ article.created_at|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    onclick="viewArticle({{ article.id }})" 
+                                                    title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="editArticle({{ article.id }})" 
+                                                    title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-{% if article.is_published %}warning{% else %}success{% endif %} btn-sm" 
+                                                    onclick="togglePublishStatus({{ article.id }})" 
+                                                    title="{% if article.is_published %}Unpublish{% else %}Publish{% endif %}">
+                                                <i class="bi bi-{% if article.is_published %}eye-slash{% else %}check{% endif %}"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteArticle({{ article.id }})" 
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if articles.has_other_pages %}
+                    <nav aria-label="Article pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if articles.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ articles.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in articles.paginator.page_range %}
+                                {% if articles.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > articles.number|add:'-3' and num < articles.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if articles.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ articles.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-newspaper display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No articles found</h4>
+                        <p class="text-muted">There are no news articles matching your criteria.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNewsModal">
+                            <i class="bi bi-plus-circle"></i> Create First Article
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit News Modal -->
+<div class="modal fade" id="createNewsModal" tabindex="-1" aria-labelledby="createNewsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createNewsModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    <span id="modalTitle">Create News Article</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="newsForm" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="article_id" id="article_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title *</label>
+                                <input type="text" class="form-control" name="title" id="title" required maxlength="200" placeholder="Article title">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="summary" class="form-label">Summary *</label>
+                                <textarea class="form-control" name="summary" id="summary" rows="3" required placeholder="Brief summary of the article"></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="content" class="form-label">Content *</label>
+                                <textarea class="form-control" name="content" id="content" rows="8" required placeholder="Full article content"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Category *</label>
+                                <select class="form-select" name="category" id="category" required>
+                                    <option value="">Select category...</option>
+                                    {% for category_key, category_label in category_choices %}
+                                    <option value="{{ category_key }}">{{ category_label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="image" class="form-label">Featured Image</label>
+                                <input type="file" class="form-control" name="image" id="image" accept="image/*">
+                                <div class="form-text">Recommended size: 800x600px. Max size: 5MB</div>
+                                <div id="currentImage" style="display: none;" class="mt-2">
+                                    <img id="currentImagePreview" class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
+                                    <div class="mt-1">
+                                        <small class="text-muted">Current image</small>
+                                    </div>
+                                </div>
+                                <div id="imagePreview" style="display: none;" class="mt-2">
+                                    <img id="imagePreviewImg" class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
+                                    <div class="mt-1">
+                                        <small class="text-muted">New image preview</small>
+                                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearImagePreview()">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="publish_date" class="form-label">Publish Date</label>
+                                <input type="datetime-local" class="form-control" name="publish_date" id="publish_date">
+                                <div class="form-text">Leave empty to use current date/time</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_published" id="is_published" checked>
+                                    <label class="form-check-label" for="is_published">
+                                        Publish immediately
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="bi bi-save"></i> <span id="submitBtnText">Create Article</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Article Modal -->
+<div class="modal fade" id="viewArticleModal" tabindex="-1" aria-labelledby="viewArticleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewArticleModalLabel">
+                    <i class="bi bi-eye me-2"></i>
+                    Article Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="articleDetails">
+                <!-- Content will be loaded via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editCurrentArticle()">
+                    <i class="bi bi-pencil"></i> Edit Article
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.text-purple {
+    color: #6f42c1;
+}
+
+.article-row:hover {
+    background-color: #f8f9fa;
+}
+
+.alert-message {
+    position: relative;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}
+
+.close-message {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.article-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+</style>
+
+<script>
+let currentArticleId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Select All functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const articleCheckboxes = document.querySelectorAll('.article-checkbox');
+    const bulkActionBtn = document.getElementById('bulkActionBtn');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            articleCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkActions();
+        });
+    }
+
+    articleCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll('.article-checkbox:checked');
+        const count = checkedBoxes.length;
+        
+        if (count > 0) {
+            bulkActionsBar.style.display = 'block';
+            bulkActionBtn.disabled = false;
+            selectedCount.textContent = count;
+        } else {
+            bulkActionsBar.style.display = 'none';
+            bulkActionBtn.disabled = true;
+            selectedCount.textContent = '0';
+        }
+        
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
+            if (count === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (count === articleCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
+    // Image preview functionality
+    const imageInput = document.getElementById('image');
+    const imagePreview = document.getElementById('imagePreview');
+    const imagePreviewImg = document.getElementById('imagePreviewImg');
+
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreviewImg.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                clearImagePreview();
+            }
+        });
+    }
+
+    // Close messages
+    document.querySelectorAll('.close-message').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+
+    // Auto-hide messages after 5 seconds
+    setTimeout(() => {
+        document.querySelectorAll('.alert-message').forEach(msg => {
+            msg.style.opacity = '0';
+            setTimeout(() => msg.remove(), 300);
+        });
+    }, 5000);
+
+    // Reset modal when closed
+    const createNewsModal = document.getElementById('createNewsModal');
+    if (createNewsModal) {
+        createNewsModal.addEventListener('hidden.bs.modal', function() {
+            resetNewsForm();
+        });
+    }
+});
+
+function clearImagePreview() {
+    document.getElementById('image').value = '';
+    document.getElementById('imagePreview').style.display = 'none';
+}
+
+function resetNewsForm() {
+    document.getElementById('newsForm').reset();
+    document.getElementById('article_id').value = '';
+    document.getElementById('modalTitle').textContent = 'Create News Article';
+    document.getElementById('submitBtnText').textContent = 'Create Article';
+    document.getElementById('currentImage').style.display = 'none';
+    clearImagePreview();
+    currentArticleId = null;
+}
+
+function viewArticle(articleId) {
+    fetch(`{% url 'news_detail' 0 %}`.replace('0', articleId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayArticleDetails(data.article);
+                currentArticleId = articleId;
+                const modal = new bootstrap.Modal(document.getElementById('viewArticleModal'));
+                modal.show();
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Error loading article details', 'error');
+        });
+}
+
+function displayArticleDetails(article) {
+    const html = `
+        <div class="row">
+            <div class="col-md-8">
+                ${article.image_url ? `
+                <div class="mb-3">
+                    <img src="${article.image_url}" alt="Article Image" class="img-fluid rounded" style="max-height: 300px; width: 100%; object-fit: cover;">
+                </div>
+                ` : ''}
+                
+                <h3 class="mb-3">${article.title}</h3>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-1">SUMMARY</h6>
+                    <p class="lead">${article.summary}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-1">CONTENT</h6>
+                    <div class="article-content">
+                        ${article.content.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Article Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">STATUS</h6>
+                            <span class="badge bg-${article.is_published ? 'success' : 'warning'}">${article.is_published ? 'Published' : 'Draft'}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">CATEGORY</h6>
+                            <span class="badge bg-info">${article.category}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">AUTHOR</h6>
+                            <p class="mb-0">${article.author_name}</p>
+                            <small class="text-muted">${article.author_email}</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">PUBLISH DATE</h6>
+                            <p class="mb-0">${article.publish_date}</p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">CREATED</h6>
+                            <p class="mb-0">${article.created_at}</p>
+                        </div>
+                        
+                        <div class="mb-0">
+                            <h6 class="text-muted mb-1">LAST UPDATED</h6>
+                            <p class="mb-0">${article.updated_at}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('articleDetails').innerHTML = html;
+}
+
+function editCurrentArticle() {
+    if (currentArticleId) {
+        editArticle(currentArticleId);
+        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewArticleModal'));
+        viewModal.hide();
+    }
+}
+
+function editArticle(articleId) {
+    fetch(`{% url 'news_detail' 0 %}`.replace('0', articleId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateEditForm(data.article);
+                const modal = new bootstrap.Modal(document.getElementById('createNewsModal'));
+                modal.show();
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Error loading article for editing', 'error');
+        });
+}
+
+function populateEditForm(article) {
+    document.getElementById('article_id').value = article.id;
+    document.getElementById('title').value = article.title;
+    document.getElementById('summary').value = article.summary;
+    document.getElementById('content').value = article.content;
+    document.getElementById('category').value = article.category_key;
+    document.getElementById('is_published').checked = article.is_published;
+    
+    // Handle publish date
+    if (article.publish_date) {
+        // Convert from display format to datetime-local format
+        const publishDate = new Date(article.publish_date);
+        const isoString = publishDate.toISOString();
+        const localDateTime = isoString.substring(0, isoString.lastIndexOf(':'));
+        document.getElementById('publish_date').value = localDateTime;
+    }
+    
+    // Handle current image
+    if (article.image_url) {
+        document.getElementById('currentImagePreview').src = article.image_url;
+        document.getElementById('currentImage').style.display = 'block';
+    }
+    
+    // Update modal title and button
+    document.getElementById('modalTitle').textContent = 'Edit News Article';
+    document.getElementById('submitBtnText').textContent = 'Update Article';
+    currentArticleId = article.id;
+}
+
+function togglePublishStatus(articleId) {
+    if (!confirm('Are you sure you want to change the publish status of this article?')) return;
+    
+    fetch(`{% url 'toggle_publish_status' 0 %}`.replace('0', articleId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error updating publish status', 'error');
+    });
+}
+
+function deleteArticle(articleId) {
+    if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) return;
+    
+    fetch(`{% url 'delete_news' 0 %}`.replace('0', articleId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error deleting article', 'error');
+    });
+}
+
+function bulkAction(action) {
+    const checkedBoxes = document.querySelectorAll('.article-checkbox:checked');
+    const articleIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    if (articleIds.length === 0) {
+        showMessage('No articles selected', 'error');
+        return;
+    }
+    
+    let confirmMessage = '';
+    switch(action) {
+        case 'publish':
+            confirmMessage = `Publish ${articleIds.length} articles?`;
+            break;
+        case 'unpublish':
+            confirmMessage = `Unpublish ${articleIds.length} articles?`;
+            break;
+        case 'delete':
+            confirmMessage = `Delete ${articleIds.length} articles? This action cannot be undone.`;
+            break;
+    }
+    
+    if (!confirm(confirmMessage)) return;
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('action', action);
+    articleIds.forEach(id => formData.append('article_ids', id));
+    
+    fetch('{% url "news_bulk_action" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error performing bulk action', 'error');
+    });
+}
+
+// News form submission
+document.getElementById('newsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const articleId = document.getElementById('article_id').value;
+    
+    let url = '{% url "create_news" %}';
+    if (articleId) {
+        url = `{% url 'update_news' 0 %}`.replace('0', articleId);
+    }
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createNewsModal'));
+            modal.hide();
+            location.reload();
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error saving article', 'error');
+    });
+});
+
+function showMessage(message, type) {
+    const messageContainer = document.getElementById('system-messages');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+    
+    const messageHtml = `
+        <div class="alert-message ${alertClass}">
+            ${message}
+            <span class="close-message">&times;</span>
+        </div>
+    `;
+    
+    messageContainer.insertAdjacentHTML('beforeend', messageHtml);
+    
+    // Add click handler to new close button
+    const newMessage = messageContainer.lastElementChild;
+    const closeBtn = newMessage.querySelector('.close-message');
+    closeBtn.addEventListener('click', function() {
+        newMessage.remove();
+    });
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        if (newMessage.parentNode) {
+            newMessage.style.opacity = '0';
+            setTimeout(() => {
+                if (newMessage.parentNode) {
+                    newMessage.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+</script>
+
+{% endblock %}

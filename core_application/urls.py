@@ -416,5 +416,17 @@ urlpatterns = [
     path('admin-notifications/bulk-action/', views.bulk_action, name='notification_bulk_action'),
     path('admin-notifications/get-students/', views.get_students, name='get_students'),
 
+    # Main news management page
+    path('admin-news/', views.news_management, name='news_management'),
+    
+    # AJAX endpoints for CRUD operations
+    path('admin-news/<int:article_id>/', views.news_detail, name='news_detail'),
+    path('admin-news/create/', views.create_news, name='create_news'),
+    path('admin-news/<int:article_id>/update/', views.update_news, name='update_news'),
+    path('admin-news/<int:article_id>/delete/', views.delete_news, name='delete_news'),
+    path('admin-news/<int:article_id>/toggle-publish/', views.toggle_publish_status, name='toggle_publish_status'),
+    path('admin-news/bulk-action/', views.bulk_news_action, name='news_bulk_action'),
+    path('admin-news/get-authors/', views.get_authors, name='get_authors'),
+
 
 ]

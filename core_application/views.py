@@ -15717,3 +15717,348 @@ def get_students(request):
             'success': False,
             'message': f'Error loading students: {str(e)}'
         })
+
+
+# news_views.py
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.utils import timezone
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib import messages
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import json
+from datetime import datetime, timedelta
+from .models import NewsArticle
+from django.contrib.auth.models import User
+
+def is_admin_or_staff(user):
+    return user.is_staff or user.is_superuser
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def news_management(request):
+    """Main news management view"""
+    
+    # Get all news articles with author information
+    news_articles = NewsArticle.objects.select_related('author').all()
+    
+    # Statistics
+    stats = {
+        'total_articles': NewsArticle.objects.count(),
+        'published_articles': NewsArticle.objects.filter(is_published=True).count(),
+        'draft_articles': NewsArticle.objects.filter(is_published=False).count(),
+        'today_articles': NewsArticle.objects.filter(
+            created_at__date=timezone.now().date()
+        ).count(),
+        'academic_articles': NewsArticle.objects.filter(category='academic').count(),
+        'event_articles': NewsArticle.objects.filter(category='event').count(),
+    }
+    
+    # Filtering
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date', '')
+    
+    if search_query:
+        news_articles = news_articles.filter(
+            Q(title__icontains=search_query) |
+            Q(summary__icontains=search_query) |
+            Q(content__icontains=search_query) |
+            Q(author__first_name__icontains=search_query) |
+            Q(author__last_name__icontains=search_query)
+        )
+    
+    if category_filter:
+        news_articles = news_articles.filter(category=category_filter)
+    
+    if status_filter:
+        if status_filter == 'published':
+            news_articles = news_articles.filter(is_published=True)
+        elif status_filter == 'draft':
+            news_articles = news_articles.filter(is_published=False)
+    
+    if date_filter:
+        today = timezone.now().date()
+        
+        if date_filter == 'today':
+            news_articles = news_articles.filter(created_at__date=today)
+        elif date_filter == 'week':
+            week_ago = today - timedelta(days=7)
+            news_articles = news_articles.filter(created_at__date__gte=week_ago)
+        elif date_filter == 'month':
+            month_ago = today - timedelta(days=30)
+            news_articles = news_articles.filter(created_at__date__gte=month_ago)
+    
+    # Ordering
+    news_articles = news_articles.order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(news_articles, 15)
+    page = request.GET.get('page')
+    articles_page = paginator.get_page(page)
+    
+    context = {
+        'articles': articles_page,
+        'stats': stats,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+        'date_filter': date_filter,
+        'category_choices': NewsArticle.CATEGORY_CHOICES,
+    }
+    
+    return render(request, 'admin/news_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def news_detail(request, article_id):
+    """Get news article details for viewing"""
+    try:
+        article = get_object_or_404(
+            NewsArticle.objects.select_related('author'),
+            id=article_id
+        )
+        
+        data = {
+            'success': True,
+            'article': {
+                'id': article.id,
+                'title': article.title,
+                'summary': article.summary,
+                'content': article.content,
+                'category': article.get_category_display(),
+                'category_key': article.category,
+                'image_url': article.image.url if article.image else None,
+                'author_name': article.author.get_full_name() if article.author else 'Unknown',
+                'author_email': article.author.email if article.author else '',
+                'publish_date': article.publish_date.strftime('%B %d, %Y at %H:%M'),
+                'is_published': article.is_published,
+                'created_at': article.created_at.strftime('%B %d, %Y at %H:%M'),
+                'updated_at': article.updated_at.strftime('%B %d, %Y at %H:%M'),
+            }
+        }
+            
+    except Exception as e:
+        data = {
+            'success': False,
+            'message': f'Error loading article: {str(e)}'
+        }
+    
+    return JsonResponse(data)
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def create_news(request):
+    """Create a new news article"""
+    try:
+        # Handle image upload
+        image = request.FILES.get('image')
+        
+        article = NewsArticle.objects.create(
+            title=request.POST.get('title'),
+            summary=request.POST.get('summary'),
+            content=request.POST.get('content'),
+            category=request.POST.get('category'),
+            image=image,
+            author=request.user,
+            is_published=request.POST.get('is_published') == 'on',
+            publish_date=request.POST.get('publish_date') or timezone.now(),
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'News article created successfully!',
+            'article_id': article.id
+        })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error creating article: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def update_news(request, article_id):
+    """Update an existing news article"""
+    try:
+        article = get_object_or_404(NewsArticle, id=article_id)
+        
+        # Update fields
+        article.title = request.POST.get('title')
+        article.summary = request.POST.get('summary')
+        article.content = request.POST.get('content')
+        article.category = request.POST.get('category')
+        article.is_published = request.POST.get('is_published') == 'on'
+        
+        # Handle publish date
+        publish_date = request.POST.get('publish_date')
+        if publish_date:
+            article.publish_date = publish_date
+        
+        # Handle image upload
+        if request.FILES.get('image'):
+            # Delete old image if exists
+            if article.image:
+                default_storage.delete(article.image.name)
+            article.image = request.FILES.get('image')
+        
+        article.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'News article updated successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating article: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def delete_news(request, article_id):
+    """Delete a news article"""
+    try:
+        article = get_object_or_404(NewsArticle, id=article_id)
+        
+        # Delete associated image
+        if article.image:
+            default_storage.delete(article.image.name)
+        
+        article.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'News article deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting article: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def toggle_publish_status(request, article_id):
+    """Toggle publish status of a news article"""
+    try:
+        article = get_object_or_404(NewsArticle, id=article_id)
+        article.is_published = not article.is_published
+        
+        # If publishing for first time, set publish date to now
+        if article.is_published and not article.publish_date:
+            article.publish_date = timezone.now()
+        
+        article.save()
+        
+        status = 'published' if article.is_published else 'unpublished'
+        return JsonResponse({
+            'success': True,
+            'message': f'Article {status} successfully!',
+            'is_published': article.is_published
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating publish status: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+@require_http_methods(["POST"])
+def bulk_news_action(request):
+    """Handle bulk actions on news articles"""
+    try:
+        action = request.POST.get('action')
+        article_ids = request.POST.getlist('article_ids')
+        
+        if not article_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No articles selected.'
+            })
+        
+        articles = NewsArticle.objects.filter(id__in=article_ids)
+        
+        if action == 'publish':
+            articles.update(is_published=True, publish_date=timezone.now())
+            message = f'{len(article_ids)} articles published.'
+        elif action == 'unpublish':
+            articles.update(is_published=False)
+            message = f'{len(article_ids)} articles unpublished.'
+        elif action == 'delete':
+            # Delete associated images
+            for article in articles:
+                if article.image:
+                    default_storage.delete(article.image.name)
+            articles.delete()
+            message = f'{len(article_ids)} articles deleted.'
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid action.'
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error performing bulk action: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_admin_or_staff)
+def get_authors(request):
+    """Get authors for news article creation/editing"""
+    try:
+        search = request.GET.get('search', '')
+        authors = User.objects.filter(is_staff=True)
+        
+        if search:
+            authors = authors.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        
+        author_data = []
+        for author in authors[:20]:  # Limit to 20 results
+            author_data.append({
+                'id': author.id,
+                'name': author.get_full_name() or author.username,
+                'email': author.email
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'authors': author_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading authors: {str(e)}'
+        })
