@@ -91,7 +91,7 @@
             <div class="col-md-4 dashboardRightLabel">
                 <div class="">
                     <p class="fw-bold card-stitle text-start d-inline ms-2">Finance</p>
-                    <a class="fw-bold card-stitle text-end d-inline pull-right mx-2" href="#">View Statement</a>
+                    <a class="fw-bold card-stitle text-end d-inline pull-right mx-2" href="{% url 'student_fee_management'%}">View Statement</a>
                 </div>
             </div>
         </div>
@@ -223,23 +223,28 @@
             </div>
             
             <!--quick links-->
-            <div class="p-1 m-top" id="dashboardQuickLinks">
+            <div class="p-1 m-top" id="dashboardHostel">
                 <div class="col card shadow hh p-1 yhigh">
-                    <p class="fw-bold primary-text fs-4 p-2 text-start">Quick Links</p>
-                    <div class="list-group list-group-flush">
-                        <a href="{% url 'student_units'%}" class="list-group-item list-group-item-action">
-                            Available Units for Enrollment
-                        </a>
-                        <a href="{% url 'student_profile'%}" class="list-group-item list-group-item-action">
-                            My Profile
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            Academic Records
-                        </a>
-                        
+                    <p class="fw-bold primary-text fs-4 p-2 text-start">Quick Actions</p>
+                    <div class="row ms-2 d-flex flex-row flex-sm-row">
+                        <div class="col-12">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'student_units'%}" class="btn btn-outline-primary">
+                                    Available Units for Enrollment
+                                </a>
+                                <a href="{% url 'student_profile'%}" class="btn btn-outline-secondary">
+                                    My Profile
+                                </a>
+
+                                 <a href="{% url 'student_transcript'%}" class="btn btn-outline-success">
+                                    Academic Records
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            
         </div>
     </div>
 </div>

@@ -20,7 +20,7 @@
             </div>
             <div class="col-md-4 dashboardRightLabel">
                 <div class="btn-group float-end">
-                    <a href="#" class="btn btn-outline-secondary">
+                    <a href="{% url 'student_dashboard'%}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Back
                     </a>
                     <button class="btn btn-outline-primary" onclick="window.print()">
@@ -32,42 +32,6 @@
                         <a href="{% url 'transcript_pdf' %}" class="btn btn-outline-info">
                             <i class="bi bi-download"></i> Download PDF
                         </a>
-
-                        {% comment %}
-
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'transcript_pdf' %}">
-                                    <i class="bi bi-file-earmark-pdf"></i> Complete Transcript
-                                </a>
-                            </li>
-                            {% if current_academic_year %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' current_academic_year.id %}">
-                                    <i class="bi bi-file-earmark-pdf"></i> Current Year ({{ current_academic_year.year }})
-                                </a>
-                            </li>
-                            {% endif %}
-                            {% if current_semester %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'transcript_pdf_semester' current_semester.id %}">
-                                    <i class="bi bi-file-earmark-pdf"></i> Current Semester
-                                </a>
-                            </li>
-                            {% endif %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <h6 class="dropdown-header">Select Specific Year:</h6>
-                            </li>
-                            {% for year_data in available_years %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' year_data.id %}">
-                                    <i class="bi bi-calendar"></i> {{ year_data.year }}
-                                </a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                         {% endcomment %}
                     </div>
                    
                 </div>
@@ -103,7 +67,7 @@
                                     <label class="small text-muted">Name</label>
                                     <p class="fw-bold">{{ student.user.get_full_name }}</p>
                                     <label class="small text-muted">Registration Number</label>
-                                    <p class="fw-bold">{{ student.registration_number }}</p>
+                                    <p class="fw-bold">{{ student.student_id }}</p>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="small text-muted">Current Year/Semester</label>
@@ -119,7 +83,7 @@
                                     <label class="small text-muted">Programme</label>
                                     <p class="fw-bold">{{ student.programme.name }} ({{ student.programme.code }})</p>
                                     <label class="small text-muted">School</label>
-                                    <p class="fw-bold">{{ student.programme.school.name }}</p>
+                                    <p class="fw-bold">{{ student.programme.faculty.name }}</p>
                                 </div>
                             </div>
                         </div>
@@ -178,24 +142,6 @@
                     <h5 class="card-title mb-0">
                         <i class="bi bi-journal-text"></i> Detailed Transcript
                     </h5>
-                      {% comment %}
-                    <!-- Quick PDF download buttons for individual years -->
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-download"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            {% for year_data in academic_years_in_transcript %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'transcript_pdf_year' year_data.id %}">
-                                    <i class="bi bi-file-earmark-pdf"></i> Year {{ year_data.year }} PDF
-                                </a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-
-                      {% endcomment %}
                 </div>
                 <div class="card-body">
                     {% if transcript_data %}

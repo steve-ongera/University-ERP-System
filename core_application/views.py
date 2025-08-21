@@ -201,6 +201,15 @@ from django.db import transaction
 
 from .models import Student, Semester, Course, ProgrammeCourse, Enrollment
 
+from django.utils import timezone
+from django.db import transaction, IntegrityError
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from django.http import JsonResponse
+
+from .models import Student, Semester, Course, ProgrammeCourse, Enrollment
+
 @login_required
 def student_units_view(request):
     """
@@ -226,6 +235,11 @@ def student_units_view(request):
             current_semester.registration_start_date <= today <= current_semester.registration_end_date
         )
     
+    # Get ALL courses the student has ever enrolled in (across all semesters)
+    all_enrolled_course_ids = Enrollment.objects.filter(
+        student=student
+    ).values_list('course_id', flat=True)
+    
     # Get available courses for registration
     available_courses = []
     if show_registration and current_semester:
@@ -239,27 +253,33 @@ def student_units_view(request):
         )
         
         # Get already enrolled courses for current semester
-        enrolled_course_ids = Enrollment.objects.filter(
+        current_semester_enrolled_course_ids = Enrollment.objects.filter(
             student=student,
             semester=current_semester,
             is_active=True
         ).values_list('course_id', flat=True)
         
-        # Filter out already enrolled courses
-        available_programme_courses = programme_courses.exclude(
-            course_id__in=enrolled_course_ids
-        )
-        
-        for programme_course in available_programme_courses:
-            available_courses.append(programme_course.course)
+        # Filter out courses already enrolled in current semester AND courses ever enrolled
+        for programme_course in programme_courses:
+            course = programme_course.course
+            
+            # Check if student has ever taken this course (across all semesters)
+            has_ever_taken = course.id in all_enrolled_course_ids
+            
+            # Check if currently enrolled in this course this semester
+            currently_enrolled = course.id in current_semester_enrolled_course_ids
+            
+            if not currently_enrolled:
+                # Add course with information about previous enrollment
+                course.previously_enrolled = has_ever_taken
+                available_courses.append(course)
     
-    # Get enrollment history
+    # Get enrollment history (include both active and inactive enrollments)
     enrollments = Enrollment.objects.select_related(
         'course', 'semester', 'semester__academic_year', 'lecturer'
     ).filter(
-        student=student,
-        is_active=True
-    ).order_by('-semester__academic_year__year', '-semester__semester_number')
+        student=student
+    ).order_by('-semester__academic_year__year', '-semester__semester_number', 'course__code')
     
     # Group enrollments by academic year and semester
     enrollment_history = {}
@@ -291,27 +311,31 @@ def student_units_view(request):
         if sem_key not in curriculum_data[year_key]:
             curriculum_data[year_key][sem_key] = []
             
-        curriculum_data[year_key][sem_key].append(programme_course.course)
+        # Mark if student has taken this course (any semester)
+        course = programme_course.course
+        course.enrolled = course.id in all_enrolled_course_ids
+        curriculum_data[year_key][sem_key].append(course)
     
     # Handle POST request for course enrollment
     if request.method == 'POST':
-        return handle_course_enrollment(request, student, current_semester, available_courses)
+        return handle_course_enrollment(request, student, current_semester, available_courses, all_enrolled_course_ids)
     
     context = {
         'student': student,
         'current_semester': current_semester,
         'show_registration': show_registration,
-        'available_units': available_courses,  # Keep 'available_units' for template compatibility
+        'available_units': available_courses,
         'enrollment_history': enrollment_history,
         'curriculum_data': curriculum_data,
+        'all_enrolled_course_ids': list(all_enrolled_course_ids),
     }
     
     return render(request, 'student/units.html', context)
 
 
-def handle_course_enrollment(request, student, current_semester, available_courses):
+def handle_course_enrollment(request, student, current_semester, available_courses, all_enrolled_course_ids):
     """
-    Handle course enrollment logic
+    Handle course enrollment logic with duplicate prevention
     """
     if not current_semester:
         messages.error(request, 'No active semester found.')
@@ -324,7 +348,7 @@ def handle_course_enrollment(request, student, current_semester, available_cours
         return redirect('student_units')
     
     # Get selected course IDs
-    selected_course_ids = request.POST.getlist('units')  # Keep 'units' for template compatibility
+    selected_course_ids = request.POST.getlist('units')
     
     if not selected_course_ids:
         messages.error(request, 'Please select at least one course to register.')
@@ -377,12 +401,16 @@ def handle_course_enrollment(request, student, current_semester, available_cours
         with transaction.atomic():
             enrolled_count = 0
             failed_enrollments = []
+            repeat_enrollments = []
             
             for course_id in selected_course_ids:
                 try:
                     course = Course.objects.get(id=course_id)
                     
-                    # Check if already enrolled (double-check)
+                    # Check if student has ever taken this course before (across all semesters)
+                    previously_enrolled = int(course_id) in all_enrolled_course_ids
+                    
+                    # Check if already enrolled in current semester (double-check)
                     existing_enrollment = Enrollment.objects.filter(
                         student=student,
                         course=course,
@@ -391,35 +419,43 @@ def handle_course_enrollment(request, student, current_semester, available_cours
                     
                     if existing_enrollment:
                         if existing_enrollment.is_active:
-                            failed_enrollments.append(f"{course.code} - Already enrolled")
+                            failed_enrollments.append(f"{course.code} - Already enrolled this semester")
                         else:
-                            # Reactivate inactive enrollment
+                            # Reactivate inactive enrollment and mark as repeat if previously enrolled
                             existing_enrollment.is_active = True
+                            existing_enrollment.is_repeat = previously_enrolled
                             existing_enrollment.enrollment_date = timezone.now().date()
                             existing_enrollment.save()
                             enrolled_count += 1
+                            if previously_enrolled:
+                                repeat_enrollments.append(course.code)
                     else:
-                        # Create new enrollment
+                        # Create new enrollment and mark as repeat if previously enrolled
                         enrollment = Enrollment.objects.create(
                             student=student,
                             course=course,
                             semester=current_semester,
                             enrollment_date=timezone.now().date(),
-                            is_active=True
+                            is_active=True,
+                            is_repeat=previously_enrolled
                         )
                         enrolled_count += 1
+                        if previously_enrolled:
+                            repeat_enrollments.append(course.code)
                         
                 except Course.DoesNotExist:
                     failed_enrollments.append(f"Course ID {course_id} - Not found")
+                except IntegrityError:
+                    failed_enrollments.append(f"{course.code} - Duplicate enrollment detected")
                 except Exception as e:
                     failed_enrollments.append(f"Course ID {course_id} - {str(e)}")
             
             # Provide feedback
             if enrolled_count > 0:
-                messages.success(
-                    request, 
-                    f'Successfully enrolled in {enrolled_count} course{"s" if enrolled_count != 1 else ""}.'
-                )
+                success_message = f'Successfully enrolled in {enrolled_count} course{"s" if enrolled_count != 1 else ""}.'
+                if repeat_enrollments:
+                    success_message += f' Repeat courses: {", ".join(repeat_enrollments)}'
+                messages.success(request, success_message)
             
             if failed_enrollments:
                 messages.warning(

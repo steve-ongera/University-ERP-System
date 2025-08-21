@@ -82,6 +82,15 @@
     }
 </style>
 
+<div class="message-container" id="system-messages">
+                                {% for message in messages %}
+                                <div class="alert-message alert-{{ message.tags }}">
+                                    {{ message }}
+                                    <span class="close-message">&times;</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
 <!-- Changed from container to container-fluid and removed col-lg-10 -->
 <div class="container-fluid py-5">
     <div class="row">

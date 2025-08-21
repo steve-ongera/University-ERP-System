@@ -101,13 +101,19 @@
                                 <div id="flush-collapse-current" class="accordion-collapse collapse show" 
                                     aria-labelledby="flush-heading-current" data-bs-parent="#accordionFlushExample">
                                     <div class="accordion-body">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            <strong>Note:</strong> Courses marked with <span class="badge bg-warning text-dark">Previously Taken</span> 
+                                            indicate units you have enrolled in before and cannot be selected again.
+                                        </div>
+                                        
                                         <div class="row mb-3">
                                             <div class="col-md-12">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <h6 class="mb-0">Select units to register:</h6>
                                                     <div>
                                                         <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">
-                                                            Select All
+                                                            Select All Available
                                                         </button>
                                                         <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAll">
                                                             Clear All
@@ -125,45 +131,60 @@
                                                             <th width="10%">Select</th>
                                                             <th width="15%">Unit Code</th>
                                                             <th width="35%">Unit Name</th>
-                                                            <th width="15%">Type</th>
+                                                            <th width="10%">Type</th>
                                                             <th width="10%">Credits</th>
-                                                            <th width="15%">Prerequisites</th>
+                                                            <th width="10%">Status</th>
+                                                            <th width="10%">Prerequisites</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {% for unit in available_units %}
-                                                        <tr>
+                                                        <tr class="{% if unit.previously_enrolled %}table-warning{% endif %}">
                                                             <td>
                                                                 <div class="form-check">
                                                                     <input class="form-check-input unit-checkbox" type="checkbox" 
                                                                         id="unit_{{ unit.id }}" name="units" 
-                                                                        value="{{ unit.id }}">
-                                                                    <label class="form-check-label" for="unit_{{ unit.id }}"></label>
+                                                                        value="{{ unit.id }}"
+                                                                        {% if unit.previously_enrolled %}
+                                                                            disabled
+                                                                            data-previously-enrolled="true"
+                                                                            title="Already registered for this unit"
+                                                                        {% endif %}>
+                                                                    <label class="form-check-label {% if unit.previously_enrolled %}text-muted{% endif %}" 
+                                                                        for="unit_{{ unit.id }}"></label>
                                                                 </div>
                                                             </td>
                                                             <td>
-                                                                <strong>{{ unit.code }}</strong>
+                                                                <strong class="{% if unit.previously_enrolled %}text-muted{% endif %}">{{ unit.code }}</strong>
                                                             </td>
                                                             <td>
-                                                                {{ unit.name }}
+                                                                <span class="{% if unit.previously_enrolled %}text-muted{% endif %}">{{ unit.name }}</span>
                                                                 {% if unit.description %}
-                                                                <br><small class="text-muted">{{ unit.description|truncatewords:15 }}</small>
+                                                                <br><small class="{% if unit.previously_enrolled %}text-muted{% else %}text-muted{% endif %}">{{ unit.description|truncatewords:15 }}</small>
                                                                 {% endif %}
                                                             </td>
                                                             <td>
-                                                                <span class="badge bg-info">{{ unit.get_unit_type_display }}</span>
+                                                                <span class="badge bg-info {% if unit.previously_enrolled %}opacity-50{% endif %}">{{ unit.get_course_type_display }}</span>
                                                             </td>
                                                             <td>
-                                                                <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
+                                                                <span class="badge bg-secondary {% if unit.previously_enrolled %}opacity-50{% endif %}">{{ unit.credit_hours }}</span>
+                                                            </td>
+                                                            <td>
+                                                                {% if unit.previously_enrolled %}
+                                                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" 
+                                                                        title="You have already registered for this course">Previously Taken</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-success">Available</span>
+                                                                {% endif %}
                                                             </td>
                                                             <td>
                                                                 {% if unit.prerequisites.exists %}
                                                                     {% for prereq in unit.prerequisites.all %}
-                                                                        <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
+                                                                        <small class="badge bg-light text-dark border {% if unit.previously_enrolled %}opacity-50{% endif %}">{{ prereq.code }}</small>
                                                                         {% if not forloop.last %}<br>{% endif %}
                                                                     {% endfor %}
                                                                 {% else %}
-                                                                    <small class="text-muted">None</small>
+                                                                    <small class="{% if unit.previously_enrolled %}text-muted opacity-50{% else %}text-muted{% endif %}">None</small>
                                                                 {% endif %}
                                                             </td>
                                                         </tr>
@@ -178,6 +199,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div>
                                                         <span id="selectedCount" class="text-muted">0 units selected</span>
+                                                        <span id="disabledCount" class="badge bg-warning text-dark ms-2 d-none">0 already registered</span>
                                                     </div>
                                                     <button type="submit" class="btn btn-primary btn-lg">
                                                         <i class="bi bi-check-circle me-2"></i>
@@ -268,7 +290,7 @@
                                                                     </thead>
                                                                     <tbody>
                                                                         {% for enrollment in enrollments %}
-                                                                        <tr>
+                                                                        <tr class="{% if not enrollment.is_active %}table-secondary{% elif enrollment.is_repeat %}table-warning{% endif %}">
                                                                             <td><strong>{{ enrollment.course.code }}</strong></td>
                                                                             <td>{{ enrollment.course.name }}</td>
                                                                             <td>
@@ -280,7 +302,7 @@
                                                                             <td>
                                                                                 {% if enrollment.is_active %}
                                                                                     {% if enrollment.is_repeat %}
-                                                                                        <span class="badge bg-warning">Repeat</span>
+                                                                                        <span class="badge bg-warning" data-bs-toggle="tooltip" title="Repeat course">Repeat</span>
                                                                                     {% elif enrollment.is_audit %}
                                                                                         <span class="badge bg-info">Audit</span>
                                                                                     {% else %}
@@ -379,12 +401,13 @@
                                                                             <th>Unit Name</th>
                                                                             <th>Type</th>
                                                                             <th>Credits</th>
+                                                                            <th>Status</th>
                                                                             <th>Prerequisites</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
                                                                         {% for unit in units %}
-                                                                        <tr>
+                                                                        <tr class="{% if unit.enrolled %}table-success{% endif %}">
                                                                             <td><strong>{{ unit.code }}</strong></td>
                                                                             <td>
                                                                                 {{ unit.name }}
@@ -399,9 +422,16 @@
                                                                                 <span class="badge bg-secondary">{{ unit.credit_hours }}</span>
                                                                             </td>
                                                                             <td>
+                                                                                {% if unit.enrolled %}
+                                                                                    <span class="badge bg-success" data-bs-toggle="tooltip" title="You have taken this course">Completed</span>
+                                                                                {% else %}
+                                                                                    <span class="badge bg-light text-dark border">Pending</span>
+                                                                                {% endif %}
+                                                                            </td>
+                                                                            <td>
                                                                                 {% if unit.prerequisites.exists %}
                                                                                     {% for prereq in unit.prerequisites.all %}
-                                                                                        <small class="badge bg-warning text-dark">{{ prereq.code }}</small>
+                                                                                        <small class="badge bg-light text-dark border">{{ prereq.code }}</small>
                                                                                         {% if not forloop.last %}<br>{% endif %}
                                                                                     {% endfor %}
                                                                                 {% else %}
@@ -437,6 +467,7 @@
 </div>
 
 <style>
+/* Your existing styles remain the same */
 .primary-text {
     color: #1a73e8;
 }
@@ -502,6 +533,23 @@
 .form-check-input:focus {
     box-shadow: 0 0 0 0.25rem rgba(67, 0, 255, 0.25);
     border-color: rgba(67, 0, 255, 0.5);
+}
+
+/* Disabled checkbox styles for previously enrolled units */
+.form-check-input:disabled {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.form-check-input:disabled + .form-check-label {
+    cursor: not-allowed;
+}
+
+/* Add opacity to disabled row elements */
+.opacity-50 {
+    opacity: 0.5;
 }
 
 .btn-primary {
@@ -571,22 +619,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Unit selection functionality
     const unitCheckboxes = document.querySelectorAll('.unit-checkbox');
+    const availableCheckboxes = document.querySelectorAll('.unit-checkbox:not([disabled])');
+    const disabledCheckboxes = document.querySelectorAll('.unit-checkbox[disabled]');
     const selectAllBtn = document.getElementById('selectAll');
     const clearAllBtn = document.getElementById('clearAll');
     const selectedCount = document.getElementById('selectedCount');
+    const disabledCount = document.getElementById('disabledCount');
     const submitForm = document.getElementById('mySubmitForm');
     
-    // Update selected count
+    // Update selected count and disabled count
     function updateSelectedCount() {
-        const checked = document.querySelectorAll('.unit-checkbox:checked').length;
+        const checked = document.querySelectorAll('.unit-checkbox:checked:not([disabled])').length;
+        const disabled = disabledCheckboxes.length;
+        
         if (selectedCount) {
             selectedCount.textContent = `${checked} unit${checked !== 1 ? 's' : ''} selected`;
         }
         
+        // Show disabled count if there are any disabled units
+        if (disabledCount && disabled > 0) {
+            disabledCount.textContent = `${disabled} already registered`;
+            disabledCount.classList.remove('d-none');
+        }
+        
         // Update select all button text
         if (selectAllBtn) {
-            selectAllBtn.textContent = checked === unitCheckboxes.length ? 'All Selected' : 'Select All';
-            selectAllBtn.disabled = checked === unitCheckboxes.length;
+            const allAvailableSelected = checked === availableCheckboxes.length;
+            selectAllBtn.textContent = allAvailableSelected ? 'All Available Selected' : 'Select All Available';
+            selectAllBtn.disabled = allAvailableSelected;
         }
         
         // Update clear all button
@@ -595,11 +655,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Select all units
+    // Select all available units (excluding disabled ones)
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
-            unitCheckboxes.forEach(checkbox => {
-                checkbox.checked = true;
+            availableCheckboxes.forEach(checkbox => {
+                if (!checkbox.disabled) {
+                    checkbox.checked = true;
+                }
             });
             updateSelectedCount();
         });
@@ -608,16 +670,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear all selections
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', function() {
-            unitCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
+            availableCheckboxes.forEach(checkbox => {
+                if (!checkbox.disabled) {
+                    checkbox.checked = false;
+                }
             });
             updateSelectedCount();
         });
     }
     
-    // Add event listeners to checkboxes
-    unitCheckboxes.forEach(checkbox => {
+    // Add event listeners to available checkboxes only
+    availableCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Add click prevention and tooltip for disabled checkboxes
+    disabledCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Show a brief message or tooltip
+            const tooltip = this.getAttribute('title') || 'This unit has already been registered';
+            console.log(tooltip); // Could be replaced with a toast notification
+        });
+        
+        // Add tooltip if not already present
+        if (!checkbox.getAttribute('title')) {
+            checkbox.setAttribute('title', 'Already registered for this unit');
+        }
     });
     
     // Initial count update
@@ -628,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission validation
     if (submitForm) {
         submitForm.addEventListener('submit', function(e) {
-            const checked = document.querySelectorAll('.unit-checkbox:checked').length;
+            const checked = document.querySelectorAll('.unit-checkbox:checked:not([disabled])').length;
             
             if (checked === 0) {
                 e.preventDefault();
