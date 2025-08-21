@@ -34,6 +34,14 @@
                         <p class="mb-0">
                             <i class="bi bi-calendar me-1"></i>Joined: {{ student.admission_date|date:"M d, Y" }}
                         </p>
+                        {% if programme_info %}
+                        <p class="mb-0">
+                            <i class="bi bi-mortarboard me-1"></i>Programme Duration: {{ programme_info.duration_years }} years, {{ programme_info.semesters_per_year }} semesters/year
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-trophy me-1"></i>Expected Graduation: {{ programme_info.expected_graduation }}
+                        </p>
+                        {% endif %}
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="d-inline-block bg-{% if stats.overall_balance > 0 %}danger{% else %}success{% endif %} text-white rounded p-3">
@@ -168,6 +176,7 @@
                                     data-bs-target="#year-{{ year_data.academic_year.id }}" 
                                     type="button" role="tab">
                                 <i class="bi bi-calendar me-1"></i>{{ year_data.academic_year.year }}
+                                <br><small class="text-muted">Year {{ year_data.student_programme_year }}</small>
                                 {% if year_data.year_balance > 0 %}
                                 <span class="badge bg-danger ms-1">{{ year_data.year_balance|floatformat:0 }}</span>
                                 {% endif %}
@@ -187,7 +196,10 @@
                                 <div class="col-md-12">
                                     <div class="card bg-light">
                                         <div class="card-body">
-                                            <h5 class="card-title">{{ year_data.academic_year.year }} Summary</h5>
+                                            <h5 class="card-title">
+                                                {{ year_data.academic_year.year }} Summary 
+                                                <span class="badge bg-info ms-2">Programme Year {{ year_data.student_programme_year }}</span>
+                                            </h5>
                                             <div class="row text-center">
                                                 <div class="col-md-4">
                                                     <h6 class="text-primary">KES {{ year_data.year_total_charged|floatformat:2 }}</h6>
@@ -220,6 +232,7 @@
                                             data-bs-target="#sem-{{ year_data.academic_year.id }}-{{ semester_data.semester.semester_number }}"
                                             type="button" role="tab">
                                         Semester {{ semester_data.semester.semester_number }}
+                                        <br><small class="text-muted">Y{{ semester_data.student_programme_year }}S{{ semester_data.semester.semester_number }}</small>
                                         {% if semester_data.semester_balance > 0 %}
                                         <span class="badge bg-danger ms-1">{{ semester_data.semester_balance|floatformat:0 }}</span>
                                         {% endif %}
@@ -238,7 +251,9 @@
                                         <div class="col-md-6">
                                             <div class="card h-100">
                                                 <div class="card-header">
-                                                    <h6 class="mb-0">Fee Breakdown - Semester {{ semester_data.semester.semester_number }}</h6>
+                                                    <h6 class="mb-0">
+                                                        Fee Breakdown - Y{{ semester_data.student_programme_year }}S{{ semester_data.semester.semester_number }}
+                                                    </h6>
                                                 </div>
                                                 <div class="card-body">
                                                     {% if semester_data.fee_structure %}
@@ -255,10 +270,30 @@
                                                             <td>Examination Fee:</td>
                                                             <td class="text-end">KES {{ semester_data.fee_structure.examination_fee|floatformat:2 }}</td>
                                                         </tr>
+                                                        {% if semester_data.fee_structure.laboratory_fee > 0 %}
+                                                        <tr>
+                                                            <td>Laboratory Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.laboratory_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                        {% if semester_data.fee_structure.library_fee > 0 %}
+                                                        <tr>
+                                                            <td>Library Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.library_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                        {% if semester_data.fee_structure.technology_fee > 0 %}
+                                                        <tr>
+                                                            <td>Technology Fee:</td>
+                                                            <td class="text-end">KES {{ semester_data.fee_structure.technology_fee|floatformat:2 }}</td>
+                                                        </tr>
+                                                        {% endif %}
+                                                        {% if semester_data.fee_structure.other_fees > 0 %}
                                                         <tr>
                                                             <td>Other Fees:</td>
                                                             <td class="text-end">KES {{ semester_data.fee_structure.other_fees|floatformat:2 }}</td>
                                                         </tr>
+                                                        {% endif %}
                                                         <tr class="table-light">
                                                             <td><strong>Total Fee:</strong></td>
                                                             <td class="text-end"><strong>KES {{ semester_data.fee_structure.total_fee|floatformat:2 }}</strong></td>
@@ -281,7 +316,11 @@
                                                         </tr>
                                                     </table>
                                                     {% else %}
-                                                    <p class="text-muted">No fee structure defined for this semester.</p>
+                                                    <div class="text-center py-3">
+                                                        <i class="bi bi-exclamation-triangle text-warning display-6"></i>
+                                                        <p class="text-muted mt-2">No fee structure defined for Y{{ semester_data.student_programme_year }}S{{ semester_data.semester.semester_number }}.</p>
+                                                        <p class="small text-muted">Please contact the finance office.</p>
+                                                    </div>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -337,7 +376,7 @@
                                         <div class="col-md-12">
                                             <div class="card">
                                                 <div class="card-header">
-                                                    <h6 class="mb-0">Payment History - Semester {{ semester_data.semester.semester_number }}</h6>
+                                                    <h6 class="mb-0">Payment History - Y{{ semester_data.student_programme_year }}S{{ semester_data.semester.semester_number }}</h6>
                                                 </div>
                                                 <div class="card-body">
                                                     <div class="table-responsive">
@@ -389,7 +428,7 @@
                                                 <div class="card-body text-center py-4">
                                                     <i class="bi bi-credit-card display-4 text-muted"></i>
                                                     <h6 class="text-muted mt-3">No Payments Yet</h6>
-                                                    <p class="text-muted">No payments have been made for this semester.</p>
+                                                    <p class="text-muted">No payments have been made for Y{{ semester_data.student_programme_year }}S{{ semester_data.semester.semester_number }}.</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -412,6 +451,32 @@
             </div>
         </div>
     </div>
+
+    <!-- Programme Progress Overview (Optional) -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Programme Progress Overview</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Programme:</strong> {{ student.programme.name }}</p>
+                            <p><strong>Duration:</strong> {{ programme_info.duration_years }} years</p>
+                            <p><strong>Current Status:</strong> 
+                                <span class="badge bg-info">Year {{ student.current_year }}</span>
+                                <span class="badge bg-secondary">Semester {{ student.current_semester }}</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Admission Year:</strong> {{ programme_info.admission_year }}</p>
+                            <p><strong>Expected Graduation:</strong> {{ programme_info.expected_graduation }}</p>
+                            <p><strong>Academic Years Covered:</strong> {{ years_data|length }} of {{ programme_info.duration_years }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -424,6 +489,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const tab = new bootstrap.Tab(this);
             tab.show();
         });
+    });
+
+    // Close message alerts
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+
+    // Auto-hide success messages after 5 seconds
+    const successMessages = document.querySelectorAll('.alert-success');
+    successMessages.forEach(message => {
+        setTimeout(() => {
+            message.style.display = 'none';
+        }, 5000);
     });
 });
 </script>
@@ -472,6 +553,16 @@ document.addEventListener('DOMContentLoaded', function() {
     border-color: #0d6efd;
 }
 
+.nav-pills .nav-link {
+    text-align: center;
+    min-width: 120px;
+}
+
+.nav-tabs .nav-link {
+    text-align: center;
+    min-width: 140px;
+}
+
 .badge {
     font-size: 0.75em;
 }
@@ -501,6 +592,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .display-4 {
     font-size: 2.5rem;
+}
+
+.display-6 {
+    font-size: 1.5rem;
+}
+
+/* Custom alert styles */
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+}
+
+.alert-message {
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    position: relative;
+    display: block;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.close-message {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
 }
 </style>
 

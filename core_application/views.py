@@ -8744,7 +8744,7 @@ def hostel_dashboard(request):
     
     return render(request, 'hostels/hostel_dashboard.html', context)
 
-# views.py - Student Fee Management
+# views.py - Updated Student Fee Management
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -8755,7 +8755,8 @@ from django.utils import timezone
 from django.core.paginator import Paginator
 from decimal import Decimal
 import uuid
-from datetime import datetime
+from datetime import datetime, date
+#from dateutil.relativedelta import relativedelta
 
 from .models import (
     Student, AcademicYear, Semester, FeeStructure, 
@@ -8766,6 +8767,7 @@ from .models import (
 def student_fee_management(request):
     """
     View for students to manage and view their fee payments
+    Only shows academic years and semesters relevant to the student's programme
     """
     try:
         student = request.user.student_profile
@@ -8773,54 +8775,92 @@ def student_fee_management(request):
         messages.error(request, "You don't have a student profile.")
         return redirect('login')
     
-    # Get all academic years since the student joined
+    # Get student's programme details
+    programme = student.programme
+    programme_duration_years = programme.duration_years
+    semesters_per_year = programme.semesters_per_year
     admission_year = student.admission_date.year
-    academic_years = AcademicYear.objects.filter(
-        start_date__year__gte=admission_year
-    ).order_by('-year')
+    
+    # Calculate the academic years the student should be in
+    # For example, if admitted in 2021/2022 and programme is 3 years:
+    # Academic years: 2021/2022, 2022/2023, 2023/2024
+    relevant_academic_years = []
+    
+    for year_offset in range(programme_duration_years):
+        start_year = admission_year + year_offset
+        end_year = start_year + 1
+        academic_year_str = f"{start_year}/{end_year}"
+        
+        try:
+            academic_year = AcademicYear.objects.get(year=academic_year_str)
+            relevant_academic_years.append(academic_year)
+        except AcademicYear.DoesNotExist:
+            # Create the academic year if it doesn't exist (optional)
+            # You might want to handle this differently based on your requirements
+            continue
     
     # Calculate overall statistics
-    total_fees_charged = 0
-    total_fees_paid = 0
-    overall_balance = 0
+    total_fees_charged = Decimal('0.00')
+    total_fees_paid = Decimal('0.00')
+    overall_balance = Decimal('0.00')
     
-    # Prepare data for each academic year
+    # Prepare data for each relevant academic year
     years_data = []
     
-    for academic_year in academic_years:
-        # Get semesters for this academic year
-        semesters = Semester.objects.filter(
-            academic_year=academic_year
-        ).order_by('semester_number')
+    for year_index, academic_year in enumerate(relevant_academic_years):
+        # Calculate which programme year this academic year represents for the student
+        student_programme_year = year_index + 1
+        
+        # Get only the semesters that exist for this programme
+        # Most programmes have semester 1 and 2, some have 3
+        semester_numbers = list(range(1, semesters_per_year + 1))
         
         year_data = {
             'academic_year': academic_year,
+            'student_programme_year': student_programme_year,
             'semesters': [],
-            'year_total_charged': 0,
-            'year_total_paid': 0,
-            'year_balance': 0
+            'year_total_charged': Decimal('0.00'),
+            'year_total_paid': Decimal('0.00'),
+            'year_balance': Decimal('0.00')
         }
         
-        for semester in semesters:
-            # Get fee structure for this semester
+        for semester_number in semester_numbers:
+            # Try to get the actual semester object
+            try:
+                semester = Semester.objects.get(
+                    academic_year=academic_year,
+                    semester_number=semester_number
+                )
+            except Semester.DoesNotExist:
+                # Create a minimal semester object for display purposes
+                semester = type('obj', (object,), {
+                    'semester_number': semester_number,
+                    'academic_year': academic_year,
+                    'start_date': None,
+                    'end_date': None
+                })()
+            
+            # Get fee structure for this specific semester and programme year
             try:
                 fee_structure = FeeStructure.objects.get(
                     programme=student.programme,
                     academic_year=academic_year,
-                    year=student.current_year,  # You might want to calculate actual year for the semester
-                    semester=semester.semester_number
+                    year=student_programme_year,  # Use the calculated programme year
+                    semester=semester_number
                 )
                 semester_fee = fee_structure.net_fee()
             except FeeStructure.DoesNotExist:
+                fee_structure = None
                 semester_fee = Decimal('0.00')
             
             # Get payments for this semester
             payments = FeePayment.objects.filter(
                 student=student,
                 fee_structure__academic_year=academic_year,
-                fee_structure__semester=semester.semester_number,
+                fee_structure__year=student_programme_year,
+                fee_structure__semester=semester_number,
                 payment_status='completed'
-            )
+            ).order_by('-payment_date')
             
             semester_paid = payments.aggregate(
                 total=Sum('amount_paid')
@@ -8830,11 +8870,12 @@ def student_fee_management(request):
             
             semester_data = {
                 'semester': semester,
-                'fee_structure': fee_structure if 'fee_structure' in locals() else None,
+                'fee_structure': fee_structure,
                 'semester_fee': semester_fee,
                 'semester_paid': semester_paid,
                 'semester_balance': semester_balance,
-                'payments': payments.order_by('-payment_date')
+                'payments': payments,
+                'student_programme_year': student_programme_year
             }
             
             year_data['semesters'].append(semester_data)
@@ -8842,15 +8883,18 @@ def student_fee_management(request):
             year_data['year_total_paid'] += semester_paid
         
         year_data['year_balance'] = year_data['year_total_charged'] - year_data['year_total_paid']
-        years_data.append(year_data)
         
-        # Add to overall totals
-        total_fees_charged += year_data['year_total_charged']
-        total_fees_paid += year_data['year_total_paid']
+        # Only add year data if there are semesters or if it's relevant to the student
+        if year_data['semesters']:
+            years_data.append(year_data)
+            
+            # Add to overall totals
+            total_fees_charged += year_data['year_total_charged']
+            total_fees_paid += year_data['year_total_paid']
     
     overall_balance = total_fees_charged - total_fees_paid
     
-    # Get recent payments for quick overview
+    # Get recent payments for quick overview (last 5 payments)
     recent_payments = FeePayment.objects.filter(
         student=student,
         payment_status='completed'
@@ -8871,15 +8915,26 @@ def student_fee_management(request):
         ).values('payment_method').distinct().count()
     }
     
+    # Calculate expected graduation year for context
+    expected_graduation_year = admission_year + programme_duration_years
+    expected_graduation_academic_year = f"{expected_graduation_year-1}/{expected_graduation_year}"
+    
     context = {
         'student': student,
         'years_data': years_data,
         'recent_payments': recent_payments,
         'stats': stats,
-        'current_year': timezone.now().year
+        'current_year': timezone.now().year,
+        'programme_info': {
+            'duration_years': programme_duration_years,
+            'semesters_per_year': semesters_per_year,
+            'expected_graduation': expected_graduation_academic_year,
+            'admission_year': f"{admission_year}/{admission_year + 1}",
+        }
     }
     
     return render(request, 'student/fee_management.html', context)
+
 
 
 @staff_member_required
