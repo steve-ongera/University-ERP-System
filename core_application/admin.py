@@ -837,6 +837,388 @@ class StudentNotificationAdmin(admin.ModelAdmin):
     list_filter = ('notification_type', 'is_read')
     readonly_fields = ('created_date', 'read_date')
 
+from django.contrib import admin
+from django.utils.html import format_html
+from django.utils import timezone
+from django.db.models import Count, Q
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+import json
+from .models import UserSession, ActivityLog, PageVisit, SystemMetrics
+
+
+@admin.register(UserSession)
+class UserSessionAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'session_key_short', 'login_time', 'last_activity', 
+        'duration_display', 'ip_address', 'is_active_display', 'status_indicator'
+    ]
+    list_filter = [
+        'is_active', 'login_time', 'user__user_type',
+        ('logout_time', admin.EmptyFieldListFilter),
+    ]
+    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'ip_address']
+    readonly_fields = ['session_key', 'login_time', 'duration_display', 'user_agent_display', 'last_activity']
+    date_hierarchy = 'login_time'
+    list_per_page = 25
+    ordering = ['-login_time']
+    
+    fieldsets = (
+        ('Session Info', {
+            'fields': ('user', 'session_key', 'login_time', 'logout_time', 'is_active')
+        }),
+        ('Connection Details', {
+            'fields': ('ip_address', 'user_agent_display', 'last_activity')
+        }),
+        ('Statistics', {
+            'fields': ('duration_display',),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def session_key_short(self, obj):
+        return f"{obj.session_key[:8]}..." if obj.session_key else "-"
+    session_key_short.short_description = "Session"
+    
+    def duration_display(self, obj):
+        duration = obj.duration
+        hours, remainder = divmod(duration.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{int(hours):02d}h {int(minutes):02d}m {int(seconds):02d}s"
+    duration_display.short_description = "Duration"
+    
+    def is_active_display(self, obj):
+        if obj.is_active:
+            return format_html(
+                '<span style="color: green; font-weight: bold;">● Online</span>'
+            )
+        else:
+            return format_html(
+                '<span style="color: red;">● Offline</span>'
+            )
+    is_active_display.short_description = "Status"
+    
+    def status_indicator(self, obj):
+        now = timezone.now()
+        if obj.is_active and obj.last_activity:
+            time_diff = now - obj.last_activity
+            if time_diff.total_seconds() < 300:  # 5 minutes
+                color = "green"
+                status = "Active"
+            elif time_diff.total_seconds() < 900:  # 15 minutes
+                color = "orange"
+                status = "Idle"
+            else:
+                color = "red"
+                status = "Away"
+            
+            return format_html(
+                '<div style="display: flex; align-items: center;">'
+                '<div style="width: 10px; height: 10px; border-radius: 50%; '
+                'background-color: {}; margin-right: 5px;"></div>{}</div>',
+                color, status
+            )
+        return format_html('<span style="color: gray;">Offline</span>')
+    status_indicator.short_description = "Activity"
+    
+    def user_agent_display(self, obj):
+        if obj.user_agent:
+            # Simple browser detection
+            user_agent = obj.user_agent.lower()
+            if 'chrome' in user_agent:
+                browser = '🌐 Chrome'
+            elif 'firefox' in user_agent:
+                browser = '🦊 Firefox'
+            elif 'safari' in user_agent:
+                browser = '🧭 Safari'
+            elif 'edge' in user_agent:
+                browser = '📘 Edge'
+            else:
+                browser = '🌐 Unknown'
+            
+            return format_html(
+                '<div title="{}">{}</div>',
+                obj.user_agent, browser
+            )
+        return "-"
+    user_agent_display.short_description = "Browser"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+
+
+@admin.register(ActivityLog)
+class ActivityLogAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'action_display', 'content_object_display', 'timestamp',
+        'ip_address', 'description_short'
+    ]
+    list_filter = [
+        'action', 'timestamp', 'user__user_type',
+        ('content_type', admin.RelatedOnlyFieldListFilter),
+    ]
+    search_fields = [
+        'user__username', 'user__first_name', 'user__last_name',
+        'description', 'ip_address'
+    ]
+    readonly_fields = [
+        'timestamp', 'user', 'action', 'content_type', 'object_id','content_object',
+        'ip_address', 'user_agent', 'old_values_display', 'new_values_display'
+    ]
+    date_hierarchy = 'timestamp'
+    list_per_page = 50
+    ordering = ['-timestamp']
+    
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('user', 'action', 'timestamp', 'description')
+        }),
+        ('Target Object', {
+            'fields': ('content_type', 'object_id', 'content_object'),
+            'classes': ('collapse',)
+        }),
+        ('Connection Details', {
+            'fields': ('ip_address', 'user_agent'),
+            'classes': ('collapse',)
+        }),
+        ('Change Details', {
+            'fields': ('old_values_display', 'new_values_display'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def action_display(self, obj):
+        colors = {
+            'create': '#28a745',   # Green
+            'update': '#007bff',   # Blue
+            'delete': '#dc3545',   # Red
+            'login': '#6f42c1',    # Purple
+            'logout': '#6c757d',   # Gray
+            'view': '#17a2b8',     # Info
+            'download': '#fd7e14', # Orange
+            'upload': '#20c997',   # Teal
+            'approve': '#28a745',  # Green
+            'reject': '#dc3545',   # Red
+        }
+        color = colors.get(obj.action, '#6c757d')
+        
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 2px 6px; '
+            'border-radius: 3px; font-size: 11px; font-weight: bold;">{}</span>',
+            color, obj.get_action_display()
+        )
+    action_display.short_description = "Action"
+    
+    def content_object_display(self, obj):
+        if obj.content_object:
+            try:
+                # Try to get admin change URL
+                url = reverse(
+                    f'admin:{obj.content_type.app_label}_{obj.content_type.model}_change',
+                    args=[obj.object_id]
+                )
+                return format_html(
+                    '<a href="{}" target="_blank">{}</a>',
+                    url, str(obj.content_object)
+                )
+            except:
+                return str(obj.content_object)
+        elif obj.content_type:
+            return f"{obj.content_type.model} (deleted)"
+        return "-"
+    content_object_display.short_description = "Object"
+    
+    def description_short(self, obj):
+        return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
+    description_short.short_description = "Description"
+    
+    def old_values_display(self, obj):
+        if obj.old_values:
+            try:
+                data = json.loads(obj.old_values)
+                formatted = json.dumps(data, indent=2)
+                return format_html('<pre style="font-size: 12px;">{}</pre>', formatted)
+            except:
+                return obj.old_values
+        return "-"
+    old_values_display.short_description = "Old Values"
+    
+    def new_values_display(self, obj):
+        if obj.new_values:
+            try:
+                data = json.loads(obj.new_values)
+                formatted = json.dumps(data, indent=2)
+                return format_html('<pre style="font-size: 12px;">{}</pre>', formatted)
+            except:
+                return obj.new_values
+        return "-"
+    new_values_display.short_description = "New Values"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'user', 'content_type'
+        ).prefetch_related('content_object')
+
+
+@admin.register(PageVisit)
+class PageVisitAdmin(admin.ModelAdmin):
+    list_display = [
+        'user_display', 'url_display', 'view_name', 'timestamp',
+        'response_time_display', 'ip_address'
+    ]
+    list_filter = [
+        'timestamp', 'view_name',
+        ('user', admin.RelatedOnlyFieldListFilter),
+        'response_time',
+    ]
+    search_fields = [
+        'user__username', 'url', 'view_name', 'page_title', 'ip_address'
+    ]
+    readonly_fields = [
+        'timestamp', 'user', 'session_key', 'url', 'view_name',
+        'ip_address', 'user_agent', 'referrer', 'response_time'
+    ]
+    date_hierarchy = 'timestamp'
+    list_per_page = 100
+    ordering = ['-timestamp']
+    
+    fieldsets = (
+        ('Page Info', {
+            'fields': ('url', 'view_name', 'page_title', 'timestamp')
+        }),
+        ('User Info', {
+            'fields': ('user', 'session_key', 'ip_address')
+        }),
+        ('Technical Details', {
+            'fields': ('user_agent', 'referrer', 'response_time'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def user_display(self, obj):
+        if obj.user:
+            return format_html(
+                '<a href="{}" target="_blank">{}</a>',
+                reverse('admin:core_application_user_change', args=[obj.user.id]),
+                obj.user.username
+            )
+        return "Anonymous"
+    user_display.short_description = "User"
+    
+    def url_display(self, obj):
+        return obj.url[:50] + "..." if len(obj.url) > 50 else obj.url
+    url_display.short_description = "URL"
+    
+    def response_time_display(self, obj):
+        if obj.response_time:
+            if obj.response_time < 200:
+                color = "green"
+            elif obj.response_time < 1000:
+                color = "orange"
+            else:
+                color = "red"
+            
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{} ms</span>',
+                color, obj.response_time
+            )
+        return "-"
+    response_time_display.short_description = "Response Time"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+
+
+@admin.register(SystemMetrics)
+class SystemMetricsAdmin(admin.ModelAdmin):
+    list_display = [
+        'date', 'total_users', 'active_users', 'new_registrations',
+        'total_logins', 'page_views', 'performance_indicator'
+    ]
+    list_filter = ['date']
+    search_fields = ['date']
+    readonly_fields = [
+        'date', 'total_users', 'active_users', 'new_registrations',
+        'total_logins', 'page_views', 'unique_visitors', 'students_online',
+        'assignments_submitted', 'notes_downloaded', 'avg_response_time',
+        'error_count', 'created_at'
+    ]
+    date_hierarchy = 'date'
+    ordering = ['-date']
+    
+    fieldsets = (
+        ('Date', {
+            'fields': ('date', 'created_at')
+        }),
+        ('User Metrics', {
+            'fields': (
+                'total_users', 'active_users', 'new_registrations',
+                'total_logins', 'students_online'
+            )
+        }),
+        ('Activity Metrics', {
+            'fields': (
+                'page_views', 'unique_visitors', 'assignments_submitted',
+                'notes_downloaded'
+            )
+        }),
+        ('Performance Metrics', {
+            'fields': ('avg_response_time', 'error_count')
+        })
+    )
+    
+    def performance_indicator(self, obj):
+        indicators = []
+        
+        # Response time indicator
+        if obj.avg_response_time:
+            if obj.avg_response_time < 200:
+                indicators.append('<span style="color: green;">⚡ Fast</span>')
+            elif obj.avg_response_time < 1000:
+                indicators.append('<span style="color: orange;">⚠️ Moderate</span>')
+            else:
+                indicators.append('<span style="color: red;">🐌 Slow</span>')
+        
+        # Error indicator
+        if obj.error_count > 10:
+            indicators.append('<span style="color: red;">❌ High Errors</span>')
+        elif obj.error_count > 0:
+            indicators.append('<span style="color: orange;">⚠️ Some Errors</span>')
+        else:
+            indicators.append('<span style="color: green;">✅ No Errors</span>')
+        
+        return format_html(' | '.join(indicators))
+    performance_indicator.short_description = "Performance"
+    
+    def has_add_permission(self, request):
+        # Prevent manual addition - should be auto-generated
+        return False
+
+
+# Optional: Custom admin site configuration
+class TrackingAdminSite(admin.AdminSite):
+    site_header = "System Tracking Administration"
+    site_title = "Tracking Admin"
+    index_title = "System Analytics Dashboard"
+    
+    def index(self, request, extra_context=None):
+        # Add custom context for admin index
+        extra_context = extra_context or {}
+        
+        # Recent activity summary
+        recent_activities = ActivityLog.objects.select_related('user')[:10]
+        online_users_count = UserSession.objects.filter(
+            is_active=True,
+            last_activity__gte=timezone.now() - timezone.timedelta(minutes=15)
+        ).count()
+        
+        extra_context.update({
+            'recent_activities': recent_activities,
+            'online_users_count': online_users_count,
+        })
+        
+        return super().index(request, extra_context)
+
 
 # Update admin site header for additional models
 admin.site.site_header = "Dynamic 365 ERP"
