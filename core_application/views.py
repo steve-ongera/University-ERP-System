@@ -16996,7 +16996,6 @@ def attendance_analytics_data(request):
 
 
 # Add this to your views.py
-
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.sessions.models import Session
@@ -17004,7 +17003,7 @@ from django.utils import timezone
 from django.db.models import Count, Q, Avg
 from django.http import JsonResponse
 from datetime import datetime, timedelta
-from django.db.models.functions import TruncDate, TruncHour
+from django.db.models.functions import TruncDate, TruncHour, Extract
 from django.contrib.auth import get_user_model
 from .models import (
     ActivityLog, PageVisit, UserSession, SystemMetrics,
@@ -17079,19 +17078,37 @@ def admin_profile(request):
         unique_users=Count('user', distinct=True)
     ).order_by('-visits')[:10]
     
-    # Page visits by hour for today
-    hourly_visits = PageVisit.objects.filter(
-        timestamp__date=today
-    ).extra(
-        select={'hour': 'EXTRACT(hour FROM timestamp)'}
-    ).values('hour').annotate(
-        visits=Count('id')
-    ).order_by('hour')
+    # Page visits by hour for today - FIXED VERSION
+    try:
+        # Try using Django's Extract function first (works with PostgreSQL, MySQL)
+        hourly_visits = PageVisit.objects.filter(
+            timestamp__date=today
+        ).annotate(
+            hour=Extract('timestamp', 'hour')
+        ).values('hour').annotate(
+            visits=Count('id')
+        ).order_by('hour')
+    except:
+        # Fallback for SQLite - get all visits for today and process in Python
+        today_visits = PageVisit.objects.filter(
+            timestamp__date=today
+        ).values_list('timestamp', flat=True)
+        
+        # Process in Python to extract hours
+        hourly_visits = {}
+        for timestamp in today_visits:
+            hour = timestamp.hour
+            hourly_visits[hour] = hourly_visits.get(hour, 0) + 1
+        
+        # Convert to list of dicts to match expected format
+        hourly_visits = [{'hour': k, 'visits': v} for k, v in hourly_visits.items()]
     
     # Create hourly data for chart (24 hours)
     hourly_data = {i: 0 for i in range(24)}
     for item in hourly_visits:
-        hourly_data[int(item['hour'])] = item['visits']
+        hour_key = int(item['hour']) if isinstance(item, dict) else int(item.hour)
+        visits_count = item['visits'] if isinstance(item, dict) else item.visits
+        hourly_data[hour_key] = visits_count
     
     # ============ USER BEHAVIOR ANALYTICS ============
     # Most active users
