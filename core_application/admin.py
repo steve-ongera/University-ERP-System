@@ -839,7 +839,7 @@ class StudentNotificationAdmin(admin.ModelAdmin):
 
 
 # Update admin site header for additional models
-admin.site.site_header = "University Management System - Complete"
-admin.site.site_title = "UMS Admin Portal"
-admin.site.index_title = "Welcome to University Management System Administration"
+admin.site.site_header = "Dynamic 365 ERP"
+admin.site.site_title = "365 Admin Portal"
+admin.site.index_title = "Welcome to University ERP System Administration"
 
