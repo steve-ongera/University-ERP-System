@@ -48,6 +48,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+     'core_application.middleware.UserSessionMiddleware',  
+     'core_application.middleware.ActivityTrackingMiddleware',
 ]
 
 ROOT_URLCONF = 'university_erp_system.urls'
@@ -110,6 +112,13 @@ TIME_ZONE = 'Africa/Nairobi'  # Kenya timezone
 USE_I18N = True
 
 USE_TZ = True
+
+
+# Optional: Configure session settings for better tracking
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database sessions
+SESSION_COOKIE_AGE = 86400  # Session expires after 24 hours (in seconds)
+SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep sessions when browser closes
 
 
 # Static files (CSS, JavaScript, Images)
