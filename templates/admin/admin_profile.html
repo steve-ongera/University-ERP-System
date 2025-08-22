@@ -1,0 +1,793 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row mt-3 d-flex flex-row pb-3">
+        <div class="col-md-12 d-flex justify-content-between">
+            <h3 class="primary-text">Admin Profile & System Analytics</h3>
+            <div>
+                <button class="btn primary-outline-btn btn-sm" id="refreshData">
+                    <i class="ri-refresh-line"></i> Refresh
+                </button>
+                <button class="btn primary-btn btn-sm" id="exportReport">
+                    <i class="ri-download-line"></i> Export Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row bg-white shadow">
+        <!-- Left Side - Navigation -->
+        <div class="col-md-3">
+            <div class="card col-md-12">
+                <div class="card-body text-md-left ml-0">
+                    <div class="nav flex-column nav-tabs prof" id="v-tabs-tab" role="tablist" aria-orientation="vertical">
+                        <!-- Admin Profile Section -->
+                        <div class="mb-4 d-flex align-items-center flex-column">
+                            <div class="profile-pic mb-3 position-relative">
+                                {% if current_user.profile_picture %}
+                                    <img src="{{ current_user.profile_picture.url }}" id="profilePicture" class="img-fluid rounded-circle" alt="Admin Profile" />
+                                {% else %}
+                                    <img src="{% static 'avatar2.png' %}" id="profilePicture" class="img-fluid rounded-circle" alt="Default Profile" />
+                                {% endif %}
+                                <span class="position-absolute bottom-0 start-100 translate-middle badge border border-blue rounded-circle bg-success">
+                                    <i class="ri-shield-check-line text-white"></i>
+                                </span>
+                            </div>
+                            <div class="sticky-top mb-2">
+                                <div>
+                                    <h6 class="mb-2">{{ current_user.get_full_name }}</h6>
+                                    <p class="text-muted small">{{ current_user.user_type|title }} User</p>
+                                    <p class="text-muted small">
+                                        <i class="ri-time-line"></i> Last Login: {{ current_user.last_login|date:"M d, H:i" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Menu -->
+                        <ul class="nav flex-column prof">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active px-1" href="#" id="system-overview-tab" data-bs-toggle="tab" data-bs-target="#system-overview" role="tab">
+                                    <i class="bi bi-speedometer2 mx-3"></i><span>System Overview</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="online-users-tab" data-bs-toggle="tab" data-bs-target="#online-users" role="tab">
+                                    <i class="bi bi-people-fill mx-3"></i><span>Online Users</span>
+                                    <span class="badge bg-success ms-2" id="onlineCountBadge">{{ online_count }}</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="activity-logs-tab" data-bs-toggle="tab" data-bs-target="#activity-logs" role="tab">
+                                    <i class="bi bi-activity mx-3"></i><span>Activity Logs</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="page-analytics-tab" data-bs-toggle="tab" data-bs-target="#page-analytics" role="tab">
+                                    <i class="bi bi-graph-up mx-3"></i><span>Page Analytics</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="user-behavior-tab" data-bs-toggle="tab" data-bs-target="#user-behavior" role="tab">
+                                    <i class="bi bi-person-check mx-3"></i><span>User Behavior</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="security-monitoring-tab" data-bs-toggle="tab" data-bs-target="#security-monitoring" role="tab">
+                                    <i class="bi bi-shield-lock mx-3"></i><span>Security Monitoring</span>
+                                </a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="performance-metrics-tab" data-bs-toggle="tab" data-bs-target="#performance-metrics" role="tab">
+                                    <i class="bi bi-speedometer mx-3"></i><span>Performance</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Content -->
+        <div class="col-md-9 profile">
+            <div class="tab-content">
+                <!-- System Overview Tab -->
+                <div id="system-overview" class="container tab-pane show active" role="tabpanel">
+                    <div class="row mt-3">
+                        <!-- Key Metrics Cards -->
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="card-title">{{ online_count }}</h5>
+                                            <p class="card-text small">Users Online</p>
+                                        </div>
+                                        <i class="bi bi-people-fill fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="card-title">{{ logins_today }}</h5>
+                                            <p class="card-text small">Logins Today</p>
+                                        </div>
+                                        <i class="bi bi-door-open-fill fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="card-title">{{ new_users_today }}</h5>
+                                            <p class="card-text small">New Users Today</p>
+                                        </div>
+                                        <i class="bi bi-person-plus-fill fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="card-title">{{ avg_response_time }}ms</h5>
+                                            <p class="card-text small">Avg Response Time</p>
+                                        </div>
+                                        <i class="bi bi-speedometer2 fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Daily Activity (Last 7 Days)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="dailyActivityChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">User Distribution</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="userDistributionChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Stats Row -->
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">System Statistics</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3">
+                                                <h4 class="text-primary">{{ total_users }}</h4>
+                                                <p class="mb-0">Total Users</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3">
+                                                <h4 class="text-success">{{ total_students }}</h4>
+                                                <p class="mb-0">Students</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3">
+                                                <h4 class="text-info">{{ total_lecturers }}</h4>
+                                                <p class="mb-0">Lecturers</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3">
+                                                <h4 class="text-warning">{{ total_staff }}</h4>
+                                                <p class="mb-0">Staff</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Online Users Tab -->
+                <div id="online-users" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between">
+                                    <h6 class="card-title mb-0">Currently Online Users</h6>
+                                    <div>
+                                        <span class="badge bg-success">{{ online_students }} Students</span>
+                                        <span class="badge bg-info">{{ online_lecturers }} Lecturers</span>
+                                        <span class="badge bg-warning">{{ online_staff }} Staff</span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="onlineUsersTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>User</th>
+                                                    <th>Type</th>
+                                                    <th>Login Time</th>
+                                                    <th>Last Activity</th>
+                                                    <th>IP Address</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for session in online_users %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar-sm me-2">
+                                                                {% if session.user.profile_picture %}
+                                                                    <img src="{{ session.user.profile_picture.url }}" class="rounded-circle" width="30" height="30">
+                                                                {% else %}
+                                                                    <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width:30px; height:30px;">
+                                                                        <small class="text-white">{{ session.user.first_name.0 }}{{ session.user.last_name.0 }}</small>
+                                                                    </div>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div>
+                                                                <strong>{{ session.user.get_full_name }}</strong><br>
+                                                                <small class="text-muted">{{ session.user.username }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge 
+                                                            {% if session.user.user_type == 'student' %}bg-success
+                                                            {% elif session.user.user_type == 'lecturer' %}bg-info
+                                                            {% else %}bg-warning{% endif %}">
+                                                            {{ session.user.user_type|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ session.login_time|date:"M d, H:i" }}</td>
+                                                    <td>
+                                                        <span class="badge bg-success">
+                                                            {{ session.last_activity|timesince }} ago
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ session.ip_address }}</td>
+                                                    <td>
+                                                        <span class="text-success">
+                                                            <i class="bi bi-circle-fill"></i> Online
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center">No users currently online</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Logs Tab -->
+                <div id="activity-logs" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <!-- Privileged User Activities -->
+                        <div class="col-md-12 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Privileged User Activities (Last 7 Days)</h6>
+                                    <small class="text-muted">Activities by Admin, Staff, and Lecturers</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>User</th>
+                                                    <th>Action</th>
+                                                    <th>Target</th>
+                                                    <th>Description</th>
+                                                    <th>Time</th>
+                                                    <th>IP</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for activity in privileged_activities %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ activity.user.get_full_name }}</strong><br>
+                                                        <small class="text-muted">{{ activity.user.user_type|title }}</small>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge 
+                                                            {% if activity.action == 'create' %}bg-success
+                                                            {% elif activity.action == 'update' %}bg-info
+                                                            {% elif activity.action == 'delete' %}bg-danger
+                                                            {% else %}bg-secondary{% endif %}">
+                                                            {{ activity.action|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {% if activity.content_type %}
+                                                            {{ activity.content_type.model|title }}
+                                                        {% else %}
+                                                            System
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ activity.description|truncatechars:50 }}</td>
+                                                    <td>
+                                                        <small>{{ activity.timestamp|date:"M d, H:i" }}</small>
+                                                    </td>
+                                                    <td>
+                                                        <small>{{ activity.ip_address }}</small>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center">No recent privileged activities</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- All Recent Activities -->
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">All Recent System Activities</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-sm">
+                                            <thead class="sticky-top bg-light">
+                                                <tr>
+                                                    <th>User</th>
+                                                    <th>Action</th>
+                                                    <th>Description</th>
+                                                    <th>Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for activity in recent_activities %}
+                                                <tr>
+                                                    <td>{{ activity.user.username }}</td>
+                                                    <td>
+                                                        <span class="badge 
+                                                            {% if activity.action == 'create' %}bg-success
+                                                            {% elif activity.action == 'update' %}bg-info
+                                                            {% elif activity.action == 'delete' %}bg-danger
+                                                            {% elif activity.action == 'login' %}bg-primary
+                                                            {% else %}bg-secondary{% endif %}">
+                                                            {{ activity.action|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ activity.description|truncatechars:60 }}</td>
+                                                    <td>
+                                                        <small>{{ activity.timestamp|timesince }} ago</small>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page Analytics Tab -->
+                <div id="page-analytics" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <!-- Hourly Page Visits -->
+                        <div class="col-md-12 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Page Visits Today (Hourly)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="hourlyVisitsChart" height="100"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Most Popular Pages -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Most Visited Pages Today</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Page</th>
+                                                    <th>Visits</th>
+                                                    <th>Unique Users</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for page in popular_pages_today %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ page.url }}</strong><br>
+                                                        <small class="text-muted">{{ page.view_name }}</small>
+                                                    </td>
+                                                    <td>{{ page.visits }}</td>
+                                                    <td>{{ page.unique_users }}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="3" class="text-center">No page visits today</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Page Visits Chart -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Top Pages Chart</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="pageVisitsChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Behavior Tab -->
+                <div id="user-behavior" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <!-- Most Active Users -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Most Active Users (This Week)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>User</th>
+                                                    <th>Type</th>
+                                                    <th>Activities</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for user in active_users_week %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ user.user__first_name }} {{ user.user__last_name }}</strong><br>
+                                                        <small class="text-muted">{{ user.user__username }}</small>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ user.user__user_type|title }}</span>
+                                                    </td>
+                                                    <td>{{ user.activity_count }}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="3" class="text-center">No active users this week</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Type Distribution -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Activity Types Today</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Action</th>
+                                                    <th>Count</th>
+                                                    <th>Percentage</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for activity in activity_counts %}
+                                                <tr>
+                                                    <td>{{ activity.action|title }}</td>
+                                                    <td>{{ activity.count }}</td>
+                                                    <td>
+                                                        {% widthratio activity.count activity_counts.0.count 100 %}%
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Monitoring Tab -->
+                <div id="security-monitoring" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Security Alerts & Monitoring</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Security Status:</strong> All systems operational. No security threats detected.
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body text-center">
+                                                    <h4>{{ logins_today }}</h4>
+                                                    <p class="mb-0">Successful Logins Today</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body text-center">
+                                                    <h4>0</h4>
+                                                    <p class="mb-0">Failed Login Attempts</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card bg-danger text-white">
+                                                <div class="card-body text-center">
+                                                    <h4>{{ error_count }}</h4>
+                                                    <p class="mb-0">System Errors Today</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Metrics Tab -->
+                <div id="performance-metrics" class="container tab-pane fade" role="tabpanel">
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">System Performance Metrics</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 border rounded">
+                                                <h4 class="text-primary">{{ avg_response_time }}ms</h4>
+                                                <p class="mb-0">Avg Response Time</p>
+                                                <small class="text-muted">Today</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 border rounded">
+                                                <h4 class="text-success">{{ recent_enrollments }}</h4>
+                                                <p class="mb-0">New Enrollments</p>
+                                                <small class="text-muted">This Week</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 border rounded">
+                                                <h4 class="text-info">{{ recent_grades }}</h4>
+                                                <p class="mb-0">Grades Posted</p>
+                                                <small class="text-muted">Current Semester</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 border rounded">
+                                                <h4 class="text-warning">{{ payments_today.count }}</h4>
+                                                <p class="mb-0">Payments Today</p>
+                                                <small class="text-muted">Count</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Initialize charts with data from Django
+    const dailyActivitiesData = {{ daily_activities_json|safe }};
+    const hourlyData = {{ hourly_data_json|safe }};
+    const userDistribution = {{ user_distribution_json|safe }};
+    const pageVisitsData = {{ page_visits_data_json|safe }};
+
+    // Daily Activity Chart
+    const dailyCtx = document.getElementById('dailyActivityChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: dailyActivitiesData.map(d => d.date),
+            datasets: [{
+                label: 'Activities',
+                data: dailyActivitiesData.map(d => d.count),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // User Distribution Pie Chart
+    const userCtx = document.getElementById('userDistributionChart').getContext('2d');
+    new Chart(userCtx, {
+        type: 'doughnut',
+        data: {
+            labels: userDistribution.map(d => d.type),
+            datasets: [{
+                data: userDistribution.map(d => d.count),
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(255, 205, 86, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Hourly Visits Chart
+    const hourlyCtx = document.getElementById('hourlyVisitsChart').getContext('2d');
+    new Chart(hourlyCtx, {
+        type: 'bar',
+        data: {
+            labels: Array.from({length: 24}, (_, i) => i + ':00'),
+            datasets: [{
+                label: 'Page Visits',
+                data: hourlyData,
+                backgroundColor: 'rgba(153, 102, 255, 0.6)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Page Visits Chart
+    if (pageVisitsData.length > 0) {
+        const pageCtx = document.getElementById('pageVisitsChart').getContext('2d');
+        new Chart(pageCtx, {
+            type: 'bar',
+            data: {
+                labels: pageVisitsData.map(d => d.page),
+                datasets: [{
+                    label: 'Visits',
+                    data: pageVisitsData.map(d => d.visits),
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Real-time updates
+    function updateOnlineUsers() {
+        $.get('{% url "admin_profile_api" %}?type=online_users', function(data) {
+            $('#onlineCountBadge').text(data.count);
+            // Update table if needed
+        });
+    }
+
+    // Refresh data button
+    $('#refreshData').click(function() {
+        location.reload();
+    });
+
+    // Export report button
+    $('#exportReport').click(function() {
+        alert('Export functionality to be implemented');
+    });
+
+    // Auto-refresh online users every 30 seconds
+    setInterval(updateOnlineUsers, 30000);
+
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Handle tab switching
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        window.location.hash = e.target.hash;
+        $('.nav-link').removeClass('active');
+        $(this).addClass('active');
+    });
+});
+</script>
+{% endblock %}

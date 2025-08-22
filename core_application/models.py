@@ -1996,3 +1996,144 @@ class EventRegistration(models.Model):
     
     class Meta:
         unique_together = ['event', 'user']
+
+
+# Add these models to your existing models.py file
+
+from django.contrib.sessions.models import Session
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+import json
+
+class UserSession(models.Model):
+    """Track user sessions and online status"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions')
+    session_key = models.CharField(max_length=40, unique=True)
+    login_time = models.DateTimeField(auto_now_add=True)
+    logout_time = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField()
+    is_active = models.BooleanField(default=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-login_time']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.login_time}"
+    
+    @property
+    def duration(self):
+        """Calculate session duration"""
+        end_time = self.logout_time if self.logout_time else timezone.now()
+        return end_time - self.login_time
+
+class ActivityLog(models.Model):
+    """Track all system activities and changes"""
+    ACTION_TYPES = (
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+        ('view', 'View'),
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('download', 'Download'),
+        ('upload', 'Upload'),
+        ('approve', 'Approve'),
+        ('reject', 'Reject'),
+        ('assign', 'Assign'),
+        ('unassign', 'Unassign'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activity_logs')
+    action = models.CharField(max_length=20, choices=ACTION_TYPES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True)
+    
+    # Generic foreign key to any model
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    # Additional details
+    description = models.TextField(blank=True)
+    old_values = models.TextField(blank=True, help_text="JSON of old values for updates")
+    new_values = models.TextField(blank=True, help_text="JSON of new values for updates")
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['action', 'timestamp']),
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} {self.action} {self.content_object or 'system'}"
+    
+    def get_old_values_dict(self):
+        """Convert old_values JSON string to dict"""
+        try:
+            return json.loads(self.old_values) if self.old_values else {}
+        except json.JSONDecodeError:
+            return {}
+    
+    def get_new_values_dict(self):
+        """Convert new_values JSON string to dict"""
+        try:
+            return json.loads(self.new_values) if self.new_values else {}
+        except json.JSONDecodeError:
+            return {}
+
+class PageVisit(models.Model):
+    """Track page visits for analytics"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='page_visits', null=True, blank=True)
+    session_key = models.CharField(max_length=40, blank=True)
+    url = models.CharField(max_length=500)
+    view_name = models.CharField(max_length=100, blank=True)
+    page_title = models.CharField(max_length=200, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True)
+    referrer = models.CharField(max_length=500, blank=True)
+    response_time = models.IntegerField(null=True, blank=True, help_text="Response time in milliseconds")
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['url', 'timestamp']),
+            models.Index(fields=['view_name', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        username = self.user.username if self.user else 'Anonymous'
+        return f"{username} visited {self.url}"
+
+class SystemMetrics(models.Model):
+    """Store daily system metrics"""
+    date = models.DateField(unique=True)
+    total_users = models.IntegerField(default=0)
+    active_users = models.IntegerField(default=0)
+    new_registrations = models.IntegerField(default=0)
+    total_logins = models.IntegerField(default=0)
+    page_views = models.IntegerField(default=0)
+    unique_visitors = models.IntegerField(default=0)
+    
+    # Student metrics
+    students_online = models.IntegerField(default=0)
+    assignments_submitted = models.IntegerField(default=0)
+    notes_downloaded = models.IntegerField(default=0)
+    
+    # System performance
+    avg_response_time = models.FloatField(null=True, blank=True)
+    error_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"Metrics for {self.date}"

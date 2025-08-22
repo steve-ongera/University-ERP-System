@@ -16992,3 +16992,310 @@ def attendance_analytics_data(request):
         'course_attendance': course_attendance,
         'weekly_trends': weekly_attendance
     })
+
+
+
+# Add this to your views.py
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.sessions.models import Session
+from django.utils import timezone
+from django.db.models import Count, Q, Avg
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+from django.db.models.functions import TruncDate, TruncHour
+from django.contrib.auth import get_user_model
+from .models import (
+    ActivityLog, PageVisit, UserSession, SystemMetrics,
+    Student, Lecturer, Staff, Grade, Enrollment, 
+    FeePayment, HostelBooking, LibraryTransaction
+)
+import json
+
+User = get_user_model()
+
+def is_admin_or_superuser(user):
+    """Check if user is admin or superuser"""
+    return user.is_authenticated and (user.is_superuser or user.user_type in ['admin', 'registrar'])
+
+@login_required
+@user_passes_test(is_admin_or_superuser)
+def admin_profile(request):
+    """
+    Admin profile view with comprehensive system tracking and analytics
+    """
+    # Get current datetime for calculations
+    now = timezone.now()
+    today = now.date()
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+    
+    # ============ ONLINE USERS ============
+    # Users active in the last 15 minutes
+    active_threshold = now - timedelta(minutes=15)
+    online_users = UserSession.objects.filter(
+        is_active=True,
+        last_activity__gte=active_threshold
+    ).select_related('user').order_by('-last_activity')
+    
+    online_count = online_users.count()
+    
+    # Categorize online users
+    online_students = online_users.filter(user__user_type='student').count()
+    online_lecturers = online_users.filter(user__user_type__in=['lecturer', 'professor']).count()
+    online_staff = online_users.filter(user__user_type__in=['admin', 'staff', 'registrar', 'dean', 'hod']).count()
+    
+    # ============ RECENT ACTIVITIES ============
+    recent_activities = ActivityLog.objects.select_related('user', 'content_type').order_by('-timestamp')[:50]
+    
+    # Activity counts by type
+    today_activities = ActivityLog.objects.filter(timestamp__date=today)
+    activity_counts = today_activities.values('action').annotate(count=Count('id')).order_by('-count')
+    
+    # ============ SYSTEM STATISTICS ============
+    # User statistics
+    total_users = User.objects.count()
+    total_students = Student.objects.count()
+    total_lecturers = Lecturer.objects.count()
+    total_staff = Staff.objects.count()
+    
+    # Recent registrations
+    new_users_today = User.objects.filter(date_joined__date=today).count()
+    new_users_week = User.objects.filter(date_joined__gte=week_ago).count()
+    
+    # Login statistics
+    logins_today = ActivityLog.objects.filter(
+        action='login',
+        timestamp__date=today
+    ).count()
+    
+    # ============ PAGE ANALYTICS ============
+    # Most visited pages today
+    popular_pages_today = PageVisit.objects.filter(
+        timestamp__date=today
+    ).values('url', 'view_name').annotate(
+        visits=Count('id'),
+        unique_users=Count('user', distinct=True)
+    ).order_by('-visits')[:10]
+    
+    # Page visits by hour for today
+    hourly_visits = PageVisit.objects.filter(
+        timestamp__date=today
+    ).extra(
+        select={'hour': 'EXTRACT(hour FROM timestamp)'}
+    ).values('hour').annotate(
+        visits=Count('id')
+    ).order_by('hour')
+    
+    # Create hourly data for chart (24 hours)
+    hourly_data = {i: 0 for i in range(24)}
+    for item in hourly_visits:
+        hourly_data[int(item['hour'])] = item['visits']
+    
+    # ============ USER BEHAVIOR ANALYTICS ============
+    # Most active users
+    active_users_week = ActivityLog.objects.filter(
+        timestamp__gte=week_ago
+    ).values('user__username', 'user__first_name', 'user__last_name', 'user__user_type').annotate(
+        activity_count=Count('id')
+    ).order_by('-activity_count')[:10]
+    
+    # Browser/Device analytics
+    user_agents = PageVisit.objects.filter(
+        timestamp__gte=week_ago
+    ).values('user_agent').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    # ============ ACADEMIC ANALYTICS ============
+    # Recent academic activities
+    recent_enrollments = Enrollment.objects.filter(
+        enrollment_date__gte=week_ago
+    ).count()
+    
+    recent_grades = Grade.objects.filter(
+        enrollment__semester__is_current=True
+    ).exclude(grade='').count()
+    
+    # ============ FINANCIAL ANALYTICS ============
+    # Fee payments today
+    payments_today = FeePayment.objects.filter(
+        payment_date=today,
+        payment_status='completed'
+    ).aggregate(
+        count=Count('id'),
+        total=Count('amount_paid') or 0
+    )
+    
+    # ============ SYSTEM PERFORMANCE ============
+    # Average response time for today
+    avg_response_time = PageVisit.objects.filter(
+        timestamp__date=today,
+        response_time__isnull=False
+    ).aggregate(avg_time=Avg('response_time'))['avg_time'] or 0
+    
+    # Error logs (you might need to implement error tracking)
+    error_count = ActivityLog.objects.filter(
+        timestamp__date=today,
+        description__icontains='error'
+    ).count()
+    
+    # ============ PRIVILEGED USER ACTIVITIES ============
+    # Track what privileged users (admin, staff, lecturers) did
+    privileged_activities = ActivityLog.objects.filter(
+        user__user_type__in=['admin', 'staff', 'registrar', 'dean', 'hod', 'lecturer', 'professor'],
+        timestamp__gte=week_ago
+    ).select_related('user', 'content_type').order_by('-timestamp')[:20]
+    
+    # ============ CHARTS DATA FOR FRONTEND ============
+    # Daily activity chart (last 7 days)
+    daily_activities = []
+    for i in range(7):
+        date = today - timedelta(days=i)
+        count = ActivityLog.objects.filter(timestamp__date=date).count()
+        daily_activities.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'count': count
+        })
+    daily_activities.reverse()
+    
+    # User type distribution for pie chart
+    user_distribution = [
+        {'type': 'Students', 'count': total_students},
+        {'type': 'Lecturers', 'count': total_lecturers},
+        {'type': 'Staff', 'count': total_staff},
+    ]
+    
+    # Most visited pages data for chart
+    page_visits_data = [
+        {
+            'page': item['url'].split('/')[-2] or 'Dashboard' if item['url'] != '/' else 'Dashboard',
+            'visits': item['visits'],
+            'unique_users': item['unique_users']
+        }
+        for item in popular_pages_today[:5]
+    ]
+    
+    context = {
+        'title': 'Admin Profile & System Analytics',
+        
+        # Current user info
+        'current_user': request.user,
+        
+        # Online users
+        'online_users': online_users[:20],  # Limit display
+        'online_count': online_count,
+        'online_students': online_students,
+        'online_lecturers': online_lecturers,
+        'online_staff': online_staff,
+        
+        # System statistics
+        'total_users': total_users,
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'total_staff': total_staff,
+        'new_users_today': new_users_today,
+        'new_users_week': new_users_week,
+        'logins_today': logins_today,
+        
+        # Activities
+        'recent_activities': recent_activities,
+        'privileged_activities': privileged_activities,
+        'activity_counts': activity_counts,
+        
+        # Page analytics
+        'popular_pages_today': popular_pages_today,
+        'active_users_week': active_users_week,
+        
+        # Academic stats
+        'recent_enrollments': recent_enrollments,
+        'recent_grades': recent_grades,
+        
+        # Financial stats
+        'payments_today': payments_today,
+        
+        # Performance metrics
+        'avg_response_time': round(avg_response_time, 2),
+        'error_count': error_count,
+        
+        # Chart data (JSON serialized)
+        'daily_activities_json': json.dumps(daily_activities),
+        'hourly_data_json': json.dumps(list(hourly_data.values())),
+        'user_distribution_json': json.dumps(user_distribution),
+        'page_visits_data_json': json.dumps(page_visits_data),
+        
+        # Time ranges for display
+        'today': today,
+        'week_ago': week_ago,
+    }
+    
+    return render(request, 'admin/admin_profile.html', context)
+
+@login_required
+@user_passes_test(is_admin_or_superuser)
+def admin_profile_api(request):
+    """
+    API endpoint for real-time data updates
+    """
+    data_type = request.GET.get('type', 'online_users')
+    
+    if data_type == 'online_users':
+        # Get current online users
+        active_threshold = timezone.now() - timedelta(minutes=15)
+        online_users = UserSession.objects.filter(
+            is_active=True,
+            last_activity__gte=active_threshold
+        ).select_related('user').values(
+            'user__username',
+            'user__first_name',
+            'user__last_name',
+            'user__user_type',
+            'login_time',
+            'last_activity',
+            'ip_address'
+        )
+        
+        return JsonResponse({
+            'online_users': list(online_users),
+            'count': len(online_users)
+        })
+    
+    elif data_type == 'recent_activities':
+        # Get recent activities
+        activities = ActivityLog.objects.select_related(
+            'user', 'content_type'
+        ).order_by('-timestamp')[:10].values(
+            'user__username',
+            'action',
+            'timestamp',
+            'description',
+            'content_type__model'
+        )
+        
+        return JsonResponse({
+            'activities': list(activities)
+        })
+    
+    elif data_type == 'system_stats':
+        # Get real-time system statistics
+        now = timezone.now()
+        today = now.date()
+        
+        stats = {
+            'online_count': UserSession.objects.filter(
+                is_active=True,
+                last_activity__gte=now - timedelta(minutes=15)
+            ).count(),
+            'activities_today': ActivityLog.objects.filter(
+                timestamp__date=today
+            ).count(),
+            'logins_today': ActivityLog.objects.filter(
+                action='login',
+                timestamp__date=today
+            ).count(),
+        }
+        
+        return JsonResponse(stats)
+    
+    return JsonResponse({'error': 'Invalid data type'}, status=400)
