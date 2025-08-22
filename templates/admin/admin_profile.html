@@ -3,7 +3,27 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+
 {% block content %}
+
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .small-chart {
+        height: 200px !important;
+    }
+    .loading-chart {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+        color: #6c757d;
+    }
+</style>
+
 <div class="container onprintContainer">
     <!-- Header -->
     <div class="row mt-3 d-flex flex-row pb-3">
@@ -52,39 +72,24 @@
                         <!-- Navigation Menu -->
                         <ul class="nav flex-column prof">
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link active px-1" href="#" id="system-overview-tab" data-bs-toggle="tab" data-bs-target="#system-overview" role="tab">
+                                <a class="nav-link active px-1" href="#system-overview" id="system-overview-tab" data-bs-toggle="tab" role="tab">
                                     <i class="bi bi-speedometer2 mx-3"></i><span>System Overview</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="online-users-tab" data-bs-toggle="tab" data-bs-target="#online-users" role="tab">
+                                <a class="nav-link px-0" href="#online-users" id="online-users-tab" data-bs-toggle="tab" role="tab">
                                     <i class="bi bi-people-fill mx-3"></i><span>Online Users</span>
                                     <span class="badge bg-success ms-2" id="onlineCountBadge">{{ online_count }}</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="activity-logs-tab" data-bs-toggle="tab" data-bs-target="#activity-logs" role="tab">
+                                <a class="nav-link px-0" href="#activity-logs" id="activity-logs-tab" data-bs-toggle="tab" role="tab">
                                     <i class="bi bi-activity mx-3"></i><span>Activity Logs</span>
                                 </a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="page-analytics-tab" data-bs-toggle="tab" data-bs-target="#page-analytics" role="tab">
+                                <a class="nav-link px-0" href="#page-analytics" id="page-analytics-tab" data-bs-toggle="tab" role="tab">
                                     <i class="bi bi-graph-up mx-3"></i><span>Page Analytics</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="user-behavior-tab" data-bs-toggle="tab" data-bs-target="#user-behavior" role="tab">
-                                    <i class="bi bi-person-check mx-3"></i><span>User Behavior</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="security-monitoring-tab" data-bs-toggle="tab" data-bs-target="#security-monitoring" role="tab">
-                                    <i class="bi bi-shield-lock mx-3"></i><span>Security Monitoring</span>
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link px-0" id="performance-metrics-tab" data-bs-toggle="tab" data-bs-target="#performance-metrics" role="tab">
-                                    <i class="bi bi-speedometer mx-3"></i><span>Performance</span>
                                 </a>
                             </li>
                         </ul>
@@ -165,7 +170,10 @@
                                     <h6 class="card-title mb-0">Daily Activity (Last 7 Days)</h6>
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="dailyActivityChart" height="200"></canvas>
+                                    <div class="chart-container">
+                                        <div class="loading-chart" id="dailyActivityLoading">Loading chart...</div>
+                                        <canvas id="dailyActivityChart" style="display: none;"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -176,7 +184,10 @@
                                     <h6 class="card-title mb-0">User Distribution</h6>
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="userDistributionChart" height="200"></canvas>
+                                    <div class="chart-container">
+                                        <div class="loading-chart" id="userDistributionLoading">Loading chart...</div>
+                                        <canvas id="userDistributionChart" style="display: none;"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -306,74 +317,10 @@
                 <!-- Activity Logs Tab -->
                 <div id="activity-logs" class="container tab-pane fade" role="tabpanel">
                     <div class="row mt-3">
-                        <!-- Privileged User Activities -->
-                        <div class="col-md-12 mb-3">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">Privileged User Activities (Last 7 Days)</h6>
-                                    <small class="text-muted">Activities by Admin, Staff, and Lecturers</small>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>User</th>
-                                                    <th>Action</th>
-                                                    <th>Target</th>
-                                                    <th>Description</th>
-                                                    <th>Time</th>
-                                                    <th>IP</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for activity in privileged_activities %}
-                                                <tr>
-                                                    <td>
-                                                        <strong>{{ activity.user.get_full_name }}</strong><br>
-                                                        <small class="text-muted">{{ activity.user.user_type|title }}</small>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge 
-                                                            {% if activity.action == 'create' %}bg-success
-                                                            {% elif activity.action == 'update' %}bg-info
-                                                            {% elif activity.action == 'delete' %}bg-danger
-                                                            {% else %}bg-secondary{% endif %}">
-                                                            {{ activity.action|title }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {% if activity.content_type %}
-                                                            {{ activity.content_type.model|title }}
-                                                        {% else %}
-                                                            System
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>{{ activity.description|truncatechars:50 }}</td>
-                                                    <td>
-                                                        <small>{{ activity.timestamp|date:"M d, H:i" }}</small>
-                                                    </td>
-                                                    <td>
-                                                        <small>{{ activity.ip_address }}</small>
-                                                    </td>
-                                                </tr>
-                                                {% empty %}
-                                                <tr>
-                                                    <td colspan="6" class="text-center">No recent privileged activities</td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- All Recent Activities -->
                         <div class="col-md-12">
                             <div class="card">
                                 <div class="card-header">
-                                    <h6 class="card-title mb-0">All Recent System Activities</h6>
+                                    <h6 class="card-title mb-0">Recent System Activities</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -425,13 +372,16 @@
                                     <h6 class="card-title mb-0">Page Visits Today (Hourly)</h6>
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="hourlyVisitsChart" height="100"></canvas>
+                                    <div class="chart-container">
+                                        <div class="loading-chart" id="hourlyVisitsLoading">Loading chart...</div>
+                                        <canvas id="hourlyVisitsChart" style="display: none;"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Most Popular Pages -->
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="card">
                                 <div class="card-header">
                                     <h6 class="card-title mb-0">Most Visited Pages Today</h6>
@@ -442,6 +392,7 @@
                                             <thead>
                                                 <tr>
                                                     <th>Page</th>
+                                                    <th>View Name</th>
                                                     <th>Visits</th>
                                                     <th>Unique Users</th>
                                                 </tr>
@@ -449,201 +400,18 @@
                                             <tbody>
                                                 {% for page in popular_pages_today %}
                                                 <tr>
-                                                    <td>
-                                                        <strong>{{ page.url }}</strong><br>
-                                                        <small class="text-muted">{{ page.view_name }}</small>
-                                                    </td>
+                                                    <td><strong>{{ page.url }}</strong></td>
+                                                    <td><small class="text-muted">{{ page.view_name }}</small></td>
                                                     <td>{{ page.visits }}</td>
                                                     <td>{{ page.unique_users }}</td>
                                                 </tr>
                                                 {% empty %}
                                                 <tr>
-                                                    <td colspan="3" class="text-center">No page visits today</td>
+                                                    <td colspan="4" class="text-center">No page visits today</td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>
                                         </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Page Visits Chart -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">Top Pages Chart</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="pageVisitsChart" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- User Behavior Tab -->
-                <div id="user-behavior" class="container tab-pane fade" role="tabpanel">
-                    <div class="row mt-3">
-                        <!-- Most Active Users -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">Most Active Users (This Week)</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>User</th>
-                                                    <th>Type</th>
-                                                    <th>Activities</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for user in active_users_week %}
-                                                <tr>
-                                                    <td>
-                                                        <strong>{{ user.user__first_name }} {{ user.user__last_name }}</strong><br>
-                                                        <small class="text-muted">{{ user.user__username }}</small>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge bg-info">{{ user.user__user_type|title }}</span>
-                                                    </td>
-                                                    <td>{{ user.activity_count }}</td>
-                                                </tr>
-                                                {% empty %}
-                                                <tr>
-                                                    <td colspan="3" class="text-center">No active users this week</td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Activity Type Distribution -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">Activity Types Today</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>Action</th>
-                                                    <th>Count</th>
-                                                    <th>Percentage</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for activity in activity_counts %}
-                                                <tr>
-                                                    <td>{{ activity.action|title }}</td>
-                                                    <td>{{ activity.count }}</td>
-                                                    <td>
-                                                        {% widthratio activity.count activity_counts.0.count 100 %}%
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Security Monitoring Tab -->
-                <div id="security-monitoring" class="container tab-pane fade" role="tabpanel">
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">Security Alerts & Monitoring</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i>
-                                        <strong>Security Status:</strong> All systems operational. No security threats detected.
-                                    </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="card bg-success text-white">
-                                                <div class="card-body text-center">
-                                                    <h4>{{ logins_today }}</h4>
-                                                    <p class="mb-0">Successful Logins Today</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card bg-warning text-white">
-                                                <div class="card-body text-center">
-                                                    <h4>0</h4>
-                                                    <p class="mb-0">Failed Login Attempts</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="card bg-danger text-white">
-                                                <div class="card-body text-center">
-                                                    <h4>{{ error_count }}</h4>
-                                                    <p class="mb-0">System Errors Today</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Performance Metrics Tab -->
-                <div id="performance-metrics" class="container tab-pane fade" role="tabpanel">
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="card-title mb-0">System Performance Metrics</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <div class="text-center p-3 border rounded">
-                                                <h4 class="text-primary">{{ avg_response_time }}ms</h4>
-                                                <p class="mb-0">Avg Response Time</p>
-                                                <small class="text-muted">Today</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="text-center p-3 border rounded">
-                                                <h4 class="text-success">{{ recent_enrollments }}</h4>
-                                                <p class="mb-0">New Enrollments</p>
-                                                <small class="text-muted">This Week</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="text-center p-3 border rounded">
-                                                <h4 class="text-info">{{ recent_grades }}</h4>
-                                                <p class="mb-0">Grades Posted</p>
-                                                <small class="text-muted">Current Semester</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="text-center p-3 border rounded">
-                                                <h4 class="text-warning">{{ payments_today.count }}</h4>
-                                                <p class="mb-0">Payments Today</p>
-                                                <small class="text-muted">Count</small>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -655,139 +423,296 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<!-- Load Chart.js from CDN with proper fallback -->
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-$(document).ready(function() {
-    // Initialize charts with data from Django
-    const dailyActivitiesData = {{ daily_activities_json|safe }};
-    const hourlyData = {{ hourly_data_json|safe }};
-    const userDistribution = {{ user_distribution_json|safe }};
-    const pageVisitsData = {{ page_visits_data_json|safe }};
-
-    // Daily Activity Chart
-    const dailyCtx = document.getElementById('dailyActivityChart').getContext('2d');
-    new Chart(dailyCtx, {
-        type: 'line',
-        data: {
-            labels: dailyActivitiesData.map(d => d.date),
-            datasets: [{
-                label: 'Activities',
-                data: dailyActivitiesData.map(d => d.count),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
+// Function to load Chart.js with fallback
+function loadChartJS() {
+    return new Promise((resolve, reject) => {
+        // Try primary CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => {
+            console.log('Chart.js loaded successfully from primary CDN');
+            resolve();
+        };
+        script.onerror = () => {
+            console.log('Primary CDN failed, trying fallback...');
+            // Try fallback CDN
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            fallbackScript.onload = () => {
+                console.log('Chart.js loaded successfully from fallback CDN');
+                resolve();
+            };
+            fallbackScript.onerror = () => {
+                console.error('All CDNs failed to load Chart.js');
+                reject(new Error('Failed to load Chart.js'));
+            };
+            document.head.appendChild(fallbackScript);
+        };
+        document.head.appendChild(script);
     });
+}
 
-    // User Distribution Pie Chart
-    const userCtx = document.getElementById('userDistributionChart').getContext('2d');
-    new Chart(userCtx, {
-        type: 'doughnut',
-        data: {
-            labels: userDistribution.map(d => d.type),
-            datasets: [{
-                data: userDistribution.map(d => d.count),
-                backgroundColor: [
-                    'rgba(54, 162, 235, 0.8)',
-                    'rgba(255, 99, 132, 0.8)',
-                    'rgba(255, 205, 86, 0.8)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
+// Initialize charts after Chart.js is loaded
+async function initializeCharts() {
+    try {
+        // Wait for Chart.js to load
+        await loadChartJS();
+        
+        // Verify Chart is available
+        if (typeof Chart === 'undefined') {
+            throw new Error('Chart.js library not available');
         }
-    });
 
-    // Hourly Visits Chart
-    const hourlyCtx = document.getElementById('hourlyVisitsChart').getContext('2d');
-    new Chart(hourlyCtx, {
-        type: 'bar',
-        data: {
-            labels: Array.from({length: 24}, (_, i) => i + ':00'),
-            datasets: [{
-                label: 'Page Visits',
-                data: hourlyData,
-                backgroundColor: 'rgba(153, 102, 255, 0.6)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
+        console.log('Chart.js loaded successfully, initializing charts...');
+
+        // Get data from Django template with proper error handling
+        let dailyActivitiesData, hourlyData, userDistribution, pageVisitsData;
+        
+        try {
+            dailyActivitiesData = {{ daily_activities_json|safe }};
+            hourlyData = {{ hourly_data_json|safe }};
+            userDistribution = {{ user_distribution_json|safe }};
+            pageVisitsData = {{ page_visits_data_json|safe }};
+            
+            console.log('Chart data loaded:', {
+                dailyActivitiesData: dailyActivitiesData?.length || 0,
+                hourlyData: hourlyData?.length || 0,
+                userDistribution: userDistribution?.length || 0,
+                pageVisitsData: pageVisitsData?.length || 0
+            });
+        } catch(e) {
+            console.error('Error loading chart data:', e);
+            showChartError('Failed to load chart data');
+            return;
         }
-    });
 
-    // Page Visits Chart
-    if (pageVisitsData.length > 0) {
-        const pageCtx = document.getElementById('pageVisitsChart').getContext('2d');
-        new Chart(pageCtx, {
-            type: 'bar',
-            data: {
-                labels: pageVisitsData.map(d => d.page),
-                datasets: [{
-                    label: 'Visits',
-                    data: pageVisitsData.map(d => d.visits),
-                    backgroundColor: 'rgba(255, 159, 64, 0.6)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
+        // 1. Daily Activity Chart
+        const dailyCtx = document.getElementById('dailyActivityChart');
+        const dailyLoading = document.getElementById('dailyActivityLoading');
+        
+        if (dailyCtx && dailyActivitiesData && dailyActivitiesData.length > 0) {
+            try {
+                new Chart(dailyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dailyActivitiesData.map(d => new Date(d.date).toLocaleDateString()),
+                        datasets: [{
+                            label: 'Activities',
+                            data: dailyActivitiesData.map(d => d.count),
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Daily Activities'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
                     }
-                }
+                });
+                dailyLoading.style.display = 'none';
+                dailyCtx.style.display = 'block';
+                console.log('Daily activity chart created successfully');
+            } catch(e) {
+                console.error('Error creating daily activity chart:', e);
+                dailyLoading.textContent = 'Error loading chart';
             }
-        });
-    }
+        } else {
+            dailyLoading.textContent = 'No data available';
+        }
 
+        // 2. User Distribution Pie Chart
+        const userCtx = document.getElementById('userDistributionChart');
+        const userLoading = document.getElementById('userDistributionLoading');
+        
+        if (userCtx && userDistribution && userDistribution.length > 0) {
+            try {
+                new Chart(userCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: userDistribution.map(d => d.type),
+                        datasets: [{
+                            data: userDistribution.map(d => d.count),
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(255, 205, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'User Type Distribution'
+                            },
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+                userLoading.style.display = 'none';
+                userCtx.style.display = 'block';
+                console.log('User distribution chart created successfully');
+            } catch(e) {
+                console.error('Error creating user distribution chart:', e);
+                userLoading.textContent = 'Error loading chart';
+            }
+        } else {
+            userLoading.textContent = 'No data available';
+        }
+
+        // 3. Hourly Visits Chart
+        const hourlyCtx = document.getElementById('hourlyVisitsChart');
+        const hourlyLoading = document.getElementById('hourlyVisitsLoading');
+        
+        if (hourlyCtx && hourlyData) {
+            try {
+                const hourLabels = Array.from({length: 24}, (_, i) => `${i}:00`);
+                new Chart(hourlyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: hourLabels,
+                        datasets: [{
+                            label: 'Page Visits',
+                            data: hourlyData,
+                            backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Hourly Page Visits Today'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+                hourlyLoading.style.display = 'none';
+                hourlyCtx.style.display = 'block';
+                console.log('Hourly visits chart created successfully');
+            } catch(e) {
+                console.error('Error creating hourly visits chart:', e);
+                hourlyLoading.textContent = 'Error loading chart';
+            }
+        } else {
+            hourlyLoading.textContent = 'No data available';
+        }
+
+        console.log('All charts initialized successfully');
+        
+    } catch (error) {
+        console.error('Failed to initialize charts:', error);
+        showChartError('Charts could not be loaded. Please check your internet connection.');
+    }
+}
+
+function showChartError(message) {
+    const loadingElements = document.querySelectorAll('[id$="Loading"]');
+    loadingElements.forEach(el => {
+        el.textContent = message;
+        el.style.color = '#dc3545';
+    });
+}
+
+// Real-time updates and other functionality
+function setupEventHandlers() {
     // Real-time updates
     function updateOnlineUsers() {
-        $.get('{% url "admin_profile_api" %}?type=online_users', function(data) {
-            $('#onlineCountBadge').text(data.count);
-            // Update table if needed
-        });
+        fetch('{% url "admin_profile_api" %}?type=online_users')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                const badge = document.getElementById('onlineCountBadge');
+                if (badge) {
+                    badge.textContent = data.count;
+                }
+                console.log('Online users updated:', data.count);
+            })
+            .catch(error => {
+                console.error('Error updating online users:', error);
+            });
     }
 
     // Refresh data button
-    $('#refreshData').click(function() {
-        location.reload();
-    });
+    const refreshBtn = document.getElementById('refreshData');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            location.reload();
+        });
+    }
 
     // Export report button
-    $('#exportReport').click(function() {
-        alert('Export functionality to be implemented');
-    });
+    const exportBtn = document.getElementById('exportReport');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            alert('Export functionality to be implemented');
+        });
+    }
 
     // Auto-refresh online users every 30 seconds
     setInterval(updateOnlineUsers, 30000);
 
-    // Initialize tooltips
-    $('[data-bs-toggle="tooltip"]').tooltip();
-
-    // Handle tab switching
-    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-        window.location.hash = e.target.hash;
-        $('.nav-link').removeClass('active');
-        $(this).addClass('active');
+    // Tab switching handler
+    const tabLinks = document.querySelectorAll('a[data-bs-toggle="tab"]');
+    tabLinks.forEach(link => {
+        link.addEventListener('shown.bs.tab', function(e) {
+            // Remove active class from all links
+            tabLinks.forEach(l => l.classList.remove('active'));
+            // Add active class to current link
+            e.target.classList.add('active');
+        });
     });
+}
+
+// Initialize everything when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, starting initialization...');
+    
+    // Initialize charts
+    initializeCharts();
+    
+    // Setup event handlers
+    setupEventHandlers();
+    
+    console.log('Initialization completed');
 });
 </script>
 {% endblock %}
