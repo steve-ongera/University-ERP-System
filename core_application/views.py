@@ -3697,6 +3697,36 @@ def get_departments_by_faculty(request):
         return JsonResponse({'departments': list(departments)})
     return JsonResponse({'departments': []})
 
+
+@login_required
+def edit_programme(request, programme_id):
+    """View to edit an existing programme"""
+    programme = get_object_or_404(Programme, id=programme_id)
+    
+    if request.method == 'POST':
+        form = ProgrammeForm(request.POST, instance=programme)
+        if form.is_valid():
+            updated_programme = form.save()
+            messages.success(request, f'Programme "{updated_programme.name}" has been successfully updated.')
+            return redirect('programme_detail', updated_programme.id)
+        else:
+            messages.error(request, 'There were errors in the form. Please correct them and try again.')
+    else:
+        form = ProgrammeForm(instance=programme)
+    
+    context = {
+        'form': form,
+        'programme': programme,
+        'faculties': Faculty.objects.filter(is_active=True).order_by('name'),
+        'departments': Department.objects.filter(is_active=True).order_by('name'),
+        'programme_types': Programme.PROGRAMME_TYPES,
+        'programme_modes': Programme.PROGRAMME_MODES,
+        'is_editing': True,
+    }
+    
+    return render(request, 'programmes/edit_programme.html', context)
+
+    
 @login_required
 def programme_detail(request, programme_id):
     """View to display programme details with courses organized by year and semester"""

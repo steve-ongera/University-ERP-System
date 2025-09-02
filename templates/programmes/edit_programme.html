@@ -1,0 +1,553 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Edit Programme</h2>
+                        <p class="text-muted mb-0">
+                            Update programme: <strong>{{ programme.name }}</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'programme_detail' programme.id %}" class="btn btn-outline-info me-2">
+                            <i class="bi bi-eye"></i> View Details
+                        </a>
+                        <a href="{% url 'programme_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Programmes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST" id="programme-form">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>Basic Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">
+                                    {{ form.code.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.code }}
+                                <small class="form-text text-muted">Current: {{ programme.code }}</small>
+                                {% if form.code.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.code.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.programme_type.id_for_label }}" class="form-label">
+                                    {{ form.programme_type.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.programme_type }}
+                                {% if form.programme_type.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.programme_type.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.study_mode.id_for_label }}" class="form-label">
+                                    {{ form.study_mode.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.study_mode }}
+                                {% if form.study_mode.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.study_mode.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Academic Structure -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-diagram-3 text-primary me-2"></i>Academic Structure
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.faculty.id_for_label }}" class="form-label">
+                                    {{ form.faculty.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.faculty }}
+                                <small class="form-text text-muted">Current: {{ programme.faculty.name }}</small>
+                                {% if form.faculty.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.faculty.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">
+                                    {{ form.department.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.department }}
+                                <small class="form-text text-muted">Current: {{ programme.department.name }}</small>
+                                {% if form.department.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.department.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Programme Duration -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-clock text-primary me-2"></i>Programme Duration
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.duration_years.id_for_label }}" class="form-label">
+                                    {{ form.duration_years.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.duration_years }}
+                                <small class="form-text text-muted">Current: {{ programme.duration_years }} years</small>
+                                {% if form.duration_years.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.duration_years.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.semesters_per_year.id_for_label }}" class="form-label">
+                                    {{ form.semesters_per_year.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.semesters_per_year }}
+                                <small class="form-text text-muted">Current: {{ programme.semesters_per_year }}</small>
+                                {% if form.semesters_per_year.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.semesters_per_year.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.total_semesters.id_for_label }}" class="form-label">
+                                    {{ form.total_semesters.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.total_semesters }}
+                                <small class="form-text text-muted">Current: {{ programme.total_semesters }}</small>
+                                {% if form.total_semesters.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.total_semesters.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.credit_hours_required.id_for_label }}" class="form-label">
+                                    {{ form.credit_hours_required.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.credit_hours_required }}
+                                <small class="form-text text-muted">Current: {{ programme.credit_hours_required }} hours</small>
+                                {% if form.credit_hours_required.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.credit_hours_required.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Detailed Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-file-earmark-text text-primary me-2"></i>Programme Details
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    {{ form.description.label }}
+                                </label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.description.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.entry_requirements.id_for_label }}" class="form-label">
+                                    {{ form.entry_requirements.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.entry_requirements }}
+                                {% if form.entry_requirements.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.entry_requirements.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.career_prospects.id_for_label }}" class="form-label">
+                                    {{ form.career_prospects.label }}
+                                </label>
+                                {{ form.career_prospects }}
+                                {% if form.career_prospects.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.career_prospects.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Status Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-gear text-primary me-2"></i>Status Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Programme Status</small>
+                                        <div class="d-flex align-items-center">
+                                            {% if programme.is_active %}
+                                                <span class="badge bg-success me-2">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger me-2">Inactive</span>
+                                            {% endif %}
+                                            <small class="text-muted">Since {{ programme.created_at|date:"M d, Y" }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Last Modified</small>
+                                        <div class="fw-bold">{{ programme.created_at|date:"M d, Y g:i A" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Programme ID</small>
+                                        <div class="fw-bold">#{{ programme.id }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Errors -->
+                        {% if form.non_field_errors %}
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Please correct the following errors:</strong>
+                                        {% for error in form.non_field_errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Changes will be saved immediately upon submission.
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'programme_list' %}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-x-lg"></i> Cancel
+                                        </a>
+                                        <a href="{% url 'programme_detail' programme.id %}" class="btn btn-outline-info">
+                                            <i class="bi bi-eye"></i> View Details
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-save"></i> Update Programme
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-calculate total semesters
+    const durationYearsField = document.getElementById('{{ form.duration_years.id_for_label }}');
+    const semestersPerYearField = document.getElementById('{{ form.semesters_per_year.id_for_label }}');
+    const totalSemestersField = document.getElementById('{{ form.total_semesters.id_for_label }}');
+    
+    function calculateTotalSemesters() {
+        const duration = parseInt(durationYearsField.value) || 0;
+        const semestersPerYear = parseInt(semestersPerYearField.value) || 0;
+        if (duration > 0 && semestersPerYear > 0) {
+            totalSemestersField.value = duration * semestersPerYear;
+            // Add visual feedback for calculated value
+            totalSemestersField.style.backgroundColor = '#e8f5e8';
+            setTimeout(() => {
+                totalSemestersField.style.backgroundColor = '';
+            }, 1000);
+        }
+    }
+    
+    durationYearsField.addEventListener('input', calculateTotalSemesters);
+    semestersPerYearField.addEventListener('input', calculateTotalSemesters);
+    
+    // Faculty-Department dependency with current values
+    const facultyField = document.getElementById('id_faculty');
+    const departmentField = document.getElementById('id_department');
+    const currentDepartmentId = '{{ programme.department.id }}';
+    
+    // Store current department options
+    function populateDepartments(facultyId, selectedDepartmentId = null) {
+        if (facultyId) {
+            fetch(`{% url 'departments_by_faculty' %}?faculty_id=${facultyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear existing options except the first one
+                    departmentField.innerHTML = '<option value="">---------</option>';
+                    
+                    data.departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = `${dept.name} (${dept.code})`;
+                        if (selectedDepartmentId && dept.id == selectedDepartmentId) {
+                            option.selected = true;
+                        }
+                        departmentField.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching departments:', error);
+                });
+        } else {
+            departmentField.innerHTML = '<option value="">---------</option>';
+        }
+    }
+    
+    // Load departments for current faculty on page load
+    if (facultyField.value) {
+        populateDepartments(facultyField.value, currentDepartmentId);
+    }
+    
+    facultyField.addEventListener('change', function() {
+        const facultyId = this.value;
+        populateDepartments(facultyId);
+    });
+    
+    // Form validation enhancement with visual feedback
+    const form = document.getElementById('programme-form');
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
+        let isValid = true;
+        let firstInvalidField = null;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Scroll to first invalid field
+            if (firstInvalidField) {
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidField.focus();
+            }
+            
+            // Show error message
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+            errorAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+            errorAlert.innerHTML = `
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Validation Error!</strong><br>
+                Please fill in all required fields.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(errorAlert);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    errorAlert.remove();
+                }
+            }, 5000);
+        }
+    });
+    
+    // Add change detection to warn users of unsaved changes
+    let formChanged = false;
+    const formElements = form.querySelectorAll('input, select, textarea');
+    
+    formElements.forEach(element => {
+        element.addEventListener('change', () => {
+            formChanged = true;
+        });
+    });
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+    
+    // Remove change detection on form submit
+    form.addEventListener('submit', () => {
+        formChanged = false;
+    });
+});
+</script>
+
+<style>
+.form-label {
+    font-weight: 500;
+}
+
+.text-danger {
+    font-size: 0.875rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+    animation: shake 0.5s;
+}
+
+.is-valid {
+    border-color: #198754;
+}
+
+@keyframes shake {
+    0%, 20%, 40%, 60%, 80% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+hr {
+    border-top: 2px solid #dee2e6;
+}
+
+.btn-group-sm .btn {
+    padding: 0.375rem 0.75rem;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.form-text {
+    font-size: 0.8rem;
+}
+
+.badge {
+    font-size: 0.7rem;
+}
+
+h5 i {
+    font-size: 1.2rem;
+}
+</style>
+
+{% endblock %}

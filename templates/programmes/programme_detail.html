@@ -51,7 +51,7 @@
                             <button class="btn btn-success" onclick="showAddYearModal()">
                                 <i class="bi bi-plus"></i> Add Year
                             </button>
-                            <a href="#" class="btn btn-outline-secondary">
+                            <a href="{% url 'edit_programme' programme.id %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-pencil"></i> Edit Programme
                             </a>
                             <a href="{% url 'programme_list' %}" class="btn btn-outline-primary">

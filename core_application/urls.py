@@ -119,6 +119,7 @@ urlpatterns = [
     # Programme URLs
     path('programmes/', views.programme_list, name='programme_list'),
     path('programmes/add/', views.add_programme, name='add_programme'),
+    path('programmes/<int:programme_id>/edit/', views.edit_programme, name='edit_programme'),
     path('ajax/departments-by-faculty/', views.get_departments_by_faculty, name='departments_by_faculty'),
     path('programmes/<int:programme_id>/', views.programme_detail, name='programme_detail'),
     path('programmes/<int:programme_id>/courses/<int:course_id>/enrollments/', 
