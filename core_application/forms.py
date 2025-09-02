@@ -916,3 +916,142 @@ class CommentFilterForm(forms.Form):
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+
+
+# forms.py
+from django import forms
+from .models import Programme, Faculty, Department
+
+class ProgrammeForm(forms.ModelForm):
+    class Meta:
+        model = Programme
+        fields = [
+            'name', 'code', 'programme_type', 'study_mode', 
+            'faculty', 'department', 'duration_years', 
+            'semesters_per_year', 'total_semesters', 
+            'credit_hours_required', 'description', 
+            'entry_requirements', 'career_prospects'
+        ]
+        
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Bachelor of Computer Science'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., BCS',
+                'maxlength': 15
+            }),
+            'programme_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'study_mode': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'faculty': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_faculty'
+            }),
+            'department': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_department'
+            }),
+            'duration_years': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 8
+            }),
+            'semesters_per_year': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 2,
+                'max': 3,
+                'value': 2
+            }),
+            'total_semesters': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 2,
+                'max': 24
+            }),
+            'credit_hours_required': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 60,
+                'max': 300
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Brief description of the programme...'
+            }),
+            'entry_requirements': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'List the entry requirements for this programme...'
+            }),
+            'career_prospects': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe career opportunities for graduates...'
+            }),
+        }
+        
+        labels = {
+            'name': 'Programme Name',
+            'code': 'Programme Code',
+            'programme_type': 'Programme Type',
+            'study_mode': 'Study Mode',
+            'faculty': 'Faculty',
+            'department': 'Department',
+            'duration_years': 'Duration (Years)',
+            'semesters_per_year': 'Semesters per Year',
+            'total_semesters': 'Total Semesters',
+            'credit_hours_required': 'Credit Hours Required',
+            'description': 'Programme Description',
+            'entry_requirements': 'Entry Requirements',
+            'career_prospects': 'Career Prospects',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make department field empty initially
+        self.fields['department'].queryset = Department.objects.none()
+        
+        # If we have a faculty selected (in case of form errors), populate departments
+        if 'faculty' in self.data:
+            try:
+                faculty_id = int(self.data.get('faculty'))
+                self.fields['department'].queryset = Department.objects.filter(
+                    faculty_id=faculty_id, is_active=True
+                ).order_by('name')
+            except (ValueError, TypeError):
+                pass
+        elif self.instance.pk and self.instance.faculty:
+            self.fields['department'].queryset = self.instance.faculty.departments.filter(
+                is_active=True
+            ).order_by('name')
+    
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+        if code:
+            code = code.upper()
+            # Check if code already exists
+            if Programme.objects.filter(code=code).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
+                raise forms.ValidationError('A programme with this code already exists.')
+        return code
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        duration_years = cleaned_data.get('duration_years')
+        semesters_per_year = cleaned_data.get('semesters_per_year')
+        total_semesters = cleaned_data.get('total_semesters')
+        
+        # Validate that total semesters matches duration and semesters per year
+        if duration_years and semesters_per_year and total_semesters:
+            expected_semesters = duration_years * semesters_per_year
+            if total_semesters != expected_semesters:
+                raise forms.ValidationError(
+                    f'Total semesters ({total_semesters}) should equal '
+                    f'Duration Years ({duration_years}) × Semesters per Year ({semesters_per_year}) = {expected_semesters}'
+                )
+        
+        return cleaned_data

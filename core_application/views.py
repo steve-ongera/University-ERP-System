@@ -3651,6 +3651,52 @@ def programme_list(request):
     return render(request, 'programmes/programme_list.html', context)
 
 
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
+from .models import Programme, Faculty, Department, User
+from .forms import ProgrammeForm  # We'll create this form
+
+@login_required
+def add_programme(request):
+    """View to add a new programme"""
+    if request.method == 'POST':
+        form = ProgrammeForm(request.POST)
+        if form.is_valid():
+            programme = form.save()
+            messages.success(request, f'Programme "{programme.name}" has been successfully created.')
+            return redirect('programme_detail', programme.id)
+        else:
+            messages.error(request, 'There were errors in the form. Please correct them and try again.')
+    else:
+        form = ProgrammeForm()
+    
+    context = {
+        'form': form,
+        'faculties': Faculty.objects.filter(is_active=True).order_by('name'),
+        'departments': Department.objects.filter(is_active=True).order_by('name'),
+        'programme_types': Programme.PROGRAMME_TYPES,
+        'programme_modes': Programme.PROGRAMME_MODES,
+    }
+    
+    return render(request, 'programmes/add_programme.html', context)
+
+@login_required
+def get_departments_by_faculty(request):
+    """AJAX view to get departments based on selected faculty"""
+    faculty_id = request.GET.get('faculty_id')
+    if faculty_id:
+        departments = Department.objects.filter(
+            faculty_id=faculty_id, 
+            is_active=True
+        ).values('id', 'name', 'code').order_by('name')
+        return JsonResponse({'departments': list(departments)})
+    return JsonResponse({'departments': []})
+
 @login_required
 def programme_detail(request, programme_id):
     """View to display programme details with courses organized by year and semester"""
