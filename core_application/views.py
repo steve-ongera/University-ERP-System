@@ -3726,7 +3726,7 @@ def edit_programme(request, programme_id):
     
     return render(request, 'programmes/edit_programme.html', context)
 
-    
+
 @login_required
 def programme_detail(request, programme_id):
     """View to display programme details with courses organized by year and semester"""
@@ -17392,3 +17392,185 @@ def admin_profile_api(request):
         return JsonResponse(stats)
     
     return JsonResponse({'error': 'Invalid data type'}, status=400)
+
+
+# views.py - Course Management Views
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.urls import reverse
+from .models import Course, Department, Faculty, ProgrammeCourse
+from .forms import CourseForm
+
+@login_required
+def course_list(request):
+    """View to list all courses with search and filter functionality"""
+    courses = Course.objects.select_related('department', 'department__faculty').annotate(
+        programme_count=Count('course_programmes'),
+        enrollment_count=Count('enrollments')
+    ).order_by('name')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        courses = courses.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(department__name__icontains=search_query) |
+            Q(department__faculty__name__icontains=search_query)
+        )
+    
+    # Filter by department
+    selected_department = request.GET.get('department', '')
+    if selected_department:
+        courses = courses.filter(department_id=selected_department)
+    
+    # Filter by course level
+    selected_level = request.GET.get('level', '')
+    if selected_level:
+        courses = courses.filter(level=selected_level)
+    
+    # Filter by course type
+    selected_type = request.GET.get('course_type', '')
+    if selected_type:
+        courses = courses.filter(course_type=selected_type)
+    
+    # Filter by active status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        courses = courses.filter(is_active=True)
+    elif status_filter == 'inactive':
+        courses = courses.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(courses, 12)  # 12 courses per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    course_levels = Course.COURSE_LEVELS
+    course_types = Course.COURSE_TYPES
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'selected_department': selected_department,
+        'selected_level': selected_level,
+        'selected_type': selected_type,
+        'status_filter': status_filter,
+        'departments': departments,
+        'course_levels': course_levels,
+        'course_types': course_types,
+        'total_courses': courses.count(),
+    }
+    
+    return render(request, 'courses/course_list.html', context)
+
+@login_required
+def course_detail(request, course_id):
+    """View to display detailed information about a specific course"""
+    course = get_object_or_404(Course.objects.select_related(
+        'department', 'department__faculty'
+    ).prefetch_related('prerequisites', 'prerequisite_for'), id=course_id)
+    
+    # Get programmes using this course
+    programme_courses = ProgrammeCourse.objects.filter(
+        course=course, is_active=True
+    ).select_related('programme').order_by('programme__name')
+    
+    # Get current enrollments
+    current_enrollments = course.enrollments.filter(is_active=True).count()
+    
+    # Get prerequisites and courses this is prerequisite for
+    prerequisites = course.prerequisites.all()
+    prerequisite_for = course.prerequisite_for.all()
+    
+    context = {
+        'course': course,
+        'programme_courses': programme_courses,
+        'current_enrollments': current_enrollments,
+        'prerequisites': prerequisites,
+        'prerequisite_for': prerequisite_for,
+    }
+    
+    return render(request, 'courses/course_detail.html', context)
+
+@login_required
+def add_course(request):
+    """View to add a new course"""
+    if request.method == 'POST':
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            course = form.save()
+            messages.success(request, f'Course "{course.name}" has been successfully created.')
+            return redirect('course_detail', course.id)
+        else:
+            messages.error(request, 'There were errors in the form. Please correct them and try again.')
+    else:
+        form = CourseForm()
+    
+    context = {
+        'form': form,
+        'departments': Department.objects.filter(is_active=True).order_by('name'),
+        'course_types': Course.COURSE_TYPES,
+        'course_levels': Course.COURSE_LEVELS,
+    }
+    
+    return render(request, 'courses/add_course.html', context)
+
+@login_required
+def edit_course(request, course_id):
+    """View to edit an existing course"""
+    course = get_object_or_404(Course, id=course_id)
+    
+    if request.method == 'POST':
+        form = CourseForm(request.POST, instance=course)
+        if form.is_valid():
+            updated_course = form.save()
+            messages.success(request, f'Course "{updated_course.name}" has been successfully updated.')
+            return redirect('course_detail', updated_course.id)
+        else:
+            messages.error(request, 'There were errors in the form. Please correct them and try again.')
+    else:
+        form = CourseForm(instance=course)
+    
+    context = {
+        'form': form,
+        'course': course,
+        'departments': Department.objects.filter(is_active=True).order_by('name'),
+        'course_types': Course.COURSE_TYPES,
+        'course_levels': Course.COURSE_LEVELS,
+        'is_editing': True,
+    }
+    
+    return render(request, 'courses/edit_course.html', context)
+
+@login_required
+def delete_course(request, course_id):
+    """View to delete a course"""
+    course = get_object_or_404(Course, id=course_id)
+    
+    if request.method == 'POST':
+        course_name = course.name
+        course.delete()
+        messages.success(request, f'Course "{course_name}" has been successfully deleted.')
+        return redirect('course_list')
+    
+    # Check if course has dependencies
+    programme_count = course.course_programmes.count()
+    enrollment_count = course.enrollments.count()
+    prerequisite_count = course.prerequisite_for.count()
+    
+    context = {
+        'course': course,
+        'programme_count': programme_count,
+        'enrollment_count': enrollment_count,
+        'prerequisite_count': prerequisite_count,
+        'has_dependencies': programme_count > 0 or enrollment_count > 0 or prerequisite_count > 0,
+    }
+    
+    return render(request, 'courses/delete_course.html', context)

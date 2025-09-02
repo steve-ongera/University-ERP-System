@@ -1055,3 +1055,148 @@ class ProgrammeForm(forms.ModelForm):
                 )
         
         return cleaned_data
+    
+
+
+
+# forms.py - Course Form
+from django import forms
+from .models import Course, Department
+
+class CourseForm(forms.ModelForm):
+    class Meta:
+        model = Course
+        fields = [
+            'name', 'code', 'course_type', 'level', 'credit_hours',
+            'lecture_hours', 'tutorial_hours', 'practical_hours', 
+            'field_work_hours', 'department', 'description',
+            'learning_outcomes', 'assessment_methods', 
+            'recommended_textbooks', 'prerequisites'
+        ]
+        
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Introduction to Computer Science'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., CS101',
+                'maxlength': 15
+            }),
+            'course_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'level': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'credit_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 15
+            }),
+            'lecture_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'value': 0
+            }),
+            'tutorial_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'value': 0
+            }),
+            'practical_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'value': 0
+            }),
+            'field_work_hours': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'value': 0
+            }),
+            'department': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Brief description of the course...'
+            }),
+            'learning_outcomes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'List the expected learning outcomes...'
+            }),
+            'assessment_methods': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe how students will be assessed...'
+            }),
+            'recommended_textbooks': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'List recommended textbooks and references...'
+            }),
+            'prerequisites': forms.SelectMultiple(attrs={
+                'class': 'form-select',
+                'size': '5'
+            }),
+        }
+        
+        labels = {
+            'name': 'Course Name',
+            'code': 'Course Code',
+            'course_type': 'Course Type',
+            'level': 'Course Level',
+            'credit_hours': 'Credit Hours',
+            'lecture_hours': 'Lecture Hours',
+            'tutorial_hours': 'Tutorial Hours',
+            'practical_hours': 'Practical Hours',
+            'field_work_hours': 'Field Work Hours',
+            'department': 'Department',
+            'description': 'Course Description',
+            'learning_outcomes': 'Learning Outcomes',
+            'assessment_methods': 'Assessment Methods',
+            'recommended_textbooks': 'Recommended Textbooks',
+            'prerequisites': 'Prerequisites',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter prerequisites to exclude self and make it optional
+        if self.instance.pk:
+            self.fields['prerequisites'].queryset = Course.objects.filter(
+                is_active=True
+            ).exclude(pk=self.instance.pk).order_by('code')
+        else:
+            self.fields['prerequisites'].queryset = Course.objects.filter(
+                is_active=True
+            ).order_by('code')
+    
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+        if code:
+            code = code.upper()
+            # Check if code already exists
+            if Course.objects.filter(code=code).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
+                raise forms.ValidationError('A course with this code already exists.')
+        return code
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        credit_hours = cleaned_data.get('credit_hours')
+        lecture_hours = cleaned_data.get('lecture_hours', 0)
+        tutorial_hours = cleaned_data.get('tutorial_hours', 0)
+        practical_hours = cleaned_data.get('practical_hours', 0)
+        field_work_hours = cleaned_data.get('field_work_hours', 0)
+        
+        # Validate that total contact hours make sense with credit hours
+        total_contact = lecture_hours + tutorial_hours + practical_hours + field_work_hours
+        
+        if credit_hours and total_contact == 0:
+            raise forms.ValidationError(
+                'Course must have at least one contact hour (lecture, tutorial, practical, or field work).'
+            )
+        
+        return cleaned_data

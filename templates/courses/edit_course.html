@@ -1,0 +1,617 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Edit Course</h2>
+                        <p class="text-muted mb-0">
+                            Update course: <strong>{{ course.name }} ({{ course.code }})</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'course_detail' course.id %}" class="btn btn-outline-info me-2">
+                            <i class="bi bi-eye"></i> View Details
+                        </a>
+                        <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Courses
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Form -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST" id="course-form">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>Basic Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">
+                                    {{ form.code.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.code }}
+                                <small class="form-text text-muted">Current: {{ course.code }}</small>
+                                {% if form.code.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.code.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.course_type.id_for_label }}" class="form-label">
+                                    {{ form.course_type.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.course_type }}
+                                <small class="form-text text-muted">Current: {{ course.get_course_type_display }}</small>
+                                {% if form.course_type.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.course_type.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.level.id_for_label }}" class="form-label">
+                                    {{ form.level.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.level }}
+                                <small class="form-text text-muted">Current: {{ course.get_level_display }}</small>
+                                {% if form.level.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.level.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">
+                                    {{ form.department.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.department }}
+                                <small class="form-text text-muted">Current: {{ course.department.name }}</small>
+                                {% if form.department.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.department.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Course Hours -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-clock text-primary me-2"></i>Course Hours
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.credit_hours.id_for_label }}" class="form-label">
+                                    {{ form.credit_hours.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.credit_hours }}
+                                <small class="form-text text-muted">Current: {{ course.credit_hours }}</small>
+                                {% if form.credit_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.credit_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.lecture_hours.id_for_label }}" class="form-label">
+                                    {{ form.lecture_hours.label }}
+                                </label>
+                                {{ form.lecture_hours }}
+                                <small class="form-text text-muted">Current: {{ course.lecture_hours }}</small>
+                                {% if form.lecture_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.lecture_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.tutorial_hours.id_for_label }}" class="form-label">
+                                    {{ form.tutorial_hours.label }}
+                                </label>
+                                {{ form.tutorial_hours }}
+                                <small class="form-text text-muted">Current: {{ course.tutorial_hours }}</small>
+                                {% if form.tutorial_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.tutorial_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.practical_hours.id_for_label }}" class="form-label">
+                                    {{ form.practical_hours.label }}
+                                </label>
+                                {{ form.practical_hours }}
+                                <small class="form-text text-muted">Current: {{ course.practical_hours }}</small>
+                                {% if form.practical_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.practical_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.field_work_hours.id_for_label }}" class="form-label">
+                                    {{ form.field_work_hours.label }}
+                                </label>
+                                {{ form.field_work_hours }}
+                                <small class="form-text text-muted">Current: {{ course.field_work_hours }}</small>
+                                {% if form.field_work_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.field_work_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label">Total Contact Hours</label>
+                                <input type="text" class="form-control bg-light" id="total-contact-hours" readonly>
+                                <small class="text-muted">Current: {{ course.total_contact_hours }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Course Details -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-file-earmark-text text-primary me-2"></i>Course Details
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    {{ form.description.label }}
+                                </label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.description.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.learning_outcomes.id_for_label }}" class="form-label">
+                                    {{ form.learning_outcomes.label }}
+                                </label>
+                                {{ form.learning_outcomes }}
+                                {% if form.learning_outcomes.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.learning_outcomes.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.assessment_methods.id_for_label }}" class="form-label">
+                                    {{ form.assessment_methods.label }}
+                                </label>
+                                {{ form.assessment_methods }}
+                                {% if form.assessment_methods.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.assessment_methods.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.recommended_textbooks.id_for_label }}" class="form-label">
+                                    {{ form.recommended_textbooks.label }}
+                                </label>
+                                {{ form.recommended_textbooks }}
+                                {% if form.recommended_textbooks.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.recommended_textbooks.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Prerequisites -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-arrow-right-circle text-primary me-2"></i>Prerequisites
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.prerequisites.id_for_label }}" class="form-label">
+                                    {{ form.prerequisites.label }}
+                                </label>
+                                {{ form.prerequisites }}
+                                <small class="form-text text-muted">Hold Ctrl (Cmd on Mac) to select multiple courses</small>
+                                {% if course.prerequisites.exists %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Current prerequisites:</small>
+                                        {% for prereq in course.prerequisites.all %}
+                                            <span class="badge bg-warning me-1">{{ prereq.code }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.prerequisites.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.prerequisites.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Status Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-gear text-primary me-2"></i>Status Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Course Status</small>
+                                        <div class="d-flex align-items-center">
+                                            {% if course.is_active %}
+                                                <span class="badge bg-success me-2">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger me-2">Inactive</span>
+                                            {% endif %}
+                                            <small class="text-muted">Course ID: #{{ course.id }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Department</small>
+                                        <div class="fw-bold">{{ course.department.name }}</div>
+                                        <small class="text-muted">{{ course.department.faculty.name }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <small class="text-muted">Current Statistics</small>
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <div class="fw-bold text-primary">{{ course.course_programmes.count }}</div>
+                                                <small class="text-muted">Programmes</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-success">{{ course.enrollments.count }}</div>
+                                                <small class="text-muted">Enrolled</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-warning">{{ course.prerequisites.count }}</div>
+                                                <small class="text-muted">Prerequisites</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Errors -->
+                        {% if form.non_field_errors %}
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Please correct the following errors:</strong>
+                                        {% for error in form.non_field_errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Changes will be saved immediately upon submission.
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-x-lg"></i> Cancel
+                                        </a>
+                                        <a href="{% url 'course_detail' course.id %}" class="btn btn-outline-info">
+                                            <i class="bi bi-eye"></i> View Details
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-save"></i> Update Course
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-calculate total contact hours
+    const hoursFields = [
+        'id_lecture_hours',
+        'id_tutorial_hours',
+        'id_practical_hours',
+        'id_field_work_hours'
+    ];
+    
+    const totalContactHoursField = document.getElementById('total-contact-hours');
+    
+    function calculateTotalHours() {
+        let total = 0;
+        hoursFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && field.value) {
+                total += parseInt(field.value) || 0;
+            }
+        });
+        totalContactHoursField.value = total;
+        
+        // Visual feedback for changes
+        const currentTotal = {{ course.total_contact_hours }};
+        if (total !== currentTotal) {
+            totalContactHoursField.style.backgroundColor = '#fff3cd';
+            totalContactHoursField.style.borderColor = '#ffc107';
+        } else {
+            totalContactHoursField.style.backgroundColor = '#e8f5e8';
+            totalContactHoursField.style.borderColor = '#198754';
+        }
+    }
+    
+    // Add event listeners to hour fields
+    hoursFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', calculateTotalHours);
+        }
+    });
+    
+    // Calculate on page load
+    calculateTotalHours();
+    
+    // Form validation with change detection
+    const form = document.getElementById('course-form');
+    let formChanged = false;
+    const formElements = form.querySelectorAll('input, select, textarea');
+    
+    formElements.forEach(element => {
+        element.addEventListener('change', () => {
+            formChanged = true;
+        });
+    });
+    
+    // Warn about unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+    
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
+        let isValid = true;
+        let firstInvalidField = null;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+            }
+        });
+        
+        // Check contact hours
+        const totalHours = parseInt(totalContactHoursField.value) || 0;
+        if (totalHours === 0) {
+            hoursFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.style.borderColor = '#ffc107';
+                }
+            });
+            
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+            errorAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
+            errorAlert.innerHTML = `
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Warning!</strong><br>
+                Course should have at least one contact hour.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(errorAlert);
+            
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    errorAlert.remove();
+                }
+            }, 5000);
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            if (firstInvalidField) {
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidField.focus();
+            }
+            
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+            errorAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+            errorAlert.innerHTML = `
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Validation Error!</strong><br>
+                Please fill in all required fields.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(errorAlert);
+            
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    errorAlert.remove();
+                }
+            }, 5000);
+        } else {
+            formChanged = false;
+        }
+    });
+    
+    // Code field auto-uppercase
+    const codeField = document.getElementById('id_code');
+    if (codeField) {
+        codeField.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
+</script>
+
+<style>
+.form-label {
+    font-weight: 500;
+}
+
+.text-danger {
+    font-size: 0.875rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+    animation: shake 0.5s;
+}
+
+.is-valid {
+    border-color: #198754;
+}
+
+@keyframes shake {
+    0%, 20%, 40%, 60%, 80% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+hr {
+    border-top: 2px solid #dee2e6;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.form-text {
+    font-size: 0.8rem;
+}
+
+.badge {
+    font-size: 0.7rem;
+}
+
+h5 i {
+    font-size: 1.2rem;
+}
+</style>
+
+{% endblock %}

@@ -1,266 +1,325 @@
 {% extends 'admin_base.html' %}
 {% load static %}
 
-{% block title %}{{ title }} - {{ block.super }}{% endblock %}
-
 {% block content %}
 
 <div class="message-container" id="system-messages">
-                                {% for message in messages %}
-                                <div class="alert-message alert-{{ message.tags }}">
-                                    {{ message }}
-                                    <span class="close-message">&times;</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="container onprintContainer">
+    <!-- Page Header -->
     <div class="row p-3">
-        <div class="row d-flex flex-row">
-            <div class="col-md-8">
-                <p class="fw-bold card-stitle text-start">
-                    <i class="bi bi-journal-plus"></i>
-                    {% if is_editing %}
-                        Edit Course - {{ course.name }}
-                    {% else %}
-                        Add New Course
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-4 dashboardRightLabel">
-                <div class="btn-group float-end">
-                    <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back
-                    </a>
-                    {% if is_editing %}
-                    <a href="{% url 'course_detail' course.id %}" class="btn btn-outline-primary">
-                        <i class="bi bi-eye"></i> View
-                    </a>
-                    {% endif %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Add New Course</h2>
+                        <p class="text-muted mb-0">
+                            Create a new academic course/unit
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Courses
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Course Form -->
     <div class="row p-3">
         <div class="col-md-12">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-card-checklist"></i>
-                        {% if is_editing %}
-                            Course Details
-                        {% else %}
-                            New Course Information
-                        {% endif %}
-                    </h5>
-                </div>
                 <div class="card-body">
-                    <form method="post" id="courseForm" novalidate>
+                    <form method="POST" id="course-form">
                         {% csrf_token %}
                         
-                        <div class="row mb-3">
-                            <!-- Course Name -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    {{ form.name }}
-                                    <label for="{{ form.name.id_for_label }}">
-                                        {{ form.name.label }}
-                                        {% if form.name.field.required %}<span class="text-danger">*</span>{% endif %}
-                                    </label>
-                                    {% if form.name.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.name.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Enter the full name of the course</div>
-                                </div>
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-info-circle text-primary me-2"></i>Basic Information
+                                </h5>
                             </div>
-
-                            <!-- Course Code -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    <div class="position-relative">
-                                        {{ form.code }}
-                                        <label for="{{ form.code.id_for_label }}">
-                                            {{ form.code.label }}
-                                            {% if form.code.field.required %}<span class="text-danger">*</span>{% endif %}
-                                        </label>
-                                        <span class="position-absolute end-0 top-0 mt-3 me-2" id="codeStatus"></span>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
                                     </div>
-                                    {% if form.code.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.code.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Unique identifier for the course (e.g., CSE101)</div>
-                                </div>
+                                {% endif %}
                             </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <!-- Course Type -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    {{ form.course_type }}
-                                    <label for="{{ form.course_type.id_for_label }}">
-                                        {{ form.course_type.label }}
-                                        {% if form.course_type.field.required %}<span class="text-danger">*</span>{% endif %}
-                                    </label>
-                                    {% if form.course_type.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.course_type.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="alert alert-light mt-2">
-                                        <small>
-                                            <strong>Certificate:</strong> Short-term courses (6 months - 1 year)<br>
-                                            <strong>Diploma:</strong> Medium-term courses (1-3 years)<br>
-                                            <strong>Advanced Diploma:</strong> Specialized courses (2-4 years)
-                                        </small>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">
+                                    {{ form.code.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.code }}
+                                {% if form.code.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.code.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
                                     </div>
-                                </div>
+                                {% endif %}
                             </div>
-
-                            <!-- Department -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    {{ form.department }}
-                                    <label for="{{ form.department.id_for_label }}">
-                                        {{ form.department.label }}
-                                        {% if form.department.field.required %}<span class="text-danger">*</span>{% endif %}
-                                    </label>
-                                    {% if form.department.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.department.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="alert alert-info mt-2">
-                                        <small>
-                                            <i class="bi bi-info-circle"></i>
-                                            {{ departments }} active departments available
-                                        </small>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.course_type.id_for_label }}" class="form-label">
+                                    {{ form.course_type.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.course_type }}
+                                {% if form.course_type.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.course_type.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
                                     </div>
-                                </div>
+                                {% endif %}
                             </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <!-- Duration Years -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    {{ form.duration_years }}
-                                    <label for="{{ form.duration_years.id_for_label }}">
-                                        {{ form.duration_years.label }}
-                                        {% if form.duration_years.field.required %}<span class="text-danger">*</span>{% endif %}
-                                    </label>
-                                    {% if form.duration_years.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.duration_years.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Total duration of the course in years (1-5)</div>
-                                </div>
-                            </div>
-
-                            <!-- Total Semesters -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    {{ form.total_semesters }}
-                                    <label for="{{ form.total_semesters.id_for_label }}">
-                                        {{ form.total_semesters.label }}
-                                        {% if form.total_semesters.field.required %}<span class="text-danger">*</span>{% endif %}
-                                    </label>
-                                    {% if form.total_semesters.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.total_semesters.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Total number of semesters (usually 2 per year)</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <!-- Fees Per Semester -->
-                            <div class="col-md-6">
-                                <div class="form-floating mb-3">
-                                    <div class="input-group">
-                                        <span class="input-group-text">ksh</span>
-                                        {{ form.fees_per_semester }}
-                                        <label for="{{ form.fees_per_semester.id_for_label }}">
-                                            {{ form.fees_per_semester.label }}
-                                            {% if form.fees_per_semester.field.required %}<span class="text-danger">*</span>{% endif %}
-                                        </label>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.level.id_for_label }}" class="form-label">
+                                    {{ form.level.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.level }}
+                                {% if form.level.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.level.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
                                     </div>
-                                    {% if form.fees_per_semester.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.fees_per_semester.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Fee amount per semester in Indian Rupees</div>
-                                </div>
+                                {% endif %}
                             </div>
-
-                            <!-- Is Active -->
-                            <div class="col-md-6">
-                                <div class="form-check form-switch mb-3">
-                                    {{ form.is_active }}
-                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                        {{ form.is_active.label }}
-                                    </label>
-                                    {% if form.is_active.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.is_active.errors.0 }}
-                                        </div>
-                                    {% endif %}
-                                    <div class="form-text">Toggle to activate/deactivate the course</div>
-                                </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">
+                                    {{ form.department.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.department }}
+                                {% if form.department.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.department.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <!-- Description -->
-                        <div class="mb-3">
-                            <label class="form-label">
-                                {{ form.description.label }}
-                                {% if form.description.field.required %}<span class="text-danger">*</span>{% endif %}
-                            </label>
-                            {{ form.description }}
-                            {% if form.description.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.description.errors.0 }}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">Provide a detailed description of the course, its objectives, and outcomes</div>
+                        <!-- Course Hours -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-clock text-primary me-2"></i>Course Hours
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.credit_hours.id_for_label }}" class="form-label">
+                                    {{ form.credit_hours.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.credit_hours }}
+                                {% if form.credit_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.credit_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.lecture_hours.id_for_label }}" class="form-label">
+                                    {{ form.lecture_hours.label }}
+                                </label>
+                                {{ form.lecture_hours }}
+                                {% if form.lecture_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.lecture_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.tutorial_hours.id_for_label }}" class="form-label">
+                                    {{ form.tutorial_hours.label }}
+                                </label>
+                                {{ form.tutorial_hours }}
+                                {% if form.tutorial_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.tutorial_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.practical_hours.id_for_label }}" class="form-label">
+                                    {{ form.practical_hours.label }}
+                                </label>
+                                {{ form.practical_hours }}
+                                {% if form.practical_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.practical_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ form.field_work_hours.id_for_label }}" class="form-label">
+                                    {{ form.field_work_hours.label }}
+                                </label>
+                                {{ form.field_work_hours }}
+                                {% if form.field_work_hours.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.field_work_hours.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label">Total Contact Hours</label>
+                                <input type="text" class="form-control bg-light" id="total-contact-hours" readonly>
+                                <small class="text-muted">Auto-calculated</small>
+                            </div>
                         </div>
 
-                        <!-- Non-field errors -->
+                        <!-- Course Details -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-file-earmark-text text-primary me-2"></i>Course Details
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    {{ form.description.label }}
+                                </label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.description.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.learning_outcomes.id_for_label }}" class="form-label">
+                                    {{ form.learning_outcomes.label }}
+                                </label>
+                                {{ form.learning_outcomes }}
+                                {% if form.learning_outcomes.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.learning_outcomes.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.assessment_methods.id_for_label }}" class="form-label">
+                                    {{ form.assessment_methods.label }}
+                                </label>
+                                {{ form.assessment_methods }}
+                                {% if form.assessment_methods.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.assessment_methods.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.recommended_textbooks.id_for_label }}" class="form-label">
+                                    {{ form.recommended_textbooks.label }}
+                                </label>
+                                {{ form.recommended_textbooks }}
+                                {% if form.recommended_textbooks.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.recommended_textbooks.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Prerequisites -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold mb-3">
+                                    <i class="bi bi-arrow-right-circle text-primary me-2"></i>Prerequisites
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.prerequisites.id_for_label }}" class="form-label">
+                                    {{ form.prerequisites.label }}
+                                </label>
+                                {{ form.prerequisites }}
+                                <small class="form-text text-muted">Hold Ctrl (Cmd on Mac) to select multiple courses</small>
+                                {% if form.prerequisites.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.prerequisites.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Form Errors -->
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
-                                {% for error in form.non_field_errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="alert alert-danger">
+                                        {% for error in form.non_field_errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                             </div>
                         {% endif %}
 
                         <!-- Form Actions -->
-                        <div class="d-flex justify-content-between mt-4">
-                            <div>
-                                <button type="submit" class="btn btn-primary me-2">
-                                    <i class="bi bi-save"></i>
-                                    {% if is_editing %}Update Course{% else %}Save Course{% endif %}
-                                </button>
-                                
-                                {% if not is_editing %}
-                                    <button type="submit" name="save_and_continue" class="btn btn-outline-primary">
-                                        <i class="bi bi-plus-circle"></i> Save & Add Another
+                        <div class="row">
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-x-lg"></i> Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Save Course
                                     </button>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-circle"></i> Cancel
-                                </a>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -272,135 +331,134 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Course code availability checker
-    const codeInput = document.getElementById('{{ form.code.id_for_label }}');
-    const codeStatus = document.getElementById('codeStatus');
-    let checkTimeout;
+    // Auto-calculate total contact hours
+    const hoursFields = [
+        'id_lecture_hours',
+        'id_tutorial_hours',
+        'id_practical_hours',
+        'id_field_work_hours'
+    ];
     
-    function checkCodeAvailability() {
-        const code = codeInput.value.trim().toUpperCase();
+    const totalContactHoursField = document.getElementById('total-contact-hours');
+    
+    function calculateTotalHours() {
+        let total = 0;
+        hoursFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && field.value) {
+                total += parseInt(field.value) || 0;
+            }
+        });
+        totalContactHoursField.value = total;
         
-        if (code.length < 2) {
-            codeStatus.innerHTML = '';
+        // Visual feedback
+        if (total > 0) {
+            totalContactHoursField.style.backgroundColor = '#e8f5e8';
+        } else {
+            totalContactHoursField.style.backgroundColor = '#f8f9fa';
+        }
+    }
+    
+    // Add event listeners to hour fields
+    hoursFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', calculateTotalHours);
+        }
+    });
+    
+    // Calculate on page load
+    calculateTotalHours();
+    
+    // Form validation enhancement
+    const form = document.getElementById('course-form');
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
+        let isValid = true;
+        let firstInvalidField = null;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        // Check if at least one contact hour is specified
+        const totalHours = parseInt(totalContactHoursField.value) || 0;
+        if (totalHours === 0) {
+            const hoursSection = document.querySelector('h5:contains("Course Hours")');
+            if (hoursSection) {
+                hoursSection.scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            // Highlight hour fields
+            hoursFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.style.borderColor = '#ffc107';
+                }
+            });
+            
+            alert('Please specify at least one contact hour (lecture, tutorial, practical, or field work).');
+            e.preventDefault();
             return;
         }
         
-        // Show loading spinner
-        codeStatus.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
-        
-        // Clear previous timeout
-        clearTimeout(checkTimeout);
-        
-        // Set new timeout
-        checkTimeout = setTimeout(() => {
-            fetch(`/check-course-code/?code=${encodeURIComponent(code)}{% if is_editing %}&course_id={{ course.id }}{% endif %}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.available) {
-                        codeStatus.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
-                        codeStatus.title = 'Course code is available';
-                    } else {
-                        codeStatus.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
-                        codeStatus.title = 'Course code is already taken';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking code:', error);
-                    codeStatus.innerHTML = '';
-                });
-        }, 500);
-    }
-    
-    if (codeInput) {
-        codeInput.addEventListener('input', checkCodeAvailability);
-        codeInput.addEventListener('blur', checkCodeAvailability);
-        
-        // Convert to uppercase on input
-        codeInput.addEventListener('input', function() {
-            this.value = this.value.toUpperCase();
-        });
-    }
-    
-    // Auto-calculate semesters based on duration
-    const durationInput = document.getElementById('{{ form.duration_years.id_for_label }}');
-    const semesterInput = document.getElementById('{{ form.total_semesters.id_for_label }}');
-    
-    if (durationInput && semesterInput) {
-        durationInput.addEventListener('change', function() {
-            const years = parseInt(this.value);
-            if (years && years > 0) {
-                semesterInput.value = years * 2;
+        if (!isValid) {
+            e.preventDefault();
+            
+            if (firstInvalidField) {
+                firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidField.focus();
             }
+            
+            alert('Please fill in all required fields.');
+        }
+    });
+    
+    // Code field auto-uppercase
+    const codeField = document.getElementById('id_code');
+    if (codeField) {
+        codeField.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
         });
     }
 });
 </script>
 
 <style>
-.onprintContainer {
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
-}
-
-.card {
-    border: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-    border-radius: 8px 8px 0 0 !important;
-    padding: 1rem 1.25rem;
-}
-
-.card-title {
-    font-size: 1.1rem;
-}
-
-.card-stitle {
-    font-size: 1.25rem;
-    color: #3639A4;
-}
-
-.form-floating label {
-    color: #6c757d;
-}
-
-.form-control:focus, .form-select:focus {
-    border-color: #3639A4;
-    box-shadow: 0 0 0 0.25rem rgba(54, 57, 164, 0.25);
-}
-
-.alert-light {
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-}
-
-.alert-info {
-    background-color: #e3f2fd;
-    border: 1px solid #bbdefb;
-}
-
-.badge {
+.form-label {
     font-weight: 500;
-    padding: 5px 10px;
 }
 
-@media (max-width: 768px) {
-    .dashboardRightLabel .btn-group {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-    
-    .dashboardRightLabel .btn {
-        margin-bottom: 5px;
-        flex-grow: 1;
-    }
+.text-danger {
+    font-size: 0.875rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+hr {
+    border-top: 2px solid #dee2e6;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+h5 i {
+    font-size: 1.2rem;
 }
 </style>
 

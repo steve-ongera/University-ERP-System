@@ -445,5 +445,13 @@ urlpatterns = [
     path('analytics/api/library-usage/', views.library_usage_data, name='library_usage_data'),
     path('analytics/api/attendance-analytics/', views.attendance_analytics_data, name='attendance_analytics_data'),
 
+    #admin units managements
+
+    path('courses/', views.course_list, name='course_list'),
+    path('courses/<int:course_id>/', views.course_detail, name='course_detail'),
+    path('courses/add/', views.add_course, name='add_course'),
+    path('courses/<int:course_id>/edit/', views.edit_course, name='edit_course'),
+    path('courses/<int:course_id>/delete/', views.delete_course, name='delete_course'),
+
 
 ]

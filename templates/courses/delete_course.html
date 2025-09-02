@@ -1,134 +1,195 @@
-<!-- templates/courses/delete_course.html -->
-{% extends 'base.html' %}
+{% extends 'admin_base.html' %}
 {% load static %}
 
-{% block title %}Delete Course - {{ course.name }} - {{ block.super }}{% endblock %}
-
-{% block extra_css %}
-<style>
-    .delete-container {
-        background: #fff;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        padding: 2rem;
-        margin-top: 2rem;
-    }
-    
-    .delete-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 15px 15px 0 0;
-        margin: -2rem -2rem 2rem -2rem;
-    }
-    
-    .warning-box {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .course-info {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    
-    .impact-item {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-    }
-    
-    .impact-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        font-size: 1.2rem;
-    }
-    
-    .students-impact {
-        background: #e3f2fd;
-        color: #1976d2;
-    }
-    
-    .subjects-impact {
-        background: #f3e5f5;
-        color: #7b1fa2;
-    }
-    
-    .btn-danger {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        border: none;
-        padding: 0.75rem 2rem;
-        border-radius: 10px;
-        font-weight: 600;
-    }
-    
-    .btn-secondary {
-        border-radius: 10px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-    }
-    
-    .confirmation-checkbox {
-        background: #fff;
-        border: 2px solid #dc3545;
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 2rem;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-lg-8 col-md-10">
-            <div class="delete-container">
-                <div class="delete-header">
-                    <h2 class="mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Delete Course
-                    </h2>
-                    <p class="mb-0 mt-2 opacity-75">
-                        This action cannot be undone. Please review the impact before proceeding.
-                    </p>
-                </div>
 
-                <!-- Warning Box -->
-                <div class="warning-box">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
-                        <div>
-                            <h5 class="mb-1 text-warning">Warning: Permanent Deletion</h5>
-                            <p class="mb-0 text-dark">
-                                You are about to permanently delete this course. This action will remove all associated data and cannot be reversed.
-                            </p>
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold text-danger">Delete Course</h2>
+                        <p class="text-muted mb-0">
+                            Permanently remove course: <strong>{{ course.name }} ({{ course.code }})</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'course_detail' course.id %}" class="btn btn-outline-info me-2">
+                            <i class="bi bi-eye"></i> View Details
+                        </a>
+                        <a href="{% url 'course_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Courses
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning and Confirmation -->
+    <div class="row p-3">
+        <div class="col-md-8">
+            <!-- Course Information -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Confirm Deletion</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone. Deleting this course will permanently remove all associated data.
+                    </div>
+                    
+                    <h6 class="fw-bold mb-3">Course to be deleted:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Course Name:</strong><br>
+                            <span class="text-muted">{{ course.name }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Course Code:</strong><br>
+                            <span class="text-muted">{{ course.code }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Department:</strong><br>
+                            <span class="text-muted">{{ course.department.name }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Faculty:</strong><br>
+                            <span class="text-muted">{{ course.department.faculty.name }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Course Type:</strong><br>
+                            <span class="text-muted">{{ course.get_course_type_display }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Level:</strong><br>
+                            <span class="text-muted">{{ course.get_level_display }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Credit Hours:</strong><br>
+                            <span class="text-muted">{{ course.credit_hours }}</span>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Course Information -->
-                <div class="course-info">
-                    <h5 class="mb-3">Course Details</h5>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Course Name:</strong> {{ course.name }}</p>
-                            <p><strong>Course Code:</strong> {{ course.code }}</p>
-                            <p><strong>Department:</strong> {{ course.department.name }}</p>
+            <!-- Dependencies Check -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Dependencies Check</h5>
+                </div>
+                <div class="card-body">
+                    {% if has_dependencies %}
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Dependencies Found!</strong> This course has the following dependencies that will be affected:
                         </div>
-                        <div class="col-md-6">
-                            <p><strong>Course Type:</strong> {{ course.get_course_type_display }}</p>
-                            <p><strong>Duration
+                        
+                        <div class="row">
+                            {% if programme_count > 0 %}
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                    <h4 class="text-warning mb-1">{{ programme_count }}</h4>
+                                    <small class="text-muted">Programme Allocations</small>
+                                    <p class="small mt-2 mb-0">This course is allocated to {{ programme_count }} programme{{ programme_count|pluralize }}. These allocations will be removed.</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if enrollment_count > 0 %}
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                                    <h4 class="text-danger mb-1">{{ enrollment_count }}</h4>
+                                    <small class="text-muted">Student Enrollments</small>
+                                    <p class="small mt-2 mb-0">{{ enrollment_count }} student{{ enrollment_count|pluralize }} {{ enrollment_count|pluralize:"is,are" }} enrolled. Their records will be affected.</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if prerequisite_count > 0 %}
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 bg-info bg-opacity-10 rounded">
+                                    <h4 class="text-info mb-1">{{ prerequisite_count }}</h4>
+                                    <small class="text-muted">Prerequisite Links</small>
+                                    <p class="small mt-2 mb-0">This course is a prerequisite for {{ prerequisite_count }} other course{{ prerequisite_count|pluralize }}.</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <strong>Safe to Delete!</strong> This course has no dependencies and can be safely deleted.
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="p-3 bg-success bg-opacity-10 rounded">
+                                    <h4 class="text-success mb-1">0</h4>
+                                    <small class="text-muted">Programme Allocations</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-success bg-opacity-10 rounded">
+                                    <h4 class="text-success mb-1">0</h4>
+                                    <small class="text-muted">Student Enrollments</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-success bg-opacity-10 rounded">
+                                    <h4 class="text-success mb-1">0</h4>
+                                    <small class="text-muted">Prerequisite Links</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Form -->
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-trash me-2"></i>Final Confirmation</h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="mb-3">Are you sure you want to permanently delete this course?</p>
+                    
+                    <form method="post" action="{% url 'delete_course' course.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash-fill"></i> Yes, Delete Course
+                        </button>
+                        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary ms-2">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
