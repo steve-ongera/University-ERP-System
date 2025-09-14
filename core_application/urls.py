@@ -134,8 +134,13 @@ urlpatterns = [
     path('ajax/get-available-courses/', views.get_available_courses, name='ajax_get_available_courses'),
     path('ajax/remove-programme-course/', views.remove_programme_course, name='ajax_remove_programme_course'),
 
-    ## dean Programme URLs
-    path('dean_programmes/', views.dean_programmes, name='dean_programmes'),
+
+    # Dean specific URLs
+    path('dean/programmes/', views.dean_programmes, name='dean_programmes'),
+    path('dean/allocate-courses/', views.dean_allocate_courses, name='dean_allocate_courses'),
+    path('dean/remove-course-assignment/<int:assignment_id>/', views.dean_remove_course_assignment, name='dean_remove_course_assignment'),
+    path('dean/lecturer-assignments/<int:lecturer_id>/', views.dean_view_lecturer_assignments, name='dean_view_lecturer_assignments'),
+
 
      #Grades URLs
     path('grades/', views.grades_list, name='grades_list'),

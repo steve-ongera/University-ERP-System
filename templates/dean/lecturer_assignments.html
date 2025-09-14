@@ -1,0 +1,416 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">Lecturer Course Assignments</h2>
+                        <p class="text-muted mb-1">
+                            <strong>{{ lecturer.user.get_full_name }}</strong> - {{ lecturer.get_academic_rank_display }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            {{ lecturer.department.name }} | Employee: {{ lecturer.employee_number }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'dean_allocate_courses' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Allocations
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lecturer Information -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6 class="text-primary mb-2">Contact Information</h6>
+                            <p class="mb-1"><i class="bi bi-envelope me-2"></i>{{ lecturer.user.email }}</p>
+                            {% if lecturer.user.phone %}
+                            <p class="mb-1"><i class="bi bi-phone me-2"></i>{{ lecturer.user.phone }}</p>
+                            {% endif %}
+                            {% if lecturer.office_location %}
+                            <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>{{ lecturer.office_location }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-success mb-2">Academic Details</h6>
+                            <p class="mb-1"><strong>Qualification:</strong> {{ lecturer.highest_qualification }}</p>
+                            {% if lecturer.university_graduated %}
+                            <p class="mb-1"><strong>University:</strong> {{ lecturer.university_graduated }}</p>
+                            {% endif %}
+                            <p class="mb-1"><strong>Teaching Experience:</strong> {{ lecturer.teaching_experience_years }} years</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-warning mb-2">Employment</h6>
+                            <p class="mb-1"><strong>Type:</strong> {{ lecturer.get_employment_type_display }}</p>
+                            <p class="mb-1"><strong>Joined:</strong> {{ lecturer.joining_date|date:"M d, Y" }}</p>
+                            {% if lecturer.consultation_hours %}
+                            <p class="mb-1"><strong>Consultation:</strong> {{ lecturer.consultation_hours }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-info mb-2">Current Load</h6>
+                            <p class="mb-1"><strong>Total Courses:</strong> {{ assignments.count }}</p>
+                            <p class="mb-1"><strong>Current Year:</strong> {{ current_assignments.count }}</p>
+                            <p class="mb-1"><strong>Status:</strong> 
+                                {% if lecturer.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Academic Year Assignments -->
+    {% if current_assignments %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Academic Year Assignments ({{ current_academic_year.year }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Semester</th>
+                                    <th>Credit Hours</th>
+                                    <th>Level</th>
+                                    <th>Venue/Time</th>
+                                    <th>Assigned Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in current_assignments %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ assignment.course.name }}</strong><br>
+                                        <span class="badge bg-primary">{{ assignment.course.code }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">Semester {{ assignment.semester.semester_number }}</span>
+                                    </td>
+                                    <td>{{ assignment.course.credit_hours }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ assignment.course.get_level_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if assignment.lecture_venue %}
+                                            <small><i class="bi bi-geo-alt"></i> {{ assignment.lecture_venue }}</small><br>
+                                        {% endif %}
+                                        {% if assignment.lecture_time %}
+                                            <small><i class="bi bi-clock"></i> {{ assignment.lecture_time }}</small>
+                                        {% endif %}
+                                        {% if not assignment.lecture_venue and not assignment.lecture_time %}
+                                            <small class="text-muted">Not specified</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ assignment.assigned_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if assignment.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- All Assignments History -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">All Course Assignments History</h5>
+                </div>
+                {% if assignments %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Course Details</th>
+                                    <th>Venue/Time</th>
+                                    <th>Assigned By</th>
+                                    <th>Assigned Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr class="{% if not assignment.is_active %}table-secondary{% endif %}">
+                                    <td>
+                                        <strong>{{ assignment.course.name }}</strong><br>
+                                        <span class="badge bg-primary">{{ assignment.course.code }}</span>
+                                    </td>
+                                    <td>{{ assignment.academic_year.year }}</td>
+                                    <td>
+                                        <span class="badge bg-info">S{{ assignment.semester.semester_number }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ assignment.course.get_level_display }}</span>
+                                        <span class="badge bg-dark">{{ assignment.course.credit_hours }}CH</span><br>
+                                        <small class="text-muted">{{ assignment.course.get_course_type_display }}</small>
+                                    </td>
+                                    <td>
+                                        {% if assignment.lecture_venue %}
+                                            <small><i class="bi bi-geo-alt"></i> {{ assignment.lecture_venue }}</small><br>
+                                        {% endif %}
+                                        {% if assignment.lecture_time %}
+                                            <small><i class="bi bi-clock"></i> {{ assignment.lecture_time }}</small><br>
+                                        {% endif %}
+                                        {% if assignment.remarks %}
+                                            <small class="text-muted"><i class="bi bi-chat-text"></i> {{ assignment.remarks|truncatewords:10 }}</small>
+                                        {% endif %}
+                                        {% if not assignment.lecture_venue and not assignment.lecture_time and not assignment.remarks %}
+                                            <small class="text-muted">Not specified</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if assignment.assigned_by %}
+                                            {{ assignment.assigned_by.get_full_name }}<br>
+                                            <small class="text-muted">{{ assignment.assigned_by.get_user_type_display }}</small>
+                                        {% else %}
+                                            <small class="text-muted">System</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ assignment.assigned_date|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if assignment.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
+                    <h4 class="text-muted">No Course Assignments Found</h4>
+                    <p class="text-muted">This lecturer has not been assigned any courses yet.</p>
+                    <a href="{% url 'dean_allocate_courses' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Allocate Courses
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body">
+                    <h6 class="text-center mb-3">Assignment Summary</h6>
+                    <div class="row text-center">
+                        <div class="col-md-2">
+                            <h4 class="text-primary">{{ assignments.count }}</h4>
+                            <p class="mb-0 text-muted small">Total Assignments</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-success">{{ current_assignments.count }}</h4>
+                            <p class="mb-0 text-muted small">Current Year</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-info">
+                                {% with total_credit_hours=0 %}
+                                    {% for assignment in current_assignments %}
+                                        {% if assignment.is_active %}
+                                            {% widthratio assignment.course.credit_hours 1 1 as credit_hours %}
+                                            {% widthratio total_credit_hours|add:credit_hours 1 1 as total_credit_hours %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% for assignment in current_assignments %}
+                                        {% if forloop.first %}
+                                            {% widthratio 0 1 1 as running_total %}
+                                        {% endif %}
+                                        {% if assignment.is_active %}
+                                            {% widthratio running_total|add:assignment.course.credit_hours 1 1 as running_total %}
+                                        {% endif %}
+                                        {% if forloop.last %}
+                                            {{ running_total }}
+                                        {% endif %}
+                                    {% empty %}
+                                        0
+                                    {% endfor %}
+                                {% endwith %}
+                            </h4>
+                            <p class="mb-0 text-muted small">Credit Hours</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-warning">
+                                {{ assignments|length|floatformat:0 }}
+                            </h4>
+                            <p class="mb-0 text-muted small">Years Teaching</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-dark">
+                                {% with active_count=0 %}
+                                    {% for assignment in assignments %}
+                                        {% if assignment.is_active %}
+                                            {% widthratio active_count|add:1 1 1 as active_count %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% for assignment in assignments %}
+                                        {% if forloop.first %}
+                                            {% widthratio 0 1 1 as active_running %}
+                                        {% endif %}
+                                        {% if assignment.is_active %}
+                                            {% widthratio active_running|add:1 1 1 as active_running %}
+                                        {% endif %}
+                                        {% if forloop.last %}
+                                            {{ active_running }}
+                                        {% endif %}
+                                    {% empty %}
+                                        0
+                                    {% endfor %}
+                                {% endwith %}
+                            </h4>
+                            <p class="mb-0 text-muted small">Active Courses</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h4 class="text-secondary">
+                                {% widthratio lecturer.teaching_experience_years 1 1 %}
+                            </h4>
+                            <p class="mb-0 text-muted small">Experience (Years)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    width: 300px;
+}
+
+.alert-message {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    position: relative;
+    animation: slideInRight 0.3s ease-in-out;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-error,
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table-secondary {
+    opacity: 0.7;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide messages after 5 seconds
+    setTimeout(function() {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(function(message) {
+            message.style.animation = 'slideOutRight 0.3s ease-in-out';
+            setTimeout(function() {
+                message.remove();
+            }, 300);
+        });
+    }, 5000);
+
+    // Close message on click
+    document.querySelectorAll('.close-message').forEach(function(closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+});
+</script>
+
+{% endblock %}
