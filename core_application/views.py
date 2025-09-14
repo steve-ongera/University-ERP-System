@@ -18408,3 +18408,230 @@ def dean_programmes(request):
     }
     
     return render(request, 'dean/programmes.html', context)
+
+@login_required
+def dean_allocate_courses(request):
+    """
+    View for deans to allocate courses to lecturers in their faculty
+    """
+    # Check if user is a dean
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied. This page is for deans only.")
+        return redirect('dashboard')
+    
+    # Get the faculty where user is dean
+    try:
+        faculty = Faculty.objects.get(dean=request.user, is_active=True)
+    except Faculty.DoesNotExist:
+        messages.error(request, "You are not assigned as dean to any faculty.")
+        return redirect('dashboard')
+    
+    # Handle POST request (allocation submission)
+    if request.method == 'POST':
+        lecturer_id = request.POST.get('lecturer_id')
+        course_id = request.POST.get('course_id')
+        academic_year_id = request.POST.get('academic_year_id')
+        semester_id = request.POST.get('semester_id')
+        lecture_venue = request.POST.get('lecture_venue', '').strip()
+        lecture_time = request.POST.get('lecture_time', '').strip()
+        remarks = request.POST.get('remarks', '').strip()
+        
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id, department__faculty=faculty)
+            course = Course.objects.get(id=course_id, department__faculty=faculty)
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+            semester = Semester.objects.get(id=semester_id, academic_year=academic_year)
+            
+            # Check if assignment already exists
+            existing_assignment = LecturerCourseAssignment.objects.filter(
+                lecturer=lecturer,
+                course=course,
+                academic_year=academic_year,
+                semester=semester
+            ).first()
+            
+            if existing_assignment:
+                if existing_assignment.is_active:
+                    messages.warning(request, f"{course.name} is already assigned to {lecturer.user.get_full_name()} for {academic_year.year} Semester {semester.semester_number}.")
+                else:
+                    # Reactivate the assignment
+                    existing_assignment.is_active = True
+                    existing_assignment.lecture_venue = lecture_venue
+                    existing_assignment.lecture_time = lecture_time
+                    existing_assignment.remarks = remarks
+                    existing_assignment.assigned_by = request.user
+                    existing_assignment.save()
+                    messages.success(request, f"Successfully reactivated assignment: {course.name} to {lecturer.user.get_full_name()}")
+            else:
+                # Create new assignment
+                LecturerCourseAssignment.objects.create(
+                    lecturer=lecturer,
+                    course=course,
+                    academic_year=academic_year,
+                    semester=semester,
+                    assigned_by=request.user,
+                    lecture_venue=lecture_venue,
+                    lecture_time=lecture_time,
+                    remarks=remarks,
+                    is_active=True
+                )
+                messages.success(request, f"Successfully assigned {course.name} to {lecturer.user.get_full_name()}")
+                
+        except (Lecturer.DoesNotExist, Course.DoesNotExist, AcademicYear.DoesNotExist, Semester.DoesNotExist):
+            messages.error(request, "Invalid selection. Please try again.")
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
+        
+        return redirect('dean_allocate_courses')
+    
+    # Handle AJAX request for getting courses by department
+    if request.GET.get('action') == 'get_courses':
+        department_id = request.GET.get('department_id')
+        if department_id:
+            courses = Course.objects.filter(
+                department_id=department_id,
+                department__faculty=faculty,
+                is_active=True
+            ).values('id', 'name', 'code', 'credit_hours', 'level')
+            return JsonResponse({'courses': list(courses)})
+        return JsonResponse({'courses': []})
+    
+    # Handle AJAX request for getting lecturers by department
+    if request.GET.get('action') == 'get_lecturers':
+        department_id = request.GET.get('department_id')
+        if department_id:
+            lecturers = Lecturer.objects.filter(
+                department_id=department_id,
+                department__faculty=faculty,
+                is_active=True
+            ).select_related('user').values(
+                'id', 'user__first_name', 'user__last_name', 
+                'academic_rank', 'employee_number'
+            )
+            lecturer_list = []
+            for lecturer in lecturers:
+                lecturer_list.append({
+                    'id': lecturer['id'],
+                    'name': f"{lecturer['user__first_name']} {lecturer['user__last_name']}",
+                    'rank': lecturer['academic_rank'],
+                    'employee_number': lecturer['employee_number']
+                })
+            return JsonResponse({'lecturers': lecturer_list})
+        return JsonResponse({'lecturers': []})
+    
+    # Get filter parameters
+    selected_department = request.GET.get('department', '')
+    selected_academic_year = request.GET.get('academic_year', '')
+    selected_semester = request.GET.get('semester', '')
+    
+    # Get existing assignments for the faculty
+    assignments = LecturerCourseAssignment.objects.filter(
+        lecturer__department__faculty=faculty
+    ).select_related(
+        'lecturer__user', 'course', 'academic_year', 'semester', 'assigned_by'
+    ).order_by('-assigned_date')
+    
+    # Apply filters
+    if selected_department:
+        assignments = assignments.filter(lecturer__department_id=selected_department)
+    
+    if selected_academic_year:
+        assignments = assignments.filter(academic_year_id=selected_academic_year)
+    
+    if selected_semester:
+        assignments = assignments.filter(semester_id=selected_semester)
+    
+    # Pagination
+    paginator = Paginator(assignments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get form data
+    departments = Department.objects.filter(faculty=faculty, is_active=True)
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    semesters = []
+    if current_academic_year:
+        semesters = Semester.objects.filter(academic_year=current_academic_year).order_by('semester_number')
+    
+    context = {
+        'faculty': faculty,
+        'departments': departments,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'semesters': semesters,
+        'page_obj': page_obj,
+        'selected_department': selected_department,
+        'selected_academic_year': selected_academic_year,
+        'selected_semester': selected_semester,
+    }
+    
+    return render(request, 'dean/allocate_courses.html', context)
+
+
+@login_required
+def dean_remove_course_assignment(request, assignment_id):
+    """
+    Remove/deactivate a course assignment
+    """
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    try:
+        faculty = Faculty.objects.get(dean=request.user, is_active=True)
+        assignment = LecturerCourseAssignment.objects.get(
+            id=assignment_id,
+            lecturer__department__faculty=faculty
+        )
+        
+        if request.method == 'POST':
+            assignment.is_active = False
+            assignment.save()
+            messages.success(request, f"Successfully removed assignment: {assignment.course.name} from {assignment.lecturer.user.get_full_name()}")
+        else:
+            messages.error(request, "Invalid request method.")
+            
+    except (Faculty.DoesNotExist, LecturerCourseAssignment.DoesNotExist):
+        messages.error(request, "Assignment not found or access denied.")
+    
+    return redirect('dean_allocate_courses')
+
+
+@login_required
+def dean_view_lecturer_assignments(request, lecturer_id):
+    """
+    View all course assignments for a specific lecturer
+    """
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    try:
+        faculty = Faculty.objects.get(dean=request.user, is_active=True)
+        lecturer = Lecturer.objects.get(id=lecturer_id, department__faculty=faculty)
+        
+        assignments = LecturerCourseAssignment.objects.filter(
+            lecturer=lecturer,
+            is_active=True
+        ).select_related('course', 'academic_year', 'semester').order_by(
+            '-academic_year__start_date', 'semester__semester_number'
+        )
+        
+        # Get current academic year assignments
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_assignments = assignments.filter(academic_year=current_academic_year) if current_academic_year else []
+        
+        context = {
+            'faculty': faculty,
+            'lecturer': lecturer,
+            'assignments': assignments,
+            'current_assignments': current_assignments,
+            'current_academic_year': current_academic_year,
+        }
+        
+        return render(request, 'dean/lecturer_assignments.html', context)
+        
+    except (Faculty.DoesNotExist, Lecturer.DoesNotExist):
+        messages.error(request, "Lecturer not found or access denied.")
+        return redirect('dean_allocate_courses')
