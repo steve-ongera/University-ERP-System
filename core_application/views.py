@@ -18102,39 +18102,188 @@ def dean_student_detail(request, student_id):
 
 @login_required
 def dean_student_performance(request, student_id):
-    """Student performance analytics for dean"""
-    if request.user.user_type != 'dean':
-        messages.error(request, "Access denied.")
-        return redirect('dashboard')
+    """View specific student performance with all academic records"""
     
-    try:
-        faculty = Faculty.objects.get(dean=request.user)
-    except Faculty.DoesNotExist:
-        messages.error(request, "You are not assigned to any faculty as dean.")
-        return redirect('dashboard')
+    # Get the student
+    student = get_object_or_404(Student, student_id=student_id)
     
-    student = get_object_or_404(
-        Student.objects.select_related('user', 'programme'),
-        student_id=student_id,
-        programme__department__faculty=faculty
+    # Get all enrollments for this student
+    enrollments = Enrollment.objects.filter(
+        student=student
+    ).select_related(
+        'course', 'semester', 'semester__academic_year'
+    ).prefetch_related('grade').order_by(
+        'semester__academic_year__start_date', 'semester__semester_number'
     )
     
-    # Get performance data
-    from django.db.models import Avg, Count
+    # Organize data by academic year and semester
+    academic_data = []
     
-    # Semester-wise performance
-    semester_performance = student.enrollments.select_related(
-        'semester', 'semester__academic_year'
-    ).annotate(
-        avg_grade_points=Avg('grade__grade_points'),
-        total_courses=Count('id'),
-        passed_courses=Count(Case(When(grade__is_passed=True, then=1)))
-    ).order_by('semester__academic_year__year', 'semester__semester_number')
+    current_year = None
+    current_semester = None
+    year_data = None
+    semester_data = None
+    
+    overall_stats = {
+        'total_subjects': 0,
+        'passed_subjects': 0,
+        'failed_subjects': 0,
+        'total_credits': 0,
+        'earned_credits': 0,
+        'overall_gpa': 0,
+        'total_grade_points': 0
+    }
+    
+    for enrollment in enrollments:
+        academic_year = enrollment.semester.academic_year
+        semester = enrollment.semester
+        
+        # Create new year data if needed
+        if current_year != academic_year:
+            if year_data:
+                academic_data.append(year_data)
+            year_data = {
+                'academic_year': academic_year,
+                'semesters': []
+            }
+            current_year = academic_year
+            current_semester = None
+        
+        # Create new semester data if needed
+        if current_semester != semester:
+            if semester_data:
+                # Calculate semester statistics
+                total_subjects = len(semester_data['subjects'])
+                passed_subjects = sum(1 for s in semester_data['subjects'] if s['is_passed'])
+                failed_subjects = total_subjects - passed_subjects
+                
+                total_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'])
+                earned_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'] if s['is_passed'])
+                
+                # Calculate GPA for semester
+                total_grade_points = sum(
+                    (s['grade_points'] or 0) * s['subject'].credit_hours 
+                    for s in semester_data['subjects'] if s['grade_points'] is not None
+                )
+                semester_gpa = total_grade_points / total_credits if total_credits > 0 else 0
+                
+                semester_data['stats'] = {
+                    'total_subjects': total_subjects,
+                    'passed_subjects': passed_subjects,
+                    'failed_subjects': failed_subjects,
+                    'total_credits': total_credits,
+                    'earned_credits': earned_credits,
+                    'semester_gpa': round(semester_gpa, 2),
+                    'total_grade_points': total_grade_points
+                }
+                
+                year_data['semesters'].append(semester_data)
+            
+            semester_data = {
+                'semester': semester,
+                'subjects': [],
+                'stats': {}
+            }
+            current_semester = semester
+        
+        # Get grade information
+        grade_info = {
+            'enrollment': enrollment,
+            'subject': enrollment.course,
+            'theory_marks': None,
+            'practical_marks': None,
+            'clinical_marks': None,
+            'continuous_assessment': None,
+            'final_exam_marks': None,
+            'total_marks': None,
+            'grade': None,
+            'grade_points': None,
+            'is_passed': False,
+            'exam_date': None,
+            'remarks': None
+        }
+        
+        # Check if grade exists
+        if hasattr(enrollment, 'grade'):
+            grade = enrollment.grade
+            grade_info.update({
+                'theory_marks': grade.final_exam,
+                'practical_marks': grade.practical_marks,
+                'clinical_marks': grade.project_marks,
+                'continuous_assessment': grade.continuous_assessment,
+                'final_exam_marks': grade.final_exam,
+                'total_marks': grade.total_marks,
+                'grade': grade.grade,
+                'grade_points': grade.grade_points,
+                'is_passed': grade.is_passed,
+                'exam_date': grade.exam_date,
+                'remarks': grade.remarks
+            })
+        
+        semester_data['subjects'].append(grade_info)
+        
+        # Add to overall statistics
+        overall_stats['total_subjects'] += 1
+        if grade_info['is_passed']:
+            overall_stats['passed_subjects'] += 1
+        else:
+            overall_stats['failed_subjects'] += 1
+        
+        overall_stats['total_credits'] += enrollment.course.credit_hours
+        if grade_info['is_passed']:
+            overall_stats['earned_credits'] += enrollment.course.credit_hours
+        
+        if grade_info['grade_points'] is not None:
+            overall_stats['total_grade_points'] += grade_info['grade_points'] * enrollment.course.credit_hours
+    
+    # Don't forget the last semester and year
+    if semester_data:
+        # Calculate final semester statistics
+        total_subjects = len(semester_data['subjects'])
+        passed_subjects = sum(1 for s in semester_data['subjects'] if s['is_passed'])
+        failed_subjects = total_subjects - passed_subjects
+        
+        total_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'])
+        earned_credits = sum(s['subject'].credit_hours for s in semester_data['subjects'] if s['is_passed'])
+        
+        total_grade_points = sum(
+            (s['grade_points'] or 0) * s['subject'].credit_hours 
+            for s in semester_data['subjects'] if s['grade_points'] is not None
+        )
+        semester_gpa = total_grade_points / total_credits if total_credits > 0 else 0
+        
+        semester_data['stats'] = {
+            'total_subjects': total_subjects,
+            'passed_subjects': passed_subjects,
+            'failed_subjects': failed_subjects,
+            'total_credits': total_credits,
+            'earned_credits': earned_credits,
+            'semester_gpa': round(semester_gpa, 2),
+            'total_grade_points': total_grade_points
+        }
+        
+        year_data['semesters'].append(semester_data)
+    
+    if year_data:
+        academic_data.append(year_data)
+    
+    # Calculate overall GPA
+    if overall_stats['total_credits'] > 0:
+        overall_stats['overall_gpa'] = round(
+            overall_stats['total_grade_points'] / overall_stats['total_credits'], 2
+        )
+    
+    # Calculate completion percentage
+    overall_stats['completion_percentage'] = round(
+        (overall_stats['earned_credits'] / overall_stats['total_credits']) * 100, 2
+    ) if overall_stats['total_credits'] > 0 else 0
     
     context = {
         'student': student,
-        'faculty': faculty,
-        'semester_performance': semester_performance,
+        'academic_data': academic_data,
+        'overall_stats': overall_stats,
+        'programme': student.programme,
+        'school': student.programme.department,
     }
     
     return render(request, 'dean/student_performance.html', context)
