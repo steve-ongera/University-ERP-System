@@ -27,11 +27,9 @@
                     </div>
                     <div class="col-md-4 text-end">
                         <a href="{% url 'dean_allocate_courses' %}" class="btn btn-success me-2">
-                            <i class="bi bi-person-plus-fill"></i> Allocate Courses
+                            <i class="bi bi-person-plus-fill"></i> Allocate Units
                         </a>
-                        <a href="{% url 'add_programme' %}" class="btn btn-primary">
-                            <i class="bi bi-plus-lg"></i> Add Programme
-                        </a>
+                   
                     </div>
                 </div>
             </div>
@@ -112,13 +110,13 @@
                         </div>
                         <div class="col-md-3">
                             <h4 class="text-info">
-                                {% for item in page_obj %}{{ item.active_students|add:0 }}{% empty %}0{% endfor %}
+                              xx
                             </h4>
                             <p class="mb-0 text-muted">Active Students</p>
                         </div>
                         <div class="col-md-3">
                             <h4 class="text-warning">
-                                {% for item in page_obj %}{{ item.current_enrollments|add:0 }}{% empty %}0{% endfor %}
+                                xx
                             </h4>
                             <p class="mb-0 text-muted">Current Enrollments</p>
                         </div>
