@@ -1,0 +1,834 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">
+                    <i class="bi bi-mortarboard"></i> {{ faculty.name }} - Faculty Lecturers
+                    <span class="badge bg-secondary ms-2">{{ total_lecturers }} Total</span>
+                </p>
+                <small class="text-muted">
+                    <i class="bi bi-person-badge"></i> Dean: {{ request.user.get_full_name }} | 
+                    <i class="bi bi-building"></i> Faculty Code: {{ faculty.code }}
+                </small>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="btn-group float-end">
+                    <a href="{% url 'dean_lecturer_export' %}" class="btn btn-outline-success">
+                        <i class="bi bi-download"></i> Export CSV
+                    </a>
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#bulkActionModal">
+                        <i class="bi bi-lightning"></i> Bulk Actions
+                    </button>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#facultyStatsModal" style="background-color: #1a73e8; border-color: #1a73e8;">
+                        <i class="bi bi-graph-up"></i> Statistics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Faculty Summary Cards -->
+    <div class="row p-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ total_lecturers }}</h4>
+                    <p class="mb-0">Total Lecturers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ active_lecturers }}</h4>
+                    <p class="mb-0">Active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-pause-circle-fill" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ inactive_lecturers }}</h4>
+                    <p class="mb-0">Inactive</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="bi bi-building-fill" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ departments.count }}</h4>
+                    <p class="mb-0">Departments</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header" style="background-color: #f8f9fa;">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-search"></i> Search & Filter Lecturers
+                        <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body collapse show" id="searchFilters">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                                   placeholder="Search by name, employee number, email...">
+                        </div>
+                        <div class="col-md-2">
+                            <select name="department" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if department_filter == department.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="academic_rank" class="form-select">
+                                <option value="">All Ranks</option>
+                                {% for value, label in rank_choices %}
+                                <option value="{{ value }}" {% if rank_filter == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="employment_type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for value, label in employment_choices %}
+                                <option value="{{ value }}" {% if employment_filter == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="btn-group w-100">
+                                <button type="submit" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                                <a href="{% url 'dean_lecturer_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lecturers Table -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if lecturers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="lecturersTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" class="form-check-input" id="selectAll">
+                                    </th>
+                                    <th>Photo</th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=employee_number" class="text-decoration-none">
+                                            Employee Number
+                                            {% if order_by == 'employee_number' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=user__first_name" class="text-decoration-none">
+                                            Name
+                                            {% if order_by == 'user__first_name' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>Contact</th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=department__name" class="text-decoration-none">
+                                            Department
+                                            {% if order_by == 'department__name' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=academic_rank" class="text-decoration-none">
+                                            Academic Rank
+                                            {% if order_by == 'academic_rank' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}order_by=joining_date" class="text-decoration-none">
+                                            Joining Date
+                                            {% if order_by == 'joining_date' %}<i class="bi bi-sort-down"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>Status</th>
+                                    <th width="120">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lecturer in lecturers %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input lecturer-checkbox" 
+                                               value="{{ lecturer.employee_number }}">
+                                    </td>
+                                    <td>
+                                        {% if lecturer.user.profile_picture %}
+                                            <img src="{{ lecturer.user.profile_picture.url }}" 
+                                                 class="lecturer-thumb rounded-circle" alt="Profile">
+                                        {% else %}
+                                            <div class="lecturer-thumb-placeholder rounded-circle d-flex align-items-center justify-content-center">
+                                                <i class="bi bi-person-fill"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ lecturer.employee_number }}</strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ lecturer.user.get_full_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ lecturer.user.username }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            {% if lecturer.user.email %}
+                                                <i class="bi bi-envelope text-muted"></i> {{ lecturer.user.email }}
+                                                <br>
+                                            {% endif %}
+                                            {% if lecturer.user.phone %}
+                                                <i class="bi bi-telephone text-muted"></i> {{ lecturer.user.phone }}
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge" style="background-color: #1a73e8;">{{ lecturer.department.name }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ lecturer.department.code }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ lecturer.get_academic_rank_display }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ lecturer.get_employment_type_display }}</small>
+                                    </td>
+                                    <td>
+                                        {{ lecturer.joining_date|date:"M d, Y" }}
+                                        <br>
+                                        <small class="text-muted">{{ lecturer.teaching_experience_years }} years exp.</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if lecturer.is_active %}success{% else %}danger{% endif %} status-badge" 
+                                              data-employee-number="{{ lecturer.employee_number }}"
+                                              style="cursor: pointer;">
+                                            {{ lecturer.is_active|yesno:"Active,Inactive" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'dean_lecturer_detail' lecturer.employee_number %}" 
+                                               class="btn btn-outline-info btn-sm" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            
+                                            
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Lecturers pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link" style="background-color: #1a73e8; border-color: #1a73e8;">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-mortarboard" style="font-size: 3rem; color: #ccc;"></i>
+                        <h4 class="text-muted mt-3">No Lecturers Found</h4>
+                        <p class="text-muted">
+                            {% if search_query %}
+                                No lecturers in {{ faculty.name }} match your search criteria.
+                            {% else %}
+                                No lecturers have been assigned to {{ faculty.name }} yet.
+                            {% endif %}
+                        </p>
+                        <div class="mt-4">
+                            <a href="{% url 'dean_lecturer_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> View All Lecturers
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Modal -->
+<div class="modal fade" id="bulkActionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Actions for {{ faculty.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'dean_lecturer_bulk_action' %}" id="bulkActionForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Action:</label>
+                        <select name="action" class="form-select" required>
+                            <option value="">Choose action...</option>
+                            <option value="activate">Activate Selected</option>
+                            <option value="deactivate">Deactivate Selected</option>
+                            <option value="export_selected">Export Selected</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <span id="selectedCount">0</span> lecturer(s) selected from {{ faculty.name }}.
+                    </div>
+                    <input type="hidden" name="lecturer_ids" id="selectedLecturers">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: #1a73e8; border-color: #1a73e8;">Execute Action</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Faculty Statistics Modal -->
+<div class="modal fade" id="facultyStatsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ faculty.name }} - Faculty Statistics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Department Breakdown</h6>
+                        <div class="list-group">
+                            {% for department in departments %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ department.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ department.code }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">
+                                    {{ department.lecturers.count }} lecturer{{ department.lecturers.count|pluralize }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Academic Ranks Distribution</h6>
+                        <div class="list-group">
+                            {% regroup lecturers by academic_rank as rank_groups %}
+                            {% for rank_group in rank_groups %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ rank_group.grouper|title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ rank_group.grouper|capfirst }}</small>
+                                </div>
+                                <span class="badge bg-success rounded-pill">{{ rank_group.list|length }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-primary">{{ total_lecturers }}</h4>
+                        <p class="text-muted">Total Lecturers</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-success">{{ active_lecturers }}</h4>
+                        <p class="text-muted">Active Lecturers</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-warning">{{ inactive_lecturers }}</h4>
+                        <p class="text-muted">Inactive Lecturers</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info">{{ departments.count }}</h4>
+                        <p class="text-muted">Departments</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'dean_lecturer_export' %}" class="btn btn-success">
+                    <i class="bi bi-download"></i> Export Full Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lecturer Profile Modal -->
+<div class="modal fade" id="lecturerProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lecturer Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="lecturerProfileContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading lecturer profile...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="viewFullProfileBtn">
+                    <i class="bi bi-eye"></i> View Full Details
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all checkbox functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const lecturerCheckboxes = document.querySelectorAll('.lecturer-checkbox');
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        lecturerCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedCount();
+    });
+    
+    lecturerCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.lecturer-checkbox:checked');
+        document.getElementById('selectedCount').textContent = selected.length;
+        
+        // Update hidden input with selected IDs
+        const selectedIds = Array.from(selected).map(cb => cb.value);
+        document.getElementById('selectedLecturers').value = selectedIds.join(',');
+        
+        // Update select all checkbox state
+        selectAllCheckbox.indeterminate = selected.length > 0 && selected.length < lecturerCheckboxes.length;
+        selectAllCheckbox.checked = selected.length === lecturerCheckboxes.length;
+    }
+    
+    // Status toggle functionality
+    const statusToggleButtons = document.querySelectorAll('.status-toggle-btn');
+    statusToggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const employeeNumber = this.dataset.employeeNumber;
+            toggleLecturerStatus(employeeNumber);
+        });
+    });
+    
+    // Status badge click functionality
+    const statusBadges = document.querySelectorAll('.status-badge');
+    statusBadges.forEach(badge => {
+        badge.addEventListener('click', function() {
+            const employeeNumber = this.dataset.employeeNumber;
+            toggleLecturerStatus(employeeNumber);
+        });
+    });
+    
+    function toggleLecturerStatus(employeeNumber) {
+        fetch(`/dean/lecturers/${employeeNumber}/toggle-status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update badge
+                const badge = document.querySelector(`[data-employee-number="${employeeNumber}"]`);
+                if (badge) {
+                    badge.className = `badge bg-${data.is_active ? 'success' : 'danger'} status-badge`;
+                    badge.textContent = data.is_active ? 'Active' : 'Inactive';
+                    badge.style.cursor = 'pointer';
+                }
+                
+                // Update dropdown button text
+                const toggleBtn = document.querySelector(`[data-employee-number="${employeeNumber}"]`);
+                if (toggleBtn && toggleBtn.classList.contains('status-toggle-btn')) {
+                    const icon = toggleBtn.querySelector('i');
+                    icon.className = `bi bi-${data.is_active ? 'pause' : 'play'}-fill`;
+                    toggleBtn.innerHTML = `${icon.outerHTML} ${data.is_active ? 'Deactivate' : 'Activate'}`;
+                }
+                
+                // Show success message
+                showAlert('success', data.message);
+                
+                // Update counters after a brief delay
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'An error occurred while updating status.');
+        });
+    }
+    
+    // Lecturer profile modal functionality
+    const profileModal = document.getElementById('lecturerProfileModal');
+    profileModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const employeeNumber = button.getAttribute('data-employee');
+        
+        // Load lecturer profile data
+        loadLecturerProfile(employeeNumber);
+        
+        // Update "View Full Details" button
+        const viewFullBtn = document.getElementById('viewFullProfileBtn');
+        viewFullBtn.href = `/dean/lecturers/${employeeNumber}/`;
+    });
+    
+    function loadLecturerProfile(employeeNumber) {
+        const contentDiv = document.getElementById('lecturerProfileContent');
+        
+        // Show loading state
+        contentDiv.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading lecturer profile...</p>
+            </div>
+        `;
+        
+        // Simulate loading lecturer data (replace with actual API call)
+        setTimeout(() => {
+            // Find lecturer data from current page
+            const lecturerRow = document.querySelector(`input[value="${employeeNumber}"]`).closest('tr');
+            const name = lecturerRow.cells[3].querySelector('strong').textContent;
+            const email = lecturerRow.cells[4].querySelector('i.bi-envelope') ? 
+                         lecturerRow.cells[4].textContent.split('✉')[1].split('☎')[0].trim() : 'Not available';
+            const department = lecturerRow.cells[5].querySelector('.badge').textContent;
+            const rank = lecturerRow.cells[6].querySelector('.badge').textContent;
+            const joinDate = lecturerRow.cells[7].textContent.split('\n')[0].trim();
+            
+            contentDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3 text-center">
+                                        <div class="lecturer-thumb-placeholder rounded-circle d-flex align-items-center justify-content-center mx-auto" 
+                                             style="width: 80px; height: 80px; font-size: 2rem;">
+                                            <i class="bi bi-person-fill"></i>
+                                        </div>
+                                        <h6 class="mt-2">${name}</h6>
+                                        <small class="text-muted">${employeeNumber}</small>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <table class="table table-borderless">
+                                            <tr>
+                                                <td><strong>Department:</strong></td>
+                                                <td>${department}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Academic Rank:</strong></td>
+                                                <td>${rank}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Email:</strong></td>
+                                                <td>${email}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Joining Date:</strong></td>
+                                                <td>${joinDate}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Faculty:</strong></td>
+                                                <td>{{ faculty.name }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }, 500);
+    }
+    
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        document.getElementById('system-messages').insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                if (alert.classList.contains('show')) {
+                    const closeBtn = alert.querySelector('.btn-close');
+                    if (closeBtn) closeBtn.click();
+                }
+            });
+        }, 5000);
+    }
+    
+    // Handle message close buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('close-message')) {
+            e.target.closest('.alert-message').remove();
+        }
+    });
+});
+</script>
+
+<style>
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #1a73e8;
+}
+
+.lecturer-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+}
+
+.lecturer-thumb-placeholder {
+    width: 40px;
+    height: 40px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+
+.status-badge {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.status-badge:hover {
+    transform: scale(1.1);
+}
+
+.table th a {
+    color: inherit;
+    font-weight: 600;
+}
+
+.table th a:hover {
+    color: #1a73e8;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.775rem;
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #155db3;
+    border-color: #155db3;
+}
+
+.page-item.active .page-link {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.page-link {
+    color: #1a73e8;
+}
+
+.bg-primary {
+    background-color: #1a73e8 !important;
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.alert-message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    position: relative;
+}
+
+.alert-success {
+    color: #0a3622;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-error, .alert-danger {
+    color: #58151c;
+    background-color: #f8d7da;
+    border-color: #f1aeb5;
+}
+
+.close-message {
+    position: absolute;
+    top: 0.75rem;
+    right: 1.25rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    opacity: 0.6;
+}
+
+.close-message:hover {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .dashboardRightLabel .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .dashboardRightLabel .btn {
+        margin-bottom: 5px;
+        flex-grow: 1;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .card-body .row {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+
+{% endblock %}

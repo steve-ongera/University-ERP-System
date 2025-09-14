@@ -470,5 +470,13 @@ urlpatterns = [
     # AJAX endpoints
     path('dean/ajax/programmes/', views.get_programmes_by_department, name='get_programmes_by_department'),
 
+    # Main lecturer list for dean
+    path('dean/lecturers/', views.dean_lecturer_list, name='dean_lecturer_list'),
+    path('dean/lecturers/<str:employee_number>/', views.dean_lecturer_detail, name='dean_lecturer_detail'),
+    path('dean/lecturers/<str:employee_number>/toggle-status/', views.dean_lecturer_toggle_status, name='dean_lecturer_toggle_status'),
+    path('dean/lecturers/export/', views.dean_lecturer_export, name='dean_lecturer_export'),
+    path('dean/lecturers/bulk-action/',  views.dean_lecturer_bulk_action, name='dean_lecturer_bulk_action'),
+    path('dean/api/departments/',  views.dean_faculty_departments_api,  name='dean_faculty_departments_api'),
+
 
 ]
