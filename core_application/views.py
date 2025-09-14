@@ -61,6 +61,321 @@ from .models import (
     FeeStructure, FeePayment
 )
 
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Avg, Sum, Q
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.http import JsonResponse
+import json
+
+from .models import (
+    User, Faculty, Department, Programme, Course, Student, Lecturer, 
+    Staff, Grade, Enrollment, Semester, AcademicYear, FeePayment,
+    LecturerCourseAssignment, Assignment, AssignmentSubmission,
+    CourseNotes, Attendance, Research, StudentReporting
+)
+from django.core.serializers.json import DjangoJSONEncoder
+
+@login_required
+def dean_dashboard(request):
+    """
+    Dean Dashboard View - Shows faculty-level analytics and management data
+    """
+    user = request.user
+    
+    # Verify user is a dean
+    if user.user_type != 'dean':
+        return render(request, 'error.html', {'message': 'Access denied. Dean privileges required.'})
+    
+    # Get the faculty headed by this dean
+    try:
+        faculty = Faculty.objects.get(dean=user)
+    except Faculty.DoesNotExist:
+        return render(request, 'error.html', {'message': 'No faculty assigned to this dean.'})
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_date = timezone.now().date()
+    
+    # Faculty Overview Statistics
+    departments = Department.objects.filter(faculty=faculty, is_active=True)
+    programmes = Programme.objects.filter(faculty=faculty, is_active=True)
+    courses = Course.objects.filter(department__faculty=faculty, is_active=True)
+    
+    # Student Statistics
+    students = Student.objects.filter(programme__faculty=faculty, status='active')
+    total_students = students.count()
+    
+    # Staff Statistics
+    lecturers = Lecturer.objects.filter(department__faculty=faculty, is_active=True)
+    total_lecturers = lecturers.count()
+    
+    staff = Staff.objects.filter(department__faculty=faculty, is_active=True)
+    total_staff = staff.count()
+    
+    # Students by programme
+    students_by_programme = students.values('programme__name').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Students by year
+    students_by_year = students.values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    # Gender distribution
+    gender_distribution = students.values('user__gender').annotate(
+        count=Count('id')
+    )
+    
+    # Recent enrollments (last 30 days)
+    recent_enrollments = Enrollment.objects.filter(
+        course__department__faculty=faculty,
+        enrollment_date__gte=current_date - timedelta(days=30)
+    ).count()
+    
+    # Academic Performance
+    if current_semester:
+        # Average GPA by programme
+        programme_performance = []
+        for programme in programmes:
+            avg_gpa = Grade.objects.filter(
+                enrollment__student__programme=programme,
+                enrollment__semester=current_semester
+            ).aggregate(avg_gpa=Avg('grade_points'))['avg_gpa']
+            
+            if avg_gpa:
+                programme_performance.append({
+                    'programme': programme.name,
+                    'avg_gpa': round(avg_gpa, 2)
+                })
+        
+        # Pass rate by programme
+        programme_pass_rates = []
+        for programme in programmes:
+            total_grades = Grade.objects.filter(
+                enrollment__student__programme=programme,
+                enrollment__semester=current_semester
+            ).count()
+            
+            passed_grades = Grade.objects.filter(
+                enrollment__student__programme=programme,
+                enrollment__semester=current_semester,
+                is_passed=True
+            ).count()
+            
+            if total_grades > 0:
+                pass_rate = (passed_grades / total_grades) * 100
+                programme_pass_rates.append({
+                    'programme': programme.name,
+                    'pass_rate': round(pass_rate, 1),
+                    'total_grades': total_grades
+                })
+    
+    # Research Activities
+    research_projects = Research.objects.filter(
+        department__faculty=faculty
+    ).count()
+    
+    active_research = Research.objects.filter(
+        department__faculty=faculty,
+        status='ongoing'
+    ).count()
+    
+    # Fee Collection (Faculty level)
+    if current_academic_year:
+        faculty_fee_payments = FeePayment.objects.filter(
+            student__programme__faculty=faculty,
+            fee_structure__academic_year=current_academic_year
+        )
+        
+        total_collected = faculty_fee_payments.aggregate(
+            total=Sum('amount_paid')
+        )['total'] or 0
+        
+        payments_today = faculty_fee_payments.filter(
+            payment_date=current_date
+        ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    else:
+        total_collected = 0
+        payments_today = 0
+    
+    # Recent Activities
+    recent_activities = []
+    
+    # Recent course assignments
+    recent_assignments = LecturerCourseAssignment.objects.filter(
+        course__department__faculty=faculty,
+        assigned_date__gte=current_date - timedelta(days=7)
+    ).select_related('lecturer__user', 'course').order_by('-assigned_date')[:5]
+    
+    for assignment in recent_assignments:
+        recent_activities.append({
+            'message': f'{assignment.lecturer.user.get_full_name()} assigned to {assignment.course.code}',
+            'date': assignment.assigned_date,
+            'icon': 'fa-chalkboard-teacher',
+            'color': 'info'
+        })
+    
+    # Recent student enrollments
+    recent_student_enrollments = Enrollment.objects.filter(
+        course__department__faculty=faculty,
+        enrollment_date__gte=current_date - timedelta(days=7)
+    ).select_related('student__user', 'course').order_by('-enrollment_date')[:5]
+    
+    for enrollment in recent_student_enrollments:
+        recent_activities.append({
+            'message': f'{enrollment.student.user.get_full_name()} enrolled in {enrollment.course.code}',
+            'date': enrollment.enrollment_date,
+            'icon': 'fa-user-graduate',
+            'color': 'success'
+        })
+    
+    # Sort activities by date
+    recent_activities.sort(key=lambda x: x['date'], reverse=True)
+    recent_activities = recent_activities[:10]
+    
+    # Top performing students in faculty
+    if current_semester:
+        top_students = Student.objects.filter(
+            programme__faculty=faculty,
+            status='active'
+        ).annotate(
+            avg_gpa=Avg('enrollments__grade__grade_points')
+        ).filter(avg_gpa__isnull=False).order_by('-avg_gpa')[:10]
+    else:
+        top_students = []
+    
+    # Chart Data Preparation
+    
+    # Programme enrollment chart
+    programme_chart_labels = [item['programme__name'] for item in students_by_programme]
+    programme_chart_data = [item['count'] for item in students_by_programme]
+    programme_chart_data_json = {
+        'labels': programme_chart_labels,
+        'data': programme_chart_data
+    }
+    
+    # Year distribution chart
+    year_chart_labels = [f'Year {item["current_year"]}' for item in students_by_year]
+    year_chart_data = [item['count'] for item in students_by_year]
+    year_chart_data_json = {
+        'labels': year_chart_labels,
+        'data': year_chart_data
+    }
+    
+    # Gender distribution chart
+    gender_chart_labels = []
+    gender_chart_data = []
+    gender_colors = ['#FF6384', '#36A2EB', '#FFCE56']
+    
+    for item in gender_distribution:
+        if item['user__gender']:
+            gender_chart_labels.append(item['user__gender'].title())
+            gender_chart_data.append(item['count'])
+    
+    gender_chart_data_json = {
+        'labels': gender_chart_labels,
+        'data': gender_chart_data,
+        'colors': gender_colors[:len(gender_chart_labels)]
+    }
+    
+    # Programme performance chart
+    performance_chart_labels = [item['programme'] for item in programme_performance]
+    performance_chart_data = [item['avg_gpa'] for item in programme_performance]
+    performance_chart_data_json = {
+        'labels': performance_chart_labels,
+        'data': performance_chart_data
+    }
+    
+    # Department distribution
+    dept_distribution = departments.annotate(
+        student_count=Count('programmes__students')
+    ).values('name', 'student_count')
+    
+    dept_chart_labels = [item['name'] for item in dept_distribution]
+    dept_chart_data = [item['student_count'] for item in dept_distribution]
+    dept_chart_data_json = {
+        'labels': dept_chart_labels,
+        'data': dept_chart_data
+    }
+    
+    # Monthly enrollment trend (last 6 months)
+    six_months_ago = current_date - timedelta(days=180)
+    monthly_enrollments = []
+    for i in range(6):
+        month_start = six_months_ago + timedelta(days=i*30)
+        month_end = month_start + timedelta(days=30)
+        
+        enrollments_count = Enrollment.objects.filter(
+            course__department__faculty=faculty,
+            enrollment_date__range=[month_start, month_end]
+        ).count()
+        
+        monthly_enrollments.append({
+            'month': month_start.strftime('%b %Y'),
+            'count': enrollments_count
+        })
+    
+    enrollment_trend_labels = [item['month'] for item in monthly_enrollments]
+    enrollment_trend_data = [item['count'] for item in monthly_enrollments]
+    enrollment_trend_data_json = {
+        'labels': enrollment_trend_labels,
+        'data': enrollment_trend_data
+    }
+    
+    # Recent payments for display
+    recent_payments = FeePayment.objects.filter(
+        student__programme__faculty=faculty,
+        payment_date__gte=current_date - timedelta(days=30)
+    ).select_related('student__user').order_by('-payment_date')[:10]
+    
+    context = {
+        'faculty': faculty,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'current_date': current_date,
+        
+        # Overview Statistics
+        'total_departments': departments.count(),
+        'total_programmes': programmes.count(),
+        'total_courses': courses.count(),
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'total_staff': total_staff,
+        'recent_enrollments': recent_enrollments,
+        'active_research': active_research,
+        'total_research': research_projects,
+        
+        # Financial
+        'total_collected': total_collected,
+        'payments_today': payments_today,
+        'recent_payments': recent_payments,
+        
+        # Lists
+        'departments': departments,
+        'programmes': programmes,
+        'students_by_programme': students_by_programme,
+        'programme_performance': programme_performance,
+        'programme_pass_rates': programme_pass_rates,
+        'top_students': top_students,
+        'recent_activities': recent_activities,
+        
+        # Chart Data (JSON)
+        'programme_chart_data': json.dumps(programme_chart_data_json),
+        'year_chart_data': json.dumps(year_chart_data_json),
+        'gender_chart_data': json.dumps(gender_chart_data_json),
+        'performance_chart_data': json.dumps(performance_chart_data_json, cls=DjangoJSONEncoder),
+        'dept_chart_data': json.dumps(dept_chart_data_json),
+        'enrollment_trend_data': json.dumps(enrollment_trend_data_json),
+    }
+    
+    return render(request, 'dean/dean_dashboard.html', context)
+
 @login_required
 def student_dashboard(request):
     """Main dashboard for logged-in students"""

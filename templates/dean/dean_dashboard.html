@@ -1,0 +1,816 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block content %}
+
+
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+
+    <div class="container onprintContainer">
+        <!-- Header Section -->
+        <div class="row p-3">
+            <div class="row d-flex flex-row">
+                <div class="col-md-8">
+                    <h1 class="fw-bold card-title text-start">Dean Dashboard - Faculty of Engineering</h1>
+                    <p class="text-muted">Academic Year: 2024/2025 | Current Semester: 2</p>
+                </div>
+                <div class="col-md-4 dashboardRightLabel">
+                    <div class="text-end">
+                        <span class="fw-bold text-muted">Today is Monday, September 14, 2025</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards Row -->
+        <div class="row p-2">
+            <!-- Departments Card -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-primary shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Departments</div>
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">8</div>
+                                <div class="mt-2 text-muted small">
+                                    <span class="text-success">8 active</span>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-building fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Card -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-success shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Students</div>
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">2,456</div>
+                                <div class="mt-2 text-muted small">
+                                    <span class="text-success">2,398 active</span> | 
+                                    <span class="text-info">24 new enrollments</span>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lecturers Card -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-info shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Lecturers</div>
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">89</div>
+                                <div class="mt-2 text-muted small">
+                                    <span class="text-success">85 active</span>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Programmes Card -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Programmes</div>
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">15</div>
+                                <div class="mt-2 text-muted small">
+                                    <span class="text-success">15 active</span>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row p-2">
+            <!-- Programme Enrollment (Horizontal Bar Chart) -->
+            <div class="col-md-8 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Student Enrollment by Programme</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="programmeChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department Distribution (Donut Chart) -->
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Students by Department</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="departmentChart" width="400" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance and Trends Row -->
+        <div class="row p-2">
+            <!-- Programme Performance (Bar Chart) -->
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Programme Performance (Average GPA)</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performanceChart" width="400" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enrollment Trends (Line Chart) -->
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Enrollment Trends (Last 6 Months)</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="enrollmentTrendChart" width="400" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Row -->
+        <div class="row p-2">
+            <!-- Left Column -->
+            <div class="col-md-8">
+                <!-- Faculty Overview -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="row">
+                            <div class="col-md-9">
+                                <h5 class="card-title fw-semibold primary-text">Faculty Overview</h5>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <a href="#" class="small text-primary">View All</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 col-md-3 mb-4">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Courses/Units</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">234</div>
+                            </div>
+                            <div class="col-6 col-md-3 mb-4">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Research Projects</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">45</div>
+                            </div>
+                            <div class="col-6 col-md-3 mb-4">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Active Research</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">18</div>
+                            </div>
+                            <div class="col-6 col-md-3 mb-4">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Staff Members</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">32</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activities -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="row">
+                            <div class="col-md-9">
+                                <h5 class="card-title fw-semibold primary-text">Recent Activities</h5>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <a href="#" class="small text-primary">View All</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div class="d-flex">
+                                        <i class="fas fa-chalkboard-teacher text-info me-3 mt-1"></i>
+                                        <div>
+                                            <p class="mb-1 small">Dr. Sarah Johnson assigned to CS301 - Database Systems</p>
+                                            <small class="text-muted">2 hours ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div class="d-flex">
+                                        <i class="fas fa-user-graduate text-success me-3 mt-1"></i>
+                                        <div>
+                                            <p class="mb-1 small">45 students enrolled in new Software Engineering course</p>
+                                            <small class="text-muted">5 hours ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div class="d-flex">
+                                        <i class="fas fa-research text-warning me-3 mt-1"></i>
+                                        <div>
+                                            <p class="mb-1 small">New research project approved: "AI in Healthcare Systems"</p>
+                                            <small class="text-muted">1 day ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-3">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div class="d-flex">
+                                        <i class="fas fa-graduation-cap text-primary me-3 mt-1"></i>
+                                        <div>
+                                            <p class="mb-1 small">Computer Science programme curriculum updated</p>
+                                            <small class="text-muted">2 days ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Year Distribution and Gender Chart -->
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="card-title fw-semibold primary-text">Students by Year</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="yearChart" width="400" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white border-bottom">
+                                <h5 class="card-title fw-semibold primary-text">Gender Distribution</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="genderChart" width="400" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-4">
+                <!-- Financial Overview -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Financial Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-3">
+                            <div class="col-12 mb-3">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Total Collected</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">KES 45.2M</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Today's Collections</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">KES 125K</div>
+                            </div>
+                        </div>
+                        
+                        <h6 class="fw-semibold primary-text mb-3">Recent Payments</h6>
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 small fw-semibold">ENG/2023/001</h6>
+                                    <span class="text-success fw-bold">KES 45,000</span>
+                                </div>
+                                <small class="text-muted">M-Pesa - Sep 14, 2025</small>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 small fw-semibold">ENG/2023/045</h6>
+                                    <span class="text-success fw-bold">KES 38,500</span>
+                                </div>
+                                <small class="text-muted">Bank Transfer - Sep 14, 2025</small>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 small fw-semibold">ENG/2022/156</h6>
+                                    <span class="text-success fw-bold">KES 42,000</span>
+                                </div>
+                                <small class="text-muted">M-Pesa - Sep 13, 2025</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Performing Students -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Top Performing Students</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">John Kimani</h6>
+                                        <small class="text-muted">ENG/2022/045 - Computer Science</small>
+                                    </div>
+                                    <span class="badge bg-success">3.85</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Mary Wanjiku</h6>
+                                        <small class="text-muted">ENG/2022/012 - Software Engineering</small>
+                                    </div>
+                                    <span class="badge bg-success">3.78</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Peter Ochieng</h6>
+                                        <small class="text-muted">ENG/2021/089 - Electrical Engineering</small>
+                                    </div>
+                                    <span class="badge bg-success">3.72</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Grace Achieng</h6>
+                                        <small class="text-muted">ENG/2023/034 - Civil Engineering</small>
+                                    </div>
+                                    <span class="badge bg-success">3.69</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i> Add Department
+                            </a>
+                            <a href="#" class="btn btn-success btn-sm">
+                                <i class="fas fa-graduation-cap me-1"></i> Add Programme
+                            </a>
+                            <a href="#" class="btn btn-info btn-sm">
+                                <i class="fas fa-chalkboard-teacher me-1"></i> Assign Lecturer
+                            </a>
+                            <a href="#" class="btn btn-warning btn-sm">
+                                <i class="fas fa-chart-line me-1"></i> View Reports
+                            </a>
+                            <a href="#" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-research me-1"></i> Research Projects
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Department Heads -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="card-title fw-semibold primary-text">Department Heads</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Computer Science</h6>
+                                        <small class="text-muted">Dr. James Mwangi</small>
+                                    </div>
+                                    <span class="badge bg-info">678 students</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Electrical Engineering</h6>
+                                        <small class="text-muted">Prof. Susan Kamau</small>
+                                    </div>
+                                    <span class="badge bg-info">445 students</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Civil Engineering</h6>
+                                        <small class="text-muted">Dr. Robert Kiprotich</small>
+                                    </div>
+                                    <span class="badge bg-info">389 students</span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 small fw-semibold">Mechanical Engineering</h6>
+                                        <small class="text-muted">Dr. Alice Wanjiru</small>
+                                    </div>
+                                    <span class="badge bg-info">334 students</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Programme Pass Rates Table -->
+        <div class="row p-2">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="row">
+                            <div class="col-md-9">
+                                <h5 class="card-title fw-semibold primary-text">Programme Pass Rates - Current Semester</h5>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <a href="#" class="small text-primary">View Detailed Report</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Programme</th>
+                                        <th>Total Students</th>
+                                        <th>Passed</th>
+                                        <th>Failed</th>
+                                        <th>Pass Rate</th>
+                                        <th>Average GPA</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <strong>Computer Science</strong><br>
+                                            <small class="text-muted">Bachelor's Degree</small>
+                                        </td>
+                                        <td>678</td>
+                                        <td><span class="text-success">612</span></td>
+                                        <td><span class="text-danger">66</span></td>
+                                        <td>
+                                            <span class="badge bg-success">90.3%</span>
+                                        </td>
+                                        <td>3.45</td>
+                                        <td><span class="badge bg-success">Excellent</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>Software Engineering</strong><br>
+                                            <small class="text-muted">Bachelor's Degree</small>
+                                        </td>
+                                        <td>445</td>
+                                        <td><span class="text-success">389</span></td>
+                                        <td><span class="text-danger">56</span></td>
+                                        <td>
+                                            <span class="badge bg-success">87.4%</span>
+                                        </td>
+                                        <td>3.38</td>
+                                        <td><span class="badge bg-success">Excellent</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>Electrical Engineering</strong><br>
+                                            <small class="text-muted">Bachelor's Degree</small>
+                                        </td>
+                                        <td>389</td>
+                                        <td><span class="text-success">312</span></td>
+                                        <td><span class="text-danger">77</span></td>
+                                        <td>
+                                            <span class="badge bg-warning">80.2%</span>
+                                        </td>
+                                        <td>3.12</td>
+                                        <td><span class="badge bg-warning">Good</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>Civil Engineering</strong><br>
+                                            <small class="text-muted">Bachelor's Degree</small>
+                                        </td>
+                                        <td>334</td>
+                                        <td><span class="text-success">278</span></td>
+                                        <td><span class="text-danger">56</span></td>
+                                        <td>
+                                            <span class="badge bg-success">83.2%</span>
+                                        </td>
+                                        <td>3.22</td>
+                                        <td><span class="badge bg-success">Good</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>Mechanical Engineering</strong><br>
+                                            <small class="text-muted">Bachelor's Degree</small>
+                                        </td>
+                                        <td>298</td>
+                                        <td><span class="text-success">234</span></td>
+                                        <td><span class="text-danger">64</span></td>
+                                        <td>
+                                            <span class="badge bg-warning">78.5%</span>
+                                        </td>
+                                        <td>3.08</td>
+                                        <td><span class="badge bg-warning">Fair</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.plugins.legend.position = 'bottom';
+
+        // Sample data (in real implementation, this would come from Django context)
+        
+        // Programme Enrollment Chart (Horizontal Bar)
+        const programmeCtx = document.getElementById('programmeChart').getContext('2d');
+        new Chart(programmeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Computer Science', 'Software Engineering', 'Electrical Engineering', 'Civil Engineering', 'Mechanical Engineering', 'Industrial Engineering'],
+                datasets: [{
+                    label: 'Students Enrolled',
+                    data: [678, 445, 389, 334, 298, 234],
+                    backgroundColor: 'rgba(39, 174, 96, 0.8)',
+                    borderColor: 'rgba(39, 174, 96, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.1)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Department Distribution Chart (Donut)
+        const departmentCtx = document.getElementById('departmentChart').getContext('2d');
+        new Chart(departmentCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Computer Science', 'Electrical Eng.', 'Civil Eng.', 'Mechanical Eng.', 'Others'],
+                datasets: [{
+                    data: [678, 389, 334, 298, 456],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, usePointStyle: true, font: { size: 10 } }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+
+        // Programme Performance Chart (Bar)
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Computer Science', 'Software Eng.', 'Electrical Eng.', 'Civil Eng.', 'Mechanical Eng.'],
+                datasets: [{
+                    label: 'Average GPA',
+                    data: [3.45, 3.38, 3.12, 3.22, 3.08],
+                    backgroundColor: 'rgba(243, 156, 18, 0.8)',
+                    borderColor: 'rgba(243, 156, 18, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 4.0, grid: { color: 'rgba(0,0,0,0.1)' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Enrollment Trends Chart (Line)
+        const enrollmentTrendCtx = document.getElementById('enrollmentTrendChart').getContext('2d');
+        new Chart(enrollmentTrendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+                datasets: [{
+                    label: 'New Enrollments',
+                    data: [45, 52, 38, 67, 89, 94],
+                    borderColor: 'rgba(155, 89, 182, 1)',
+                    backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: 'rgba(155, 89, 182, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Students by Year Chart (Bar)
+        const yearCtx = document.getElementById('yearChart').getContext('2d');
+        new Chart(yearCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Year 1', 'Year 2', 'Year 3', 'Year 4'],
+                datasets: [{
+                    label: 'Students',
+                    data: [756, 634, 598, 468],
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Gender Distribution Chart (Pie)
+        const genderCtx = document.getElementById('genderChart').getContext('2d');
+        new Chart(genderCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Male', 'Female'],
+                datasets: [{
+                    data: [1456, 1000],
+                    backgroundColor: ['#36A2EB', '#FF6384'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, usePointStyle: true }
+                    }
+                }
+            }
+        });
+
+        // Message handling
+        document.addEventListener('DOMContentLoaded', function() {
+            const closeButtons = document.querySelectorAll('.close-message');
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.parentElement.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        this.parentElement.remove();
+                    }, 300);
+                });
+            });
+
+            // Auto-hide messages after 5 seconds
+            const messages = document.querySelectorAll('.alert-message');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    if (message.parentElement) {
+                        message.style.animation = 'slideOut 0.3s ease';
+                        setTimeout(() => {
+                            message.remove();
+                        }, 300);
+                    }
+                }, 5000);
+            });
+        });
+    </script>
+
+    <style>
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+{% endblock %}

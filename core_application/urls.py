@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.login_view, name='login_view'),
     path('logout/', views.logout_view, name='logout_view'),
     path('lecturer/dashboard/', views.lecturer_dashboard, name='lecturer_dashboard'),
+    path('dean-dashbaord/', views.dean_dashboard , name='dean_dashboard'),
     
     # Student dashboard and main views
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
