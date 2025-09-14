@@ -17891,3 +17891,250 @@ def delete_course(request, course_id):
     }
     
     return render(request, 'courses/delete_course.html', context)
+
+
+# Dean views.py
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import Student, Faculty, Department, Programme, User
+from django.db.models import Case, When, IntegerField
+
+@login_required
+def dean_student_list(request):
+    # Ensure user is a dean
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied. Only deans can access this page.")
+        return redirect('dashboard')
+    
+    # Get the faculty this dean is responsible for
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+    except Faculty.DoesNotExist:
+        messages.error(request, "You are not assigned to any faculty as dean.")
+        return redirect('dashboard')
+    
+    # Get all students from programmes within departments of this faculty
+    students_queryset = Student.objects.filter(
+        programme__department__faculty=faculty
+    ).select_related(
+        'user', 'programme', 'programme__department', 'programme__faculty'
+    ).order_by('student_id')
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        students_queryset = students_queryset.filter(
+            Q(student_id__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(programme__name__icontains=search_query) |
+            Q(programme__code__icontains=search_query)
+        )
+    
+    # Status filter
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        students_queryset = students_queryset.filter(status=status_filter)
+    
+    # Department filter (within the dean's faculty)
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        students_queryset = students_queryset.filter(programme__department_id=department_filter)
+    
+    # Programme filter
+    programme_filter = request.GET.get('programme', '')
+    if programme_filter:
+        students_queryset = students_queryset.filter(programme_id=programme_filter)
+    
+    # Year filter
+    year_filter = request.GET.get('year', '')
+    if year_filter:
+        students_queryset = students_queryset.filter(current_year=year_filter)
+    
+    # Semester filter
+    semester_filter = request.GET.get('semester', '')
+    if semester_filter:
+        students_queryset = students_queryset.filter(current_semester=semester_filter)
+    
+    # Admission type filter
+    admission_type_filter = request.GET.get('admission_type', '')
+    if admission_type_filter:
+        students_queryset = students_queryset.filter(admission_type=admission_type_filter)
+    
+    # Sponsor type filter
+    sponsor_type_filter = request.GET.get('sponsor_type', '')
+    if sponsor_type_filter:
+        students_queryset = students_queryset.filter(sponsor_type=sponsor_type_filter)
+    
+    # Get filter choices for the dean's faculty
+    departments = Department.objects.filter(faculty=faculty, is_active=True).order_by('name')
+    programmes = Programme.objects.filter(
+        department__faculty=faculty, 
+        is_active=True
+    ).order_by('name')
+    
+    # Pagination
+    paginator = Paginator(students_queryset, 25)  # Show 25 students per page
+    page_number = request.GET.get('page')
+    students = paginator.get_page(page_number)
+    
+    # Calculate statistics for the dean's faculty
+    total_students = students_queryset.count()
+    active_students = students_queryset.filter(status='active').count()
+    graduated_students = students_queryset.filter(status='graduated').count()
+    
+    # Get department-wise statistics
+    department_stats = departments.annotate(
+        student_count=Count('programmes__students', distinct=True)
+    ).order_by('name')
+    
+    context = {
+        'students': students,
+        'faculty': faculty,
+        'total_students': total_students,
+        'active_students': active_students,
+        'graduated_students': graduated_students,
+        'department_stats': department_stats,
+        
+        # Filter data
+        'departments': departments,
+        'programmes': programmes,
+        'status_choices': Student.STATUS_CHOICES,
+        'year_choices': [(i, f'Year {i}') for i in range(1, 9)],
+        'semester_choices': [(i, f'Semester {i}') for i in range(1, 4)],
+        'admission_type_choices': Student.ADMISSION_TYPES,
+        'sponsor_type_choices': Student.SPONSOR_TYPES,
+        
+        # Current filter values
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'department_filter': department_filter,
+        'programme_filter': programme_filter,
+        'year_filter': year_filter,
+        'semester_filter': semester_filter,
+        'admission_type_filter': admission_type_filter,
+        'sponsor_type_filter': sponsor_type_filter,
+    }
+    
+    return render(request, 'dean/student_list.html', context)
+
+@login_required
+@require_http_methods(["GET"])
+def get_programmes_by_department(request):
+    """AJAX endpoint to get programmes filtered by department for dean's faculty"""
+    if request.user.user_type != 'dean':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+    except Faculty.DoesNotExist:
+        return JsonResponse({'error': 'Faculty not found'}, status=404)
+    
+    department_id = request.GET.get('department_id')
+    if department_id:
+        programmes = Programme.objects.filter(
+            department_id=department_id,
+            department__faculty=faculty,
+            is_active=True
+        ).values('id', 'name', 'code').order_by('name')
+    else:
+        programmes = Programme.objects.filter(
+            department__faculty=faculty,
+            is_active=True
+        ).values('id', 'name', 'code').order_by('name')
+    
+    return JsonResponse({'programmes': list(programmes)})
+
+@login_required
+def dean_student_detail(request, student_id):
+    """Detailed view of a student for dean - only if student belongs to dean's faculty"""
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+    except Faculty.DoesNotExist:
+        messages.error(request, "You are not assigned to any faculty as dean.")
+        return redirect('dashboard')
+    
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme', 'programme__department'),
+        student_id=student_id,
+        programme__department__faculty=faculty
+    )
+    
+    # Get student's academic records, enrollments etc.
+    enrollments = student.enrollments.select_related(
+        'course', 'semester', 'semester__academic_year', 'lecturer'
+    ).order_by('-semester__academic_year__year', '-semester__semester_number')
+    
+    # Get grades
+    grades = []
+    for enrollment in enrollments:
+        try:
+            grade = enrollment.grade
+            grades.append({
+                'enrollment': enrollment,
+                'grade': grade
+            })
+        except:
+            grades.append({
+                'enrollment': enrollment,
+                'grade': None
+            })
+    
+    context = {
+        'student': student,
+        'faculty': faculty,
+        'enrollments': enrollments,
+        'grades': grades,
+    }
+    
+    return render(request, 'dean/student_detail.html', context)
+
+@login_required
+def dean_student_performance(request, student_id):
+    """Student performance analytics for dean"""
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+    except Faculty.DoesNotExist:
+        messages.error(request, "You are not assigned to any faculty as dean.")
+        return redirect('dashboard')
+    
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        student_id=student_id,
+        programme__department__faculty=faculty
+    )
+    
+    # Get performance data
+    from django.db.models import Avg, Count
+    
+    # Semester-wise performance
+    semester_performance = student.enrollments.select_related(
+        'semester', 'semester__academic_year'
+    ).annotate(
+        avg_grade_points=Avg('grade__grade_points'),
+        total_courses=Count('id'),
+        passed_courses=Count(Case(When(grade__is_passed=True, then=1)))
+    ).order_by('semester__academic_year__year', 'semester__semester_number')
+    
+    context = {
+        'student': student,
+        'faculty': faculty,
+        'semester_performance': semester_performance,
+    }
+    
+    return render(request, 'dean/student_performance.html', context)

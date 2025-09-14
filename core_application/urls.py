@@ -454,5 +454,13 @@ urlpatterns = [
     path('courses/<int:course_id>/edit/', views.edit_course, name='edit_course'),
     path('courses/<int:course_id>/delete/', views.delete_course, name='delete_course'),
 
+    # Student Management URLs
+    path('dean/students/', views.dean_student_list, name='dean_student_list'),
+    path('dean/students/<str:student_id>/', views.dean_student_detail, name='dean_student_detail'),
+    path('dean/students/<str:student_id>/performance/', views.dean_student_performance, name='dean_student_performance'),
+    
+    # AJAX endpoints
+    path('dean/ajax/programmes/', views.get_programmes_by_department, name='get_programmes_by_department'),
+
 
 ]

@@ -1,0 +1,513 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">Students in {{ faculty.name }}</p>
+                <small class="text-muted">
+                    Total: {{ total_students }} | Active: {{ active_students }} | Graduated: {{ graduated_students }}
+                </small>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <button type="button" class="btn btn-info float-end me-2" data-bs-toggle="modal" data-bs-target="#departmentStatsModal">
+                        <i class="bi bi-bar-chart"></i> Department Stats
+                    </button>
+                    <button type="button" class="btn btn-outline-success float-end" onclick="exportStudents()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Section -->
+    <div class="row p-3">
+        <div class="card shadow-sm p-3">
+            <form method="GET" class="row g-3">
+                <!-- Search -->
+                <div class="col-md-4">
+                    <label class="form-label small">Search Students</label>
+                    <input type="text" class="form-control" name="search" value="{{ search_query }}" 
+                           placeholder="Name, ID, email, programme...">
+                </div>
+                
+                <!-- Status Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All Status</option>
+                        {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if status_code == status_filter %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Department Filter -->
+                <div class="col-md-3">
+                    <label class="form-label small">Department</label>
+                    <select class="form-select" name="department" id="departmentFilter">
+                        <option value="">All Departments</option>
+                        {% for department in departments %}
+                            <option value="{{ department.id }}" {% if department.id|stringformat:"s" == department_filter %}selected{% endif %}>
+                                {{ department.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Programme Filter -->
+                <div class="col-md-3">
+                    <label class="form-label small">Programme</label>
+                    <select class="form-select" name="programme" id="programmeFilter">
+                        <option value="">All Programmes</option>
+                        {% for programme in programmes %}
+                            <option value="{{ programme.id }}" {% if programme.id|stringformat:"s" == programme_filter %}selected{% endif %}>
+                                {{ programme.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Year Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Year</label>
+                    <select class="form-select" name="year">
+                        <option value="">All Years</option>
+                        {% for year_code, year_name in year_choices %}
+                            <option value="{{ year_code }}" {% if year_code|stringformat:"s" == year_filter %}selected{% endif %}>
+                                {{ year_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Semester Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Semester</label>
+                    <select class="form-select" name="semester">
+                        <option value="">All Semesters</option>
+                        {% for semester_code, semester_name in semester_choices %}
+                            <option value="{{ semester_code }}" {% if semester_code|stringformat:"s" == semester_filter %}selected{% endif %}>
+                                {{ semester_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Admission Type Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Admission Type</label>
+                    <select class="form-select" name="admission_type">
+                        <option value="">All Types</option>
+                        {% for admission_code, admission_name in admission_type_choices %}
+                            <option value="{{ admission_code }}" {% if admission_code == admission_type_filter %}selected{% endif %}>
+                                {{ admission_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Sponsor Type Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small">Sponsor</label>
+                    <select class="form-select" name="sponsor_type">
+                        <option value="">All Sponsors</option>
+                        {% for sponsor_code, sponsor_name in sponsor_type_choices %}
+                            <option value="{{ sponsor_code }}" {% if sponsor_code == sponsor_type_filter %}selected{% endif %}>
+                                {{ sponsor_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="col-md-4">
+                    <label class="form-label small">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <a href="{% url 'dean_student_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="row p-2">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Registration No.</th>
+                                    <th>Name</th>
+                                    <th>Programme</th>
+                                    <th>Department</th>
+                                    <th>Year/Semester</th>
+                                    <th>Status</th>
+                                    <th>Admission Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        {% if student.user.profile_picture %}
+                                            <img src="{{ student.user.profile_picture.url }}" 
+                                                 class="rounded-circle" width="40" height="40" 
+                                                 alt="Profile">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ student.student_id }}</td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student.user.get_full_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ student.user.email|default:"No email" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student.programme.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ student.programme.code }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ student.programme.department.name }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">Y{{ student.current_year }}</span>
+                                        <span class="badge bg-secondary">S{{ student.current_semester }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'suspended' %}warning text-dark{% elif student.status == 'graduated' %}info{% else %}danger{% endif %}">
+                                            {{ student.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ student.admission_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'dean_student_detail' student.student_id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'dean_student_performance' student.student_id %}" 
+                                               class="btn btn-sm btn-outline-info" title="Performance">
+                                                <i class="bi bi-graph-up"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="bi bi-person-x text-muted" style="font-size: 3rem;"></i>
+                                            <h5 class="text-muted mt-2">No students found</h5>
+                                            <p class="text-muted">No students match your search criteria in {{ faculty.name }}.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if students.has_other_pages %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if students.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for i in students.paginator.page_range %}
+                        {% if students.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > students.number|add:'-3' and i < students.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">{{ i }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if students.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ students.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center text-muted">
+                Showing {{ students.start_index }} to {{ students.end_index }} of {{ students.paginator.count }} students
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Department Statistics Modal -->
+<div class="modal fade" id="departmentStatsModal" tabindex="-1" aria-labelledby="departmentStatsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="departmentStatsModalLabel">{{ faculty.name }} - Department Statistics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Student Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for department in department_stats %}
+                            <tr>
+                                <td>{{ department.name }}</td>
+                                <td>{{ department.student_count }}</td>
+                                <!-- Replace the problematic percentage calculation with this: -->
+                                <td>
+                                    {% if total_students > 0 %}
+                                        {% widthratio department.student_count total_students 100 %}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card-stitle {
+    font-size: 1.25rem;
+    color: #1a73e8;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.modal-confirm .modal-content {
+    border: none;
+    border-radius: 10px;
+}
+
+.modal-confirm .icon-box {
+    background-color: #f8d7da;
+    color: #1a73e8;
+}
+
+.modal-confirm .modal-header {
+    border-bottom: none;
+    position: relative;
+}
+
+.modal-confirm h4 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.modal-confirm .modal-body {
+    padding: 20px 40px;
+    font-size: 1.1rem;
+}
+
+.modal-confirm .modal-footer {
+    border-top: none;
+    padding: 20px;
+}
+
+/* Primary button styling */
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #1d2aed;
+    border-color: #1d2aed;
+}
+
+.btn-outline-primary {
+    color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-outline-primary:hover {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+/* Active pagination item */
+.page-item.active .page-link {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+/* Alert styling */
+.alert-primary {
+    background-color: rgba(157, 1, 1, 0.1);
+    border-color: rgba(157, 1, 1, 0.2);
+    color: #1a73e8;
+}
+
+/* Badge styling */
+.badge.bg-primary {
+    background-color: #1a73e8 !important;
+}
+
+/* Card header styling */
+.card-header {
+    border-bottom: 1px solid rgba(157, 1, 1, 0.1);
+}
+
+/* Hover effects */
+.btn-primary:hover, .btn-outline-primary:hover {
+    box-shadow: 0 4px 8px rgba(157, 1, 1, 0.2);
+}
+
+/* Focus states */
+.btn-primary:focus, .btn-outline-primary:focus {
+    box-shadow: 0 0 0 0.25rem rgba(157, 1, 1, 0.25);
+}
+</style>
+
+<script>
+// Delete confirmation modal handling
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-student');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    const studentName = document.getElementById('studentName');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            studentName.textContent = this.getAttribute('data-name');
+            deleteForm.setAttribute('action', this.getAttribute('data-url'));
+            deleteModal.show();
+        });
+    });
+});
+
+// Export students function
+function exportStudents() {
+    // Get current query parameters
+    const params = new URLSearchParams(window.location.search);
+    
+    // Build export URL
+    let exportUrl = "#";
+    if (params.toString()) {
+        exportUrl += '?' + params.toString();
+    }
+    
+    // Trigger download
+    window.location.href = exportUrl;
+}
+
+// Programme filter dependent on school filter
+document.getElementById('schoolFilter').addEventListener('change', function() {
+    const schoolId = this.value;
+    const programmeFilter = document.getElementById('programmeFilter');
+    
+    if (schoolId) {
+        // Here you would typically fetch programmes for the selected school via AJAX
+        // For now, we'll just enable the programme filter
+        programmeFilter.disabled = false;
+    } else {
+        programmeFilter.disabled = false;
+    }
+});
+</script>
+
+{% endblock %}
