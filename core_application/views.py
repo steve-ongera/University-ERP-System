@@ -18635,3 +18635,348 @@ def dean_view_lecturer_assignments(request, lecturer_id):
     except (Faculty.DoesNotExist, Lecturer.DoesNotExist):
         messages.error(request, "Lecturer not found or access denied.")
         return redirect('dean_allocate_courses')
+
+
+# views.py - Dean Lecturer Management Views
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.contrib.auth import get_user_model
+from django.http import Http404
+import csv
+import json
+
+from .models import (
+    Lecturer, Faculty, Department, User, 
+    LecturerCourseAssignment, AcademicYear, Semester
+)
+
+User = get_user_model()
+
+@login_required
+def dean_lecturer_list(request):
+    """
+    View for deans to see lecturers in their faculty
+    """
+    # Check if user is a dean
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied. Only deans can access this page.")
+        return redirect('dashboard')
+    
+    # Get the faculty headed by this dean
+    try:
+        faculty = request.user.headed_faculties.first()
+        if not faculty:
+            messages.error(request, "You are not assigned as dean of any faculty.")
+            return redirect('dashboard')
+    except Exception as e:
+        messages.error(request, "Error accessing faculty information.")
+        return redirect('dashboard')
+    
+    # Get all departments under this faculty
+    departments = Department.objects.filter(faculty=faculty, is_active=True)
+    
+    # Base queryset - lecturers in dean's faculty departments
+    lecturers = Lecturer.objects.filter(
+        department__faculty=faculty
+    ).select_related(
+        'user', 'department', 'department__faculty'
+    ).order_by('user__first_name', 'user__last_name')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        lecturers = lecturers.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(employee_number__icontains=search_query) |
+            Q(user__phone__icontains=search_query)
+        )
+    
+    # Department filter
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        try:
+            department_id = int(department_filter)
+            lecturers = lecturers.filter(department_id=department_id)
+        except (ValueError, TypeError):
+            pass
+    
+    # Academic rank filter
+    rank_filter = request.GET.get('academic_rank', '')
+    if rank_filter:
+        lecturers = lecturers.filter(academic_rank=rank_filter)
+    
+    # Employment type filter
+    employment_filter = request.GET.get('employment_type', '')
+    if employment_filter:
+        lecturers = lecturers.filter(employment_type=employment_filter)
+    
+    # Status filter
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        lecturers = lecturers.filter(is_active=True)
+    elif status_filter == 'inactive':
+        lecturers = lecturers.filter(is_active=False)
+    
+    # Order by
+    order_by = request.GET.get('order_by', 'user__first_name')
+    valid_order_fields = [
+        'employee_number', 'user__first_name', 'user__last_name',
+        'department__name', 'academic_rank', 'joining_date',
+        'employment_type'
+    ]
+    if order_by in valid_order_fields:
+        lecturers = lecturers.order_by(order_by)
+    
+    # Pagination
+    paginator = Paginator(lecturers, 25)  # Show 25 lecturers per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get choices for filters
+    rank_choices = Lecturer.ACADEMIC_RANKS
+    employment_choices = Lecturer.EMPLOYMENT_TYPES
+    
+    # Statistics
+    total_lecturers = lecturers.count()
+    active_lecturers = lecturers.filter(is_active=True).count()
+    inactive_lecturers = lecturers.filter(is_active=False).count()
+    
+    context = {
+        'lecturers': page_obj,
+        'faculty': faculty,
+        'departments': departments,
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'rank_filter': rank_filter,
+        'employment_filter': employment_filter,
+        'status_filter': status_filter,
+        'order_by': order_by,
+        'rank_choices': rank_choices,
+        'employment_choices': employment_choices,
+        'total_lecturers': total_lecturers,
+        'active_lecturers': active_lecturers,
+        'inactive_lecturers': inactive_lecturers,
+    }
+    
+    return render(request, 'dean/lecturer_list.html', context)
+
+
+@login_required
+def dean_lecturer_detail(request, employee_number):
+    """
+    Detailed view of a lecturer for dean
+    """
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    faculty = request.user.headed_faculties.first()
+    if not faculty:
+        messages.error(request, "You are not assigned as dean of any faculty.")
+        return redirect('dashboard')
+    
+    lecturer = get_object_or_404(
+        Lecturer.objects.select_related('user', 'department'),
+        employee_number=employee_number,
+        department__faculty=faculty
+    )
+    
+    # Get current course assignments
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_assignments = []
+    if current_semester:
+        current_assignments = LecturerCourseAssignment.objects.filter(
+            lecturer=lecturer,
+            semester=current_semester,
+            is_active=True
+        ).select_related('course').order_by('course__name')
+    
+    context = {
+        'lecturer': lecturer,
+        'faculty': faculty,
+        'current_assignments': current_assignments,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'dean/lecturer_detail.html', context)
+
+
+@login_required
+@require_POST
+def dean_lecturer_toggle_status(request, employee_number):
+    """
+    Toggle lecturer active/inactive status - Dean only
+    """
+    if request.user.user_type != 'dean':
+        return JsonResponse({'status': 'error', 'message': 'Access denied.'})
+    
+    faculty = request.user.headed_faculties.first()
+    if not faculty:
+        return JsonResponse({'status': 'error', 'message': 'Faculty not found.'})
+    
+    try:
+        lecturer = Lecturer.objects.get(
+            employee_number=employee_number,
+            department__faculty=faculty
+        )
+        
+        lecturer.is_active = not lecturer.is_active
+        lecturer.save()
+        
+        status_text = 'activated' if lecturer.is_active else 'deactivated'
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Lecturer {lecturer.user.get_full_name()} has been {status_text}.',
+            'is_active': lecturer.is_active
+        })
+        
+    except Lecturer.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Lecturer not found.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'An error occurred.'})
+
+
+@login_required
+def dean_lecturer_export(request):
+    """
+    Export lecturers list to CSV - Dean's faculty only
+    """
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    faculty = request.user.headed_faculties.first()
+    if not faculty:
+        messages.error(request, "Faculty not found.")
+        return redirect('dashboard')
+    
+    # Get lecturers in dean's faculty
+    lecturers = Lecturer.objects.filter(
+        department__faculty=faculty
+    ).select_related('user', 'department').order_by('employee_number')
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{faculty.code}_lecturers_{timezone.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Employee Number', 'First Name', 'Last Name', 'Email', 'Phone',
+        'Department', 'Academic Rank', 'Employment Type', 'Joining Date',
+        'Teaching Experience', 'Highest Qualification', 'Status'
+    ])
+    
+    for lecturer in lecturers:
+        writer.writerow([
+            lecturer.employee_number,
+            lecturer.user.first_name,
+            lecturer.user.last_name,
+            lecturer.user.email,
+            lecturer.user.phone,
+            lecturer.department.name,
+            lecturer.get_academic_rank_display(),
+            lecturer.get_employment_type_display(),
+            lecturer.joining_date.strftime('%Y-%m-%d'),
+            lecturer.teaching_experience_years,
+            lecturer.highest_qualification,
+            'Active' if lecturer.is_active else 'Inactive'
+        ])
+    
+    return response
+
+
+@login_required
+@require_POST
+def dean_lecturer_bulk_action(request):
+    """
+    Bulk actions for lecturers - Dean only
+    """
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied.")
+        return redirect('dean_lecturer_list')
+    
+    faculty = request.user.headed_faculties.first()
+    if not faculty:
+        messages.error(request, "Faculty not found.")
+        return redirect('dean_lecturer_list')
+    
+    action = request.POST.get('action')
+    lecturer_ids = request.POST.get('lecturer_ids', '').split(',')
+    lecturer_ids = [id.strip() for id in lecturer_ids if id.strip()]
+    
+    if not action or not lecturer_ids:
+        messages.error(request, "Please select an action and at least one lecturer.")
+        return redirect('dean_lecturer_list')
+    
+    # Get lecturers in dean's faculty only
+    lecturers = Lecturer.objects.filter(
+        employee_number__in=lecturer_ids,
+        department__faculty=faculty
+    )
+    
+    if not lecturers.exists():
+        messages.error(request, "No valid lecturers selected.")
+        return redirect('dean_lecturer_list')
+    
+    try:
+        if action == 'activate':
+            lecturers.update(is_active=True)
+            messages.success(request, f"Successfully activated {lecturers.count()} lecturer(s).")
+        
+        elif action == 'deactivate':
+            lecturers.update(is_active=False)
+            messages.success(request, f"Successfully deactivated {lecturers.count()} lecturer(s).")
+        
+        elif action == 'delete':
+            count = lecturers.count()
+            # Note: Consider soft delete instead of hard delete
+            lecturers.delete()
+            messages.success(request, f"Successfully deleted {count} lecturer(s).")
+        
+        else:
+            messages.error(request, "Invalid action selected.")
+    
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+    
+    return redirect('dean_lecturer_list')
+
+
+@login_required
+def dean_faculty_departments_api(request):
+    """
+    API endpoint to get departments for dean's faculty
+    """
+    if request.user.user_type != 'dean':
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    faculty = request.user.headed_faculties.first()
+    if not faculty:
+        return JsonResponse({'error': 'Faculty not found'}, status=404)
+    
+    departments = Department.objects.filter(
+        faculty=faculty, 
+        is_active=True
+    ).values('id', 'name', 'code').order_by('name')
+    
+    return JsonResponse({
+        'departments': list(departments),
+        'faculty': {
+            'id': faculty.id,
+            'name': faculty.name,
+            'code': faculty.code
+        }
+    })
+
