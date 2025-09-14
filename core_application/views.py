@@ -31,6 +31,8 @@ def login_view(request):
                 return redirect('student_dashboard')
             elif user.user_type == 'lecturer':
                 return redirect('lecturer_dashboard')
+            elif user.user_type == 'dean':
+                return redirect('dean_dashboard')
             elif user.user_type == 'hostel_warden':
                 return redirect('hostel_dashboard')
             else:
