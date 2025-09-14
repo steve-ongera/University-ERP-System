@@ -18287,3 +18287,124 @@ def dean_student_performance(request, student_id):
     }
     
     return render(request, 'dean/student_performance.html', context)
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import JsonResponse
+from .models import (
+    User, Faculty, Department, Programme, Course, 
+    Lecturer, Student, Enrollment, LecturerCourseAssignment,
+    AcademicYear, Semester
+)
+
+@login_required
+def dean_programmes(request):
+    """
+    View for deans to see programmes in their faculty only
+    """
+    # Check if user is a dean
+    if request.user.user_type != 'dean':
+        messages.error(request, "Access denied. This page is for deans only.")
+        return redirect('dashboard')
+    
+    # Get the faculty where user is dean
+    try:
+        faculty = Faculty.objects.get(dean=request.user, is_active=True)
+    except Faculty.DoesNotExist:
+        messages.error(request, "You are not assigned as dean to any faculty.")
+        return redirect('dashboard')
+    
+    # Get search and filter parameters
+    search_query = request.GET.get('search', '').strip()
+    selected_department = request.GET.get('department', '')
+    selected_programme_type = request.GET.get('programme_type', '')
+    selected_study_mode = request.GET.get('study_mode', '')
+    
+    # Start with programmes in dean's faculty
+    programmes = Programme.objects.filter(
+        faculty=faculty,
+        is_active=True
+    ).select_related('faculty', 'department').prefetch_related('students', 'programme_courses')
+    
+    # Apply search filter
+    if search_query:
+        programmes = programmes.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(department__name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Apply department filter
+    if selected_department:
+        programmes = programmes.filter(department_id=selected_department)
+    
+    # Apply programme type filter
+    if selected_programme_type:
+        programmes = programmes.filter(programme_type=selected_programme_type)
+    
+    # Apply study mode filter
+    if selected_study_mode:
+        programmes = programmes.filter(study_mode=selected_study_mode)
+    
+    # Annotate with statistics
+    programmes = programmes.annotate(
+        total_courses=Count('programme_courses', distinct=True),
+        active_students=Count('students', filter=Q(students__status='active'), distinct=True)
+    )
+    
+    # Get current semester for enrollment count
+    try:
+        current_semester = Semester.objects.get(is_current=True)
+        programmes_with_stats = []
+        for programme in programmes:
+            current_enrollments = Enrollment.objects.filter(
+                student__programme=programme,
+                semester=current_semester,
+                is_active=True
+            ).count()
+            
+            programmes_with_stats.append({
+                'programme': programme,
+                'total_courses': programme.total_courses,
+                'active_students': programme.active_students,
+                'current_enrollments': current_enrollments
+            })
+    except Semester.DoesNotExist:
+        programmes_with_stats = []
+        for programme in programmes:
+            programmes_with_stats.append({
+                'programme': programme,
+                'total_courses': programme.total_courses,
+                'active_students': programme.active_students,
+                'current_enrollments': 0
+            })
+    
+    # Pagination
+    paginator = Paginator(programmes_with_stats, 12)  # Show 12 programmes per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options for the faculty
+    departments = Department.objects.filter(faculty=faculty, is_active=True)
+    programme_types = Programme.PROGRAMME_TYPES
+    study_modes = Programme.PROGRAMME_MODES
+    
+    context = {
+        'page_obj': page_obj,
+        'faculty': faculty,
+        'departments': departments,
+        'programme_types': programme_types,
+        'study_modes': study_modes,
+        'search_query': search_query,
+        'selected_department': selected_department,
+        'selected_programme_type': selected_programme_type,
+        'selected_study_mode': selected_study_mode,
+    }
+    
+    return render(request, 'dean/programmes.html', context)

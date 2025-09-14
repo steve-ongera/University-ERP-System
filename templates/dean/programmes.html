@@ -1,0 +1,345 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Page Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ faculty.name }} - Programmes</h2>
+                        <p class="text-muted mb-0">
+                            Manage programmes in your faculty
+                        </p>
+                        <small class="text-muted">Dean: {{ user.get_full_name }}</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'dean_allocate_courses' %}" class="btn btn-success me-2">
+                            <i class="bi bi-person-plus-fill"></i> Allocate Courses
+                        </a>
+                        <a href="{% url 'add_programme' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i> Add Programme
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">Search Programmes</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="Programme name, code...">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="department" class="form-label">Department</label>
+                            <select class="form-select" id="department" name="department">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                    <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ dept.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="programme_type" class="form-label">Type</label>
+                            <select class="form-select" id="programme_type" name="programme_type">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in programme_types %}
+                                    <option value="{{ type_code }}" {% if selected_programme_type == type_code %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="study_mode" class="form-label">Study Mode</label>
+                            <select class="form-select" id="study_mode" name="study_mode">
+                                <option value="">All Modes</option>
+                                {% for mode_code, mode_name in study_modes %}
+                                    <option value="{{ mode_code }}" {% if selected_study_mode == mode_code %}selected{% endif %}>
+                                        {{ mode_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                            <a href="{% url 'dean_programmes' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Faculty Summary -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm bg-light">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-primary">{{ departments.count }}</h4>
+                            <p class="mb-0 text-muted">Departments</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">{{ page_obj.paginator.count }}</h4>
+                            <p class="mb-0 text-muted">Total Programmes</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-info">
+                                {% for item in page_obj %}{{ item.active_students|add:0 }}{% empty %}0{% endfor %}
+                            </h4>
+                            <p class="mb-0 text-muted">Active Students</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">
+                                {% for item in page_obj %}{{ item.current_enrollments|add:0 }}{% empty %}0{% endfor %}
+                            </h4>
+                            <p class="mb-0 text-muted">Current Enrollments</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programmes Grid -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            {% if page_obj %}
+                <div class="row">
+                    {% for item in page_obj %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card shadow-sm h-100 programme-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-primary">{{ item.programme.code }}</span>
+                                    <span class="badge bg-{% if item.programme.programme_type == 'bachelor' %}info{% elif item.programme.programme_type == 'master' %}success{% elif item.programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                                        {{ item.programme.get_programme_type_display }}
+                                    </span>
+                                </div>
+                                
+                                <h5 class="card-title">{{ item.programme.name }}</h5>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-diagram-3 me-1"></i>{{ item.programme.department.name }}
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>{{ item.programme.duration_years }} years ({{ item.programme.get_study_mode_display }})
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-award me-1"></i>{{ item.programme.credit_hours_required }} credit hours
+                                    </small>
+                                </div>
+
+                                <!-- Statistics -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <h6 class="text-primary mb-0">{{ item.total_courses }}</h6>
+                                        <small class="text-muted">Courses</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h6 class="text-success mb-0">{{ item.active_students }}</h6>
+                                        <small class="text-muted">Students</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h6 class="text-warning mb-0">{{ item.current_enrollments }}</h6>
+                                        <small class="text-muted">Enrolled</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'programme_detail' item.programme.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        <a href="{% url 'edit_programme' item.programme.id %}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if item.programme.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="row">
+                    <div class="col-md-12">
+                        <nav aria-label="Programmes pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}{% if selected_study_mode %}&study_mode={{ selected_study_mode }}{% endif %}">
+                                            Previous
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}{% if selected_study_mode %}&study_mode={{ selected_study_mode }}{% endif %}">
+                                                {{ num }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_department %}&department={{ selected_department }}{% endif %}{% if selected_programme_type %}&programme_type={{ selected_programme_type }}{% endif %}{% if selected_study_mode %}&study_mode={{ selected_study_mode }}{% endif %}">
+                                            Next
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-journal-x display-4 text-muted mb-3"></i>
+                        <h4 class="text-muted">No Programmes Found</h4>
+                        <p class="text-muted">No programmes match your search criteria in {{ faculty.name }}.</p>
+                        <a href="{% url 'dean_programmes' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Filters
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.programme-card {
+    transition: transform 0.2s ease-in-out;
+    border-left: 4px solid var(--bs-primary);
+}
+
+.programme-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-footer {
+    border-top: 1px solid rgba(0,0,0,.125);
+}
+
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    width: 300px;
+}
+
+.alert-message {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    position: relative;
+    animation: slideInRight 0.3s ease-in-out;
+}
+
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+
+.alert-error,
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide messages after 5 seconds
+    setTimeout(function() {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(function(message) {
+            message.style.animation = 'slideOutRight 0.3s ease-in-out';
+            setTimeout(function() {
+                message.remove();
+            }, 300);
+        });
+    }, 5000);
+
+    // Close message on click
+    document.querySelectorAll('.close-message').forEach(function(closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+});
+</script>
+
+{% endblock %}

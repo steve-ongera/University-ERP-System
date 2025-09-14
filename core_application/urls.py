@@ -134,6 +134,9 @@ urlpatterns = [
     path('ajax/get-available-courses/', views.get_available_courses, name='ajax_get_available_courses'),
     path('ajax/remove-programme-course/', views.remove_programme_course, name='ajax_remove_programme_course'),
 
+    ## dean Programme URLs
+    path('dean_programmes/', views.dean_programmes, name='dean_programmes'),
+
      #Grades URLs
     path('grades/', views.grades_list, name='grades_list'),
     path('grades/download-pdf/', views.download_grades_pdf, name='download_grades_pdf'),
