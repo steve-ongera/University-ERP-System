@@ -18980,3 +18980,493 @@ def dean_faculty_departments_api(request):
         }
     })
 
+# dean_views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Q, Count, Sum, Avg
+from django.core.paginator import Paginator
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from datetime import datetime, timedelta
+import json
+from django.db.models import Case, When, IntegerField
+
+from .models import (
+    Faculty, Department, Programme, Course, Student, Lecturer, 
+    AcademicYear, Semester, Enrollment, Grade, User, FeeStructure, 
+    FeePayment, Research, HostelBooking
+)
+
+User = get_user_model()
+
+def dean_required(view_func):
+    """Decorator to ensure user is a dean"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.user_type != 'dean':
+            messages.error(request, 'Access denied. Dean privileges required.')
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+@login_required
+@dean_required
+def dean_departments_list(request):
+    """List departments belonging to the logged-in dean's faculty"""
+    try:
+        # Get the dean's faculty
+        faculty = Faculty.objects.get(dean=request.user)
+        
+        # Get departments in the dean's faculty
+        departments_queryset = Department.objects.filter(faculty=faculty).select_related(
+            'faculty', 'head_of_department'
+        ).annotate(
+            total_programmes=Count('programmes', distinct=True),
+            total_students=Count('programmes__students', distinct=True),
+            total_lecturers=Count('lecturers', distinct=True)
+        )
+        
+        # Search functionality
+        search_query = request.GET.get('search', '')
+        if search_query:
+            departments_queryset = departments_queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(code__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+        
+        # Status filter
+        status_filter = request.GET.get('status', '')
+        if status_filter:
+            if status_filter == 'active':
+                departments_queryset = departments_queryset.filter(is_active=True)
+            elif status_filter == 'inactive':
+                departments_queryset = departments_queryset.filter(is_active=False)
+        
+        # Get statistics
+        total_departments = departments_queryset.count()
+        active_departments = departments_queryset.filter(is_active=True).count()
+        inactive_departments = total_departments - active_departments
+        
+        # Pagination
+        paginator = Paginator(departments_queryset, 10)
+        page_number = request.GET.get('page')
+        departments = paginator.get_page(page_number)
+        
+        # Status choices for filter dropdown
+        status_choices = [
+            ('active', 'Active'),
+            ('inactive', 'Inactive'),
+        ]
+        
+        context = {
+            'departments': departments,
+            'faculty': faculty,
+            'search_query': search_query,
+            'status_filter': status_filter,
+            'status_choices': status_choices,
+            'total_departments': total_departments,
+            'active_departments': active_departments,
+            'inactive_departments': inactive_departments,
+        }
+        
+        return render(request, 'dean/departments_list.html', context)
+        
+    except Faculty.DoesNotExist:
+        messages.error(request, 'You are not assigned as a dean to any faculty.')
+        return redirect('dashboard')
+
+@login_required
+@dean_required
+def dean_department_detail(request, code):
+    """Get department details for dean"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        department = get_object_or_404(
+            Department.objects.select_related('faculty', 'head_of_department'),
+            code=code, 
+            faculty=faculty
+        )
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = {
+                'name': department.name,
+                'code': department.code,
+                'faculty_name': department.faculty.name,
+                'faculty_code': department.faculty.code,
+                'is_active': department.is_active,
+                'established_date': department.established_date.isoformat() if department.established_date else None,
+                'description': department.description,
+                'total_programmes': department.programmes.count(),
+                'total_students': sum([prog.students.count() for prog in department.programmes.all()]),
+                'total_lecturers': department.lecturers.count(),
+                'head_of_department': {
+                    'name': department.head_of_department.get_full_name(),
+                    'email': department.head_of_department.email,
+                    'phone': getattr(department.head_of_department, 'phone', ''),
+                } if department.head_of_department else None,
+            }
+            return JsonResponse(data)
+        
+        return render(request, 'dean/department_detail.html', {'department': department})
+        
+    except Faculty.DoesNotExist:
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+@login_required
+@dean_required
+def dean_hods_management(request):
+    """Manage HODs for departments in dean's faculty"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        
+        # Get departments in the dean's faculty
+        departments = Department.objects.filter(faculty=faculty).select_related(
+            'head_of_department', 'faculty'
+        ).annotate(
+            total_programmes=Count('programmes', distinct=True),
+            total_students=Count('programmes__students', distinct=True),
+            total_lecturers=Count('lecturers', distinct=True)
+        )
+        
+        # Get potential HODs (lecturers in the faculty with appropriate ranks)
+        potential_hods = Lecturer.objects.filter(
+            department__faculty=faculty,
+            academic_rank__in=['professor', 'associate_professor', 'senior_lecturer'],
+            is_active=True
+        ).select_related('user', 'department')
+        
+        # Search functionality
+        search_query = request.GET.get('search', '')
+        if search_query:
+            departments = departments.filter(
+                Q(name__icontains=search_query) |
+                Q(code__icontains=search_query) |
+                Q(head_of_department__first_name__icontains=search_query) |
+                Q(head_of_department__last_name__icontains=search_query)
+            )
+        
+        # Assignment status filter
+        hod_filter = request.GET.get('hod_status', '')
+        if hod_filter == 'assigned':
+            departments = departments.filter(head_of_department__isnull=False)
+        elif hod_filter == 'unassigned':
+            departments = departments.filter(head_of_department__isnull=True)
+        
+        # Pagination
+        paginator = Paginator(departments, 10)
+        page_number = request.GET.get('page')
+        departments_page = paginator.get_page(page_number)
+        
+        # Statistics
+        total_departments = departments.count()
+        assigned_hods = departments.filter(head_of_department__isnull=False).count()
+        unassigned_departments = total_departments - assigned_hods
+        
+        context = {
+            'departments': departments_page,
+            'potential_hods': potential_hods,
+            'faculty': faculty,
+            'search_query': search_query,
+            'hod_filter': hod_filter,
+            'total_departments': total_departments,
+            'assigned_hods': assigned_hods,
+            'unassigned_departments': unassigned_departments,
+        }
+        
+        return render(request, 'dean/hods_management.html', context)
+        
+    except Faculty.DoesNotExist:
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+@login_required
+@dean_required
+@require_http_methods(["POST"])
+def assign_hod(request, department_code):
+    """Assign HOD to a department"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        department = get_object_or_404(Department, code=department_code, faculty=faculty)
+        
+        lecturer_id = request.POST.get('lecturer_id')
+        if not lecturer_id:
+            return JsonResponse({'success': False, 'message': 'Please select a lecturer.'})
+        
+        lecturer = get_object_or_404(
+            Lecturer, 
+            id=lecturer_id, 
+            department__faculty=faculty,
+            is_active=True
+        )
+        
+        # Check if lecturer is already a HOD elsewhere
+        if Department.objects.filter(head_of_department=lecturer.user).exists():
+            current_dept = Department.objects.get(head_of_department=lecturer.user)
+            return JsonResponse({
+                'success': False, 
+                'message': f'{lecturer.user.get_full_name()} is already HOD of {current_dept.name}'
+            })
+        
+        # Assign HOD
+        department.head_of_department = lecturer.user
+        department.save()
+        
+        messages.success(
+            request, 
+            f'{lecturer.user.get_full_name()} has been assigned as HOD of {department.name}'
+        )
+        
+        return JsonResponse({
+            'success': True, 
+            'message': f'HOD assigned successfully to {department.name}'
+        })
+        
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Access denied.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required
+@dean_required
+@require_http_methods(["POST"])
+def remove_hod(request, department_code):
+    """Remove HOD from a department"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        department = get_object_or_404(Department, code=department_code, faculty=faculty)
+        
+        if not department.head_of_department:
+            return JsonResponse({'success': False, 'message': 'No HOD assigned to this department.'})
+        
+        hod_name = department.head_of_department.get_full_name()
+        department.head_of_department = None
+        department.save()
+        
+        messages.success(request, f'{hod_name} has been removed as HOD of {department.name}')
+        
+        return JsonResponse({
+            'success': True, 
+            'message': f'HOD removed successfully from {department.name}'
+        })
+        
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Access denied.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required
+@dean_required
+def dean_dashboard(request):
+    """Dean's dashboard with comprehensive analytics"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        if not current_academic_year:
+            messages.warning(request, 'No current academic year is set.')
+            return redirect('dean_departments_list')
+        
+        # Basic statistics
+        departments = Department.objects.filter(faculty=faculty)
+        total_departments = departments.count()
+        departments_with_hod = departments.filter(head_of_department__isnull=False).count()
+        
+        programmes = Programme.objects.filter(faculty=faculty)
+        total_programmes = programmes.count()
+        active_programmes = programmes.filter(is_active=True).count()
+        
+        students = Student.objects.filter(programme__faculty=faculty, status='active')
+        total_students = students.count()
+        
+        lecturers = Lecturer.objects.filter(department__faculty=faculty, is_active=True)
+        total_lecturers = lecturers.count()
+        
+        # Student distribution by programme
+        student_distribution = programmes.annotate(
+            student_count=Count('students', filter=Q(students__status='active'))
+        ).values('name', 'student_count')
+        
+        # Student distribution by year
+        student_by_year = students.values('current_year').annotate(
+            count=Count('id')
+        ).order_by('current_year')
+        
+        # Lecturer distribution by rank
+        lecturer_by_rank = lecturers.values('academic_rank').annotate(
+            count=Count('id')
+        ).order_by('academic_rank')
+        
+        # Programme type distribution
+        programme_by_type = programmes.values('programme_type').annotate(
+            count=Count('id')
+        ).order_by('programme_type')
+        
+        # Student status distribution
+        all_students = Student.objects.filter(programme__faculty=faculty)
+        student_by_status = all_students.values('status').annotate(
+            count=Count('id')
+        ).order_by('status')
+        
+        # Fee collection statistics (if applicable)
+        fee_stats = None
+        if current_academic_year:
+            fee_structures = FeeStructure.objects.filter(
+                programme__faculty=faculty,
+                academic_year=current_academic_year
+            )
+            total_expected_fees = fee_structures.aggregate(
+                total=Sum('tuition_fee')
+            )['total'] or 0
+            
+            fee_payments = FeePayment.objects.filter(
+                fee_structure__programme__faculty=faculty,
+                fee_structure__academic_year=current_academic_year
+            )
+            total_collected_fees = fee_payments.aggregate(
+                total=Sum('amount_paid')
+            )['total'] or 0
+            
+            fee_stats = {
+                'expected': float(total_expected_fees),
+                'collected': float(total_collected_fees),
+                'percentage': (total_collected_fees / total_expected_fees * 100) if total_expected_fees > 0 else 0
+            }
+        
+        # Research projects
+        research_projects = Research.objects.filter(
+            department__faculty=faculty
+        )
+        total_research = research_projects.count()
+        ongoing_research = research_projects.filter(status='ongoing').count()
+        completed_research = research_projects.filter(status='completed').count()
+        
+        # Monthly student enrollment trend (last 12 months)
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=365)
+        
+        enrollment_trend = []
+        for i in range(12):
+            month_start = start_date + timedelta(days=30*i)
+            month_end = month_start + timedelta(days=30)
+            
+            enrollments = Enrollment.objects.filter(
+                student__programme__faculty=faculty,
+                enrollment_date__range=[month_start, month_end]
+            ).count()
+            
+            enrollment_trend.append({
+                'month': month_start.strftime('%b %Y'),
+                'enrollments': enrollments
+            })
+        
+        # Department performance metrics
+        dept_performance = []
+        for dept in departments:
+            dept_students = Student.objects.filter(programme__department=dept, status='active').count()
+            dept_programmes = dept.programmes.filter(is_active=True).count()
+            dept_lecturers = dept.lecturers.filter(is_active=True).count()
+            
+            # Calculate student-to-lecturer ratio
+            ratio = dept_students / dept_lecturers if dept_lecturers > 0 else 0
+            
+            dept_performance.append({
+                'name': dept.name,
+                'students': dept_students,
+                'programmes': dept_programmes,
+                'lecturers': dept_lecturers,
+                'ratio': round(ratio, 1)
+            })
+        
+        context = {
+            'faculty': faculty,
+            'current_academic_year': current_academic_year,
+            
+            # Basic stats
+            'total_departments': total_departments,
+            'departments_with_hod': departments_with_hod,
+            'total_programmes': total_programmes,
+            'active_programmes': active_programmes,
+            'total_students': total_students,
+            'total_lecturers': total_lecturers,
+            'total_research': total_research,
+            'ongoing_research': ongoing_research,
+            'completed_research': completed_research,
+            
+            # Chart data
+            'student_distribution': list(student_distribution),
+            'student_by_year': list(student_by_year),
+            'lecturer_by_rank': list(lecturer_by_rank),
+            'programme_by_type': list(programme_by_type),
+            'student_by_status': list(student_by_status),
+            'enrollment_trend': enrollment_trend,
+            'dept_performance': dept_performance,
+            
+            # Fee statistics
+            'fee_stats': fee_stats,
+        }
+        
+        return render(request, 'dean/dashboard.html', context)
+        
+    except Faculty.DoesNotExist:
+        messages.error(request, 'You are not assigned as a dean to any faculty.')
+        return redirect('dashboard')
+
+@login_required
+@dean_required
+def dean_analytics_api(request):
+    """API endpoint for dashboard analytics data"""
+    try:
+        faculty = Faculty.objects.get(dean=request.user)
+        chart_type = request.GET.get('chart', 'student_distribution')
+        
+        data = {}
+        
+        if chart_type == 'student_distribution':
+            programmes = Programme.objects.filter(faculty=faculty).annotate(
+                student_count=Count('students', filter=Q(students__status='active'))
+            ).values('name', 'student_count')
+            data = list(programmes)
+            
+        elif chart_type == 'lecturer_ranks':
+            lecturers = Lecturer.objects.filter(
+                department__faculty=faculty, 
+                is_active=True
+            ).values('academic_rank').annotate(
+                count=Count('id')
+            )
+            data = list(lecturers)
+            
+        elif chart_type == 'department_performance':
+            departments = Department.objects.filter(faculty=faculty)
+            performance_data = []
+            
+            for dept in departments:
+                students_count = Student.objects.filter(
+                    programme__department=dept, 
+                    status='active'
+                ).count()
+                lecturers_count = dept.lecturers.filter(is_active=True).count()
+                programmes_count = dept.programmes.filter(is_active=True).count()
+                
+                performance_data.append({
+                    'department': dept.name,
+                    'students': students_count,
+                    'lecturers': lecturers_count,
+                    'programmes': programmes_count,
+                    'ratio': round(students_count / lecturers_count, 1) if lecturers_count > 0 else 0
+                })
+            
+            data = performance_data
+        
+        return JsonResponse({'success': True, 'data': data})
+        
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Access denied.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
