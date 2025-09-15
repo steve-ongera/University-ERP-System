@@ -19262,7 +19262,7 @@ def remove_hod(request, department_code):
 
 @login_required
 @dean_required
-def dean_dashboard(request):
+def dean_report(request):
     """Dean's dashboard with comprehensive analytics"""
     try:
         faculty = Faculty.objects.get(dean=request.user)
@@ -19411,7 +19411,7 @@ def dean_dashboard(request):
             'fee_stats': fee_stats,
         }
         
-        return render(request, 'dean/dashboard.html', context)
+        return render(request, 'dean/report.html', context)
         
     except Faculty.DoesNotExist:
         messages.error(request, 'You are not assigned as a dean to any faculty.')

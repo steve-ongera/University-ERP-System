@@ -478,5 +478,19 @@ urlpatterns = [
     path('dean/lecturers/bulk-action/',  views.dean_lecturer_bulk_action, name='dean_lecturer_bulk_action'),
     path('dean/api/departments/',  views.dean_faculty_departments_api,  name='dean_faculty_departments_api'),
 
+    # Dean Departments Management
+    path('dean/departments/', views.dean_departments_list, name='dean_departments_list'),
+    path('dean/departments/<str:code>/', views.dean_department_detail, name='dean_department_detail'),
+    
+    # HODs Management
+    path('dean/hods/', views.dean_hods_management, name='dean_hods_management'),
+    path('dean/hods/assign/<str:department_code>/', views.assign_hod, name='assign_hod'),
+    path('dean/hods/remove/<str:department_code>/', views.remove_hod, name='remove_hod'),
+
+    path('dean/reports/', views.dean_report, name='dean_reports'),
+    
+    # Analytics API
+    path('dean/api/analytics/', views.dean_analytics_api, name='dean_analytics_api'),
+
 
 ]
