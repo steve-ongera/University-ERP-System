@@ -1,0 +1,936 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <p class="fw-bold card-stitle text-start">{{ faculty.name }} - Analytics Dashboard</p>
+                <small class="text-muted">
+                    Academic Year: {{ current_academic_year.year }} | 
+                    Last Updated: {% now "M d, Y - H:i" %}
+                </small>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="">
+                    <a href="{% url 'dean_hods_management' %}" class="btn btn-outline-primary float-end me-2">
+                        <i class="bi bi-people-fill"></i> Manage HODs
+                    </a>
+                    <a href="{% url 'dean_departments_list' %}" class="btn btn-primary float-end">
+                        <i class="bi bi-building"></i> Departments
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Metrics Cards -->
+    <div class="row p-3">
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Departments
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_departments }}</div>
+                            <div class="text-xs text-muted">
+                                <span class="text-success">{{ departments_with_hod }}</span> with HODs
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Students
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_students|floatformat:0 }}</div>
+                            <div class="text-xs text-muted">Active students</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Programmes
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programmes }}</div>
+                            <div class="text-xs text-muted">
+                                <span class="text-success">{{ active_programmes }}</span> active
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-mortarboard fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Academic Staff
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_lecturers }}</div>
+                            <div class="text-xs text-muted">Active lecturers</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-person-workspace fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Research & Fee Statistics -->
+    <div class="row p-3">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Research Projects</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4 text-center">
+                            <div class="h4 font-weight-bold text-info">{{ total_research }}</div>
+                            <div class="text-xs text-muted">Total</div>
+                        </div>
+                        <div class="col-sm-4 text-center">
+                            <div class="h4 font-weight-bold text-warning">{{ ongoing_research }}</div>
+                            <div class="text-xs text-muted">Ongoing</div>
+                        </div>
+                        <div class="col-sm-4 text-center">
+                            <div class="h4 font-weight-bold text-success">{{ completed_research }}</div>
+                            <div class="text-xs text-muted">Completed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if fee_stats %}
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Fee Collection Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Expected Fees</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ fee_stats.expected|floatformat:0 }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Collected Fees</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ fee_stats.collected|floatformat:0 }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Collection Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ fee_stats.percentage|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress mt-3">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ fee_stats.percentage }}%" 
+                             aria-valuenow="{{ fee_stats.percentage }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row p-3">
+        <!-- Student Distribution Chart -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Student Distribution by Programme</h6>
+                    <div class="dropdown no-arrow">
+                        <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical fa-sm fa-fw text-gray-400"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow">
+                            <a class="dropdown-item" href="#" onclick="refreshChart('studentDistribution')">Refresh</a>
+                            <a class="dropdown-item" href="#" onclick="exportChart('studentDistribution')">Export</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="studentDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student by Year Chart -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Students by Academic Year</h6>
+                    <div class="dropdown no-arrow">
+                        <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical fa-sm fa-fw text-gray-400"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow">
+                            <a class="dropdown-item" href="#" onclick="refreshChart('studentYear')">Refresh</a>
+                            <a class="dropdown-item" href="#" onclick="exportChart('studentYear')">Export</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="studentYearChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- More Charts Row -->
+    <div class="row p-3">
+        <!-- Lecturer Ranks Chart -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Lecturer Distribution by Rank</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="lecturerRanksChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Programme Types Chart -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Programme Types Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="programmeTypesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Trend Chart -->
+    <div class="row p-3">
+        <div class="col-xl-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Enrollment Trend (Last 12 Months)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Performance Table -->
+    <div class="row p-3">
+        <div class="col-xl-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Department Performance Overview</h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportTable()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="departmentPerformanceTable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Department</th>
+                                    <th class="text-center">Programmes</th>
+                                    <th class="text-center">Students</th>
+                                    <th class="text-center">Lecturers</th>
+                                    <th class="text-center">Student:Lecturer Ratio</th>
+                                    <th class="text-center">Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dept in dept_performance %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ dept.name }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ dept.programmes }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">{{ dept.students }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ dept.lecturers }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning">{{ dept.ratio }}:1</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if dept.ratio <= 15 %}
+                                            <span class="badge bg-success">Optimal</span>
+                                        {% elif dept.ratio <= 25 %}
+                                            <span class="badge bg-warning">Moderate</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">High Load</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No departments found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Status Overview -->
+    <div class="row p-3">
+        <div class="col-xl-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Student Status Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="studentStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-xl-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'dean_departments_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-building"></i> Manage Departments
+                        </a>
+                        <a href="{% url 'dean_hods_management' %}" class="btn btn-outline-success">
+                            <i class="bi bi-people-fill"></i> Assign/Remove HODs
+                        </a>
+                        <button class="btn btn-outline-info" onclick="generateReport()">
+                            <i class="bi bi-file-earmark-pdf"></i> Generate Full Report
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="refreshDashboard()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #1a73e8 !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #28a745 !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #17a2b8 !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #ffc107 !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.card-stitle {
+    font-size: 1.5rem;
+    color: #1a73e8;
+}
+
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.chart-container canvas {
+    max-height: 300px;
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+    background-color: #1d2aed;
+    border-color: #1d2aed;
+}
+
+.btn-outline-primary {
+    color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.btn-outline-primary:hover {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.text-primary {
+    color: #1a73e8 !important;
+}
+
+.bg-primary {
+    background-color: #1a73e8 !important;
+}
+
+.thead-light {
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+.dropdown-menu {
+    border: 0;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.no-arrow .dropdown-toggle::after {
+    display: none;
+}
+
+/* Loading animation */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #1a73e8;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all charts
+    initializeCharts();
+    
+    // Auto-refresh dashboard every 5 minutes
+    setInterval(function() {
+        refreshDashboard();
+    }, 300000);
+});
+
+function initializeCharts() {
+    // Student Distribution Chart
+    const studentDistCtx = document.getElementById('studentDistributionChart').getContext('2d');
+    const studentDistData = {{ student_distribution|safe }};
+    
+    new Chart(studentDistCtx, {
+        type: 'doughnut',
+        data: {
+            labels: studentDistData.map(item => item.name),
+            datasets: [{
+                data: studentDistData.map(item => item.student_count),
+                backgroundColor: [
+                    '#1a73e8', '#28a745', '#17a2b8', '#ffc107', 
+                    '#dc3545', '#6c757d', '#fd7e14', '#e83e8c'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Student by Year Chart
+    const studentYearCtx = document.getElementById('studentYearChart').getContext('2d');
+    const studentYearData = {{ student_by_year|safe }};
+    
+    new Chart(studentYearCtx, {
+        type: 'bar',
+        data: {
+            labels: studentYearData.map(item => `Year ${item.current_year}`),
+            datasets: [{
+                label: 'Students',
+                data: studentYearData.map(item => item.count),
+                backgroundColor: '#1a73e8',
+                borderColor: '#1a73e8',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Lecturer Ranks Chart
+    const lecturerRanksCtx = document.getElementById('lecturerRanksChart').getContext('2d');
+    const lecturerRanksData = {{ lecturer_by_rank|safe }};
+    
+    new Chart(lecturerRanksCtx, {
+        type: 'pie',
+        data: {
+            labels: lecturerRanksData.map(item => item.academic_rank.replace('_', ' ').toUpperCase()),
+            datasets: [{
+                data: lecturerRanksData.map(item => item.count),
+                backgroundColor: [
+                    '#28a745', '#17a2b8', '#ffc107', '#dc3545', 
+                    '#6c757d', '#fd7e14', '#e83e8c', '#20c997'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Programme Types Chart
+    const programmeTypesCtx = document.getElementById('programmeTypesChart').getContext('2d');
+    const programmeTypesData = {{ programme_by_type|safe }};
+    
+    new Chart(programmeTypesCtx, {
+        type: 'bar',
+        data: {
+            labels: programmeTypesData.map(item => item.programme_type.replace('_', ' ').toUpperCase()),
+            datasets: [{
+                label: 'Programmes',
+                data: programmeTypesData.map(item => item.count),
+                backgroundColor: '#17a2b8',
+                borderColor: '#17a2b8',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Enrollment Trend Chart
+    const enrollmentTrendCtx = document.getElementById('enrollmentTrendChart').getContext('2d');
+    const enrollmentTrendData = {{ enrollment_trend|safe }};
+    
+    new Chart(enrollmentTrendCtx, {
+        type: 'line',
+        data: {
+            labels: enrollmentTrendData.map(item => item.month),
+            datasets: [{
+                label: 'New Enrollments',
+                data: enrollmentTrendData.map(item => item.enrollments),
+                borderColor: '#1a73e8',
+                backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Student Status Chart
+    const studentStatusCtx = document.getElementById('studentStatusChart').getContext('2d');
+    const studentStatusData = {{ student_by_status|safe }};
+    
+    new Chart(studentStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: studentStatusData.map(item => item.status.replace('_', ' ').toUpperCase()),
+            datasets: [{
+                data: studentStatusData.map(item => item.count),
+                backgroundColor: [
+                    '#28a745', '#dc3545', '#ffc107', '#17a2b8', 
+                    '#6c757d', '#fd7e14', '#e83e8c'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function refreshChart(chartType) {
+    // Show loading state
+    showLoading();
+    
+    fetch(`{% url 'dean_analytics_api' %}?chart=${chartType}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update chart with new data
+            updateChartData(chartType, data.data);
+            showAlert('success', 'Chart refreshed successfully');
+        } else {
+            showAlert('danger', 'Error refreshing chart: ' + data.message);
+        }
+    })
+    .catch(error => {
+        showAlert('danger', 'Error refreshing chart: ' + error.message);
+    })
+    .finally(() => {
+        hideLoading();
+    });
+}
+
+function updateChartData(chartType, newData) {
+    // Implementation depends on specific chart type
+    // This is a placeholder for chart update logic
+    console.log(`Updating ${chartType} with new data:`, newData);
+}
+
+function exportChart(chartType) {
+    // Export chart as image
+    const canvas = document.getElementById(chartType + 'Chart');
+    const link = document.createElement('a');
+    link.download = `${chartType}_chart.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+}
+
+function exportTable() {
+    // Export table data to CSV
+    const table = document.getElementById('departmentPerformanceTable');
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = [];
+        const cols = rows[i].querySelectorAll('td, th');
+        
+        for (let j = 0; j < cols.length; j++) {
+            row.push(cols[j].innerText);
+        }
+        csv.push(row.join(','));
+    }
+    
+    const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = 'department_performance.csv';
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.click();
+}
+
+function generateReport() {
+    // Generate comprehensive PDF report
+    showAlert('info', 'Generating comprehensive report...');
+    
+    // Redirect to report generation endpoint
+    window.open('{% url "dean_reports" %}?format=pdf', '_blank');
+}
+
+function refreshDashboard() {
+    showLoading();
+    location.reload();
+}
+
+function showLoading() {
+    document.body.classList.add('loading');
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    spinner.id = 'loadingSpinner';
+    document.body.appendChild(spinner);
+}
+
+function hideLoading() {
+    document.body.classList.remove('loading');
+    const spinner = document.getElementById('loadingSpinner');
+    if (spinner) {
+        spinner.remove();
+    }
+}
+
+function showAlert(type, message) {
+    const alertContainer = document.getElementById('system-messages');
+    const alertHtml = `
+        <div class="alert-message alert-${type}">
+            ${message}
+            <span class="close-message">&times;</span>
+        </div>
+    `;
+    
+    alertContainer.innerHTML = alertHtml;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        const alertElement = alertContainer.querySelector('.alert-message');
+        if (alertElement) {
+            alertElement.style.opacity = '0';
+            setTimeout(() => alertElement.remove(), 300);
+        }
+    }, 5000);
+    
+    // Add close functionality
+    alertContainer.querySelector('.close-message').addEventListener('click', function() {
+        this.parentElement.style.opacity = '0';
+        setTimeout(() => this.parentElement.remove(), 300);
+    });
+}
+
+// Handle message close buttons on page load
+document.querySelectorAll('.close-message').forEach(button => {
+    button.addEventListener('click', function() {
+        this.parentElement.style.opacity = '0';
+        setTimeout(() => this.parentElement.remove(), 300);
+    });
+});
+
+// Auto-hide messages after 5 seconds
+setTimeout(() => {
+    document.querySelectorAll('.alert-message').forEach(alert => {
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 300);
+    });
+}, 5000);
+
+// Utility function to format numbers
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+// Utility function to format currency
+function formatCurrency(num) {
+    return new Intl.NumberFormat('en-KE', {
+        style: 'currency',
+        currency: 'KES'
+    }).format(num);
+}
+
+// Print functionality
+function printReport() {
+    window.print();
+}
+
+// Export dashboard data to Excel
+function exportToExcel() {
+    showAlert('info', 'Preparing Excel export...');
+    
+    // This would typically call a backend endpoint to generate Excel file
+    fetch('{% url "dean_reports" %}?format=excel', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `faculty_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showAlert('success', 'Excel file downloaded successfully');
+    })
+    .catch(error => {
+        showAlert('danger', 'Error exporting to Excel: ' + error.message);
+    });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl+R to refresh dashboard
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        refreshDashboard();
+    }
+    
+    // Ctrl+P to print
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printReport();
+    }
+    
+    // Ctrl+E to export
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        exportToExcel();
+    }
+});
+
+// Chart animation on scroll (optional enhancement)
+function animateOnScroll() {
+    const cards = document.querySelectorAll('.card');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animation = 'fadeInUp 0.6s ease-out forwards';
+            }
+        });
+    });
+    
+    cards.forEach(card => {
+        observer.observe(card);
+    });
+}
+
+// Initialize animations
+animateOnScroll();
+
+// Add fadeInUp animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .card {
+        opacity: 0;
+    }
+`;
+document.head.appendChild(style);
+
+
+</script>
+{% endblock %}
