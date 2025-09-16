@@ -19546,3 +19546,106 @@ def dean_analytics_api(request):
         return JsonResponse({'success': False, 'message': 'Access denied.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib import messages
+from django.http import JsonResponse
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.db import transaction
+from .models import User, Faculty
+import os
+
+@login_required
+def dean_profile(request):
+    """Dean profile view for managing personal information and password changes"""
+    
+    # Ensure the user is a dean
+    if request.user.user_type != 'dean' or not hasattr(request.user, 'headed_faculties'):
+        messages.error(request, "Access denied. This page is only for deans.")
+        return redirect('dashboard')
+    
+    # Get the faculty headed by the dean
+    faculty = Faculty.objects.filter(dean=request.user, is_active=True).first()
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Handle profile picture upload
+                if 'profile_picture' in request.FILES:
+                    profile_picture = request.FILES['profile_picture']
+                    
+                    # Delete old profile picture if exists
+                    if request.user.profile_picture:
+                        if default_storage.exists(request.user.profile_picture.name):
+                            default_storage.delete(request.user.profile_picture.name)
+                    
+                    # Save new profile picture
+                    request.user.profile_picture = profile_picture
+                    request.user.save()
+                    
+                    messages.success(request, "Profile picture updated successfully!")
+                    return JsonResponse({'status': 'success'})
+                
+                # Handle personal details update
+                elif 'phone' in request.POST:
+                    request.user.phone = request.POST.get('phone', '')
+                    request.user.address = request.POST.get('address', '')
+                    request.user.email = request.POST.get('email', request.user.email)
+                    request.user.save()
+                    
+                    messages.success(request, "Contact details updated successfully!")
+                
+                # Handle password change
+                elif 'current_password' in request.POST:
+                    form = PasswordChangeForm(request.user, request.POST)
+                    if form.is_valid():
+                        user = form.save()
+                        update_session_auth_hash(request, user)  # Important for keeping user logged in
+                        messages.success(request, "Password changed successfully!")
+                    else:
+                        for field, errors in form.errors.items():
+                            for error in errors:
+                                messages.error(request, f"{field}: {error}")
+                
+                return redirect('dean_profile')
+                
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
+            return redirect('dean_profile')
+    
+    # Calculate years of service if joining date is available
+    years_of_service = None
+    if faculty and hasattr(faculty, 'established_date'):
+        from datetime import date
+        years_of_service = (date.today() - faculty.established_date).days // 365
+    
+    # Get faculty statistics
+    faculty_stats = {}
+    if faculty:
+        faculty_stats = {
+            'total_departments': faculty.departments.filter(is_active=True).count(),
+            'total_programmes': faculty.programmes.filter(is_active=True).count(),
+            'total_students': sum([
+                prog.students.filter(status='active').count() 
+                for prog in faculty.programmes.filter(is_active=True)
+            ]),
+            'total_lecturers': sum([
+                dept.lecturers.filter(is_active=True).count() 
+                for dept in faculty.departments.filter(is_active=True)
+            ])
+        }
+    
+    context = {
+        'dean': request.user,
+        'faculty': faculty,
+        'years_of_service': years_of_service,
+        'faculty_stats': faculty_stats,
+    }
+    
+    return render(request, 'dean/dean_profile.html', context)

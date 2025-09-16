@@ -472,6 +472,7 @@ urlpatterns = [
     path('dean/ajax/programmes/', views.get_programmes_by_department, name='get_programmes_by_department'),
 
     # Main lecturer list for dean
+    path('dean/profile/', views.dean_profile, name='dean_profile'),
     path('dean/lecturers/', views.dean_lecturer_list, name='dean_lecturer_list'),
     path('dean/lecturers/<str:employee_number>/', views.dean_lecturer_detail, name='dean_lecturer_detail'),
     path('dean/lecturers/<str:employee_number>/toggle-status/', views.dean_lecturer_toggle_status, name='dean_lecturer_toggle_status'),

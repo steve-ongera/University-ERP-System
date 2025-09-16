@@ -1,0 +1,502 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block title %}Dean Profile - {{ request.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container onprintContainer">
+    <!-- Header -->
+    <div class="row mt-3 d-flex flex-row pb-3">
+        <div class="col-md-12 d-flex justify-content-between">
+            <h3 class="primary-text">Dean Profile Settings</h3>
+        </div>
+    </div>
+
+    <div class="row bg-white shadow">
+        <!-- Left Side - Navigation -->
+        <div class="col-md-3">
+            <div class="card col-md-12">
+                <div class="card-body text-md-left ml-0">
+                    <div class="nav flex-column nav-tabs prof" id="v-tabs-tab" role="tablist" aria-orientation="vertical">
+                        <div class="mb-4 d-flex align-items-center flex-column">
+                            <div class="profile-pic mb-3 position-relative">
+                                {% if request.user.profile_picture %}
+                                    <img src="{{ request.user.profile_picture.url }}" id="profilePicture" class="img-fluid rounded-circle" alt="Profile Picture" />
+                                {% else %}
+                                    <img src="{% static 'avatar2.png' %}" id="profilePicture" class="img-fluid rounded-circle" alt="Default Profile" />
+                                {% endif %}
+                                <span class="position-absolute bottom-0 start-100 translate-middle badge border border-blue rounded-circle uploadIcon bg-white">
+                                    <span class="elementinput">
+                                        <i class="ri-upload-line profIconClick" data-bs-toggle="tooltip" data-bs-placement="right"
+                                           data-bs-custom-class="custom-tooltip" data-bs-title="Upload Profile Picture"></i>
+                                        <input class="profileInputFile" type="file" id="uploadedProf" accept="image/png, image/gif, image/jpeg, image/jpg">
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="sticky-top mb-2">
+                                <div class="p-1">
+                                    <button type="button" class="btn primary-outline-btn btn-md profileInputFile" id="profileUpload"><i class="ri-upload-line"></i> Upload</button>
+                                </div>
+                                <div>
+                                    <h6 class="mb-2">{{ request.user.get_full_name }}</h6>
+                                    <p class="text-muted small">Dean</p>
+                                    {% if faculty %}
+                                        <p class="text-primary small">{{ faculty.name }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="nav flex-column prof">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active px-1" href="#" id="Dean-PersonalDetails-tab" data-bs-toggle="tab" data-bs-target="#Dean-PersonalDetails" role="tab" aria-controls="Dean-PersonalDetails" aria-selected="true"><i class="bi bi-person mx-3"></i><span>Personal Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Dean-ContactDetails-tab" data-bs-toggle="tab" data-bs-target="#Dean-ContactDetails" role="tab" aria-controls="Dean-ContactDetails" aria-selected="false"><i class="bi bi-telephone mx-3"></i><span>Contact Details</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Dean-AdministrativeDetails-tab" data-bs-toggle="tab" data-bs-target="#Dean-AdministrativeDetails" role="tab" aria-controls="Dean-AdministrativeDetails" aria-selected="false"><i class="bi bi-building mx-1"></i><span>Administrative Role</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Dean-FacultyStats-tab" data-bs-toggle="tab" data-bs-target="#Dean-FacultyStats" role="tab" aria-controls="Dean-FacultyStats" aria-selected="false"><i class="bi bi-bar-chart-fill mx-1"></i><span>Faculty Statistics</span></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link px-0" id="Password-tab" data-bs-toggle="tab" data-bs-target="#Password" role="tab" aria-controls="Password" aria-selected="false"><i class="bi bi-lock-fill mx-1"></i><span>Change Password</span></a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Content -->
+        <div class="col-md-9 profile">
+            <!-- System Messages -->
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3">
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            
+            <div class="tab-content">
+                <!-- Personal Details Tab -->
+                <div id="Dean-PersonalDetails" class="container tab-pane show active" role="tabpanel" aria-labelledby="Dean-PersonalDetails-tab">
+                    <form method="post" action="{% url 'dean_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Username</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.username }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>First Name</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.first_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Last Name</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.last_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Gender</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.get_gender_display|default:'Not specified' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>Date of Birth</label>
+                                    <input type="date" class="form-control" disabled value="{{ request.user.date_of_birth|date:'Y-m-d'|default:'' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="md-form mb-3">
+                                    <label>National ID</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.national_id|default:'Not provided' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>User Type</label>
+                                    <input type="text" class="form-control" disabled value="{{ request.user.get_user_type_display }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Status</label>
+                                    <span class="badge {% if request.user.is_active %}bg-success{% else %}bg-danger{% endif %} ms-2">
+                                        {{ request.user.is_active|yesno:"Active,Inactive" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <p class="text-muted"><i class="bi bi-info-circle"></i> Personal details are managed by the system administrator.</p>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Contact Details Tab -->
+                <div id="Dean-ContactDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Dean-ContactDetails-tab">
+                    <form method="post" action="{% url 'dean_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Phone Number</label>
+                                    <input type="text" class="form-control" name="phone" value="{{ request.user.phone|default:'' }}" placeholder="Enter your phone number">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Email</label>
+                                    <input type="email" class="form-control" name="email" value="{{ request.user.email|default:'' }}" placeholder="Enter your email address">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Address</label>
+                                    <textarea class="form-control" name="address" rows="3" placeholder="Enter your address">{{ request.user.address|default:'' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                            <button type="submit" class="btn primary-btn btn-md light">Update Contact Details</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Administrative Details Tab -->
+                <div id="Dean-AdministrativeDetails" class="container tab-pane fade" role="tabpanel" aria-labelledby="Dean-AdministrativeDetails-tab">
+                    <div class="row mt-3">
+                        {% if faculty %}
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Faculty Name</label>
+                                    <input type="text" class="form-control" disabled value="{{ faculty.name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Faculty Code</label>
+                                    <input type="text" class="form-control" disabled value="{{ faculty.code }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Established Date</label>
+                                    <input type="text" class="form-control" disabled value="{{ faculty.established_date|date:'Y-m-d' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Status</label>
+                                    <span class="badge {% if faculty.is_active %}bg-success{% else %}bg-danger{% endif %} ms-2">
+                                        {{ faculty.is_active|yesno:"Active,Inactive" }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% if years_of_service %}
+                            <div class="col-md-6">
+                                <div class="md-form mb-3">
+                                    <label>Years of Service</label>
+                                    <input type="text" class="form-control" disabled value="{{ years_of_service }} years">
+                                </div>
+                            </div>
+                            {% endif %}
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Faculty Description</label>
+                                    <textarea class="form-control" disabled rows="4">{{ faculty.description|default:'No description available' }}</textarea>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="col-md-12">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    You are not currently assigned to head any faculty.
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Faculty Statistics Tab -->
+                <div id="Dean-FacultyStats" class="container tab-pane fade" role="tabpanel" aria-labelledby="Dean-FacultyStats-tab">
+                    <div class="row mt-3">
+                        {% if faculty and faculty_stats %}
+                            <div class="col-md-12 mb-4">
+                                <h5 class="text-primary">{{ faculty.name }} Statistics</h5>
+                                <hr>
+                            </div>
+                            
+                            <div class="col-md-6 col-lg-3">
+                                <div class="card text-center border-primary mb-3">
+                                    <div class="card-body">
+                                        <h4 class="text-primary">{{ faculty_stats.total_departments }}</h4>
+                                        <p class="card-text">Departments</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 col-lg-3">
+                                <div class="card text-center border-success mb-3">
+                                    <div class="card-body">
+                                        <h4 class="text-success">{{ faculty_stats.total_programmes }}</h4>
+                                        <p class="card-text">Programmes</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 col-lg-3">
+                                <div class="card text-center border-info mb-3">
+                                    <div class="card-body">
+                                        <h4 class="text-info">{{ faculty_stats.total_students }}</h4>
+                                        <p class="card-text">Active Students</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 col-lg-3">
+                                <div class="card text-center border-warning mb-3">
+                                    <div class="card-body">
+                                        <h4 class="text-warning">{{ faculty_stats.total_lecturers }}</h4>
+                                        <p class="card-text">Lecturers</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-12 mt-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Faculty Overview</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>Faculty:</strong> {{ faculty.name }}<br>
+                                                <strong>Code:</strong> {{ faculty.code }}<br>
+                                                <strong>Established:</strong> {{ faculty.established_date|date:'F d, Y' }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Total Academic Units:</strong> {{ faculty_stats.total_departments }} Departments<br>
+                                                <strong>Academic Programs:</strong> {{ faculty_stats.total_programmes }} Programmes<br>
+                                                <strong>Community Size:</strong> {{ faculty_stats.total_students|add:faculty_stats.total_lecturers }} Members
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    No faculty statistics available. You may not be assigned to head any faculty currently.
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Change Password Tab -->
+                <div id="Password" class="container tab-pane fade" role="tabpanel" aria-labelledby="Password-tab">
+                    <form method="post" action="{% url 'dean_profile' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Current Password</label>
+                                    <input type="password" class="form-control" name="old_password" required placeholder="Enter your current password">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>New Password</label>
+                                    <input type="password" class="form-control" name="new_password1" required placeholder="Enter new password">
+                                    <small class="text-muted">Your password must contain at least 8 characters and should not be entirely numeric.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="md-form mb-3">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" class="form-control" name="new_password2" required placeholder="Confirm new password">
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-shield-lock"></i>
+                                    <strong>Password Security Tips:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>Use at least 8 characters</li>
+                                        <li>Include uppercase and lowercase letters</li>
+                                        <li>Include numbers and special characters</li>
+                                        <li>Avoid using personal information</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-12 mb-2 d-flex justify-content mt-3">
+                                <button type="submit" class="btn primary-btn btn-md light">Change Password</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Activate the first tab (Personal Details) by default if no hash is present
+    if (!window.location.hash) {
+        $('#Dean-PersonalDetails-tab').addClass('active');
+        $('#Dean-PersonalDetails').addClass('show active');
+    } else {
+        // If there's a hash, activate that tab
+        $('a[href="' + window.location.hash + '"]').tab('show');
+    }
+    
+    // Handle profile picture upload
+    $('#profileUpload').click(function() {
+        $('#uploadedProf').click();
+    });
+
+    $('#uploadedProf').change(function() {
+        if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            
+            reader.onload = function(e) {
+                $('#profilePicture').attr('src', e.target.result);
+                
+                // Upload the file via AJAX
+                var formData = new FormData();
+                formData.append('profile_picture', $('#uploadedProf')[0].files[0]);
+                formData.append('csrfmiddlewaretoken', $('[name=csrfmiddlewaretoken]').val());
+                
+                $.ajax({
+                    url: window.location.pathname,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            location.reload(); // Reload to show success message
+                        }
+                    },
+                    error: function(xhr, errmsg, err) {
+                        alert('Error updating profile picture. Please try again.');
+                        console.log('Error:', err);
+                    }
+                });
+            }
+            
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+
+    // Initialize tooltips if Bootstrap tooltips are available
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+    
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        $('.alert-dismissible').each(function() {
+            $(this).alert('close');
+        });
+    }, 5000);
+    
+    // Handle tab switching and URL hash updates
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        window.location.hash = e.target.hash;
+        // Remove active class from all nav links
+        $('.nav-link').removeClass('active');
+        // Add active class to the clicked nav link
+        $(this).addClass('active');
+    });
+    
+    // Password strength indicator (optional)
+    $('input[name="new_password1"]').on('keyup', function() {
+        var password = $(this).val();
+        var strength = 0;
+        
+        if (password.length >= 8) strength++;
+        if (password.match(/[a-z]/)) strength++;
+        if (password.match(/[A-Z]/)) strength++;
+        if (password.match(/[0-9]/)) strength++;
+        if (password.match(/[^a-zA-Z0-9]/)) strength++;
+        
+        var strengthText = '';
+        var strengthClass = '';
+        
+        switch(strength) {
+            case 0:
+            case 1:
+                strengthText = 'Very Weak';
+                strengthClass = 'text-danger';
+                break;
+            case 2:
+                strengthText = 'Weak';
+                strengthClass = 'text-warning';
+                break;
+            case 3:
+                strengthText = 'Fair';
+                strengthClass = 'text-info';
+                break;
+            case 4:
+                strengthText = 'Good';
+                strengthClass = 'text-primary';
+                break;
+            case 5:
+                strengthText = 'Strong';
+                strengthClass = 'text-success';
+                break;
+        }
+        
+        // Remove any existing strength indicator
+        $(this).parent().find('.password-strength').remove();
+        
+        // Add strength indicator
+        if (password.length > 0) {
+            $(this).after('<small class="password-strength ' + strengthClass + '">Password Strength: ' + strengthText + '</small>');
+        }
+    });
+    
+    // Form validation
+    $('form').on('submit', function(e) {
+        var form = $(this);
+        
+        // Password change form validation
+        if (form.find('input[name="new_password1"]').length) {
+            var password1 = form.find('input[name="new_password1"]').val();
+            var password2 = form.find('input[name="new_password2"]').val();
+            
+            if (password1 !== password2) {
+                e.preventDefault();
+                alert('New passwords do not match. Please check and try again.');
+                return false;
+            }
+            
+            if (password1.length < 8) {
+                e.preventDefault();
+                alert('Password must be at least 8 characters long.');
+                return false;
+            }
+        }
+        
+        return true;
+    });
+});
+</script>
+{% endblock %}
