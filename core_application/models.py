@@ -52,6 +52,10 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.user_type})"
+    
+#security models 
+
+
 
 # Academic Structure Models
 class Faculty(models.Model):
@@ -2137,3 +2141,92 @@ class SystemMetrics(models.Model):
     
     def __str__(self):
         return f"Metrics for {self.date}"
+
+
+
+# Add these models to your existing models.py
+
+from django.utils import timezone
+from datetime import timedelta
+import random
+import string
+
+class AdminLoginAttempt(models.Model):
+    """Track admin login attempts for security monitoring"""
+    username = models.CharField(max_length=150)
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True)
+    attempt_time = models.DateTimeField(auto_now_add=True)
+    success = models.BooleanField(default=False)
+    failure_reason = models.CharField(max_length=100, blank=True)
+    
+    class Meta:
+        ordering = ['-attempt_time']
+        indexes = [
+            models.Index(fields=['username', 'attempt_time']),
+            models.Index(fields=['ip_address', 'attempt_time']),
+        ]
+    
+    def __str__(self):
+        return f"{self.username} - {self.attempt_time} - {'Success' if self.success else 'Failed'}"
+
+class AdminTwoFactorCode(models.Model):
+    """Store 2FA codes for admin authentication"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='admin_2fa_codes')
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField()
+    is_used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['code', 'expires_at']),
+            models.Index(fields=['user', 'is_used']),
+        ]
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=3)
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
+    
+    @classmethod
+    def generate_code(cls):
+        """Generate a 6-digit random code"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.code} - {'Used' if self.is_used else 'Valid' if self.is_valid else 'Expired'}"
+
+class AdminSecurityAlert(models.Model):
+    """Track security alerts for suspicious admin login activities"""
+    ALERT_TYPES = (
+        ('multiple_failures', 'Multiple Login Failures'),
+        ('suspicious_ip', 'Suspicious IP Address'),
+        ('brute_force', 'Brute Force Attack'),
+        ('invalid_2fa', 'Invalid 2FA Attempts'),
+    )
+    
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
+    username = models.CharField(max_length=150)
+    ip_address = models.GenericIPAddressField()
+    details = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    email_sent = models.BooleanField(default=False)
+    resolved = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.alert_type} - {self.username} - {self.created_at}"
