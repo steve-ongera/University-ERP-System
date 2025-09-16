@@ -116,6 +116,12 @@
             background: linear-gradient(45deg, #c82333, #a71e2a);
         }
         
+        .verify-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
         .resend-btn {
             background: transparent;
             border: 2px solid #6c757d;
@@ -126,10 +132,15 @@
             transition: all 0.3s ease;
         }
         
-        .resend-btn:hover {
+        .resend-btn:hover:not(:disabled) {
             border-color: #dc3545;
             color: #dc3545;
             background: rgba(220, 53, 69, 0.1);
+        }
+        
+        .resend-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         .countdown {
@@ -186,9 +197,36 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-spinner {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner-border text-danger" role="status"></div>
+            <div class="mt-2">Verifying...</div>
+        </div>
+    </div>
+
     <div class="container verification-container fade-in">
         <div class="row justify-content-center">
             <div class="col-12">
@@ -232,6 +270,7 @@
                                        maxlength="6"
                                        pattern="[0-9]{6}"
                                        autocomplete="off"
+                                       inputmode="numeric"
                                        required>
                                 <div class="form-text">
                                     <i class="bi bi-info-circle"></i>
@@ -240,7 +279,7 @@
                             </div>
                             
                             <div class="d-grid mb-3">
-                                <button type="submit" class="btn btn-danger verify-btn">
+                                <button type="submit" class="btn btn-danger verify-btn" id="verifyBtn">
                                     <i class="bi bi-check-circle"></i> Verify & Login
                                 </button>
                             </div>
@@ -248,7 +287,7 @@
                         
                         <div class="text-center">
                             <p class="mb-2">Didn't receive the code?</p>
-                            <form method="post" action="{% url 'admin_resend_2fa_code' %}" class="d-inline">
+                            <form method="post" action="{% url 'admin_resend_2fa_code' %}" class="d-inline" id="resendForm">
                                 {% csrf_token %}
                                 <button type="submit" class="btn resend-btn me-2" id="resendBtn">
                                     <i class="bi bi-arrow-clockwise"></i> Resend Code
@@ -286,21 +325,33 @@
             const codeInput = document.getElementById('verification_code');
             const countdownElement = document.getElementById('countdown');
             const resendBtn = document.getElementById('resendBtn');
+            const verifyBtn = document.getElementById('verifyBtn');
             const verificationForm = document.getElementById('verificationForm');
+            const resendForm = document.getElementById('resendForm');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            
+            // CSRF token management
+            function getCsrfToken() {
+                return document.querySelector('[name=csrfmiddlewaretoken]').value;
+            }
             
             // Countdown timer (3 minutes)
             let timeLeft = 180; // 3 minutes in seconds
+            let isExpired = false;
             
             function updateCountdown() {
+                if (isExpired) return;
+                
                 const minutes = Math.floor(timeLeft / 60);
                 const seconds = timeLeft % 60;
                 countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 
                 if (timeLeft <= 0) {
+                    isExpired = true;
                     countdownElement.textContent = 'EXPIRED';
                     countdownElement.style.color = '#dc3545';
                     codeInput.disabled = true;
-                    resendBtn.style.display = 'inline-block';
+                    verifyBtn.disabled = true;
                     
                     // Show expiration message
                     if (typeof toastr !== 'undefined') {
@@ -325,15 +376,15 @@
                 // Only allow digits
                 this.value = this.value.replace(/\D/g, '');
                 
-                // Auto-submit when 6 digits are entered
+                // Reset border color
+                this.style.borderColor = '';
+                
+                // Enable/disable submit button based on input length
                 if (this.value.length === 6) {
-                    // Add visual feedback
                     this.style.borderColor = '#28a745';
-                    
-                    // Auto-submit after a short delay
-                    setTimeout(() => {
-                        verificationForm.submit();
-                    }, 500);
+                    verifyBtn.disabled = false;
+                } else {
+                    verifyBtn.disabled = this.value.length === 0 ? false : true;
                 }
             });
             
@@ -346,18 +397,21 @@
                 
                 if (digits.length === 6) {
                     this.style.borderColor = '#28a745';
-                    setTimeout(() => {
-                        verificationForm.submit();
-                    }, 500);
+                    verifyBtn.disabled = false;
                 }
+                
+                // Trigger input event for validation
+                this.dispatchEvent(new Event('input'));
             });
             
-            // Form submission handling
+            // Form submission handling with CSRF protection
             verificationForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
                 const code = codeInput.value.trim();
                 
+                // Validate code
                 if (code.length !== 6) {
-                    e.preventDefault();
                     codeInput.style.borderColor = '#dc3545';
                     if (typeof toastr !== 'undefined') {
                         toastr.error('Please enter a valid 6-digit code.');
@@ -365,8 +419,7 @@
                     return false;
                 }
                 
-                if (timeLeft <= 0) {
-                    e.preventDefault();
+                if (isExpired) {
                     if (typeof toastr !== 'undefined') {
                         toastr.error('Code has expired. Please request a new one.');
                     }
@@ -374,28 +427,131 @@
                 }
                 
                 // Show loading state
-                const submitBtn = this.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verifying...';
-                submitBtn.disabled = true;
+                verifyBtn.disabled = true;
+                verifyBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verifying...';
+                loadingOverlay.style.display = 'flex';
                 
-                // Re-enable button after 3 seconds in case of network issues
-                setTimeout(() => {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }, 3000);
+                // Create FormData with fresh CSRF token
+                const formData = new FormData();
+                formData.append('verification_code', code);
+                formData.append('csrfmiddlewaretoken', getCsrfToken());
+                
+                // Submit via fetch to handle CSRF properly
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                        } else {
+                            return response.text();
+                        }
+                    } else if (response.status === 403) {
+                        throw new Error('CSRF token invalid. Please refresh the page.');
+                    } else {
+                        throw new Error('Verification failed. Please try again.');
+                    }
+                })
+                .then(html => {
+                    if (html) {
+                        // Parse response for error messages
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const alerts = doc.querySelectorAll('.alert');
+                        
+                        if (alerts.length > 0) {
+                            // Display error messages
+                            alerts.forEach(alert => {
+                                const messageType = alert.classList.contains('alert-danger') ? 'error' : 
+                                                 alert.classList.contains('alert-success') ? 'success' : 'info';
+                                if (typeof toastr !== 'undefined') {
+                                    toastr[messageType](alert.textContent.trim());
+                                }
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Verification error:', error);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(error.message || 'An error occurred. Please try again.');
+                    }
+                    
+                    if (error.message.includes('CSRF')) {
+                        // Refresh page to get new CSRF token
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                })
+                .finally(() => {
+                    // Reset button state
+                    loadingOverlay.style.display = 'none';
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="bi bi-check-circle"></i> Verify & Login';
+                });
             });
             
             // Resend button handling
-            resendBtn.addEventListener('click', function(e) {
-                this.disabled = true;
-                this.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+            resendForm.addEventListener('submit', function(e) {
+                e.preventDefault();
                 
-                // Re-enable after submission
-                setTimeout(() => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Resend Code';
-                }, 2000);
+                resendBtn.disabled = true;
+                resendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+                
+                // Create FormData with fresh CSRF token
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', getCsrfToken());
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                        }
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('New verification code sent!');
+                        }
+                        
+                        // Reset countdown
+                        timeLeft = 180;
+                        isExpired = false;
+                        codeInput.disabled = false;
+                        verifyBtn.disabled = false;
+                        countdownElement.style.color = '#dc3545';
+                        countdownElement.classList.remove('pulse');
+                        
+                    } else {
+                        throw new Error('Failed to resend code');
+                    }
+                })
+                .catch(error => {
+                    console.error('Resend error:', error);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('Failed to resend code. Please try again.');
+                    }
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        resendBtn.disabled = false;
+                        resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Resend Code';
+                    }, 2000);
+                });
             });
             
             // Focus on input when page loads
@@ -406,23 +562,38 @@
                 window.history.replaceState(null, null, window.location.href);
             }
             
-            // Auto-refresh page when code expires
-            setTimeout(() => {
-                if (timeLeft <= 0) {
-                    window.location.reload();
-                }
-            }, 185000); // 3 minutes + 5 seconds buffer
-            
-            // Security: Clear session storage and disable debugging
+            // Security: Clear session storage
             sessionStorage.clear();
             
-            // Disable right-click and developer tools
-            document.addEventListener('contextmenu', e => e.preventDefault());
+            // Handle page visibility changes (prevent CSRF issues)
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    // Refresh CSRF token when page becomes visible again
+                    setTimeout(() => {
+                        // Only refresh if the form is still active
+                        if (!isExpired && timeLeft > 0) {
+                            const csrfToken = getCsrfToken();
+                            if (!csrfToken || csrfToken.length < 10) {
+                                // CSRF token might be invalid, refresh page
+                                window.location.reload();
+                            }
+                        }
+                    }, 1000);
+                }
+            });
+            
+            // Keyboard shortcuts
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'F12' || 
-                    (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-                    (e.ctrlKey && e.key === 'U')) {
+                // Enter key submits form
+                if (e.key === 'Enter' && codeInput.value.length === 6) {
                     e.preventDefault();
+                    verificationForm.dispatchEvent(new Event('submit'));
+                }
+                
+                // Escape key clears input
+                if (e.key === 'Escape') {
+                    codeInput.value = '';
+                    codeInput.focus();
                 }
             });
         });

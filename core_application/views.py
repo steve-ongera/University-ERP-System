@@ -1660,20 +1660,22 @@ def register_event(request, event_id):
         
         return redirect('student_events')
 
-
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.db.models import Q
+from django.middleware.csrf import get_token
 from datetime import timedelta
 import logging
+import json
 
 from .models import AdminLoginAttempt, AdminTwoFactorCode, AdminSecurityAlert, User
 
@@ -1811,6 +1813,7 @@ University Management System Security
         return False
 
 @csrf_protect
+@never_cache
 @require_http_methods(["GET", "POST"])
 def admin_login_view(request):
     """
@@ -1887,6 +1890,7 @@ def admin_login_view(request):
                         # Store user info in session for 2FA verification
                         request.session['pending_admin_user_id'] = user.id
                         request.session['admin_remember_me'] = remember_me
+                        request.session['admin_2fa_start_time'] = timezone.now().timestamp()
                         
                         messages.info(request, 'Verification code sent to your email. Please check and enter the code.')
                         return redirect('admin_2fa_verify')
@@ -1953,34 +1957,162 @@ def admin_login_view(request):
     return render(request, 'admin/admin_login.html')
 
 @csrf_protect
+@ensure_csrf_cookie
+@never_cache
 @require_http_methods(["GET", "POST"])
 def admin_2fa_verify_view(request):
     """
-    Verify 2FA code for admin login
+    Verify 2FA code for admin login with improved CSRF handling
     """
     if request.user.is_authenticated:
         return redirect('admin_dashboard')
     
     # Check if there's a pending user in session
     user_id = request.session.get('pending_admin_user_id')
-    if not user_id:
+    start_time = request.session.get('admin_2fa_start_time')
+    
+    if not user_id or not start_time:
         messages.error(request, 'Session expired. Please login again.')
+        return redirect('admin_login')
+    
+    # Check if 2FA session has expired (5 minutes max)
+    if timezone.now().timestamp() - start_time > 300:  # 5 minutes
+        # Clean up session
+        request.session.pop('pending_admin_user_id', None)
+        request.session.pop('admin_remember_me', None)
+        request.session.pop('admin_2fa_start_time', None)
+        messages.error(request, '2FA session expired. Please login again.')
         return redirect('admin_login')
     
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
+        # Clean up invalid session
+        request.session.pop('pending_admin_user_id', None)
+        request.session.pop('admin_remember_me', None)
+        request.session.pop('admin_2fa_start_time', None)
         messages.error(request, 'Invalid session. Please login again.')
         return redirect('admin_login')
     
     ip_address = get_client_ip(request)
     
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.method == 'POST':
+            try:
+                entered_code = request.POST.get('verification_code', '').strip()
+                
+                if not entered_code:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Please enter the verification code.'
+                    })
+                
+                # Find valid code
+                try:
+                    code_obj = AdminTwoFactorCode.objects.get(
+                        user=user,
+                        code=entered_code,
+                        is_used=False,
+                        ip_address=ip_address,
+                        expires_at__gt=timezone.now()
+                    )
+                    
+                    # Mark code as used
+                    code_obj.is_used = True
+                    code_obj.used_at = timezone.now()
+                    code_obj.save()
+                    
+                    # Complete the login
+                    login(request, user)
+                    
+                    # Handle remember me
+                    remember_me = request.session.get('admin_remember_me', False)
+                    if remember_me:
+                        request.session.set_expiry(1209600)  # 2 weeks
+                    else:
+                        request.session.set_expiry(0)  # Browser close
+                    
+                    # Log successful login
+                    AdminLoginAttempt.objects.create(
+                        username=user.username,
+                        ip_address=ip_address,
+                        user_agent=get_user_agent(request),
+                        success=True
+                    )
+                    
+                    # Clean up session
+                    request.session.pop('pending_admin_user_id', None)
+                    request.session.pop('admin_remember_me', None)
+                    request.session.pop('admin_2fa_start_time', None)
+                    
+                    logger.info(f"Admin 2FA login successful for user: {user.username}")
+                    
+                    next_url = request.GET.get('next', '/admin-dashboard/')
+                    return JsonResponse({
+                        'success': True,
+                        'redirect_url': next_url,
+                        'message': f'Welcome back, {user.first_name or user.username}!'
+                    })
+                    
+                except AdminTwoFactorCode.DoesNotExist:
+                    # Log invalid 2FA attempt
+                    AdminLoginAttempt.objects.create(
+                        username=user.username,
+                        ip_address=ip_address,
+                        user_agent=get_user_agent(request),
+                        success=False,
+                        failure_reason='Invalid 2FA code'
+                    )
+                    
+                    # Check for multiple invalid attempts
+                    invalid_attempts = AdminLoginAttempt.objects.filter(
+                        username=user.username,
+                        ip_address=ip_address,
+                        attempt_time__gte=timezone.now() - timedelta(minutes=5),
+                        failure_reason='Invalid 2FA code'
+                    ).count()
+                    
+                    if invalid_attempts >= 3:
+                        # Clear session and send alert
+                        request.session.pop('pending_admin_user_id', None)
+                        request.session.pop('admin_remember_me', None)
+                        request.session.pop('admin_2fa_start_time', None)
+                        
+                        send_security_alert_email(
+                            'Invalid 2FA Attempts',
+                            user.username,
+                            ip_address,
+                            f'Multiple invalid 2FA code attempts for user {user.username} from IP {ip_address}'
+                        )
+                        
+                        return JsonResponse({
+                            'success': False,
+                            'error': 'Too many invalid attempts. Please login again.',
+                            'redirect_url': '/admin-login/'
+                        })
+                    
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Invalid or expired verification code.'
+                    })
+                    
+            except Exception as e:
+                logger.error(f"2FA verification error: {str(e)}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'An error occurred during verification. Please try again.'
+                })
+    
+    # Handle regular POST request (fallback)
     if request.method == 'POST':
         entered_code = request.POST.get('verification_code', '').strip()
         
         if not entered_code:
             messages.error(request, 'Please enter the verification code.')
-            return render(request, 'admin/admin_2fa_verify.html')
+            return render(request, 'admin/admin_2fa_verify.html', {
+                'user_email': user.email[:3] + '*' * (len(user.email) - 6) + user.email[-3:] if user.email else ''
+            })
         
         # Find valid code
         try:
@@ -2018,6 +2150,7 @@ def admin_2fa_verify_view(request):
             # Clean up session
             request.session.pop('pending_admin_user_id', None)
             request.session.pop('admin_remember_me', None)
+            request.session.pop('admin_2fa_start_time', None)
             
             logger.info(f"Admin 2FA login successful for user: {user.username}")
             messages.success(request, f'Welcome back, {user.first_name or user.username}!')
@@ -2047,6 +2180,7 @@ def admin_2fa_verify_view(request):
                 # Clear session and send alert
                 request.session.pop('pending_admin_user_id', None)
                 request.session.pop('admin_remember_me', None)
+                request.session.pop('admin_2fa_start_time', None)
                 
                 send_security_alert_email(
                     'Invalid 2FA Attempts',
@@ -2064,36 +2198,68 @@ def admin_2fa_verify_view(request):
         'user_email': user.email[:3] + '*' * (len(user.email) - 6) + user.email[-3:] if user.email else ''
     })
 
+@csrf_protect
+@never_cache
+@require_http_methods(["POST"])
 def admin_resend_2fa_code(request):
-    """Resend 2FA code"""
-    if request.method == 'POST':
-        user_id = request.session.get('pending_admin_user_id')
-        if not user_id:
-            messages.error(request, 'Session expired. Please login again.')
-            return redirect('admin_login')
+    """Resend 2FA code with CSRF protection"""
+    user_id = request.session.get('pending_admin_user_id')
+    if not user_id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Session expired. Please login again.',
+                'redirect_url': '/admin-login/'
+            })
+        messages.error(request, 'Session expired. Please login again.')
+        return redirect('admin_login')
+    
+    try:
+        user = User.objects.get(id=user_id)
+        ip_address = get_client_ip(request)
         
-        try:
-            user = User.objects.get(id=user_id)
-            ip_address = get_client_ip(request)
+        # Check if too many codes were sent recently
+        recent_codes = AdminTwoFactorCode.objects.filter(
+            user=user,
+            created_at__gte=timezone.now() - timedelta(minutes=5)
+        ).count()
+        
+        if recent_codes >= 3:
+            error_msg = 'Too many verification codes requested. Please try again later.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+            return redirect('admin_2fa_verify')
+        
+        if generate_and_send_2fa_code(user, ip_address):
+            # Update session timestamp
+            request.session['admin_2fa_start_time'] = timezone.now().timestamp()
             
-            # Check if too many codes were sent recently
-            recent_codes = AdminTwoFactorCode.objects.filter(
-                user=user,
-                created_at__gte=timezone.now() - timedelta(minutes=5)
-            ).count()
+            success_msg = 'New verification code sent to your email.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': success_msg})
+            messages.success(request, success_msg)
+        else:
+            error_msg = 'Failed to send verification code. Please try again.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
             
-            if recent_codes >= 3:
-                messages.error(request, 'Too many verification codes requested. Please try again later.')
-                return redirect('admin_2fa_verify')
-            
-            if generate_and_send_2fa_code(user, ip_address):
-                messages.success(request, 'New verification code sent to your email.')
-            else:
-                messages.error(request, 'Failed to send verification code. Please try again.')
-                
-        except User.DoesNotExist:
-            messages.error(request, 'Invalid session. Please login again.')
-            return redirect('admin_login')
+    except User.DoesNotExist:
+        # Clean up invalid session
+        request.session.pop('pending_admin_user_id', None)
+        request.session.pop('admin_remember_me', None)
+        request.session.pop('admin_2fa_start_time', None)
+        
+        error_msg = 'Invalid session. Please login again.'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': error_msg,
+                'redirect_url': '/admin-login/'
+            })
+        messages.error(request, error_msg)
+        return redirect('admin_login')
     
     return redirect('admin_2fa_verify')
 
