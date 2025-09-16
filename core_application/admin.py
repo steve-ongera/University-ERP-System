@@ -1220,6 +1220,64 @@ class TrackingAdminSite(admin.AdminSite):
         return super().index(request, extra_context)
 
 
+
+from django.contrib import admin
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils import timezone
+from .models import AdminLoginAttempt, AdminTwoFactorCode, AdminSecurityAlert
+
+@admin.register(AdminLoginAttempt)
+class AdminLoginAttemptAdmin(admin.ModelAdmin):
+    list_display = ['username', 'ip_address', 'attempt_time', 'success', 'failure_reason', 'colored_status']
+    list_filter = ['success', 'attempt_time', 'failure_reason']
+    search_fields = ['username', 'ip_address']
+    readonly_fields = ['attempt_time', 'user_agent']
+    ordering = ['-attempt_time']
+    
+    def colored_status(self, obj):
+        if obj.success:
+            return format_html('<span style="color: green;">✓ Success</span>')
+        else:
+            return format_html('<span style="color: red;">✗ Failed</span>')
+    colored_status.short_description = 'Status'
+
+@admin.register(AdminTwoFactorCode)
+class AdminTwoFactorCodeAdmin(admin.ModelAdmin):
+    list_display = ['user', 'code', 'created_at', 'expires_at', 'is_used', 'ip_address', 'status_display']
+    list_filter = ['is_used', 'created_at', 'expires_at']
+    search_fields = ['user__username', 'user__email', 'code', 'ip_address']
+    readonly_fields = ['created_at', 'expires_at', 'used_at']
+    ordering = ['-created_at']
+    
+    def status_display(self, obj):
+        if obj.is_used:
+            return format_html('<span style="color: green;">Used</span>')
+        elif obj.is_expired:
+            return format_html('<span style="color: red;">Expired</span>')
+        else:
+            return format_html('<span style="color: blue;">Valid</span>')
+    status_display.short_description = 'Status'
+
+@admin.register(AdminSecurityAlert)
+class AdminSecurityAlertAdmin(admin.ModelAdmin):
+    list_display = ['alert_type', 'username', 'ip_address', 'created_at', 'email_sent', 'resolved', 'priority_display']
+    list_filter = ['alert_type', 'email_sent', 'resolved', 'created_at']
+    search_fields = ['username', 'ip_address', 'details']
+    readonly_fields = ['created_at']
+    ordering = ['-created_at']
+    
+    def priority_display(self, obj):
+        colors = {
+            'brute_force': 'red',
+            'multiple_failures': 'orange',
+            'invalid_2fa': 'orange',
+            'suspicious_ip': 'yellow'
+        }
+        color = colors.get(obj.alert_type, 'gray')
+        return format_html(f'<span style="color: {color};">● High Priority</span>')
+    priority_display.short_description = 'Priority'
+
 # Update admin site header for additional models
 admin.site.site_header = "Dynamic 365 ERP"
 admin.site.site_title = "365 Admin Portal"

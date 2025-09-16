@@ -1661,28 +1661,166 @@ def register_event(request, event_id):
         return redirect('student_events')
 
 
-
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
-
-
 from django.views.decorators.http import require_http_methods
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils import timezone
+from django.http import HttpResponseForbidden
+from django.db.models import Q
+from datetime import timedelta
 import logging
 
+from .models import AdminLoginAttempt, AdminTwoFactorCode, AdminSecurityAlert, User
+
 logger = logging.getLogger(__name__)
+
+def get_client_ip(request):
+    """Get the client's IP address from request"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+def get_user_agent(request):
+    """Get the user agent string"""
+    return request.META.get('HTTP_USER_AGENT', '')[:500]
+
+def check_login_attempts(username, ip_address):
+    """Check if there are too many failed login attempts"""
+    time_threshold = timezone.now() - timedelta(minutes=15)
+    
+    # Check attempts from this IP in last 15 minutes
+    ip_attempts = AdminLoginAttempt.objects.filter(
+        ip_address=ip_address,
+        attempt_time__gte=time_threshold,
+        success=False
+    ).count()
+    
+    # Check attempts for this username in last 15 minutes
+    username_attempts = AdminLoginAttempt.objects.filter(
+        username=username,
+        attempt_time__gte=time_threshold,
+        success=False
+    ).count()
+    
+    return ip_attempts >= 5 or username_attempts >= 2
+
+def send_security_alert_email(alert_type, username, ip_address, details):
+    """Send security alert email to administrators"""
+    try:
+        # Get all superusers to notify
+        admin_emails = User.objects.filter(
+            is_superuser=True, 
+            is_active=True,
+            email__isnull=False
+        ).exclude(email='').values_list('email', flat=True)
+        
+        if admin_emails:
+            subject = f'🚨 Admin Security Alert - {alert_type}'
+            message = f"""
+SECURITY ALERT: Suspicious Admin Login Activity Detected
+
+Alert Type: {alert_type}
+Target Username: {username}
+IP Address: {ip_address}
+Time: {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+Details:
+{details}
+
+Please review admin access logs and take appropriate security measures if necessary.
+
+This is an automated security notification from your University Management System.
+            """
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                list(admin_emails),
+                fail_silently=False,
+            )
+            
+            # Mark alert as sent
+            AdminSecurityAlert.objects.create(
+                alert_type=alert_type.lower().replace(' ', '_'),
+                username=username,
+                ip_address=ip_address,
+                details=details,
+                email_sent=True
+            )
+            
+    except Exception as e:
+        logger.error(f"Failed to send security alert email: {str(e)}")
+
+def generate_and_send_2fa_code(user, ip_address):
+    """Generate and send 2FA code to admin"""
+    try:
+        # Deactivate any existing unused codes for this user
+        AdminTwoFactorCode.objects.filter(
+            user=user,
+            is_used=False
+        ).update(is_used=True)
+        
+        # Generate new code
+        code = AdminTwoFactorCode.generate_code()
+        
+        # Save to database
+        AdminTwoFactorCode.objects.create(
+            user=user,
+            code=code,
+            ip_address=ip_address
+        )
+        
+        # Send email with 2FA code
+        subject = f'🔒 Admin Login Verification Code'
+        message = f"""
+Hello {user.first_name or user.username},
+
+Your admin login verification code is: {code}
+
+This code will expire in 3 minutes.
+
+If you did not request this code, someone may be attempting to access your admin account. Please change your password immediately and contact IT support.
+
+IP Address: {ip_address}
+Time: {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+University Management System Security
+        """
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to generate/send 2FA code: {str(e)}")
+        return False
 
 @csrf_protect
 @require_http_methods(["GET", "POST"])
 def admin_login_view(request):
     """
-    Admin login view with enhanced security and validation
+    Admin login view with enhanced security and 2FA
     """
-    # Redirect if already authenticated and is staff/admin
     if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
-        return redirect('admin_dashboard')  # Replace with your admin dashboard URL
+        return redirect('admin_dashboard')
+    
+    ip_address = get_client_ip(request)
+    user_agent = get_user_agent(request)
     
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
@@ -1694,6 +1832,28 @@ def admin_login_view(request):
             messages.error(request, 'Please provide both username and password.')
             return render(request, 'admin/admin_login.html')
         
+        # Check for too many failed attempts
+        if check_login_attempts(username, ip_address):
+            # Log the attempt
+            AdminLoginAttempt.objects.create(
+                username=username,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=False,
+                failure_reason='Too many failed attempts'
+            )
+            
+            # Send security alert
+            send_security_alert_email(
+                'Brute Force Attack',
+                username,
+                ip_address,
+                f'Multiple failed login attempts detected from IP {ip_address} for username {username}. Access temporarily blocked.'
+            )
+            
+            messages.error(request, 'Too many failed login attempts. Access temporarily blocked for security.')
+            return HttpResponseForbidden("Access temporarily blocked due to suspicious activity.")
+        
         # Authenticate user
         user = authenticate(request, username=username, password=password)
         
@@ -1701,32 +1861,241 @@ def admin_login_view(request):
             # Check if user is admin/staff
             if user.is_staff or user.is_superuser:
                 if user.is_active:
-                    login(request, user)
+                    # Check if user has email for 2FA
+                    if not user.email:
+                        messages.error(request, 'Admin account must have an email address for 2FA verification.')
+                        AdminLoginAttempt.objects.create(
+                            username=username,
+                            ip_address=ip_address,
+                            user_agent=user_agent,
+                            success=False,
+                            failure_reason='No email for 2FA'
+                        )
+                        return render(request, 'admin/admin_login.html')
                     
-                    # Handle remember me functionality
-                    if remember_me:
-                        request.session.set_expiry(1209600)  # 2 weeks
+                    # Generate and send 2FA code
+                    if generate_and_send_2fa_code(user, ip_address):
+                        # Log successful first step
+                        AdminLoginAttempt.objects.create(
+                            username=username,
+                            ip_address=ip_address,
+                            user_agent=user_agent,
+                            success=False,
+                            failure_reason='Pending 2FA verification'
+                        )
+                        
+                        # Store user info in session for 2FA verification
+                        request.session['pending_admin_user_id'] = user.id
+                        request.session['admin_remember_me'] = remember_me
+                        
+                        messages.info(request, 'Verification code sent to your email. Please check and enter the code.')
+                        return redirect('admin_2fa_verify')
                     else:
-                        request.session.set_expiry(0)  # Browser close
-                    
-                    # Log successful login
-                    logger.info(f"Admin login successful for user: {username}")
-                    
-                    messages.success(request, f'Welcome back, {user.first_name or user.username}!')
-                    
-                    # Redirect to next page or dashboard
-                    next_url = request.GET.get('next', 'admin_dashboard')
-                    return redirect(next_url)
+                        messages.error(request, 'Failed to send verification code. Please try again.')
                 else:
+                    AdminLoginAttempt.objects.create(
+                        username=username,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        success=False,
+                        failure_reason='Account deactivated'
+                    )
                     messages.error(request, 'Your account has been deactivated. Please contact support.')
             else:
+                AdminLoginAttempt.objects.create(
+                    username=username,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    success=False,
+                    failure_reason='Not admin user'
+                )
+                
+                # Send alert for non-admin attempting admin access
+                send_security_alert_email(
+                    'Suspicious Activity',
+                    username,
+                    ip_address,
+                    f'Non-admin user {username} attempted to access admin login from IP {ip_address}'
+                )
+                
                 messages.error(request, 'Access denied. Admin privileges required.')
                 logger.warning(f"Non-admin user attempted admin login: {username}")
         else:
+            # Log failed authentication
+            AdminLoginAttempt.objects.create(
+                username=username,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=False,
+                failure_reason='Invalid credentials'
+            )
+            
+            # Check if this is the second failed attempt in 15 minutes
+            recent_failures = AdminLoginAttempt.objects.filter(
+                username=username,
+                ip_address=ip_address,
+                attempt_time__gte=timezone.now() - timedelta(minutes=15),
+                success=False,
+                failure_reason='Invalid credentials'
+            ).count()
+            
+            if recent_failures >= 2:
+                send_security_alert_email(
+                    'Multiple Login Failures',
+                    username,
+                    ip_address,
+                    f'Multiple failed login attempts for username {username} from IP {ip_address}'
+                )
+            
             messages.error(request, 'Invalid username or password.')
             logger.warning(f"Failed admin login attempt for username: {username}")
     
     return render(request, 'admin/admin_login.html')
+
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def admin_2fa_verify_view(request):
+    """
+    Verify 2FA code for admin login
+    """
+    if request.user.is_authenticated:
+        return redirect('admin_dashboard')
+    
+    # Check if there's a pending user in session
+    user_id = request.session.get('pending_admin_user_id')
+    if not user_id:
+        messages.error(request, 'Session expired. Please login again.')
+        return redirect('admin_login')
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'Invalid session. Please login again.')
+        return redirect('admin_login')
+    
+    ip_address = get_client_ip(request)
+    
+    if request.method == 'POST':
+        entered_code = request.POST.get('verification_code', '').strip()
+        
+        if not entered_code:
+            messages.error(request, 'Please enter the verification code.')
+            return render(request, 'admin/admin_2fa_verify.html')
+        
+        # Find valid code
+        try:
+            code_obj = AdminTwoFactorCode.objects.get(
+                user=user,
+                code=entered_code,
+                is_used=False,
+                ip_address=ip_address,
+                expires_at__gt=timezone.now()
+            )
+            
+            # Mark code as used
+            code_obj.is_used = True
+            code_obj.used_at = timezone.now()
+            code_obj.save()
+            
+            # Complete the login
+            login(request, user)
+            
+            # Handle remember me
+            remember_me = request.session.get('admin_remember_me', False)
+            if remember_me:
+                request.session.set_expiry(1209600)  # 2 weeks
+            else:
+                request.session.set_expiry(0)  # Browser close
+            
+            # Log successful login
+            AdminLoginAttempt.objects.create(
+                username=user.username,
+                ip_address=ip_address,
+                user_agent=get_user_agent(request),
+                success=True
+            )
+            
+            # Clean up session
+            request.session.pop('pending_admin_user_id', None)
+            request.session.pop('admin_remember_me', None)
+            
+            logger.info(f"Admin 2FA login successful for user: {user.username}")
+            messages.success(request, f'Welcome back, {user.first_name or user.username}!')
+            
+            next_url = request.GET.get('next', 'admin_dashboard')
+            return redirect(next_url)
+            
+        except AdminTwoFactorCode.DoesNotExist:
+            # Log invalid 2FA attempt
+            AdminLoginAttempt.objects.create(
+                username=user.username,
+                ip_address=ip_address,
+                user_agent=get_user_agent(request),
+                success=False,
+                failure_reason='Invalid 2FA code'
+            )
+            
+            # Check for multiple invalid attempts
+            invalid_attempts = AdminLoginAttempt.objects.filter(
+                username=user.username,
+                ip_address=ip_address,
+                attempt_time__gte=timezone.now() - timedelta(minutes=5),
+                failure_reason='Invalid 2FA code'
+            ).count()
+            
+            if invalid_attempts >= 3:
+                # Clear session and send alert
+                request.session.pop('pending_admin_user_id', None)
+                request.session.pop('admin_remember_me', None)
+                
+                send_security_alert_email(
+                    'Invalid 2FA Attempts',
+                    user.username,
+                    ip_address,
+                    f'Multiple invalid 2FA code attempts for user {user.username} from IP {ip_address}'
+                )
+                
+                messages.error(request, 'Too many invalid attempts. Please login again.')
+                return redirect('admin_login')
+            
+            messages.error(request, 'Invalid or expired verification code.')
+    
+    return render(request, 'admin/admin_2fa_verify.html', {
+        'user_email': user.email[:3] + '*' * (len(user.email) - 6) + user.email[-3:] if user.email else ''
+    })
+
+def admin_resend_2fa_code(request):
+    """Resend 2FA code"""
+    if request.method == 'POST':
+        user_id = request.session.get('pending_admin_user_id')
+        if not user_id:
+            messages.error(request, 'Session expired. Please login again.')
+            return redirect('admin_login')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            ip_address = get_client_ip(request)
+            
+            # Check if too many codes were sent recently
+            recent_codes = AdminTwoFactorCode.objects.filter(
+                user=user,
+                created_at__gte=timezone.now() - timedelta(minutes=5)
+            ).count()
+            
+            if recent_codes >= 3:
+                messages.error(request, 'Too many verification codes requested. Please try again later.')
+                return redirect('admin_2fa_verify')
+            
+            if generate_and_send_2fa_code(user, ip_address):
+                messages.success(request, 'New verification code sent to your email.')
+            else:
+                messages.error(request, 'Failed to send verification code. Please try again.')
+                
+        except User.DoesNotExist:
+            messages.error(request, 'Invalid session. Please login again.')
+            return redirect('admin_login')
+    
+    return redirect('admin_2fa_verify')
 
 @login_required
 def admin_logout_view(request):

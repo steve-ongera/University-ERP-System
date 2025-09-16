@@ -69,6 +69,12 @@ urlpatterns = [
     path('ajax/rooms/', views.get_rooms_ajax, name='get_rooms_ajax'),
     path('ajax/beds/', views.get_beds_ajax, name='get_beds_ajax'),
 
+    
+    # Admin 2FA URLs
+    path('admin-2fa-verify/', views.admin_2fa_verify_view, name='admin_2fa_verify'),
+    path('admin-resend-2fa/', views.admin_resend_2fa_code, name='admin_resend_2fa_code'),
+   
+
     # Admin authentication URLs
     path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
