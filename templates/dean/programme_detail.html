@@ -1,0 +1,1231 @@
+{% extends 'dean_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Add CSRF token at the top -->
+{% csrf_token %}
+
+<div class="message-container" id="system-messages">
+                                {% for message in messages %}
+                                <div class="alert-message alert-{{ message.tags }}">
+                                    {{ message }}
+                                    <span class="close-message">&times;</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+<div class="container onprintContainer">
+    <!-- Programme Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ programme.name }}</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ programme.code }}</span> | 
+                            <span class="badge bg-{% if programme.programme_type == 'bachelor' %}info{% elif programme.programme_type == 'master' %}success{% elif programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                                {{ programme.get_programme_type_display }}
+                            </span> |
+                            <span class="badge bg-secondary">{{ programme.get_study_mode_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ programme.faculty.name }} - {{ programme.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>{{ programme.duration_years }} years ({{ programme.total_semesters }} semesters)
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">{{ programme_stats.active_students }}</h4>
+                            <small class="text-muted">active students</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="btn-group float-end">
+                          
+                          
+                            <a href="{% url 'dean_programmes' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ programme_stats.total_courses }}</h5>
+                            <p class="small text-muted mb-0">Total Courses</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">{{ programme_stats.total_credits }}</h5>
+                            <p class="small text-muted mb-0">Total Credits</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">{{ programme_stats.total_lecture_hours }}</h5>
+                            <p class="small text-muted mb-0">Lecture Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ programme_stats.total_practical_hours }}</h5>
+                            <p class="small text-muted mb-0">Practical Hours</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ programme_stats.core_courses }}</h5>
+                            <p class="small text-muted mb-0">Core Courses</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-primary">{{ programme_stats.elective_courses }}</h5>
+                            <p class="small text-muted mb-0">Electives</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Description -->
+    {% if programme.description %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">Programme Description</h5>
+                    <p class="card-text">{{ programme.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Courses by Year and Semester -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Programme Curriculum</h5>
+                    {% if current_semester %}
+                        <small class="text-muted">Current Semester: {{ current_semester }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Year Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="yearTabs" role="tablist">
+                        {% for year in years %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                        id="year-{{ year }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#year-{{ year }}" 
+                                        type="button" 
+                                        role="tab">
+                                    Year {{ year }}
+                                </button>
+                            </li>
+                        {% empty %}
+                            <li class="nav-item" role="presentation">
+                                <span class="nav-link disabled">No years added yet</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Year Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year, semesters in courses_by_year.items %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                 id="year-{{ year }}" 
+                                 role="tabpanel">
+                                
+                                <!-- Semester Controls -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex">
+                                        {% for semester, courses in semesters.items %}
+                                            <button class="btn btn-sm btn-outline-secondary me-2 {% if forloop.first %}active{% endif %}" 
+                                                    onclick="showSemester('year-{{ year }}-sem-{{ semester }}', this)">
+                                                Semester {{ semester }}
+                                            </button>
+                                        {% endfor %}
+                                    </div>
+                                   
+                                </div>
+
+                                <!-- Semester Content -->
+                                {% for semester, courses in semesters.items %}
+                                    <div class="semester-content {% if not forloop.first %}d-none{% endif %}" 
+                                         id="year-{{ year }}-sem-{{ semester }}">
+                                        
+                                       
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-hover" id="courses-table-year-{{ year }}-sem-{{ semester }}">
+                                                <thead class="thead-light">
+                                                    <tr>
+                                                        <th>Code</th>
+                                                        <th>Unit Name</th>
+                                                        <th>Type</th>
+                                                        <th>Credits</th>
+                                                        <th>Lecture Hrs</th>
+                                                        <th>Practical Hrs</th>
+                                                        <th>Enrolled Students</th>
+                                                        
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for course_data in courses %}
+                                                    <tr id="course-row-{{ course_data.programme_course.id }}">
+                                                        <td>
+                                                            <span class="badge bg-secondary">{{ course_data.course.code }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <strong>{{ course_data.course.name }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ course_data.course.department.name }}</small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-{% if course_data.programme_course.is_mandatory %}danger{% else %}success{% endif %}">
+                                                                {% if course_data.programme_course.is_mandatory %}Core{% else %}Elective{% endif %}
+                                                            </span>
+                                                        </td>
+                                                        <td>{{ course_data.course.credit_hours }}</td>
+                                                        <td>{{ course_data.course.lecture_hours }}h</td>
+                                                        <td>{{ course_data.course.practical_hours }}h</td>
+                                                        <td>
+                                                            {% if course_data.enrollment_count > 0 %}
+                                                                <span class="badge bg-primary fs-6">{{ course_data.enrollment_count }}</span>
+                                                            {% else %}
+                                                                <span class="text-muted">0</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr class="no-courses-row">
+                                                        <td colspan="8" class="text-center py-4">No courses found for this semester</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="text-center py-4">
+                                        <p class="text-muted">No semesters added for this year yet.</p>
+                                        <button class="btn btn-sm btn-success" onclick="showAddSemesterModal({{ year }})">
+                                            <i class="bi bi-plus"></i> Add First Semester
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-calendar-plus text-muted" style="font-size: 3rem;"></i>
+                                <h4 class="mt-3 text-muted">No Years Added</h4>
+                                <p class="text-muted">Start by adding the first year to this programme</p>
+                                <button class="btn btn-primary" onclick="showAddYearModal()">
+                                    <i class="bi bi-plus"></i> Add First Year
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entry Requirements and Career Prospects -->
+    <div class="row p-3">
+        {% if programme.entry_requirements %}
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-primary">
+                        <i class="bi bi-journal-check me-2"></i>Entry Requirements
+                    </h5>
+                    <p class="card-text">{{ programme.entry_requirements }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if programme.career_prospects %}
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-success">
+                        <i class="bi bi-briefcase me-2"></i>Career Prospects
+                    </h5>
+                    <p class="card-text">{{ programme.career_prospects }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Year Modal -->
+<div class="modal fade" id="addYearModal" tabindex="-1" aria-labelledby="addYearModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addYearModalLabel">Add New Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addYearForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="yearNumber" class="form-label">Year Number</label>
+                        <select class="form-select" id="yearNumber" required>
+                            <option value="">Select Year</option>
+                            {% for i in "12345678" %}
+                                <option value="{{ forloop.counter }}">Year {{ forloop.counter }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select which year to add to the programme</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Year</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Semester Modal -->
+<div class="modal fade" id="addSemesterModal" tabindex="-1" aria-labelledby="addSemesterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSemesterModalLabel">Add New Semester</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addSemesterForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="semesterYear" class="form-label">Year</label>
+                        <input type="number" class="form-control" id="semesterYear" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="semesterNumber" class="form-label">Semester Number</label>
+                        <select class="form-select" id="semesterNumber" required>
+                            <option value="">Select Semester</option>
+                            {% for i in "123" %}
+                                <option value="{{ forloop.counter }}">Semester {{ forloop.counter }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Maximum {{ programme.semesters_per_year }} semesters per year allowed</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Semester</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Course Modal -->
+<div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCourseModalLabel">Add Course</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addCourseForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="courseYear" class="form-label">Year</label>
+                                <input type="number" class="form-control" id="courseYear" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="courseSemester" class="form-label">Semester</label>
+                                <input type="number" class="form-control" id="courseSemester" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="courseSearch" class="form-label">Search Courses</label>
+                        <input type="text" class="form-control" id="courseSearch" placeholder="Search by course name, code, or department">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="courseSelect" class="form-label">Available Courses</label>
+                        <select class="form-select" id="courseSelect" size="8" required>
+                            <option value="">Loading courses...</option>
+                        </select>
+                        <div class="form-text">Select a course to add to this year and semester</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isMandatory" checked>
+                            <label class="form-check-label" for="isMandatory">
+                                Core/Mandatory Course
+                            </label>
+                            <div class="form-text">Uncheck if this is an elective course</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Course</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">Processing...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const programmeId = {{ programme.id }};
+    const maxSemestersPerYear = {{ programme.semesters_per_year }};
+    let currentYear = null;
+    let currentSemester = null;
+
+    // CSRF Token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value || 
+               document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Show loading modal
+    function showLoading() {
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+    }
+
+    // Hide loading modal
+    function hideLoading() {
+        const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+        if (loadingModal) {
+            loadingModal.hide();
+        }
+    }
+
+    // Show success message
+    function showAlert(message, type = 'success') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show">
+                <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const alertContainer = document.querySelector('.row.mt-3 .col-md-12');
+        alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                alerts[alerts.length - 1].remove();
+            }
+        }, 5000);
+    }
+
+    // Add Year Modal Functions
+    window.showAddYearModal = function() {
+        const modal = new bootstrap.Modal(document.getElementById('addYearModal'));
+        modal.show();
+    };
+
+    // Add Semester Modal Functions
+    window.showAddSemesterModal = function(year) {
+        currentYear = year;
+        document.getElementById('semesterYear').value = year;
+        
+        // Update semester options based on programme settings
+        const semesterSelect = document.getElementById('semesterNumber');
+        semesterSelect.innerHTML = '<option value="">Select Semester</option>';
+        
+        for (let i = 1; i <= maxSemestersPerYear; i++) {
+            semesterSelect.innerHTML += `<option value="${i}">Semester ${i}</option>`;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('addSemesterModal'));
+        modal.show();
+    };
+
+    // Add Course Modal Functions
+    window.showAddCourseModal = function(year, semester) {
+        currentYear = year;
+        currentSemester = semester;
+        
+        document.getElementById('courseYear').value = year;
+        document.getElementById('courseSemester').value = semester;
+        document.getElementById('courseSelect').innerHTML = '<option value="">Loading courses...</option>';
+        
+        const modal = new bootstrap.Modal(document.getElementById('addCourseModal'));
+        modal.show();
+        
+        loadAvailableCourses();
+    };
+
+    // Load available courses
+    function loadAvailableCourses(search = '') {
+        const url = `/ajax/get-available-courses/?programme_id=${programmeId}&year=${currentYear}&semester=${currentSemester}&search=${encodeURIComponent(search)}`;
+        
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const courseSelect = document.getElementById('courseSelect');
+                courseSelect.innerHTML = '';
+                
+                if (data.courses.length === 0) {
+                    courseSelect.innerHTML = '<option value="">No courses available</option>';
+                } else {
+                    data.courses.forEach(course => {
+                        courseSelect.innerHTML += `
+                            <option value="${course.id}" data-course='${JSON.stringify(course)}'>
+                                ${course.code} - ${course.name} (${course.credit_hours} credits)
+                                <br><small>${course.department}</small>
+                            </option>
+                        `;
+                    });
+                }
+            } else {
+                console.error('Error loading courses:', data.error);
+                document.getElementById('courseSelect').innerHTML = '<option value="">Error loading courses</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('courseSelect').innerHTML = '<option value="">Error loading courses</option>';
+        });
+    }
+
+    // Course search functionality
+    document.getElementById('courseSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value;
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+            loadAvailableCourses(searchTerm);
+        }, 300);
+    });
+
+    // Form Submissions - Add Year Form
+    document.getElementById('addYearForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const year = parseInt(document.getElementById('yearNumber').value);
+    if (!year) {
+        showAlert('Please select a year', 'danger');
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/ajax/add-programme-year/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            programme_id: programmeId,  // Use the variable we defined
+            year: year
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            showAlert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
+            addYearTab(year);
+            document.getElementById('addYearForm').reset();
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showAlert('An error occurred while adding the year', 'danger');
+    });
+});
+
+    // Add Semester Form
+    document.getElementById('addSemesterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const year = parseInt(document.getElementById('semesterYear').value);
+        const semester = parseInt(document.getElementById('semesterNumber').value);
+        
+        if (!semester) {
+            showAlert('Please select a semester', 'danger');
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('/ajax/add-programme-semester/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                programme_id: programmeId,
+                year: year,
+                semester: semester
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('addSemesterModal')).hide();
+                addSemesterToYear(year, semester);
+                document.getElementById('addSemesterForm').reset();
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while adding the semester', 'danger');
+        });
+    });
+
+    // Add Course Form
+    document.getElementById('addCourseForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const courseId = parseInt(document.getElementById('courseSelect').value);
+        const isMandatory = document.getElementById('isMandatory').checked;
+        
+        if (!courseId) {
+            showAlert('Please select a course', 'danger');
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('/ajax/add-programme-course/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                programme_id: programmeId,
+                course_id: courseId,
+                year: currentYear,
+                semester: currentSemester,
+                is_mandatory: isMandatory
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('addCourseModal')).hide();
+                addCourseToTable(data.course_data);
+                document.getElementById('addCourseForm').reset();
+                document.getElementById('isMandatory').checked = true;
+                loadAvailableCourses();
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while adding the course', 'danger');
+        });
+    });
+
+    // Remove Course Function
+    window.removeCourse = function(programmeCourseId, courseName) {
+        if (!confirm(`Are you sure you want to remove "${courseName}" from this programme?`)) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('/ajax/remove-programme-course/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                programme_course_id: programmeCourseId
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert(data.message);
+                
+                // Remove course row from table
+                const courseRow = document.getElementById(`course-row-${programmeCourseId}`);
+                if (courseRow) {
+                    const tableBody = courseRow.closest('tbody');
+                    courseRow.remove();
+                    
+                    // Check if table is empty and show "no courses" message
+                    if (tableBody.children.length === 0) {
+                        tableBody.innerHTML = '<tr class="no-courses-row"><td colspan="8" class="text-center py-4">No courses found for this semester</td></tr>';
+                    }
+                }
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            showAlert('An error occurred while removing the course', 'danger');
+        });
+    };
+
+    // Helper Functions
+    function addYearTab(year) {
+        const yearTabs = document.getElementById('yearTabs');
+        const yearTabsContent = document.getElementById('yearTabsContent');
+        
+        // Remove "no years" message if it exists
+        const noYearsMessage = yearTabs.querySelector('.nav-link.disabled');
+        if (noYearsMessage) {
+            noYearsMessage.parentElement.remove();
+        }
+        
+        // Add new year tab
+        const newTab = document.createElement('li');
+        newTab.className = 'nav-item';
+        newTab.setAttribute('role', 'presentation');
+        newTab.innerHTML = `
+            <button class="nav-link" 
+                    id="year-${year}-tab" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#year-${year}" 
+                    type="button" 
+                    role="tab">
+                Year ${year}
+            </button>
+        `;
+        yearTabs.appendChild(newTab);
+        
+        // Add new year content
+        const newContent = document.createElement('div');
+        newContent.className = 'tab-pane fade';
+        newContent.id = `year-${year}`;
+        newContent.setAttribute('role', 'tabpanel');
+        newContent.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-muted">No semesters added for this year yet.</p>
+                <button class="btn btn-sm btn-success" onclick="showAddSemesterModal(${year})">
+                    <i class="bi bi-plus"></i> Add First Semester
+                </button>
+            </div>
+        `;
+        yearTabsContent.appendChild(newContent);
+        
+        // Activate the new tab
+        const tabTrigger = new bootstrap.Tab(newTab.querySelector('button'));
+        tabTrigger.show();
+    }
+
+    function addSemesterToYear(year, semester) {
+        const yearPane = document.getElementById(`year-${year}`);
+        
+        // Check if this is the first semester
+        const existingSemesters = yearPane.querySelector('.d-flex');
+        if (!existingSemesters) {
+            // Replace the "no semesters" message with semester structure
+            yearPane.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex">
+                        <button class="btn btn-sm btn-outline-secondary me-2 active" 
+                                onclick="showSemester('year-${year}-sem-${semester}', this)">
+                            Semester ${semester}
+                        </button>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-success me-2" onclick="showAddSemesterModal(${year})">
+                            <i class="bi bi-plus"></i> Add Semester
+                        </button>
+                    </div>
+                </div>
+                <div class="semester-content" id="year-${year}-sem-${semester}">
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-sm btn-primary" onclick="showAddCourseModal(${year}, ${semester})">
+                            <i class="bi bi-plus"></i> Add Course
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="courses-table-year-${year}-sem-${semester}">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Course Name</th>
+                                    <th>Type</th>
+                                    <th>Credits</th>
+                                    <th>Lecture Hrs</th>
+                                    <th>Practical Hrs</th>
+                                    <th>Enrolled Students</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="no-courses-row">
+                                    <td colspan="8" class="text-center py-4">No courses found for this semester</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Add new semester button
+            const semesterButtons = existingSemesters.querySelector('.d-flex');
+            const newSemesterButton = document.createElement('button');
+            newSemesterButton.className = 'btn btn-sm btn-outline-secondary me-2';
+            newSemesterButton.onclick = function() { showSemester(`year-${year}-sem-${semester}`, this); };
+            newSemesterButton.textContent = `Semester ${semester}`;
+            semesterButtons.appendChild(newSemesterButton);
+            
+            // Add new semester content
+            const newSemesterContent = document.createElement('div');
+            newSemesterContent.className = 'semester-content d-none';
+            newSemesterContent.id = `year-${year}-sem-${semester}`;
+            newSemesterContent.innerHTML = `
+                <div class="mb-3 text-end">
+                    <button class="btn btn-sm btn-primary" onclick="showAddCourseModal(${year}, ${semester})">
+                        <i class="bi bi-plus"></i> Add Course
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="courses-table-year-${year}-sem-${semester}">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Course Name</th>
+                                <th>Type</th>
+                                <th>Credits</th>
+                                <th>Lecture Hrs</th>
+                                <th>Practical Hrs</th>
+                                <th>Enrolled Students</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="no-courses-row">
+                                <td colspan="8" class="text-center py-4">No courses found for this semester</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            yearPane.appendChild(newSemesterContent);
+            
+            // Activate new semester
+            showSemester(`year-${year}-sem-${semester}`, newSemesterButton);
+        }
+    }
+
+    function addCourseToTable(courseData) {
+        const tableBody = document.querySelector(`#courses-table-year-${courseData.year}-sem-${courseData.semester} tbody`);
+        
+        // Remove "no courses" row if it exists
+        const noCourseRow = tableBody.querySelector('.no-courses-row');
+        if (noCourseRow) {
+            noCourseRow.remove();
+        }
+        
+        // Add new course row
+        const newRow = document.createElement('tr');
+        newRow.id = `course-row-${courseData.id}`;
+        newRow.innerHTML = `
+            <td>
+                <span class="badge bg-secondary">${courseData.course_code}</span>
+            </td>
+            <td>
+                <strong>${courseData.course_name}</strong>
+                <br>
+                <small class="text-muted">${courseData.department}</small>
+            </td>
+            <td>
+                <span class="badge bg-${courseData.is_mandatory ? 'danger' : 'success'}">
+                    ${courseData.is_mandatory ? 'Core' : 'Elective'}
+                </span>
+            </td>
+            <td>${courseData.credit_hours}</td>
+            <td>${courseData.lecture_hours}h</td>
+            <td>${courseData.practical_hours}h</td>
+            <td>
+                <span class="text-muted">0</span>
+            </td>
+            <td>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-danger" 
+                            onclick="removeCourse(${courseData.id}, '${courseData.course_name}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(newRow);
+    }
+
+    // Enhanced showSemester function
+    window.showSemester = function(semesterId, button) {
+        // Hide all semester content in the current year
+        const yearTab = button.closest('.tab-pane');
+        const semesterContents = yearTab.querySelectorAll('.semester-content');
+        const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
+        
+        // Hide all semester contents
+        semesterContents.forEach(content => content.classList.add('d-none'));
+        
+        // Remove active class from all semester buttons
+        semesterButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show selected semester content
+        const targetContent = document.getElementById(semesterId);
+        if (targetContent) {
+            targetContent.classList.remove('d-none');
+        }
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+    };
+
+    // Ensure tabs are properly activated on load
+    function ensureActiveTab() {
+        const yearTabs = document.querySelectorAll('#yearTabs .nav-link:not(.disabled)');
+        const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
+        
+        if (yearTabs.length > 0 && !document.querySelector('#yearTabs .nav-link.active')) {
+            yearTabs[0].classList.add('active');
+            yearTabs[0].setAttribute('aria-selected', 'true');
+            
+            const targetId = yearTabs[0].getAttribute('data-bs-target');
+            if (targetId) {
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        }
+        
+        // Handle semester tabs for active year
+        const activeYear = document.querySelector('#yearTabsContent .tab-pane.active');
+        if (activeYear) {
+            const semesterButtons = activeYear.querySelectorAll('.btn-outline-secondary');
+            const semesterContents = activeYear.querySelectorAll('.semester-content');
+            
+            if (semesterButtons.length > 0 && !activeYear.querySelector('.btn-outline-secondary.active')) {
+                semesterButtons[0].classList.add('active');
+                if (semesterContents.length > 0) {
+                    semesterContents.forEach(content => content.classList.add('d-none'));
+                    semesterContents[0].classList.remove('d-none');
+                }
+            }
+        }
+    }
+
+    // Initialize tabs
+    ensureActiveTab();
+    
+    // Handle Bootstrap tab events
+    const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
+    yearTabElements.forEach(tabElement => {
+        tabElement.addEventListener('shown.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+            
+            if (targetPane) {
+                const semesterButtons = targetPane.querySelectorAll('.btn-outline-secondary');
+                const semesterContents = targetPane.querySelectorAll('.semester-content');
+                
+                if (semesterButtons.length > 0 && !targetPane.querySelector('.btn-outline-secondary.active')) {
+                    semesterButtons[0].classList.add('active');
+                    if (semesterContents.length > 0) {
+                        semesterContents.forEach(content => content.classList.add('d-none'));
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    });
+});
+
+// Updated JavaScript functions for your template
+
+// Add this to your existing JavaScript in the template
+function addYearTab(year) {
+    const yearTabs = document.getElementById('yearTabs');
+    const yearTabsContent = document.getElementById('yearTabsContent');
+    
+    // Check if year tab already exists
+    const existingTab = document.getElementById(`year-${year}-tab`);
+    if (existingTab) {
+        // Just activate the existing tab
+        const tabTrigger = new bootstrap.Tab(existingTab);
+        tabTrigger.show();
+        return;
+    }
+    
+    // Remove "no years" message if it exists
+    const noYearsMessage = yearTabs.querySelector('.nav-link.disabled');
+    if (noYearsMessage) {
+        noYearsMessage.parentElement.remove();
+    }
+    
+    // Remove the default "no years added" content in the tab-content if it exists
+    const emptyContent = yearTabsContent.querySelector('.text-center.py-5');
+    if (emptyContent) {
+        emptyContent.remove();
+    }
+    
+    // Add new year tab
+    const newTab = document.createElement('li');
+    newTab.className = 'nav-item';
+    newTab.setAttribute('role', 'presentation');
+    newTab.innerHTML = `
+        <button class="nav-link" 
+                id="year-${year}-tab" 
+                data-bs-toggle="tab" 
+                data-bs-target="#year-${year}" 
+                type="button" 
+                role="tab">
+            Year ${year}
+        </button>
+    `;
+    yearTabs.appendChild(newTab);
+    
+    // Add new year content
+    const newContent = document.createElement('div');
+    newContent.className = 'tab-pane fade';
+    newContent.id = `year-${year}`;
+    newContent.setAttribute('role', 'tabpanel');
+    newContent.innerHTML = `
+        <div class="text-center py-4">
+            <p class="text-muted">No semesters added for this year yet.</p>
+            <button class="btn btn-sm btn-success" onclick="showAddSemesterModal(${year})">
+                <i class="bi bi-plus"></i> Add First Semester
+            </button>
+        </div>
+    `;
+    yearTabsContent.appendChild(newContent);
+    
+    // Activate the new tab
+    const tabTrigger = new bootstrap.Tab(newTab.querySelector('button'));
+    tabTrigger.show();
+}
+
+// Updated form submission handler
+document.getElementById('addYearForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const year = parseInt(document.getElementById('yearNumber').value);
+    if (!year) {
+        showAlert('Please select a year', 'danger');
+        return;
+    }
+    
+    // Check if year already exists in the UI
+    const existingTab = document.getElementById(`year-${year}-tab`);
+    if (existingTab) {
+        showAlert(`Year ${year} already exists`, 'warning');
+        bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
+        // Activate the existing tab
+        const tabTrigger = new bootstrap.Tab(existingTab);
+        tabTrigger.show();
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/ajax/add-programme-year/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            programme_id: programmeId,
+            year: year
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            showAlert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
+            addYearTab(year);
+            document.getElementById('addYearForm').reset();
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showAlert('An error occurred while adding the year', 'danger');
+    });
+});
+
+// Update yearNumber select to exclude existing years
+function updateYearOptions() {
+    const yearSelect = document.getElementById('yearNumber');
+    const existingYears = Array.from(document.querySelectorAll('#yearTabs .nav-link:not(.disabled)')).map(tab => {
+        const match = tab.id.match(/year-(\d+)-tab/);
+        return match ? parseInt(match[1]) : null;
+    }).filter(Boolean);
+    
+    // Clear and repopulate options
+    yearSelect.innerHTML = '<option value="">Select Year</option>';
+    
+    for (let i = 1; i <= 8; i++) {
+        if (!existingYears.includes(i)) {
+            yearSelect.innerHTML += `<option value="${i}">Year ${i}</option>`;
+        }
+    }
+}
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer, .modal {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.semester-content {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary.active {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.modal-backdrop {
+    z-index: 1040;
+}
+
+.modal {
+    z-index: 1050;
+}
+
+#courseSelect {
+    min-height: 200px;
+}
+
+#courseSelect option {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+</style>
+
+{% endblock %}

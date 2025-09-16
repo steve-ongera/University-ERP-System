@@ -137,6 +137,7 @@ urlpatterns = [
 
     # Dean specific URLs
     path('dean/programmes/', views.dean_programmes, name='dean_programmes'),
+    path('dean/programmes/<int:programme_id>/', views.dean_programme_detail, name='dean_programme_detail'),
     path('dean/allocate-courses/', views.dean_allocate_courses, name='dean_allocate_courses'),
     path('dean/remove-course-assignment/<int:assignment_id>/', views.dean_remove_course_assignment, name='dean_remove_course_assignment'),
     path('dean/lecturer-assignments/<int:lecturer_id>/', views.dean_view_lecturer_assignments, name='dean_view_lecturer_assignments'),

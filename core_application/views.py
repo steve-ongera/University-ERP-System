@@ -4119,6 +4119,82 @@ def programme_detail(request, programme_id):
     
     return render(request, 'programmes/programme_detail.html', context)
 
+
+@login_required
+def dean_programme_detail(request, programme_id):
+    """View to display programme details with courses organized by year and semester"""
+    programme = get_object_or_404(
+        Programme.objects.select_related('department', 'faculty'),
+        id=programme_id,
+        is_active=True
+    )
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all programme courses organized by year and semester
+    programme_courses = ProgrammeCourse.objects.select_related(
+        'course', 'course__department'
+    ).filter(
+        programme=programme,
+        is_active=True
+    ).order_by('year', 'semester', 'course__name')
+    
+    # Organize courses by year and semester
+    courses_by_year = {}
+    years = []
+    
+    for pc in programme_courses:
+        year = pc.year
+        semester = pc.semester
+        
+        if year not in years:
+            years.append(year)
+        
+        if year not in courses_by_year:
+            courses_by_year[year] = {}
+        
+        if semester not in courses_by_year[year]:
+            courses_by_year[year][semester] = []
+        
+        # Get enrollment count for current semester
+        enrollment_count = 0
+        if current_semester:
+            enrollment_count = Enrollment.objects.filter(
+                course=pc.course,
+                semester=current_semester,
+                student__programme=programme,
+                is_active=True
+            ).count()
+        
+        course_data = {
+            'course': pc.course,
+            'programme_course': pc,
+            'enrollment_count': enrollment_count,
+        }
+        
+        courses_by_year[year][semester].append(course_data)
+    
+    # Calculate programme statistics
+    programme_stats = {
+        'total_courses': programme_courses.count(),
+        'total_credits': sum(pc.course.credit_hours for pc in programme_courses),
+        'total_lecture_hours': sum(pc.course.lecture_hours for pc in programme_courses),
+        'total_practical_hours': sum(pc.course.practical_hours for pc in programme_courses),
+        'core_courses': programme_courses.filter(is_mandatory=True).count(),
+        'elective_courses': programme_courses.filter(is_mandatory=False).count(),
+        'active_students': programme.students.filter(status='active').count(),
+    }
+    
+    context = {
+        'programme': programme,
+        'courses_by_year': courses_by_year,
+        'years': sorted(years),
+        'programme_stats': programme_stats,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'dean/programme_detail.html', context)
+
 # views.py
 
 # views.py - Fixed add_programme_year function
