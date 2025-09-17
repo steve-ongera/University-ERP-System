@@ -42,6 +42,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000  # or a higher number as needed
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -130,7 +131,7 @@ STATICFILES_DIRS = [
 ]
 
 # Static files storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media files configuration
 MEDIA_URL = '/media/'
