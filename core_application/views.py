@@ -17,32 +17,76 @@ User = get_user_model()
 """ This view logs in 3 user types student , lecturer and hostel warden """
 
 def login_view(request):
-    """Custom login view for students"""
+    next_url = request.GET.get('next') or request.POST.get('next')
+    
+    # Debug prints - check console/logs
+    print(f"=== LOGIN DEBUG ===")
+    print(f"Method: {request.method}")
+    print(f"Next URL: {next_url}")
+    print(f"POST data keys: {list(request.POST.keys())}")
+    print(f"User is authenticated: {request.user.is_authenticated}")
+    
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        
+        print(f"Username: '{username}'")
+        print(f"Password provided: {bool(password)}")
+        print(f"Password length: {len(password) if password else 0}")
+        
+        if not username or not password:
+            messages.error(request, 'Please provide both username and password.')
+            return render(request, 'student/auth/login.html', {'next': next_url})
+        
+        # Check if user exists before authentication
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user_exists = User.objects.filter(username=username).exists()
+            print(f"User '{username}' exists in database: {user_exists}")
+            
+            if user_exists:
+                user_obj = User.objects.get(username=username)
+                print(f"User object found - ID: {user_obj.id}, Type: {getattr(user_obj, 'user_type', 'N/A')}")
+        except Exception as e:
+            print(f"Error checking user existence: {e}")
         
         user = authenticate(request, username=username, password=password)
+        print(f"Authentication result: {user}")
+        
         if user is not None:
+            print(f"User authenticated successfully - ID: {user.id}, Type: {user.user_type}")
             login(request, user)
+            print(f"User logged in successfully. Session key: {request.session.session_key}")
             
-            # Redirect based on user_type
-            if user.user_type == 'student':
-                return redirect('student_dashboard')
-            elif user.user_type == 'lecturer':
-                return redirect('lecturer_dashboard')
-            elif user.user_type == 'dean':
-                return redirect('dean_dashboard')
-            elif user.user_type == 'hostel_warden':
-                return redirect('hostel_dashboard')
+            messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+
+            # Redirect to next if available
+            if next_url:
+                print(f"Redirecting to next URL: {next_url}")
+                return redirect(next_url)
+
+            # Otherwise, redirect based on user_type
+            redirect_map = {
+                'student': 'student_dashboard',
+                'lecturer': 'lecturer_dashboard', 
+                'dean': 'dean_dashboard',
+                'hostel_warden': 'hostel_dashboard'
+            }
+            
+            redirect_name = redirect_map.get(user.user_type)
+            if redirect_name:
+                print(f"Redirecting to: {redirect_name}")
+                return redirect(redirect_name)
             else:
-                messages.error(request, 'Unauthorized user type.')
+                messages.error(request, f'Unauthorized user type: {user.user_type}')
+                print(f"Unknown user type: {user.user_type}")
         else:
             messages.error(request, 'Invalid username or password.')
+            print("Authentication failed - user is None")
     
-    return render(request, 'student/auth/login.html')
-
-
+    print(f"Rendering login template with next: {next_url}")
+    return render(request, 'student/auth/login.html', {'next': next_url})
 
 def logout_view(request):
     logout(request)

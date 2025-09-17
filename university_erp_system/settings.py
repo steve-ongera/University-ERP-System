@@ -13,8 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8t&4cf+i%o&wfj)e99da5^41o2^1(8c_tg9jjcw*-69z%lg#7o'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+DEBUG = False
 ALLOWED_HOSTS = ['*']
 
 
@@ -114,12 +113,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Redirect URLs
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 
-# Optional: Configure session settings for better tracking
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database sessions
-SESSION_COOKIE_AGE = 86400  # Session expires after 24 hours (in seconds)
-SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep sessions when browser closes
 
 
 # Static files (CSS, JavaScript, Images)
@@ -170,6 +167,11 @@ DEFAULT_FROM_EMAIL = config(
     default="University Security System <security@yourdomain.com>"
 )
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -177,10 +179,11 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Session security
-SESSION_COOKIE_SECURE = True  # Only in production with HTTPS
+SESSION_COOKIE_SECURE =  False  # Set to True only if using HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1800  # 30 minutes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Logging configuration
 LOGGING = {
