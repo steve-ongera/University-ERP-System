@@ -21,6 +21,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'whitenoise.runserver_nostatic',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -123,19 +124,18 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+# STATIC FILES CONFIG
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']  # for development
+STATIC_ROOT = BASE_DIR / 'staticfiles'    # for production (collected files)
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
 
-# Static files storage
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# Media files configuration
+# MEDIA FILES CONFIG
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# For WhiteNoise compression support (optional)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 WKHTMLTOPDF_CMD = r"C:\wkhtmltopdf\bin\wkhtmltopdf.exe"
 
