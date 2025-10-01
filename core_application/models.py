@@ -20,7 +20,8 @@ class User(AbstractUser):
         ('registrar', 'Registrar'),
         ('dean', 'Dean'),
         ('hod', 'Head of Department'),
-        ('hostel_warden' , 'Hostel Warden')
+        ('hostel_warden' , 'Hostel Warden'),
+        ('finance', 'Finance'),
     )
 
     username = models.CharField(
