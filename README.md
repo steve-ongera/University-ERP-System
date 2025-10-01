@@ -946,76 +946,718 @@ server {
         alias /home/mutadmin/university-erp/media/;
         expires 30d;
     }
+    
+    location / {
+        proxy_pass http://unix:/home/mutadmin/university-erp/mut-erp.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
 ```
 
-### Docker Deployment
-
-```dockerfile
-FROM python:3.9
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "university.wsgi:application"]
-```
-
-## 🧪 Testing
-
-### Running Tests
+#### 6. Enable and Start Services
 
 ```bash
-# Run all tests
-python manage.py test
+# Enable services
+sudo systemctl enable mut-erp
+sudo systemctl enable mut-celery
+sudo systemctl enable nginx
+sudo systemctl enable redis-server
 
-# Run specific app tests
-python manage.py test myapp
+# Start services
+sudo systemctl start mut-erp
+sudo systemctl start mut-celery
+sudo systemctl restart nginx
 
-# Run with coverage
-coverage run --source='.' manage.py test
-coverage report
+# Check status
+sudo systemctl status mut-erp
+sudo systemctl status mut-celery
 ```
 
-### Sample Test
+#### 7. SSL Certificate (Let's Encrypt)
+
+```bash
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d erp.mut.ac.ke
+sudo certbot renew --dry-run
+```
+
+#### 8. Monitoring Setup
+
+```bash
+# Install monitoring tools
+pip install sentry-sdk django-prometheus
+
+# Add to settings.py
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+sentry_sdk.init(
+    dsn="your-sentry-dsn",
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,
+    send_default_pii=True
+)
+```
+
+---
+
+## 📝 API Documentation
+
+### Authentication
+
+All API endpoints require authentication using Token or Session authentication.
 
 ```python
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from myapp.models import Student, Programme
+# Obtain token
+POST /api/auth/login/
+{
+    "username": "student@mut.ac.ke",
+    "password": "password123"
+}
 
-User = get_user_model()
+# Response
+{
+    "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
+    "user": {...}
+}
 
-class StudentModelTest(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            user_type='student'
-        )
-        
-    def test_student_creation(self):
-        programme = Programme.objects.create(
-            name='Computer Science',
-            code='CS001',
-            programme_type='bachelor'
-        )
-        
-        student = Student.objects.create(
-            user=self.user,
-            student_id='TEST001',
-            programme=programme
-        )
-        
-        self.assertEqual(student.student_id, 'TEST001')
-        self.assertEqual(str(student), f"{self.user.get_full_name()} - TEST001")
+# Use token in headers
+Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 ```
 
-## 🤝 Contributing
+### Student Endpoints
+
+```python
+# List students (Admin/Staff only)
+GET /api/students/
+Response: [
+    {
+        "id": 1,
+        "student_id": "MUT/2024/001",
+        "user": {...},
+        "programme": {...},
+        "current_year": 1,
+        "gpa": 3.5
+    }
+]
+
+# Get student details
+GET /api/students/{id}/
+Response: {
+    "id": 1,
+    "student_id": "MUT/2024/001",
+    "user": {...},
+    "programme": {...},
+    "enrollments": [...],
+    "payments": [...]
+}
+
+# Create student
+POST /api/students/
+{
+    "user": {
+        "username": "john.doe",
+        "email": "john@mut.ac.ke",
+        "first_name": "John",
+        "last_name": "Doe"
+    },
+    "student_id": "MUT/2024/001",
+    "programme": 1,
+    "admission_date": "2024-09-01"
+}
+
+# Update student
+PUT /api/students/{id}/
+PATCH /api/students/{id}/
+
+# Delete student
+DELETE /api/students/{id}/
+```
+
+### Payment Endpoints
+
+```python
+# Get student payments
+GET /api/payments/?student={student_id}
+Response: [
+    {
+        "id": 1,
+        "student": "MUT/2024/001",
+        "amount": 50000.00,
+        "payment_method": "mpesa",
+        "transaction_id": "MP123456",
+        "receipt_number": "RCP2024001",
+        "payment_date": "2024-01-15T10:30:00Z",
+        "status": "completed"
+    }
+]
+
+# Get payment details
+GET /api/payments/{id}/
+
+# Student balance
+GET /api/students/{id}/balance/
+Response: {
+    "total_fees": 200000.00,
+    "total_paid": 150000.00,
+    "balance": 50000.00,
+    "overpayment": 0.00
+}
+
+# Payment history
+GET /api/students/{id}/payment-history/
+Response: {
+    "payments": [...],
+    "total_paid": 150000.00,
+    "last_payment": {...}
+}
+```
+
+### Bank Webhook Endpoints
+
+```python
+# Equity Bank webhook
+POST /api/webhooks/equity/
+Headers: {
+    "X-Equity-Signature": "signature-hash",
+    "Content-Type": "application/json"
+}
+Body: {
+    "transactionId": "EQ123456789",
+    "studentId": "MUT/2024/001",
+    "amount": 50000.00,
+    "timestamp": "2024-01-15T10:30:00Z",
+    "merchantCode": "12345"
+}
+Response: {
+    "status": "accepted",
+    "message": "Payment received"
+}
+
+# KCB Bank webhook
+POST /api/webhooks/kcb/
+Body: {
+    "transactionRef": "KCB987654321",
+    "accountNumber": "MUT/2024/001",
+    "amount": 50000.00,
+    "transactionDate": "2024-01-15T10:30:00Z"
+}
+
+# M-Pesa webhook
+POST /api/webhooks/mpesa/
+Body: {
+    "Body": {
+        "stkCallback": {
+            "MerchantRequestID": "29115-34620561-1",
+            "CheckoutRequestID": "ws_CO_150420241030",
+            "ResultCode": 0,
+            "ResultDesc": "The service request is processed successfully",
+            "CallbackMetadata": {
+                "Item": [
+                    {"Name": "Amount", "Value": 50000},
+                    {"Name": "MpesaReceiptNumber", "Value": "MP123456"},
+                    {"Name": "PhoneNumber", "Value": "254712345678"}
+                ]
+            }
+        }
+    }
+}
+```
+
+### Course & Enrollment Endpoints
+
+```python
+# List courses
+GET /api/courses/
+GET /api/courses/?programme={programme_id}
+GET /api/courses/?year={year}&semester={semester}
+
+# Enroll student
+POST /api/enrollments/
+{
+    "student": 1,
+    "course": 1,
+    "semester": 1
+}
+
+# Student enrollments
+GET /api/students/{id}/enrollments/
+GET /api/students/{id}/enrollments/?semester={semester_id}
+
+# Drop course
+DELETE /api/enrollments/{id}/
+```
+
+### Grade Endpoints
+
+```python
+# Record grades
+POST /api/grades/
+{
+    "enrollment": 1,
+    "continuous_assessment": 75.0,
+    "final_exam": 82.0,
+    "practical_marks": 88.0
+}
+
+# Student grades
+GET /api/students/{id}/grades/
+GET /api/students/{id}/grades/?semester={semester_id}
+
+# Transcript
+GET /api/students/{id}/transcript/
+Response: {
+    "student": {...},
+    "semesters": [
+        {
+            "semester": "Fall 2024",
+            "courses": [
+                {
+                    "course": "Introduction to Programming",
+                    "grade": "A",
+                    "grade_point": 4.0
+                }
+            ],
+            "gpa": 3.75
+        }
+    ],
+    "cumulative_gpa": 3.65
+}
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### 1. Webhook Not Receiving Data
+
+**Problem**: Bank webhooks not triggering
+
+**Solutions**:
+```bash
+# Check if endpoint is accessible
+curl -X POST https://yourdomain.com/api/webhooks/equity/ \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}'
+
+# Check nginx logs
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+
+# Check application logs
+sudo journalctl -u mut-erp -f
+
+# Verify SSL certificate
+openssl s_client -connect yourdomain.com:443
+
+# Check firewall
+sudo ufw status
+sudo ufw allow 443/tcp
+```
+
+#### 2. Celery Tasks Not Processing
+
+**Problem**: Payments stuck in pending status
+
+**Solutions**:
+```bash
+# Check Celery worker status
+sudo systemctl status mut-celery
+
+# View Celery logs
+sudo journalctl -u mut-celery -f
+
+# Check Redis connection
+redis-cli ping
+
+# Restart Celery
+sudo systemctl restart mut-celery
+
+# Test task manually
+python manage.py shell
+>>> from myapp.tasks import process_bank_payment
+>>> process_bank_payment.delay(test_data)
+```
+
+#### 3. Database Connection Errors
+
+**Problem**: Can't connect to database
+
+**Solutions**:
+```bash
+# Check PostgreSQL status
+sudo systemctl status postgresql
+
+# Test connection
+psql -U your_user -d university_db -h localhost
+
+# Check database logs
+sudo tail -f /var/log/postgresql/postgresql-12-main.log
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+#### 4. SMS/Email Not Sending
+
+**Problem**: Notifications not being sent
+
+**Solutions**:
+```python
+# Test SMS (Africa's Talking)
+from django.conf import settings
+import africastalking
+
+africastalking.initialize(settings.AT_USERNAME, settings.AT_API_KEY)
+sms = africastalking.SMS
+response = sms.send("Test message", ["+254712345678"])
+print(response)
+
+# Test Email
+from django.core.mail import send_mail
+send_mail(
+    'Test Subject',
+    'Test message',
+    'from@mut.ac.ke',
+    ['to@example.com'],
+    fail_silently=False,
+)
+
+# Check email logs
+sudo tail -f /var/log/mail.log
+```
+
+#### 5. Payment Duplicate Detection
+
+**Problem**: Same payment processed twice
+
+**Solution**:
+```python
+# Add transaction ID uniqueness check
+class BankPayment(models.Model):
+    transaction_id = models.CharField(max_length=100, unique=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['transaction_id', 'bank_type'],
+                name='unique_bank_transaction'
+            )
+        ]
+```
+
+#### 6. Signature Verification Failing
+
+**Problem**: Webhooks rejected due to invalid signature
+
+**Solutions**:
+```python
+# Debug signature verification
+import logging
+logger = logging.getLogger(__name__)
+
+def verify_signature(payload, signature):
+    secret = settings.EQUITY_SECRET_KEY
+    expected = hmac.new(
+        secret.encode(),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    
+    logger.debug(f"Received signature: {signature}")
+    logger.debug(f"Expected signature: {expected}")
+    
+    return hmac.compare_digest(expected, signature)
+
+# Check raw request body
+logger.debug(f"Raw body: {request.body}")
+```
+
+### Performance Optimization
+
+```python
+# Database optimization
+# Add indexes to frequently queried fields
+class Meta:
+    indexes = [
+        models.Index(fields=['student', 'payment_date']),
+        models.Index(fields=['transaction_id']),
+        models.Index(fields=['status', 'bank_type']),
+    ]
+
+# Use select_related and prefetch_related
+students = Student.objects.select_related('programme', 'user').all()
+payments = FeePayment.objects.prefetch_related('student__user').all()
+
+# Database connection pooling
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
+    }
+}
+
+# Cache frequently accessed data
+from django.core.cache import cache
+
+def get_fee_structure(programme_id):
+    cache_key = f'fee_structure_{programme_id}'
+    fee_structure = cache.get(cache_key)
+    
+    if not fee_structure:
+        fee_structure = FeeStructure.objects.filter(programme_id=programme_id)
+        cache.set(cache_key, fee_structure, 3600)  # Cache for 1 hour
+    
+    return fee_structure
+```
+
+### Monitoring & Alerts
+
+```python
+# Add monitoring
+# Install packages
+pip install django-prometheus psutil
+
+# settings.py
+INSTALLED_APPS += ['django_prometheus']
+
+MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
+    # ... other middleware
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
+]
+
+# urls.py
+urlpatterns += [
+    path('metrics/', include('django_prometheus.urls')),
+]
+
+# Custom health check
+from django.http import JsonResponse
+from django.db import connection
+
+def health_check(request):
+    try:
+        # Check database
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        
+        # Check Redis
+        from django_redis import get_redis_connection
+        redis_conn = get_redis_connection("default")
+        redis_conn.ping()
+        
+        return JsonResponse({'status': 'healthy', 'database': 'ok', 'redis': 'ok'})
+    except Exception as e:
+        return JsonResponse({'status': 'unhealthy', 'error': str(e)}, status=503)
+```
+
+---
+
+## 🔐 User Roles and Permissions
+
+### Permission Structure
+
+```python
+from django.contrib.auth.models import Permission, Group
+
+# Create custom permissions
+class Meta:
+    permissions = [
+        ("view_student_records", "Can view student academic records"),
+        ("manage_grades", "Can manage student grades"),
+        ("manage_timetable", "Can manage class timetables"),
+        ("manage_research", "Can manage research projects"),
+        ("manage_library", "Can manage library resources"),
+        ("manage_hostel", "Can manage hostel allocations"),
+        ("manage_fees", "Can manage fee structures and payments"),
+        ("view_financial_reports", "Can view financial reports"),
+        ("process_payments", "Can process student payments"),
+        ("approve_refunds", "Can approve payment refunds"),
+    ]
+
+# Create user groups
+def create_user_groups():
+    # Admin group
+    admin_group, _ = Group.objects.get_or_create(name='Admin')
+    admin_perms = Permission.objects.all()
+    admin_group.permissions.set(admin_perms)
+    
+    # Registrar group
+    registrar_group, _ = Group.objects.get_or_create(name='Registrar')
+    registrar_perms = Permission.objects.filter(
+        codename__in=[
+            'view_student_records', 'manage_grades', 
+            'manage_timetable', 'view_financial_reports'
+        ]
+    )
+    registrar_group.permissions.set(registrar_perms)
+    
+    # Finance Officer group
+    finance_group, _ = Group.objects.get_or_create(name='Finance Officer')
+    finance_perms = Permission.objects.filter(
+        codename__in=[
+            'manage_fees', 'process_payments', 
+            'view_financial_reports', 'approve_refunds'
+        ]
+    )
+    finance_group.permissions.set(finance_perms)
+    
+    # Lecturer group
+    lecturer_group, _ = Group.objects.get_or_create(name='Lecturer')
+    lecturer_perms = Permission.objects.filter(
+        codename__in=['manage_grades', 'view_student_records']
+    )
+    lecturer_group.permissions.set(lecturer_perms)
+
+# Usage in views
+from django.contrib.auth.decorators import permission_required
+
+@permission_required('myapp.manage_fees')
+def manage_fee_structure(request):
+    # Only users with manage_fees permission can access
+    pass
+
+# Usage in API views
+from rest_framework.permissions import BasePermission
+
+class CanManageFees(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.has_perm('myapp.manage_fees')
+
+class FeeStructureViewSet(viewsets.ModelViewSet):
+    permission_classes = [CanManageFees]
+```
+
+---
+
+## 📊 Reporting & Analytics
+
+### Financial Reports
+
+```python
+from django.db.models import Sum, Count
+from django.utils import timezone
+from datetime import timedelta
+
+def generate_payment_report(start_date, end_date):
+    """Generate comprehensive payment report"""
+    
+    payments = FeePayment.objects.filter(
+        payment_date__range=[start_date, end_date],
+        status='completed'
+    )
+    
+    report = {
+        'total_revenue': payments.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'total_transactions': payments.count(),
+        'by_payment_method': payments.values('payment_method').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ),
+        'by_programme': payments.values(
+            'student__programme__name'
+        ).annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ),
+        'daily_breakdown': payments.extra(
+            select={'day': 'date(payment_date)'}
+        ).values('day').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ).order_by('day')
+    }
+    
+    return report
+
+# Outstanding fees report
+def outstanding_fees_report():
+    """Generate report of students with outstanding fees"""
+    
+    students = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_fees=Sum('programme__feestructure__total_amount'),
+        total_paid=Sum('feepayment__amount', filter=Q(feepayment__status='completed'))
+    )
+    
+    outstanding = []
+    for student in students:
+        balance = (student.total_fees or 0) - (student.total_paid or 0)
+        if balance > 0:
+            outstanding.append({
+                'student_id': student.student_id,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+                'year': student.current_year,
+                'total_fees': student.total_fees,
+                'paid': student.total_paid,
+                'balance': balance
+            })
+    
+    return outstanding
+
+# Export to Excel
+import openpyxl
+from django.http import HttpResponse
+
+def export_payment_report(request):
+    """Export payment report to Excel"""
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Payment Report"
+    
+    # Headers
+    ws.append(['Date', 'Student ID', 'Name', 'Amount', 'Method', 'Receipt'])
+    
+    # Data
+    payments = FeePayment.objects.filter(
+        status='completed'
+    ).select_related('student__user')
+    
+    for payment in payments:
+        ws.append([
+            payment.payment_date.strftime('%Y-%m-%d'),
+            payment.student.student_id,
+            payment.student.user.get_full_name(),
+            float(payment.amount),
+            payment.payment_method,
+            payment.receipt_number
+        ])
+    
+    # Response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=payment_report.xlsx'
+    wb.save(response)
+    
+    return response
+```
+
+---
+
+## 🤝 Support & Contributing
+
+### Getting Help
+
+- **Email**: support@mut.ac.ke
+- **Documentation**: [Wiki](https://github.com/yourusername/university-erp/wiki)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/university-erp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/university-erp/discussions)
+
+### Contributing Guidelines
 
 1. **Fork the Repository**
 2. **Create Feature Branch**: `git checkout -b feature/AmazingFeature`
@@ -1023,119 +1665,118 @@ class StudentModelTest(TestCase):
 4. **Push to Branch**: `git push origin feature/AmazingFeature`
 5. **Open Pull Request**
 
-### Development Guidelines
+#### Development Standards
 
 - Follow PEP 8 coding standards
 - Write comprehensive tests for new features
 - Update documentation for any changes
 - Use meaningful commit messages
 - Create migrations for model changes
+- Add docstrings to all functions and classes
 
-## 📝 API Documentation
+#### Code Review Checklist
 
-### Available Endpoints
+- [ ] Code follows PEP 8 standards
+- [ ] All tests pass
+- [ ] New features have tests
+- [ ] Documentation updated
+- [ ] No security vulnerabilities
+- [ ] Performance considered
+- [ ] Backward compatibility maintained
+
+---
+
+## 🚧 Roadmap
+
+### Phase 1 (Completed)
+- [x] Core ERP functionality
+- [x] Bank integration (Equity, KCB, M-Pesa)
+- [x] Payment automation
+- [x] SMS/Email notifications
+
+### Phase 2 (In Progress)
+- [ ] Mobile application (React Native/Flutter)
+- [ ] Advanced reporting dashboard
+- [ ] Student portal
+- [ ] Parent portal
+- [ ] Online examination system
+
+### Phase 3 (Planned)
+- [ ] AI-powered analytics
+- [ ] Predictive enrollment models
+- [ ] Chatbot support
+- [ ] Video conferencing integration
+- [ ] Alumni management system
+- [ ] Advanced search and filtering
+- [ ] Multi-language support
+- [ ] Blockchain certificates
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ```
-GET /api/students/ - List all students
-POST /api/students/ - Create new student
-GET /api/students/{id}/ - Get student details
-PUT /api/students/{id}/ - Update student
-DELETE /api/students/{id}/ - Delete student
+MIT License
 
-GET /api/courses/ - List all courses
-GET /api/enrollments/ - List enrollments
-GET /api/grades/ - List grades
-GET /api/timetable/ - Get timetable
+Copyright (c) 2024 Muranga University of Technology
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
-### Authentication
-
-The API uses Django's session authentication and token authentication:
-
-```python
-# settings.py
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
-    ]
-}
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Migration Errors**:
-   ```bash
-   python manage.py makemigrations --empty yourappname
-   python manage.py migrate --fake-initial
-   ```
-
-2. **Static Files Not Loading**:
-   ```bash
-   python manage.py collectstatic --clear
-   ```
-
-3. **Database Connection Issues**:
-   - Check database credentials in `.env`
-   - Ensure database server is running
-   - Verify database exists
-
-4. **Permission Denied Errors**:
-   ```bash
-   sudo chown -R $USER:$USER /path/to/project
-   ```
-
-### Performance Optimization
-
-- Use database indexes on frequently queried fields
-- Implement caching for static data
-- Optimize database queries with `select_related()` and `prefetch_related()`
-- Use pagination for large datasets
+---
 
 ## 📚 Additional Resources
 
 - [Django Documentation](https://docs.djangoproject.com/)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
-- [Django Best Practices](https://django-best-practices.readthedocs.io/)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👥 Support
-
-For support and questions:
-
-- **Email**: support@university-system.com
-- **Documentation**: [Wiki](https://github.com/yourusername/university-management-system/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/university-management-system/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/university-management-system/discussions)
-
-## 🚧 Roadmap
-
-### Upcoming Features
-
-- [ ] Mobile application (React Native/Flutter)
-- [ ] Advanced reporting and analytics dashboard
-- [ ] Integration with external payment gateways
-- [ ] Online examination system
-- [ ] Video conferencing integration
-- [ ] Alumni management system
-- [ ] Advanced search and filtering
-- [ ] Multi-language support
-- [ ] API rate limiting and throttling
-- [ ] Advanced notification system with templates
-
-### Version History
-
-- **v1.0.0** - Initial release with core functionality
-- **v1.1.0** - Added research management and library system
-- **v1.2.0** - Implemented hostel management and notifications
-- **v2.0.0** - Complete UI overhaul and API improvements
+- [Celery Documentation](https://docs.celeryproject.org/)
+- [Redis Documentation](https://redis.io/documentation)
+- [M-Pesa API Documentation](https://developer.safaricom.co.ke/)
+- [Africa's Talking SMS API](https://africastalking.com/sms)
 
 ---
 
-**Developed by Steve Ongera for Educational Institutions**
+## 🏆 Acknowledgments
+
+- **Muranga University of Technology** - For supporting this project
+- **Equity Bank, KCB Bank, Safaricom** - For API access and integration support
+- **Django Community** - For the excellent framework
+- **Contributors** - All developers who have contributed to this project
+
+---
+
+## 📞 Contact
+
+**Project Maintainer**: Steve Ongera  
+**Email**: steve.ongera@mut.ac.ke  
+**Institution**: Muranga University of Technology  
+**Location**: Murang'a, Kenya
+
+---
+
+**Version**: 2.0.0  
+**Last Updated**: January 2024  
+**Status**: Production Ready ✅
+
+---
+
+*Developed by Steve Ongera for Educational Institutions across Africa*
