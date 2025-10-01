@@ -499,5 +499,17 @@ urlpatterns = [
     # Analytics API
     path('dean/api/analytics/', views.dean_analytics_api, name='dean_analytics_api'),
 
+    # ============ BANK WEBHOOK ENDPOINTS ============
+    # These URLs are given to banks for payment notifications
+    path('api/payments/equity/webhook/', views.equity_bank_webhook, name='equity_webhook'),
+    path('api/payments/kcb/webhook/',  views.kcb_bank_webhook, name='kcb_webhook'),
+    path('api/payments/mpesa/callback/',  views.mpesa_callback, name='mpesa_callback'),
+    
+    # ============ ADMIN/FINANCE OFFICE VIEWS ============
+    path('admin/payments/reconciliation/',  views.payment_reconciliation_view, name='payment_reconciliation'), 
+    path('admin/payments/manual-verification/', views.manual_payment_verification, name='manual_verification'),
+    
+    # ============ STUDENT VIEWS ============
+    path('student/<str:student_id>/statement/', views.student_fee_statement, name='student_statement'),
 
 ]
