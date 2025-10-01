@@ -20228,3 +20228,486 @@ def dean_profile(request):
     }
     
     return render(request, 'dean/dean_profile.html', context)
+
+
+# views.py - Bank Payment Integration for University ERP
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.db import transaction
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+import hashlib
+import hmac
+import json
+import logging
+from decimal import Decimal
+from datetime import datetime
+
+from .models import (
+    Student, FeePayment, FeeStructure, AcademicYear, 
+    Semester, StudentNotification
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ==================== BANK WEBHOOK ENDPOINTS ====================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def equity_bank_webhook(request):
+    """
+    Receives payment notifications from Equity Bank API
+    Expected payload format:
+    {
+        "transaction_id": "EQB123456789",
+        "student_id": "MUT/CS/001/2024",
+        "amount": 50000.00,
+        "payment_date": "2024-10-01",
+        "account_number": "1234567890",
+        "bank_reference": "EQB-REF-123",
+        "payment_mode": "bank_transfer",
+        "signature": "hash_signature"
+    }
+    """
+    try:
+        # Parse request body
+        data = json.loads(request.body)
+        
+        # Verify signature for security
+        if not verify_bank_signature(data, 'equity', request.headers.get('X-Bank-Signature')):
+            logger.warning(f"Invalid signature from Equity Bank: {data.get('transaction_id')}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid signature'
+            }, status=403)
+        
+        # Process payment
+        result = process_bank_payment(
+            bank_name='equity',
+            transaction_id=data.get('transaction_id'),
+            student_id=data.get('student_id'),
+            amount=Decimal(str(data.get('amount'))),
+            payment_date=data.get('payment_date'),
+            bank_reference=data.get('bank_reference'),
+            payment_method='bank_transfer',
+            additional_data=data
+        )
+        
+        return JsonResponse(result, status=200 if result['status'] == 'success' else 400)
+        
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in Equity Bank webhook")
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Error processing Equity Bank webhook: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def kcb_bank_webhook(request):
+    """
+    Receives payment notifications from KCB Bank API
+    Expected payload format similar to Equity but with KCB-specific fields
+    """
+    try:
+        data = json.loads(request.body)
+        
+        # Verify KCB signature
+        if not verify_bank_signature(data, 'kcb', request.headers.get('X-KCB-Signature')):
+            logger.warning(f"Invalid signature from KCB Bank: {data.get('transaction_id')}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid signature'
+            }, status=403)
+        
+        # Process payment
+        result = process_bank_payment(
+            bank_name='kcb',
+            transaction_id=data.get('transaction_ref'),
+            student_id=data.get('student_number'),
+            amount=Decimal(str(data.get('amount_paid'))),
+            payment_date=data.get('transaction_date'),
+            bank_reference=data.get('kcb_reference'),
+            payment_method='bank_transfer',
+            additional_data=data
+        )
+        
+        return JsonResponse(result, status=200 if result['status'] == 'success' else 400)
+        
+    except Exception as e:
+        logger.error(f"Error processing KCB Bank webhook: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mpesa_callback(request):
+    """
+    M-Pesa STK Push callback for direct mobile payments
+    """
+    try:
+        data = json.loads(request.body)
+        
+        # Extract M-Pesa callback data
+        result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
+        
+        if result_code == 0:  # Success
+            callback_metadata = data.get('Body', {}).get('stkCallback', {}).get('CallbackMetadata', {}).get('Item', [])
+            
+            # Extract payment details
+            mpesa_receipt = next((item['Value'] for item in callback_metadata if item['Name'] == 'MpesaReceiptNumber'), None)
+            amount = next((item['Value'] for item in callback_metadata if item['Name'] == 'Amount'), None)
+            phone_number = next((item['Value'] for item in callback_metadata if item['Name'] == 'PhoneNumber'), None)
+            
+            # Get student ID from checkout request (should be stored temporarily)
+            student_id = data.get('student_id')  # You'll need to implement session/cache storage
+            
+            result = process_bank_payment(
+                bank_name='mpesa',
+                transaction_id=mpesa_receipt,
+                student_id=student_id,
+                amount=Decimal(str(amount)),
+                payment_date=timezone.now().date(),
+                bank_reference=mpesa_receipt,
+                payment_method='mpesa',
+                additional_data={'phone': phone_number}
+            )
+            
+            return JsonResponse(result)
+        else:
+            return JsonResponse({'status': 'failed', 'message': 'Payment cancelled or failed'})
+            
+    except Exception as e:
+        logger.error(f"Error processing M-Pesa callback: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# ==================== CORE PAYMENT PROCESSING ====================
+
+@transaction.atomic
+def process_bank_payment(bank_name, transaction_id, student_id, amount, 
+                         payment_date, bank_reference, payment_method, 
+                         additional_data=None):
+    """
+    Core function to process and validate bank payments
+    This runs in a database transaction to ensure data consistency
+    """
+    try:
+        # 1. Validate student exists
+        student = Student.objects.select_related('user', 'programme').get(
+            student_id=student_id,
+            status='active'
+        )
+        
+        # 2. Check for duplicate transaction
+        if FeePayment.objects.filter(transaction_reference=transaction_id).exists():
+            logger.warning(f"Duplicate transaction detected: {transaction_id}")
+            return {
+                'status': 'duplicate',
+                'message': 'Transaction already processed',
+                'transaction_id': transaction_id
+            }
+        
+        # 3. Get current academic year and semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        if not current_semester:
+            raise Exception("No active semester found")
+        
+        # 4. Get applicable fee structure
+        fee_structure = FeeStructure.objects.filter(
+            programme=student.programme,
+            academic_year=current_semester.academic_year,
+            year=student.current_year,
+            semester=student.current_semester
+        ).first()
+        
+        if not fee_structure:
+            raise Exception(f"No fee structure found for {student.programme.name}, Year {student.current_year}, Semester {student.current_semester}")
+        
+        # 5. Generate unique receipt number
+        receipt_number = generate_receipt_number(bank_name, student_id)
+        
+        # 6. Create fee payment record
+        payment = FeePayment.objects.create(
+            student=student,
+            fee_structure=fee_structure,
+            receipt_number=receipt_number,
+            amount_paid=amount,
+            payment_date=payment_date if isinstance(payment_date, datetime) else datetime.strptime(payment_date, '%Y-%m-%d').date(),
+            payment_method=payment_method,
+            payment_status='completed',
+            transaction_reference=transaction_id,
+            bank_slip_number=bank_reference,
+            remarks=f"Auto-posted from {bank_name.upper()} Bank",
+            mpesa_receipt=additional_data.get('mpesa_receipt', '') if payment_method == 'mpesa' else ''
+        )
+        
+        # 7. Calculate balance
+        total_paid = FeePayment.objects.filter(
+            student=student,
+            fee_structure=fee_structure,
+            payment_status='completed'
+        ).aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0')
+        
+        balance = fee_structure.net_fee() - total_paid
+        
+        # 8. Send notifications
+        send_payment_notifications(student, payment, balance)
+        
+        # 9. Create system notification
+        StudentNotification.objects.create(
+            student=student,
+            title='Fee Payment Received',
+            message=f'Your payment of KES {amount:,.2f} has been received. Receipt No: {receipt_number}. Balance: KES {balance:,.2f}',
+            notification_type='general'
+        )
+        
+        logger.info(f"Payment processed successfully: {receipt_number} for student {student_id}")
+        
+        return {
+            'status': 'success',
+            'message': 'Payment processed successfully',
+            'receipt_number': receipt_number,
+            'student_id': student_id,
+            'amount': float(amount),
+            'balance': float(balance),
+            'transaction_id': transaction_id
+        }
+        
+    except Student.DoesNotExist:
+        logger.error(f"Student not found: {student_id}")
+        return {
+            'status': 'error',
+            'message': f'Student {student_id} not found or inactive'
+        }
+    except Exception as e:
+        logger.error(f"Error processing payment: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+
+# ==================== UTILITY FUNCTIONS ====================
+
+def verify_bank_signature(data, bank_name, received_signature):
+    """
+    Verify webhook signature from bank to ensure authenticity
+    Each bank has a secret key shared during API integration
+    """
+    # Get bank secret key from settings
+    bank_secrets = {
+        'equity': settings.EQUITY_BANK_SECRET_KEY,
+        'kcb': settings.KCB_BANK_SECRET_KEY,
+    }
+    
+    secret_key = bank_secrets.get(bank_name)
+    if not secret_key:
+        return False
+    
+    # Create signature from payload
+    payload_string = json.dumps(data, sort_keys=True)
+    expected_signature = hmac.new(
+        secret_key.encode(),
+        payload_string.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(expected_signature, received_signature or '')
+
+
+def generate_receipt_number(bank_name, student_id):
+    """
+    Generate unique receipt number
+    Format: BANK-YEAR-SEQUENCE
+    """
+    year = timezone.now().year
+    bank_prefix = bank_name[:3].upper()
+    
+    # Get last receipt number for this year
+    last_receipt = FeePayment.objects.filter(
+        receipt_number__startswith=f"{bank_prefix}-{year}"
+    ).order_by('-receipt_number').first()
+    
+    if last_receipt:
+        last_seq = int(last_receipt.receipt_number.split('-')[-1])
+        sequence = last_seq + 1
+    else:
+        sequence = 1
+    
+    return f"{bank_prefix}-{year}-{sequence:06d}"
+
+
+def send_payment_notifications(student, payment, balance):
+    """
+    Send email and SMS notifications to student
+    """
+    # Email notification
+    try:
+        subject = f"Fee Payment Received - Receipt {payment.receipt_number}"
+        message = f"""
+Dear {student.user.get_full_name()},
+
+Your fee payment has been successfully received and processed.
+
+Payment Details:
+- Receipt Number: {payment.receipt_number}
+- Amount Paid: KES {payment.amount_paid:,.2f}
+- Payment Date: {payment.payment_date}
+- Payment Method: {payment.get_payment_method_display()}
+- Remaining Balance: KES {balance:,.2f}
+
+Programme: {student.programme.name}
+Year: {student.current_year}, Semester: {student.current_semester}
+
+Thank you for your payment.
+
+University Finance Office
+        """
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [student.user.email],
+            fail_silently=True
+        )
+        
+        # SMS notification (integrate with SMS gateway)
+        send_sms_notification(
+            student.user.phone,
+            f"Fee payment of KES {payment.amount_paid:,.2f} received. Receipt: {payment.receipt_number}. Balance: KES {balance:,.2f}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error sending notifications: {str(e)}")
+
+
+def send_sms_notification(phone_number, message):
+    """
+    Send SMS via Africa's Talking or other SMS gateway
+    """
+    # Implement SMS sending logic here
+    # Example with Africa's Talking:
+    # import africastalking
+    # africastalking.initialize(settings.AT_USERNAME, settings.AT_API_KEY)
+    # sms = africastalking.SMS
+    # sms.send(message, [phone_number])
+    pass
+
+
+# ==================== ADMIN VIEWS ====================
+
+def payment_reconciliation_view(request):
+    """
+    Admin view to reconcile bank payments
+    Shows pending, completed, and failed transactions
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    bank_name = request.GET.get('bank')
+    status = request.GET.get('status')
+    
+    payments = FeePayment.objects.select_related('student__user', 'fee_structure__programme')
+    
+    if start_date:
+        payments = payments.filter(payment_date__gte=start_date)
+    if end_date:
+        payments = payments.filter(payment_date__lte=end_date)
+    if bank_name:
+        payments = payments.filter(payment_method=bank_name)
+    if status:
+        payments = payments.filter(payment_status=status)
+    
+    # Calculate statistics
+    total_amount = payments.aggregate(total=models.Sum('amount_paid'))['total'] or 0
+    total_count = payments.count()
+    
+    context = {
+        'payments': payments.order_by('-payment_date')[:100],
+        'total_amount': total_amount,
+        'total_count': total_count,
+    }
+    
+    return render(request, 'finance/payment_reconciliation.html', context)
+
+
+def student_fee_statement(request, student_id):
+    """
+    Generate student fee statement showing all payments and balance
+    """
+    student = get_object_or_404(Student, student_id=student_id)
+    
+    # Get all payments for current academic year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    payments = FeePayment.objects.filter(
+        student=student,
+        fee_structure__academic_year=current_year
+    ).order_by('-payment_date')
+    
+    # Calculate totals
+    total_paid = payments.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0')
+    
+    # Get fee structure
+    fee_structure = FeeStructure.objects.filter(
+        programme=student.programme,
+        academic_year=current_year,
+        year=student.current_year,
+        semester=student.current_semester
+    ).first()
+    
+    total_fee = fee_structure.total_fee() if fee_structure else Decimal('0')
+    balance = total_fee - total_paid
+    
+    context = {
+        'student': student,
+        'payments': payments,
+        'total_paid': total_paid,
+        'total_fee': total_fee,
+        'balance': balance,
+        'fee_structure': fee_structure
+    }
+    
+    return render(request, 'finance/student_statement.html', context)
+
+
+# ==================== API ENDPOINTS FOR MANUAL VERIFICATION ====================
+
+@require_http_methods(["POST"])
+def manual_payment_verification(request):
+    """
+    Allows finance office to manually verify and post payments
+    Useful for cheques, cash payments, or failed automatic postings
+    """
+    if not request.user.has_perm('finance.add_feepayment'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        
+        result = process_bank_payment(
+            bank_name='manual',
+            transaction_id=data.get('transaction_id'),
+            student_id=data.get('student_id'),
+            amount=Decimal(str(data.get('amount'))),
+            payment_date=data.get('payment_date'),
+            bank_reference=data.get('reference'),
+            payment_method=data.get('payment_method'),
+            additional_data={'posted_by': request.user.username}
+        )
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
