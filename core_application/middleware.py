@@ -186,3 +186,49 @@ def log_model_delete(sender, instance, **kwargs):
     
     # Manual logging in views would be more reliable
     pass
+
+
+
+# =============================================================================
+# middleware.py - IP Whitelist Middleware for Bank Webhooks
+# =============================================================================
+
+from django.http import HttpResponseForbidden
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+class BankWebhookIPWhitelistMiddleware:
+    """
+    Middleware to restrict bank webhook endpoints to specific IP addresses
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.webhook_paths = [
+            '/api/payments/equity/webhook/',
+            '/api/payments/kcb/webhook/',
+            '/api/payments/mpesa/callback/',
+        ]
+
+    def __call__(self, request):
+        # Check if the request is for a webhook endpoint
+        if any(request.path.startswith(path) for path in self.webhook_paths):
+            # Get client IP
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                client_ip = x_forwarded_for.split(',')[0]
+            else:
+                client_ip = request.META.get('REMOTE_ADDR')
+            
+            # Check if IP is whitelisted
+            allowed_ips = getattr(settings, 'PAYMENT_WEBHOOK_IPS', [])
+            
+            # Allow localhost for testing
+            if settings.DEBUG or client_ip in allowed_ips or client_ip == '127.0.0.1':
+                return self.get_response(request)
+            else:
+                logger.warning(f"Unauthorized webhook access attempt from IP: {client_ip}")
+                return HttpResponseForbidden("Access denied")
+        
+        return self.get_response(request)

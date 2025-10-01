@@ -50,8 +50,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-     'core_application.middleware.UserSessionMiddleware',  
-     'core_application.middleware.ActivityTrackingMiddleware',
+    'core_application.middleware.UserSessionMiddleware',  
+    'core_application.middleware.ActivityTrackingMiddleware',
+    'core_application.middleware.BankWebhookIPWhitelistMiddleware',
 ]
 
 ROOT_URLCONF = 'university_erp_system.urls'
@@ -154,7 +155,39 @@ UNIVERSITY_CONTACT = "Tel: +254-763-7474893 | Email: finance@mutuniversity.edu"
 LOGO_URL = "/static/logo.png"
 
 
+# ============ BANK API CREDENTIALS ============
+# Equity Bank Configuration
+EQUITY_BANK_API_URL = 'https://api.equitybank.co.ke/v1/'
+EQUITY_BANK_API_KEY = 'your_equity_api_key'
+EQUITY_BANK_SECRET_KEY = 'your_equity_secret_key'
+EQUITY_BANK_MERCHANT_CODE = 'MUT001'
 
+# KCB Bank Configuration
+KCB_BANK_API_URL = 'https://api.kcbgroup.com/v1/'
+KCB_BANK_API_KEY = 'your_kcb_api_key'
+KCB_BANK_SECRET_KEY = 'your_kcb_secret_key'
+KCB_BANK_MERCHANT_CODE = 'MUT002'
+
+# M-Pesa Configuration
+MPESA_ENVIRONMENT = 'sandbox'  # or 'production'
+MPESA_CONSUMER_KEY = 'your_mpesa_consumer_key'
+MPESA_CONSUMER_SECRET = 'your_mpesa_consumer_secret'
+MPESA_SHORTCODE = '174379'  # Your paybill number
+MPESA_PASSKEY = 'your_mpesa_passkey'
+MPESA_CALLBACK_URL = 'https://youruniversity.ac.ke/api/payments/mpesa/callback/'
+
+# ============ SMS CONFIGURATION ============
+# Using Africa's Talking (https://africastalking.com)
+AT_USERNAME = 'MurangaUniversity'
+AT_API_KEY = 'your_africastalking_api_key'
+AT_SENDER_ID = 'MUT'
+
+# ============ PAYMENT SETTINGS ============
+PAYMENT_WEBHOOK_IPS = [
+    '41.90.x.x',  # Equity Bank IP
+    '105.x.x.x',  # KCB Bank IP
+    # Add bank IP addresses for security
+]
 
 # Email settings for security alerts
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
