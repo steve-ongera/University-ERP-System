@@ -1,0 +1,823 @@
+{% extends 'finance_base.html' %}
+{% load static %}
+
+{% block title %}Finance Dashboard - University{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <div class="row p-3">
+        <div class="row d-flex flex-row">
+            <div class="col-md-8">
+                <h1 class="fw-bold card-title text-start">Finance Dashboard</h1>
+                <p class="text-muted">Academic Year: {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %} | Current Semester: {% if current_semester %}Semester {{ current_semester.semester_number }}{% else %}Not Set{% endif %}</p>
+            </div>
+            <div class="col-md-4 dashboardRightLabel">
+                <div class="text-end">
+                    <span class="fw-bold text-muted">{{ current_date|date:"l, F d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="row p-2">
+        <!-- Total Revenue -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Revenue (This Year)</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">KES {{ total_revenue|floatformat:0 }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">{{ revenue_growth|floatformat:1 }}%</span> from last year
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Collections -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Today's Collections</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">KES {{ today_collections|floatformat:0 }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-info">{{ today_payment_count }} transactions</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outstanding Fees -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Outstanding Fees</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">KES {{ outstanding_fees|floatformat:0 }}</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-warning">{{ students_with_balances }} students</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collection Rate -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Collection Rate</div>
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">{{ collection_rate|floatformat:1 }}%</div>
+                            <div class="mt-2 text-muted small">
+                                <span class="text-success">Target: 85%</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row p-2">
+        <!-- Monthly Revenue Trend -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Monthly Revenue Trend (Last 12 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Methods Distribution -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Payment Methods</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentMethodChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row p-2">
+        <!-- Programme-wise Revenue -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Revenue by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="programmeRevenueChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Structure Breakdown -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Fee Components Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="feeComponentsChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row p-2">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Payment Status Overview -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Payment Status Overview</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentStatusChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <h5 class="card-title fw-semibold primary-text">Recent Transactions</h5>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Receipt No.</th>
+                                    <th>Student ID</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_payments %}
+                                <tr>
+                                    <td><strong>{{ payment.receipt_number }}</strong></td>
+                                    <td>{{ payment.student.student_id }}</td>
+                                    <td><span class="text-success fw-bold">KES {{ payment.amount_paid|floatformat:0 }}</span></td>
+                                    <td>{{ payment.payment_method|title }}</td>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ payment.payment_status|yesno:'success,warning,danger' }}">
+                                            {{ payment.get_payment_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No recent transactions</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hostel Revenue -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Hostel Booking Revenue</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hostelRevenueChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Financial Summary -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Expected Revenue</span>
+                            <span class="fw-bold">KES {{ expected_revenue|floatformat:0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Collected</span>
+                            <span class="fw-bold text-success">KES {{ total_revenue|floatformat:0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ collection_rate }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Outstanding</span>
+                            <span class="fw-bold text-warning">KES {{ outstanding_fees|floatformat:0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ outstanding_percentage }}%"></div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="fw-semibold mb-3">Breakdown by Semester</h6>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Semester 1</small>
+                            <small class="fw-bold">KES {{ semester_1_revenue|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Semester 2</small>
+                            <small class="fw-bold">KES {{ semester_2_revenue|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                    {% if semester_3_revenue %}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Semester 3</small>
+                            <small class="fw-bold">KES {{ semester_3_revenue|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Top Paying Programmes -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Top Revenue Programmes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for prog in top_programmes %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold">{{ prog.programme__name|truncatewords:4 }}</h6>
+                                    <small class="text-muted">{{ prog.student_count }} students</small>
+                                </div>
+                                <span class="text-success fw-bold">KES {{ prog.total_revenue|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            No data available
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students with Outstanding Balances -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">High Outstanding Balances</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for student_balance in top_outstanding %}
+                        <div class="list-group-item list-group-item-action border-0 px-0 py-2">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold">{{ student_balance.student__student_id }}</h6>
+                                    <small class="text-muted">{{ student_balance.student__programme__code }}</small>
+                                </div>
+                                <span class="text-danger fw-bold">KES {{ student_balance.balance|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-3">
+                            All students cleared
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i> Record Payment
+                        </a>
+                        <a href="#" class="btn btn-success btn-sm">
+                            <i class="fas fa-file-invoice me-1"></i> Generate Report
+                        </a>
+                        <a href="#" class="btn btn-info btn-sm">
+                            <i class="fas fa-search me-1"></i> Search Transaction
+                        </a>
+                        <a href="#" class="btn btn-warning btn-sm">
+                            <i class="fas fa-bell me-1"></i> Send Reminders
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Analytics Row -->
+    <div class="row p-2">
+        <!-- Sponsor Type Revenue -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Revenue by Sponsor Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="sponsorRevenueChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year-wise Collection Comparison -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title fw-semibold primary-text">Collection by Student Year</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearCollectionChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    Chart.defaults.plugins.legend.position = 'bottom';
+
+    // Monthly Revenue Trend Chart
+    const revenueData = {{ monthly_revenue_data|safe }};
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: revenueData.labels,
+            datasets: [{
+                label: 'Revenue (KES)',
+                data: revenueData.data,
+                borderColor: 'rgba(46, 204, 113, 1)',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(46, 204, 113, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Revenue: KES ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Payment Methods Donut Chart
+    const paymentMethodData = {{ payment_method_data|safe }};
+    const paymentMethodCtx = document.getElementById('paymentMethodChart').getContext('2d');
+    new Chart(paymentMethodCtx, {
+        type: 'doughnut',
+        data: {
+            labels: paymentMethodData.labels,
+            datasets: [{
+                data: paymentMethodData.data,
+                backgroundColor: [
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(155, 89, 182, 0.8)',
+                    'rgba(241, 196, 15, 0.8)',
+                    'rgba(231, 76, 60, 0.8)',
+                    'rgba(26, 188, 156, 0.8)'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '60%'
+        }
+    });
+
+    // Programme Revenue Horizontal Bar Chart
+    const programmeRevenueData = {{ programme_revenue_data|safe }};
+    const programmeRevenueCtx = document.getElementById('programmeRevenueChart').getContext('2d');
+    new Chart(programmeRevenueCtx, {
+        type: 'bar',
+        data: {
+            labels: programmeRevenueData.labels,
+            datasets: [{
+                label: 'Revenue (KES)',
+                data: programmeRevenueData.data,
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + (value/1000).toFixed(0) + 'K';
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Revenue: KES ' + context.parsed.x.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Fee Components Pie Chart
+    const feeComponentsData = {{ fee_components_data|safe }};
+    const feeComponentsCtx = document.getElementById('feeComponentsChart').getContext('2d');
+    new Chart(feeComponentsCtx, {
+        type: 'pie',
+        data: {
+            labels: feeComponentsData.labels,
+            datasets: [{
+                data: feeComponentsData.data,
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                    '#9966FF', '#FF9F40', '#C9CBCF', '#4D5360'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
+                        usePointStyle: true,
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Payment Status Bar Chart
+    const paymentStatusData = {{ payment_status_data|safe }};
+    const paymentStatusCtx = document.getElementById('paymentStatusChart').getContext('2d');
+    new Chart(paymentStatusCtx, {
+        type: 'bar',
+        data: {
+            labels: paymentStatusData.labels,
+            datasets: [{
+                label: 'Number of Students',
+                data: paymentStatusData.data,
+                backgroundColor: [
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(241, 196, 15, 0.8)',
+                    'rgba(231, 76, 60, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(46, 204, 113, 1)',
+                    'rgba(241, 196, 15, 1)',
+                    'rgba(231, 76, 60, 1)'
+                ],
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Hostel Revenue Chart
+    const hostelRevenueData = {{ hostel_revenue_data|safe }};
+    const hostelRevenueCtx = document.getElementById('hostelRevenueChart').getContext('2d');
+    new Chart(hostelRevenueCtx, {
+        type: 'bar',
+        data: {
+            labels: hostelRevenueData.labels,
+            datasets: [{
+                label: 'Hostel Revenue',
+                data: hostelRevenueData.revenue,
+                backgroundColor: 'rgba(155, 89, 182, 0.8)',
+                borderColor: 'rgba(155, 89, 182, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }, {
+                label: 'Bookings',
+                data: hostelRevenueData.bookings,
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1,
+                borderRadius: 5,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + (value/1000).toFixed(0) + 'K';
+                        }
+                    }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: {
+                        display: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Sponsor Type Revenue Chart
+    const sponsorRevenueData = {{ sponsor_revenue_data|safe }};
+    const sponsorRevenueCtx = document.getElementById('sponsorRevenueChart').getContext('2d');
+    new Chart(sponsorRevenueCtx, {
+        type: 'doughnut',
+        data: {
+            labels: sponsorRevenueData.labels,
+            datasets: [{
+                data: sponsorRevenueData.data,
+                backgroundColor: [
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(241, 196, 15, 0.8)',
+                    'rgba(155, 89, 182, 0.8)',
+                    'rgba(231, 76, 60, 0.8)',
+                    'rgba(26, 188, 156, 0.8)'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '50%'
+        }
+    });
+    // Year-wise Collection Comparison Chart
+    const yearCollectionData = {{ year_collection_data|safe }};
+    const yearCollectionCtx = document.getElementById('yearCollectionChart').getContext('2d');
+    new Chart(yearCollectionCtx, {
+        type: 'bar',
+        data: {
+            labels: yearCollectionData.labels,
+            datasets: [{
+                label: 'Expected',
+                data: yearCollectionData.expected,
+                backgroundColor: 'rgba(189, 195, 199, 0.6)',
+                borderColor: 'rgba(189, 195, 199, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }, {
+                label: 'Collected',
+                data: yearCollectionData.collected,
+                backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                borderColor: 'rgba(46, 204, 113, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + (value/1000).toFixed(0) + 'K';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Close message alerts
+    document.querySelectorAll('.close-message').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+
+    // Auto-hide messages after 5 seconds
+    setTimeout(function() {
+        document.querySelectorAll('.alert-message').forEach(function(msg) {
+            msg.style.opacity = '0';
+            setTimeout(function() {
+                msg.style.display = 'none';
+            }, 500);
+        });
+    }, 5000);
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -71,7 +71,8 @@ def login_view(request):
                 'student': 'student_dashboard',
                 'lecturer': 'lecturer_dashboard', 
                 'dean': 'dean_dashboard',
-                'hostel_warden': 'hostel_dashboard'
+                'hostel_warden': 'hostel_dashboard',
+                'finance': 'finance_dashboard',
             }
             
             redirect_name = redirect_map.get(user.user_type)
@@ -20711,3 +20712,392 @@ def manual_payment_verification(request):
         
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+
+from django.shortcuts import render
+from django.db.models import Sum, Count, Q, F, DecimalField, Avg
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from datetime import timedelta
+import json
+from decimal import Decimal
+
+from .models import (
+    FeePayment, FeeStructure, Student, Programme, 
+    AcademicYear, Semester, HostelBooking, HostelPayment
+)
+
+
+def finance_dashboard(request):
+    """
+    Finance dashboard view with comprehensive financial analytics
+    """
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_date = timezone.now()
+    today = current_date.date()
+    
+    # ===== SUMMARY CARDS DATA =====
+    
+    # Total revenue for current academic year
+    total_revenue = FeePayment.objects.filter(
+        fee_structure__academic_year=current_academic_year,
+        payment_status='completed'
+    ).aggregate(
+        total=Coalesce(Sum('amount_paid'), Decimal('0.00'))
+    )['total']
+    
+    # Previous year revenue for growth calculation
+    previous_year = AcademicYear.objects.filter(
+        start_date__lt=current_academic_year.start_date
+    ).order_by('-start_date').first() if current_academic_year else None
+    
+    previous_revenue = Decimal('0.00')
+    if previous_year:
+        previous_revenue = FeePayment.objects.filter(
+            fee_structure__academic_year=previous_year,
+            payment_status='completed'
+        ).aggregate(
+            total=Coalesce(Sum('amount_paid'), Decimal('0.00'))
+        )['total']
+    
+    # Calculate revenue growth percentage
+    revenue_growth = 0
+    if previous_revenue > 0:
+        revenue_growth = ((total_revenue - previous_revenue) / previous_revenue) * 100
+    
+    # Today's collections
+    today_collections = FeePayment.objects.filter(
+        payment_date=today,
+        payment_status='completed'
+    ).aggregate(
+        total=Coalesce(Sum('amount_paid'), Decimal('0.00'))
+    )['total']
+    
+    today_payment_count = FeePayment.objects.filter(
+        payment_date=today,
+        payment_status='completed'
+    ).count()
+    
+    # Calculate outstanding fees
+    # Get all fee structures for current academic year
+    expected_fees = FeeStructure.objects.filter(
+        academic_year=current_academic_year
+    ).annotate(
+        net_amount=F('tuition_fee') + F('registration_fee') + F('examination_fee') +
+                   F('library_fee') + F('laboratory_fee') + F('fieldwork_fee') +
+                   F('technology_fee') + F('accommodation_fee') + F('meals_fee') +
+                   F('medical_fee') + F('insurance_fee') + F('student_union_fee') +
+                   F('sports_fee') + F('graduation_fee') + F('other_fees') -
+                   F('government_subsidy') - F('scholarship_amount')
+    )
+    
+    # Calculate total expected
+    total_expected = Decimal('0.00')
+    for fee in expected_fees:
+        student_count = Student.objects.filter(
+            programme=fee.programme,
+            current_year=fee.year,
+            current_semester=fee.semester,
+            status='active'
+        ).count()
+        total_expected += fee.net_amount * student_count
+    
+    outstanding_fees = total_expected - total_revenue
+    
+    # Students with balances
+    students_with_balances = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_paid=Coalesce(
+            Sum('fee_payments__amount_paid', 
+                filter=Q(fee_payments__payment_status='completed')),
+            Decimal('0.00')
+        )
+    ).filter(
+        total_paid__lt=F('programme__fee_structures__tuition_fee')
+    ).count()
+    
+    # Collection rate
+    collection_rate = 0
+    if total_expected > 0:
+        collection_rate = (total_revenue / total_expected) * 100
+    
+    outstanding_percentage = 100 - collection_rate if collection_rate > 0 else 0
+    
+    # ===== MONTHLY REVENUE TREND (Last 12 Months) =====
+    monthly_revenue = []
+    monthly_labels = []
+    
+    for i in range(11, -1, -1):
+        month_date = current_date - timedelta(days=30*i)
+        month_start = month_date.replace(day=1)
+        
+        if i > 0:
+            next_month = (month_date + timedelta(days=32)).replace(day=1)
+        else:
+            next_month = current_date
+        
+        revenue = FeePayment.objects.filter(
+            payment_date__gte=month_start,
+            payment_date__lt=next_month,
+            payment_status='completed'
+        ).aggregate(
+            total=Coalesce(Sum('amount_paid'), Decimal('0.00'))
+        )['total']
+        
+        monthly_revenue.append(float(revenue))
+        monthly_labels.append(month_start.strftime('%b %Y'))
+    
+    monthly_revenue_data = {
+        'labels': monthly_labels,
+        'data': monthly_revenue
+    }
+    
+    # ===== PAYMENT METHODS DISTRIBUTION =====
+    payment_methods = FeePayment.objects.filter(
+        fee_structure__academic_year=current_academic_year,
+        payment_status='completed'
+    ).values('payment_method').annotate(
+        total=Sum('amount_paid'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    payment_method_data = {
+        'labels': [pm['payment_method'].replace('_', ' ').title() for pm in payment_methods],
+        'data': [float(pm['total']) for pm in payment_methods]
+    }
+    
+    # ===== PROGRAMME-WISE REVENUE =====
+    programme_revenue = FeePayment.objects.filter(
+        fee_structure__academic_year=current_academic_year,
+        payment_status='completed'
+    ).values(
+        'fee_structure__programme__name',
+        'fee_structure__programme__code'
+    ).annotate(
+        total=Sum('amount_paid')
+    ).order_by('-total')[:10]
+    
+    programme_revenue_data = {
+        'labels': [f"{pr['fee_structure__programme__code']}" for pr in programme_revenue],
+        'data': [float(pr['total']) for pr in programme_revenue]
+    }
+    
+    # ===== FEE COMPONENTS BREAKDOWN =====
+    # Calculate average of each fee component
+    fee_components = FeeStructure.objects.filter(
+        academic_year=current_academic_year
+    ).aggregate(
+        tuition=Avg('tuition_fee'),
+        registration=Avg('registration_fee'),
+        examination=Avg('examination_fee'),
+        library=Avg('library_fee'),
+        laboratory=Avg('laboratory_fee'),
+        technology=Avg('technology_fee'),
+        accommodation=Avg('accommodation_fee'),
+        other=Avg('other_fees')
+    )
+    
+    fee_components_data = {
+        'labels': ['Tuition', 'Registration', 'Examination', 'Library', 
+                   'Laboratory', 'Technology', 'Accommodation', 'Other'],
+        'data': [
+            float(fee_components['tuition'] or 0),
+            float(fee_components['registration'] or 0),
+            float(fee_components['examination'] or 0),
+            float(fee_components['library'] or 0),
+            float(fee_components['laboratory'] or 0),
+            float(fee_components['technology'] or 0),
+            float(fee_components['accommodation'] or 0),
+            float(fee_components['other'] or 0)
+        ]
+    }
+    
+    # ===== PAYMENT STATUS OVERVIEW =====
+    fully_paid = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_paid=Coalesce(
+            Sum('fee_payments__amount_paid',
+                filter=Q(fee_payments__payment_status='completed')),
+            Decimal('0.00')
+        ),
+        expected_fee=F('programme__fee_structures__tuition_fee')
+    ).filter(
+        total_paid__gte=F('expected_fee')
+    ).count()
+    
+    partially_paid = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_paid=Coalesce(
+            Sum('fee_payments__amount_paid',
+                filter=Q(fee_payments__payment_status='completed')),
+            Decimal('0.00')
+        ),
+        expected_fee=F('programme__fee_structures__tuition_fee')
+    ).filter(
+        total_paid__gt=0,
+        total_paid__lt=F('expected_fee')
+    ).count()
+    
+    not_paid = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_paid=Coalesce(
+            Sum('fee_payments__amount_paid',
+                filter=Q(fee_payments__payment_status='completed')),
+            Decimal('0.00')
+        )
+    ).filter(
+        total_paid=0
+    ).count()
+    
+    payment_status_data = {
+        'labels': ['Fully Paid', 'Partially Paid', 'Not Paid'],
+        'data': [fully_paid, partially_paid, not_paid]
+    }
+    
+    # ===== HOSTEL REVENUE =====
+    hostels = HostelBooking.objects.filter(
+        academic_year=current_academic_year
+    ).values('bed__room__hostel__name').annotate(
+        revenue=Sum('booking_fee'),
+        bookings=Count('id')
+    ).order_by('-revenue')[:8]
+    
+    hostel_revenue_data = {
+        'labels': [h['bed__room__hostel__name'] for h in hostels],
+        'revenue': [float(h['revenue']) for h in hostels],
+        'bookings': [h['bookings'] for h in hostels]
+    }
+    
+    # ===== SPONSOR TYPE REVENUE =====
+    sponsor_revenue = Student.objects.filter(
+        status='active'
+    ).values('sponsor_type').annotate(
+        total=Sum('fee_payments__amount_paid',
+                  filter=Q(fee_payments__payment_status='completed'))
+    ).order_by('-total')
+    
+    sponsor_revenue_data = {
+        'labels': [sr['sponsor_type'].replace('_', ' ').title() for sr in sponsor_revenue],
+        'data': [float(sr['total'] or 0) for sr in sponsor_revenue]
+    }
+    
+    # ===== YEAR-WISE COLLECTION =====
+    year_collections = []
+    year_expected = []
+    year_labels = []
+    
+    for year in range(1, 5):
+        expected = FeeStructure.objects.filter(
+            academic_year=current_academic_year,
+            year=year
+        ).aggregate(
+            total=Sum('tuition_fee')
+        )['total'] or 0
+        
+        collected = FeePayment.objects.filter(
+            fee_structure__academic_year=current_academic_year,
+            fee_structure__year=year,
+            payment_status='completed'
+        ).aggregate(
+            total=Sum('amount_paid')
+        )['total'] or 0
+        
+        year_labels.append(f'Year {year}')
+        year_expected.append(float(expected))
+        year_collections.append(float(collected))
+    
+    year_collection_data = {
+        'labels': year_labels,
+        'expected': year_expected,
+        'collected': year_collections
+    }
+    
+    # ===== RECENT TRANSACTIONS =====
+    recent_payments = FeePayment.objects.select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('-payment_date')[:10]
+    
+    # ===== TOP PROGRAMMES BY REVENUE =====
+    top_programmes = FeePayment.objects.filter(
+        fee_structure__academic_year=current_academic_year,
+        payment_status='completed'
+    ).values(
+        'student__programme__name',
+        'student__programme__code'
+    ).annotate(
+        total_revenue=Sum('amount_paid'),
+        student_count=Count('student', distinct=True)
+    ).order_by('-total_revenue')[:5]
+    
+    # ===== TOP OUTSTANDING BALANCES =====
+    top_outstanding = Student.objects.filter(
+        status='active'
+    ).annotate(
+        total_paid=Coalesce(
+            Sum('fee_payments__amount_paid',
+                filter=Q(fee_payments__payment_status='completed')),
+            Decimal('0.00')
+        ),
+        expected_fee=F('programme__fee_structures__tuition_fee')
+    ).annotate(
+        balance=F('expected_fee') - F('total_paid')
+    ).filter(
+        balance__gt=0
+    ).order_by('-balance')[:5]
+    
+    # ===== SEMESTER-WISE REVENUE =====
+    semester_revenues = {}
+    for sem_num in [1, 2, 3]:
+        sem_revenue = FeePayment.objects.filter(
+            fee_structure__academic_year=current_academic_year,
+            fee_structure__semester=sem_num,
+            payment_status='completed'
+        ).aggregate(
+            total=Coalesce(Sum('amount_paid'), Decimal('0.00'))
+        )['total']
+        semester_revenues[f'semester_{sem_num}_revenue'] = sem_revenue
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'current_date': current_date,
+        
+        # Summary Cards
+        'total_revenue': total_revenue,
+        'revenue_growth': revenue_growth,
+        'today_collections': today_collections,
+        'today_payment_count': today_payment_count,
+        'outstanding_fees': outstanding_fees,
+        'students_with_balances': students_with_balances,
+        'collection_rate': collection_rate,
+        'outstanding_percentage': outstanding_percentage,
+        'expected_revenue': total_expected,
+        
+        # Chart Data (JSON serialized)
+        'monthly_revenue_data': json.dumps(monthly_revenue_data),
+        'payment_method_data': json.dumps(payment_method_data),
+        'programme_revenue_data': json.dumps(programme_revenue_data),
+        'fee_components_data': json.dumps(fee_components_data),
+        'payment_status_data': json.dumps(payment_status_data),
+        'hostel_revenue_data': json.dumps(hostel_revenue_data),
+        'sponsor_revenue_data': json.dumps(sponsor_revenue_data),
+        'year_collection_data': json.dumps(year_collection_data),
+        
+        # Table Data
+        'recent_payments': recent_payments,
+        'top_programmes': top_programmes,
+        'top_outstanding': top_outstanding,
+        
+        # Semester Revenue
+        **semester_revenues,
+    }
+    
+    return render(request, 'finance/finance_dashboard.html', context)

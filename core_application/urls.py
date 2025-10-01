@@ -512,4 +512,7 @@ urlpatterns = [
     # ============ STUDENT VIEWS ============
     path('student/<str:student_id>/statement/', views.student_fee_statement, name='student_statement'),
 
+    #finance dashboard
+    path('finance-dashboard/', views.finance_dashboard, name='finance_dashboard'),
+
 ]
