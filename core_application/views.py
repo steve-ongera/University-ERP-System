@@ -6129,14 +6129,17 @@ from decimal import Decimal
 
 @login_required
 def edit_fee_structure(request, fee_structure_id):
-    """Edit an existing fee structure"""
+    """Edit an existing fee structure for a specific programme, year, and semester"""
     
     # Check if user is finance staff
     if request.user.user_type != 'finance':
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('dashboard')
     
-    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+    fee_structure = get_object_or_404(
+        FeeStructure.objects.select_related('programme', 'academic_year'), 
+        id=fee_structure_id
+    )
     
     if request.method == 'POST':
         try:
@@ -6237,6 +6240,93 @@ def delete_fee_structure(request, fee_structure_id):
     }
     
     return render(request, 'finance/delete_fee_structure.html', context)
+
+
+@login_required
+def add_fee_structure(request):
+    """Add a new fee structure for a programme"""
+    
+    # Check if user is finance staff
+    if request.user.user_type != 'finance':
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get parameters from URL
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    semester = request.GET.get('semester')
+    academic_year_id = request.GET.get('academic_year')
+    
+    # Validate required parameters
+    if not all([programme_id, year, semester, academic_year_id]):
+        messages.error(request, 'Missing required parameters.')
+        return redirect('finance_fee_structure_list')
+    
+    programme = get_object_or_404(Programme, id=programme_id)
+    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    # Check if fee structure already exists
+    existing_fee = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=academic_year,
+        year=year,
+        semester=semester
+    ).first()
+    
+    if existing_fee:
+        messages.warning(
+            request, 
+            f'Fee structure already exists for {programme.name} - Year {year}, Semester {semester}. '
+            'Redirecting to edit page.'
+        )
+        return redirect('finance_edit_fee_structure', fee_structure_id=existing_fee.id)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Create new fee structure
+                fee_structure = FeeStructure.objects.create(
+                    programme=programme,
+                    academic_year=academic_year,
+                    year=int(year),
+                    semester=int(semester),
+                    tuition_fee=Decimal(request.POST.get('tuition_fee', 0)),
+                    registration_fee=Decimal(request.POST.get('registration_fee', 0)),
+                    examination_fee=Decimal(request.POST.get('examination_fee', 0)),
+                    library_fee=Decimal(request.POST.get('library_fee', 0)),
+                    laboratory_fee=Decimal(request.POST.get('laboratory_fee', 0)),
+                    fieldwork_fee=Decimal(request.POST.get('fieldwork_fee', 0)),
+                    technology_fee=Decimal(request.POST.get('technology_fee', 0)),
+                    accommodation_fee=Decimal(request.POST.get('accommodation_fee', 0)),
+                    meals_fee=Decimal(request.POST.get('meals_fee', 0)),
+                    medical_fee=Decimal(request.POST.get('medical_fee', 0)),
+                    insurance_fee=Decimal(request.POST.get('insurance_fee', 0)),
+                    student_union_fee=Decimal(request.POST.get('student_union_fee', 0)),
+                    sports_fee=Decimal(request.POST.get('sports_fee', 0)),
+                    graduation_fee=Decimal(request.POST.get('graduation_fee', 0)),
+                    other_fees=Decimal(request.POST.get('other_fees', 0)),
+                    government_subsidy=Decimal(request.POST.get('government_subsidy', 0)),
+                    scholarship_amount=Decimal(request.POST.get('scholarship_amount', 0)),
+                )
+                
+                messages.success(
+                    request, 
+                    f'Fee structure for {programme.name} - Year {year}, Semester {semester} created successfully!'
+                )
+                
+                return redirect('finance_programme_fee_detail', programme_id=programme.id)
+                
+        except Exception as e:
+            messages.error(request, f'Error creating fee structure: {str(e)}')
+    
+    context = {
+        'programme': programme,
+        'academic_year': academic_year,
+        'year': year,
+        'semester': semester,
+    }
+    
+    return render(request, 'finance/add_fee_structure.html', context)
 
 @login_required
 def fee_structure_comparison(request):

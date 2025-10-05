@@ -4,13 +4,13 @@
 {% block content %}
 
 <div class="message-container" id="system-messages">
-                                {% for message in messages %}
-                                <div class="alert-message alert-{{ message.tags }}">
-                                    {{ message }}
-                                    <span class="close-message">&times;</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="container onprintContainer">
     <!-- Programme Header -->
@@ -62,9 +62,6 @@
                         <div class="btn-group float-end">
                             <a href="{% url 'finance_fee_structure_list' %}" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-left"></i> Back to List
-                            </a>
-                            <a href="#" class="btn btn-outline-secondary">
-                                <i class="bi bi-pencil"></i> Edit Fees
                             </a>
                         </div>
                     </div>
@@ -171,6 +168,24 @@
                                         
                                         {% get_semester_fee_data fees_by_year year semester as fee_data %}
                                         {% if fee_data and fee_data.exists %}
+                                            <!-- Action Buttons for this specific fee structure -->
+                                            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3 no-print">
+                                                <div>
+                                                    <strong>Manage Fee Structure:</strong> 
+                                                    <span class="text-muted">Year {{ year }}, Semester {{ semester }}</span>
+                                                </div>
+                                                <div>
+                                                    <a href="{% url 'finance_edit_fee_structure' fee_data.fee_structure.id %}" 
+                                                       class="btn btn-sm btn-primary me-2">
+                                                        <i class="bi bi-pencil"></i> Edit Fees
+                                                    </a>
+                                                    <a href="{% url 'finance_delete_fee_structure' fee_data.fee_structure.id %}" 
+                                                       class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </a>
+                                                </div>
+                                            </div>
+
                                             <div class="row">
                                                 <div class="col-md-8">
                                                     <div class="table-responsive">
@@ -373,7 +388,8 @@
                                                 <i class="bi bi-exclamation-triangle display-4"></i>
                                                 <h5 class="mt-3">No Fee Structure Found</h5>
                                                 <p class="mb-3">Fee structure for Year {{ year }}, Semester {{ semester }} has not been set up yet.</p>
-                                                <a href="#" class="btn btn-primary">
+                                                <a href="{% url 'finance_add_fee_structure' %}?programme={{ programme.id }}&year={{ year }}&semester={{ semester }}&academic_year={{ selected_academic_year.id }}" 
+                                                   class="btn btn-primary">
                                                     <i class="bi bi-plus"></i> Add Fee Structure
                                                 </a>
                                             </div>
@@ -396,12 +412,6 @@
                     <a href="{% url 'finance_fee_structure_list' %}" class="btn btn-outline-secondary me-2">
                         <i class="bi bi-arrow-left"></i> Back to Fee Structures
                     </a>
-                    <a href="{% url 'fee_structure_comparison' %}?programmes={{ programme.id }}" class="btn btn-outline-info me-2">
-                        <i class="bi bi-bar-chart"></i> Compare with Others
-                    </a>
-                    <a href="#" class="btn btn-primary me-2">
-                        <i class="bi bi-pencil"></i> Edit Fee Structure
-                    </a>
                     <button class="btn btn-outline-success me-2" onclick="window.print()">
                         <i class="bi bi-printer"></i> Print
                     </button>
@@ -415,34 +425,25 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Enhanced showSemester function
     function showSemester(semesterId, button) {
-        // Hide all semester content in the current year
         const yearTab = button.closest('.tab-pane');
         const semesterContents = yearTab.querySelectorAll('.semester-content');
         const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
         
-        // Hide all semester contents
         semesterContents.forEach(content => content.classList.add('d-none'));
-        
-        // Remove active class from all semester buttons
         semesterButtons.forEach(btn => btn.classList.remove('active'));
         
-        // Show selected semester content
         const targetContent = document.getElementById(semesterId);
         if (targetContent) {
             targetContent.classList.remove('d-none');
         }
         
-        // Add active class to clicked button
         button.classList.add('active');
     }
     
-    // Ensure tabs are properly activated
     function ensureActiveTab() {
-        // Handle year tabs
         const yearTabs = document.querySelectorAll('#yearTabs .nav-link');
         const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
         
-        // Check if any year tab is active
         let hasActiveYearTab = false;
         yearTabs.forEach(tab => {
             if (tab.classList.contains('active')) {
@@ -463,7 +464,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Handle semester tabs for each year
         yearTabContents.forEach(yearPane => {
             const semesterButtons = yearPane.querySelectorAll('.btn-outline-secondary');
             const semesterContents = yearPane.querySelectorAll('.semester-content');
@@ -487,7 +487,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Handle Bootstrap tab events
     const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
     yearTabElements.forEach(tabElement => {
         tabElement.addEventListener('shown.bs.tab', function(event) {
@@ -516,16 +515,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Initialize tabs
     ensureActiveTab();
-    
-    // Expose showSemester function globally
     window.showSemester = showSemester;
-    
-    // Safety check after delay
     setTimeout(ensureActiveTab, 100);
     
-    // Add animation to fee cards
     const feeCards = document.querySelectorAll('.card');
     feeCards.forEach(card => {
         card.addEventListener('mouseenter', function() {
@@ -537,22 +530,30 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.transform = 'translateY(0)';
         });
     });
+    
+    // Auto-hide messages
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s';
+            msg.style.opacity = '0';
+            setTimeout(() => msg.style.display = 'none', 500);
+        });
+    }, 5000);
+    
+    // Close message buttons
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
 });
-
-// Custom template filter simulation (since we can't use Django filters in static JS)
-function formatNumber(num) {
-    return new Intl.NumberFormat().format(num);
-}
-
-// Print functionality enhancement  
-function enhancedPrint() {
-    window.print();
-}
 </script>
 
 <style>
 @media print {
-    .btn, .nav-tabs, .card-footer, .btn-group {
+    .btn, .nav-tabs, .card-footer, .btn-group, .no-print {
         display: none !important;
     }
     
@@ -615,12 +616,45 @@ function enhancedPrint() {
     transition: transform 0.2s ease;
 }
 
+.alert-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
+}
+
 .text-primary { color: #0d6efd !important; }
 .text-success { color: #198754 !important; }
 .text-info { color: #0dcaf0 !important; }
 .text-warning { color: #ffc107 !important; }
 .text-danger { color: #dc3545 !important; }
 .text-secondary { color: #6c757d !important; }
-</style>
 
+</style>
 {% endblock %}
