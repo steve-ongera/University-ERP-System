@@ -6118,6 +6118,126 @@ def finance_programme_fee_detail(request, programme_id):
     return render(request, 'finance/programme_fee_detail.html', context)
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db import transaction
+from django.http import JsonResponse
+from .models import FeeStructure, Programme, AcademicYear, User
+from decimal import Decimal
+
+
+@login_required
+def edit_fee_structure(request, fee_structure_id):
+    """Edit an existing fee structure"""
+    
+    # Check if user is finance staff
+    if request.user.user_type != 'finance':
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Update all fee components
+                fee_structure.tuition_fee = Decimal(request.POST.get('tuition_fee', 0))
+                fee_structure.registration_fee = Decimal(request.POST.get('registration_fee', 0))
+                fee_structure.examination_fee = Decimal(request.POST.get('examination_fee', 0))
+                fee_structure.library_fee = Decimal(request.POST.get('library_fee', 0))
+                fee_structure.laboratory_fee = Decimal(request.POST.get('laboratory_fee', 0))
+                fee_structure.fieldwork_fee = Decimal(request.POST.get('fieldwork_fee', 0))
+                fee_structure.technology_fee = Decimal(request.POST.get('technology_fee', 0))
+                fee_structure.accommodation_fee = Decimal(request.POST.get('accommodation_fee', 0))
+                fee_structure.meals_fee = Decimal(request.POST.get('meals_fee', 0))
+                fee_structure.medical_fee = Decimal(request.POST.get('medical_fee', 0))
+                fee_structure.insurance_fee = Decimal(request.POST.get('insurance_fee', 0))
+                fee_structure.student_union_fee = Decimal(request.POST.get('student_union_fee', 0))
+                fee_structure.sports_fee = Decimal(request.POST.get('sports_fee', 0))
+                fee_structure.graduation_fee = Decimal(request.POST.get('graduation_fee', 0))
+                fee_structure.other_fees = Decimal(request.POST.get('other_fees', 0))
+                
+                # Update subsidies and scholarships
+                fee_structure.government_subsidy = Decimal(request.POST.get('government_subsidy', 0))
+                fee_structure.scholarship_amount = Decimal(request.POST.get('scholarship_amount', 0))
+                
+                fee_structure.save()
+                
+                messages.success(request, f'Fee structure for {fee_structure.programme.name} - Year {fee_structure.year}, Semester {fee_structure.semester} updated successfully!')
+                
+                # Redirect back to the programme detail view
+                return redirect('finance_programme_fee_detail', programme_id=fee_structure.programme.id)
+                
+        except Exception as e:
+            messages.error(request, f'Error updating fee structure: {str(e)}')
+    
+    # Calculate totals for display
+    total_fee = fee_structure.total_fee()
+    net_fee = fee_structure.net_fee()
+    
+    context = {
+        'fee_structure': fee_structure,
+        'total_fee': total_fee,
+        'net_fee': net_fee,
+        'programme': fee_structure.programme,
+        'academic_year': fee_structure.academic_year,
+    }
+    
+    return render(request, 'finance/edit_fee_structure.html', context)
+
+
+@login_required
+def delete_fee_structure(request, fee_structure_id):
+    """Delete a fee structure"""
+    
+    # Check if user is finance staff
+    if request.user.user_type != 'finance':
+        messages.error(request, 'You do not have permission to perform this action.')
+        return redirect('dashboard')
+    
+    fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+    programme_id = fee_structure.programme.id
+    
+    if request.method == 'POST':
+        try:
+            # Check if there are any payments associated with this fee structure
+            if fee_structure.payments.exists():
+                messages.error(
+                    request, 
+                    'Cannot delete fee structure. There are existing payments associated with it. '
+                    'Please contact system administrator.'
+                )
+                return redirect('finance_programme_fee_detail', programme_id=programme_id)
+            
+            # Store details for success message
+            programme_name = fee_structure.programme.name
+            year = fee_structure.year
+            semester = fee_structure.semester
+            
+            # Delete the fee structure
+            fee_structure.delete()
+            
+            messages.success(
+                request, 
+                f'Fee structure for {programme_name} - Year {year}, Semester {semester} deleted successfully!'
+            )
+            
+            return redirect('finance_programme_fee_detail', programme_id=programme_id)
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting fee structure: {str(e)}')
+            return redirect('finance_programme_fee_detail', programme_id=programme_id)
+    
+    # For GET requests, show confirmation page
+    context = {
+        'fee_structure': fee_structure,
+        'has_payments': fee_structure.payments.exists(),
+        'payment_count': fee_structure.payments.count(),
+    }
+    
+    return render(request, 'finance/delete_fee_structure.html', context)
+
 @login_required
 def fee_structure_comparison(request):
     """Compare fee structures across programmes"""
