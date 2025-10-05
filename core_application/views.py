@@ -6020,6 +6020,103 @@ def programme_fee_detail(request, programme_id):
     
     return render(request, 'admin/programme_fee_detail.html', context)
 
+#finance programme fee detail 
+@login_required
+def finance_programme_fee_detail(request, programme_id):
+    """Display detailed fee structure for a specific programme"""
+    
+    programme = get_object_or_404(Programme, id=programme_id, is_active=True)
+    
+    # Get selected academic year from GET parameter, default to current
+    selected_year_id = request.GET.get('academic_year')
+    if selected_year_id:
+        selected_academic_year = get_object_or_404(AcademicYear, id=selected_year_id)
+    else:
+        selected_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        if not selected_academic_year:
+            selected_academic_year = AcademicYear.objects.first()
+    
+    # Get all academic years for the dropdown
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Get fee structures for the selected academic year
+    fee_structures = FeeStructure.objects.filter(
+        programme=programme,
+        academic_year=selected_academic_year
+    ).order_by('year', 'semester')
+    
+    # Organize fee structures by year and semester - Fixed structure
+    fees_by_year = {}
+    total_programme_cost = 0
+    programme_years = list(range(1, programme.duration_years + 1))
+    semesters_range = list(range(1, programme.semesters_per_year + 1))
+    
+    for year in programme_years:
+        fees_by_year[year] = {}
+        year_total = 0
+        
+        for semester in semesters_range:
+            fee_structure = fee_structures.filter(year=year, semester=semester).first()
+            
+            if fee_structure:
+                semester_total = fee_structure.total_fee()
+                semester_net = fee_structure.net_fee()
+                year_total += semester_net
+                
+                # Ensure the data structure is consistent
+                fees_by_year[year][semester] = {
+                    'fee_structure': fee_structure,
+                    'total_fee': float(semester_total) if semester_total else 0,
+                    'net_fee': float(semester_net) if semester_net else 0,
+                    'government_subsidy': float(fee_structure.government_subsidy) if fee_structure.government_subsidy else 0,
+                    'scholarship_amount': float(fee_structure.scholarship_amount) if fee_structure.scholarship_amount else 0,
+                    'exists': True
+                }
+            else:
+                # Provide a consistent structure even when no fee structure exists
+                fees_by_year[year][semester] = {
+                    'fee_structure': None,
+                    'total_fee': 0,
+                    'net_fee': 0,
+                    'government_subsidy': 0,
+                    'scholarship_amount': 0,
+                    'exists': False
+                }
+        
+        total_programme_cost += year_total
+    
+    # Calculate programme statistics
+    programme_stats = {
+        'total_fee_structures': fee_structures.count(),
+        'total_programme_cost': total_programme_cost,
+        'average_semester_fee': total_programme_cost / (programme.total_semesters) if programme.total_semesters > 0 else 0,
+        'active_students': Student.objects.filter(programme=programme, status='active').count(),
+        'total_students': Student.objects.filter(programme=programme).count(),
+    }
+    
+    # Get student enrollment statistics by year
+    student_stats_by_year = {}
+    for year in programme_years:
+        student_count = Student.objects.filter(
+            programme=programme,
+            current_year=year,
+            status='active'
+        ).count()
+        student_stats_by_year[year] = student_count
+    
+    context = {
+        'programme': programme,
+        'selected_academic_year': selected_academic_year,
+        'academic_years': academic_years,
+        'fees_by_year': fees_by_year,
+        'programme_years': programme_years,
+        'programme_stats': programme_stats,
+        'student_stats_by_year': student_stats_by_year,
+        'semesters_range': semesters_range,
+    }
+    
+    return render(request, 'finance/programme_fee_detail.html', context)
+
 
 @login_required
 def fee_structure_comparison(request):

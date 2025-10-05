@@ -1,0 +1,626 @@
+{% extends 'finance_base.html' %}
+{% load static %}
+{% load fee_filters %}
+{% block content %}
+
+<div class="message-container" id="system-messages">
+                                {% for message in messages %}
+                                <div class="alert-message alert-{{ message.tags }}">
+                                    {{ message }}
+                                    <span class="close-message">&times;</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+<div class="container onprintContainer">
+    <!-- Programme Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h2 class="fw-bold">{{ programme.name }} - Fee Structure</h2>
+                        <p class="text-muted mb-1">
+                            <span class="badge bg-primary">{{ programme.code }}</span> | 
+                            <span class="badge bg-{% if programme.programme_type == 'bachelor' %}info{% elif programme.programme_type == 'master' %}success{% elif programme.programme_type == 'phd' %}warning{% else %}secondary{% endif %}">
+                                {{ programme.get_programme_type_display }}
+                            </span> |
+                            <span class="badge bg-secondary">{{ programme.get_study_mode_display }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-building me-1"></i>{{ programme.faculty.name }} - {{ programme.department.name }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="bi bi-clock me-1"></i>{{ programme.duration_years }} years ({{ programme.total_semesters }} semesters)
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-inline-block bg-light rounded p-3">
+                            <h4 class="mb-1 text-primary">KSh {{ programme_stats.total_programme_cost|floatformat:0|default:"0" }}</h4>
+                            <small class="text-muted">Total Programme Cost</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <!-- Academic Year Selector -->
+                        <form method="GET" class="d-inline-block">
+                            <div class="input-group">
+                                <label class="input-group-text">Academic Year:</label>
+                                <select name="academic_year" class="form-select" onchange="this.form.submit()">
+                                    {% for year in academic_years %}
+                                        <option value="{{ year.id }}" {% if year == selected_academic_year %}selected{% endif %}>
+                                            {{ year.year }} {% if year.is_current %}(Current){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="btn-group float-end">
+                            <a href="{% url 'finance_fee_structure_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                            <a href="#" class="btn btn-outline-secondary">
+                                <i class="bi bi-pencil"></i> Edit Fees
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-primary">{{ programme_stats.active_students }}</h5>
+                            <p class="small text-muted mb-0">Active Students</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-success">KSh {{ programme_stats.total_programme_cost|floatformat:0|default:"0" }}</h5>
+                            <p class="small text-muted mb-0">Total Cost</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-warning">KSh {{ programme_stats.average_semester_fee|floatformat:0|default:"0" }}</h5>
+                            <p class="small text-muted mb-0">Avg Semester Fee</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-info">{{ programme.total_semesters }}</h5>
+                            <p class="small text-muted mb-0">Total Semesters</p>
+                        </div>
+                        <div class="col-md-2 border-end">
+                            <h5 class="text-danger">{{ programme.semesters_per_year }}</h5>
+                            <p class="small text-muted mb-0">Semesters/Year</p>
+                        </div>
+                        <div class="col-md-2">
+                            <h5 class="text-secondary">{{ programme_stats.total_fee_structures }}</h5>
+                            <p class="small text-muted mb-0">Fee Structures</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Structure by Year and Semester -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Fee Structure Details</h5>
+                    {% if selected_academic_year %}
+                        <small class="text-muted">Academic Year: {{ selected_academic_year.year }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Year Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="yearTabs" role="tablist">
+                        {% for year in programme_years %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                        id="year-{{ year }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#year-{{ year }}" 
+                                        type="button" 
+                                        role="tab">
+                                    Year {{ year }}
+                                    {% if student_stats_by_year|dict_get:year %}
+                                        <span class="badge bg-secondary ms-1">{{ student_stats_by_year|dict_get:year }} students</span>
+                                    {% endif %}
+                                </button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Year Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year in programme_years %}
+                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                 id="year-{{ year }}" 
+                                 role="tabpanel">
+                                
+                                <!-- Semester Tabs -->
+                                <div class="d-flex mb-3">
+                                    {% for semester in semesters_range %}
+                                        {% get_semester_fee_data fees_by_year year semester as semester_fee_data %}
+                                        <button class="btn btn-sm btn-outline-secondary me-2 {% if forloop.first %}active{% endif %}" 
+                                                onclick="showSemester('year-{{ year }}-sem-{{ semester }}', this)">
+                                            Semester {{ semester }}
+                                            {% if semester_fee_data and semester_fee_data.exists %}
+                                                <span class="badge bg-success ms-1">
+                                                    KSh {{ semester_fee_data.net_fee|floatformat:0|default:"0" }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning ms-1">No Fee</span>
+                                            {% endif %}
+                                        </button>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Semester Content -->
+                                {% for semester in semesters_range %}
+                                    <div class="semester-content {% if not forloop.first %}d-none{% endif %}" 
+                                         id="year-{{ year }}-sem-{{ semester }}">
+                                        
+                                        {% get_semester_fee_data fees_by_year year semester as fee_data %}
+                                        {% if fee_data and fee_data.exists %}
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover">
+                                                            <thead class="thead-light">
+                                                                <tr>
+                                                                    <th>Fee Component</th>
+                                                                    <th>Amount (KSh)</th>
+                                                                    <th>Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td><strong>Tuition Fee</strong></td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.tuition_fee|floatformat:2 }}</td>
+                                                                    <td>Main academic fee</td>
+                                                                </tr>
+                                                                {% if fee_data.fee_structure.registration_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Registration Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.registration_fee|floatformat:2 }}</td>
+                                                                    <td>Student registration</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.examination_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Examination Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.examination_fee|floatformat:2 }}</td>
+                                                                    <td>Examination costs</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.library_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Library Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.library_fee|floatformat:2 }}</td>
+                                                                    <td>Library services</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.laboratory_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Laboratory Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.laboratory_fee|floatformat:2 }}</td>
+                                                                    <td>Lab equipment & materials</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.fieldwork_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Fieldwork Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.fieldwork_fee|floatformat:2 }}</td>
+                                                                    <td>Field trips & practical work</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.technology_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Technology Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.technology_fee|floatformat:2 }}</td>
+                                                                    <td>IT services & equipment</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.accommodation_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Accommodation Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.accommodation_fee|floatformat:2 }}</td>
+                                                                    <td>Campus housing</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.meals_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Meals Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.meals_fee|floatformat:2 }}</td>
+                                                                    <td>Catering services</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.medical_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Medical Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.medical_fee|floatformat:2 }}</td>
+                                                                    <td>Healthcare services</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.insurance_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Insurance Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.insurance_fee|floatformat:2 }}</td>
+                                                                    <td>Student insurance</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.student_union_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Student Union Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.student_union_fee|floatformat:2 }}</td>
+                                                                    <td>Student organization</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.sports_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Sports Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.sports_fee|floatformat:2 }}</td>
+                                                                    <td>Sports facilities</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.graduation_fee > 0 %}
+                                                                <tr>
+                                                                    <td>Graduation Fee</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.graduation_fee|floatformat:2 }}</td>
+                                                                    <td>Graduation ceremony</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.fee_structure.other_fees > 0 %}
+                                                                <tr>
+                                                                    <td>Other Fees</td>
+                                                                    <td class="text-end">{{ fee_data.fee_structure.other_fees|floatformat:2 }}</td>
+                                                                    <td>Miscellaneous charges</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                <tr class="table-info">
+                                                                    <td><strong>Total Fees</strong></td>
+                                                                    <td class="text-end"><strong>{{ fee_data.total_fee|floatformat:2 }}</strong></td>
+                                                                    <td><strong>Gross amount</strong></td>
+                                                                </tr>
+                                                                {% if fee_data.government_subsidy > 0 %}
+                                                                <tr class="table-success">
+                                                                    <td>Government Subsidy</td>
+                                                                    <td class="text-end text-success">-{{ fee_data.government_subsidy|floatformat:2 }}</td>
+                                                                    <td>Government funding</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                {% if fee_data.scholarship_amount > 0 %}
+                                                                <tr class="table-success">
+                                                                    <td>Scholarship</td>
+                                                                    <td class="text-end text-success">-{{ fee_data.scholarship_amount|floatformat:2 }}</td>
+                                                                    <td>Scholarship award</td>
+                                                                </tr>
+                                                                {% endif %}
+                                                                <tr class="table-warning">
+                                                                    <td><strong>Net Payable</strong></td>
+                                                                    <td class="text-end"><strong>{{ fee_data.net_fee|floatformat:2 }}</strong></td>
+                                                                    <td><strong>Amount to pay</strong></td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-4">
+                                                    <!-- Fee Summary Card -->
+                                                    <div class="card bg-light">
+                                                        <div class="card-header">
+                                                            <h6 class="fw-bold mb-0">Fee Summary</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="d-flex justify-content-between mb-2">
+                                                                <span>Total Fees:</span>
+                                                                <span class="fw-bold">KSh {{ fee_data.total_fee|floatformat:0 }}</span>
+                                                            </div>
+                                                            {% if fee_data.government_subsidy > 0 %}
+                                                            <div class="d-flex justify-content-between mb-2 text-success">
+                                                                <span>Subsidy:</span>
+                                                                <span>-KSh {{ fee_data.government_subsidy|floatformat:0 }}</span>
+                                                            </div>
+                                                            {% endif %}
+                                                            {% if fee_data.scholarship_amount > 0 %}
+                                                            <div class="d-flex justify-content-between mb-2 text-success">
+                                                                <span>Scholarship:</span>
+                                                                <span>-KSh {{ fee_data.scholarship_amount|floatformat:0 }}</span>
+                                                            </div>
+                                                            {% endif %}
+                                                            <hr>
+                                                            <div class="d-flex justify-content-between">
+                                                                <span class="fw-bold">Net Payable:</span>
+                                                                <span class="fw-bold text-primary">KSh {{ fee_data.net_fee|floatformat:0 }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Payment Schedule Card -->
+                                                    <div class="card mt-3">
+                                                        <div class="card-header">
+                                                            <h6 class="fw-bold mb-0">Payment Options</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-2">
+                                                                <small class="text-muted">Full Payment:</small>
+                                                                <div class="fw-bold">KSh {{ fee_data.net_fee|floatformat:0 }}</div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted">2 Installments:</small>
+                                                                <div class="fw-bold">KSh {{ fee_data.net_fee|div:2|floatformat:0 }} each</div>
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <small class="text-muted">3 Installments:</small>
+                                                                <div class="fw-bold">KSh {{ fee_data.net_fee|div:3|floatformat:0 }} each</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="alert alert-warning text-center">
+                                                <i class="bi bi-exclamation-triangle display-4"></i>
+                                                <h5 class="mt-3">No Fee Structure Found</h5>
+                                                <p class="mb-3">Fee structure for Year {{ year }}, Semester {{ semester }} has not been set up yet.</p>
+                                                <a href="#" class="btn btn-primary">
+                                                    <i class="bi bi-plus"></i> Add Fee Structure
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'finance_fee_structure_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Fee Structures
+                    </a>
+                    <a href="{% url 'fee_structure_comparison' %}?programmes={{ programme.id }}" class="btn btn-outline-info me-2">
+                        <i class="bi bi-bar-chart"></i> Compare with Others
+                    </a>
+                    <a href="#" class="btn btn-primary me-2">
+                        <i class="bi bi-pencil"></i> Edit Fee Structure
+                    </a>
+                    <button class="btn btn-outline-success me-2" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced showSemester function
+    function showSemester(semesterId, button) {
+        // Hide all semester content in the current year
+        const yearTab = button.closest('.tab-pane');
+        const semesterContents = yearTab.querySelectorAll('.semester-content');
+        const semesterButtons = yearTab.querySelectorAll('.btn-outline-secondary');
+        
+        // Hide all semester contents
+        semesterContents.forEach(content => content.classList.add('d-none'));
+        
+        // Remove active class from all semester buttons
+        semesterButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show selected semester content
+        const targetContent = document.getElementById(semesterId);
+        if (targetContent) {
+            targetContent.classList.remove('d-none');
+        }
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+    }
+    
+    // Ensure tabs are properly activated
+    function ensureActiveTab() {
+        // Handle year tabs
+        const yearTabs = document.querySelectorAll('#yearTabs .nav-link');
+        const yearTabContents = document.querySelectorAll('#yearTabsContent .tab-pane');
+        
+        // Check if any year tab is active
+        let hasActiveYearTab = false;
+        yearTabs.forEach(tab => {
+            if (tab.classList.contains('active')) {
+                hasActiveYearTab = true;
+            }
+        });
+        
+        if (!hasActiveYearTab && yearTabs.length > 0) {
+            yearTabs[0].classList.add('active');
+            yearTabs[0].setAttribute('aria-selected', 'true');
+            
+            const targetId = yearTabs[0].getAttribute('data-bs-target');
+            if (targetId) {
+                const targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        }
+        
+        // Handle semester tabs for each year
+        yearTabContents.forEach(yearPane => {
+            const semesterButtons = yearPane.querySelectorAll('.btn-outline-secondary');
+            const semesterContents = yearPane.querySelectorAll('.semester-content');
+            
+            if (yearPane.classList.contains('active') || yearPane.classList.contains('show')) {
+                let hasActiveSemesterTab = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemesterTab = true;
+                    }
+                });
+                
+                if (!hasActiveSemesterTab && semesterButtons.length > 0) {
+                    semesterButtons[0].classList.add('active');
+                    
+                    if (semesterContents.length > 0) {
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    }
+    
+    // Handle Bootstrap tab events
+    const yearTabElements = document.querySelectorAll('#yearTabs .nav-link');
+    yearTabElements.forEach(tabElement => {
+        tabElement.addEventListener('shown.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+            
+            if (targetPane) {
+                const semesterButtons = targetPane.querySelectorAll('.btn-outline-secondary');
+                const semesterContents = targetPane.querySelectorAll('.semester-content');
+                
+                let hasActiveSemester = false;
+                semesterButtons.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        hasActiveSemester = true;
+                    }
+                });
+                
+                if (!hasActiveSemester && semesterButtons.length > 0) {
+                    semesterButtons[0].classList.add('active');
+                    if (semesterContents.length > 0) {
+                        semesterContents.forEach(content => content.classList.add('d-none'));
+                        semesterContents[0].classList.remove('d-none');
+                    }
+                }
+            }
+        });
+    });
+    
+    // Initialize tabs
+    ensureActiveTab();
+    
+    // Expose showSemester function globally
+    window.showSemester = showSemester;
+    
+    // Safety check after delay
+    setTimeout(ensureActiveTab, 100);
+    
+    // Add animation to fee cards
+    const feeCards = document.querySelectorAll('.card');
+    feeCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.transition = 'transform 0.2s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+
+// Custom template filter simulation (since we can't use Django filters in static JS)
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+// Print functionality enhancement  
+function enhancedPrint() {
+    window.print();
+}
+</script>
+
+<style>
+@media print {
+    .btn, .nav-tabs, .card-footer, .btn-group {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        margin-bottom: 1rem;
+    }
+    
+    .semester-content {
+        display: block !important;
+    }
+    
+    .d-none {
+        display: block !important;
+    }
+    
+    .tab-pane {
+        display: block !important;
+    }
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.semester-content {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary.active {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.table-info {
+    background-color: #d1ecf1;
+}
+
+.table-success {
+    background-color: #d4edda;
+}
+
+.table-warning {
+    background-color: #fff3cd;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.card:hover {
+    transition: transform 0.2s ease;
+}
+
+.text-primary { color: #0d6efd !important; }
+.text-success { color: #198754 !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-warning { color: #ffc107 !important; }
+.text-danger { color: #dc3545 !important; }
+.text-secondary { color: #6c757d !important; }
+</style>
+
+{% endblock %}

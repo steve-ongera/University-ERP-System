@@ -165,6 +165,7 @@ urlpatterns = [
 
     # Finance Fee Structure URL
      path('finance/fee-structures/', views.finance_fee_structure_list, name='finance_fee_structure_list'),
+     path('finance/programme/<int:programme_id>/fees/', views.finance_programme_fee_detail, name='finance_programme_fee_detail'),
 
     # Admin or HOD views
     path('dashboard/lecturer-allocation/', views.lecturer_allocation_dashboard, name='lecturer_allocation_dashboard'),
