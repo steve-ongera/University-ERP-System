@@ -5859,6 +5859,71 @@ def fee_structure_list(request):
     
     return render(request, 'admin/fee_structure_list.html', context)
 
+
+#finance fee structure 
+@login_required
+def finance_fee_structure_list(request):
+    """Display all programmes with their fee information"""
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all active programmes with their fee statistics
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'faculty', 'department'
+    ).prefetch_related('fee_structures')
+    
+    programme_data = []
+    
+    for programme in programmes:
+        # Get fee structures for current academic year
+        fee_structures = FeeStructure.objects.filter(
+            programme=programme,
+            academic_year=current_academic_year
+        ) if current_academic_year else FeeStructure.objects.filter(programme=programme)
+        
+        # Calculate total fees for all years/semesters
+        total_programme_fee = fee_structures.aggregate(
+            total=Sum('tuition_fee')
+        )['total'] or 0
+        
+        # Get average semester fee
+        avg_semester_fee = fee_structures.aggregate(
+            avg=Avg('tuition_fee')
+        )['avg'] or 0
+        
+        # Count active students
+        active_students = Student.objects.filter(
+            programme=programme,
+            status='active'
+        ).count()
+        
+        # Get fee range (min and max)
+        fee_range = fee_structures.aggregate(
+            min_fee=Sum('tuition_fee'),
+            max_fee=Sum('tuition_fee')
+        )
+        
+        programme_info = {
+            'programme': programme,
+            'total_programme_fee': total_programme_fee,
+            'avg_semester_fee': avg_semester_fee,
+            'active_students': active_students,
+            'fee_structures_count': fee_structures.count(),
+            'has_fee_structure': fee_structures.exists(),
+            'min_semester_fee': fee_structures.aggregate(min_fee=Sum('tuition_fee'))['min_fee'] or 0,
+            'max_semester_fee': fee_structures.aggregate(max_fee=Sum('tuition_fee'))['max_fee'] or 0,
+        }
+        programme_data.append(programme_info)
+    
+    context = {
+        'programme_data': programme_data,
+        'current_academic_year': current_academic_year,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+    }
+    
+    return render(request, 'finance/fee_structure_list.html', context)
+
 @login_required
 def programme_fee_detail(request, programme_id):
     """Display detailed fee structure for a specific programme"""
