@@ -1,0 +1,493 @@
+{% extends 'finance_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">Fee Payments Management</h2>
+                            <p class="text-muted mb-0">Track and manage all student fee payments</p>
+                        </div>
+                        <div>
+                            <a href="#" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Record New Payment
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-primary border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Payments</h6>
+                            <h3 class="fw-bold mb-0">{{ total_payments|default:0 }}</h3>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-receipt display-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-success border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Amount</h6>
+                            <h3 class="fw-bold mb-0 text-success">KSh {{ total_amount|floatformat:0|default:"0" }}</h3>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-cash-stack display-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-info border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Completed</h6>
+                            <h3 class="fw-bold mb-0 text-info">{{ completed_payments|default:0 }}</h3>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-check-circle display-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending</h6>
+                            <h3 class="fw-bold mb-0 text-warning">{{ pending_payments|default:0 }}</h3>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-clock-history display-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments & Payment Methods -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="fw-bold mb-0">Recent Activity (Last 7 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Payments Received:</span>
+                        <span class="fw-bold">{{ recent_payments_count }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Amount Received:</span>
+                        <span class="fw-bold text-success">KSh {{ recent_payments_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="fw-bold mb-0">Payment Methods Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    {% for method in payment_methods_stats %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">{{ method.payment_method|upper }}:</span>
+                        <span class="fw-bold">{{ method.count }} (KSh {{ method.total|floatformat:0 }})</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center mb-0">No payment data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-funnel"></i> Filters
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="toggleFilters">
+                            <i class="bi bi-chevron-down"></i> Toggle Filters
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" id="filterSection">
+                    <form method="GET" id="filterForm">
+                        <div class="row g-3">
+                            <!-- Search -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Search</label>
+                                <input type="text" name="search" class="form-control" 
+                                       placeholder="Student ID, Name, Receipt..." 
+                                       value="{{ search_query }}">
+                            </div>
+
+                            <!-- Payment Status -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Payment Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    {% for value, label in payment_status_choices %}
+                                    <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Payment Method -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Payment Method</label>
+                                <select name="method" class="form-select">
+                                    <option value="">All Methods</option>
+                                    {% for value, label in payment_method_choices %}
+                                    <option value="{{ value }}" {% if value == selected_method %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Academic Year -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Academic Year</label>
+                                <select name="academic_year" class="form-select">
+                                    <option value="">All Years</option>
+                                    {% for year in academic_years %}
+                                    <option value="{{ year.id }}" {% if year.id|stringformat:"s" == selected_academic_year %}selected{% endif %}>
+                                        {{ year.year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Programme -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Programme</label>
+                                <select name="programme" class="form-select">
+                                    <option value="">All Programmes</option>
+                                    {% for programme in programmes %}
+                                    <option value="{{ programme.id }}" {% if programme.id|stringformat:"s" == selected_programme %}selected{% endif %}>
+                                        {{ programme.code }} - {{ programme.name|truncatewords:5 }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Faculty -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Faculty</label>
+                                <select name="faculty" class="form-select">
+                                    <option value="">All Faculties</option>
+                                    {% for faculty in faculties %}
+                                    <option value="{{ faculty.id }}" {% if faculty.id|stringformat:"s" == selected_faculty %}selected{% endif %}>
+                                        {{ faculty.code }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Date From -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Date From</label>
+                                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                            </div>
+
+                            <!-- Date To -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Date To</label>
+                                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Apply Filters
+                                </button>
+                                <a href="{% url 'finance_fee_payment_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Clear Filters
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="fw-bold mb-0">Fee Payments List</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Receipt No.</th>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Programme</th>
+                                    <th>Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ payment.receipt_number }}</strong>
+                                    </td>
+                                    <td>{{ payment.student.student_id }}</td>
+                                    <td>{{ payment.student.user.get_full_name }}</td>
+                                    <td>
+                                        <small>{{ payment.student.programme.code }}</small>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">KSh {{ payment.amount_paid|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>{{ payment.payment_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            {{ payment.get_payment_method_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if payment.payment_status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif payment.payment_status == 'pending' %}
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        {% elif payment.payment_status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% elif payment.payment_status == 'reversed' %}
+                                            <span class="badge bg-dark">Reversed</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ payment.get_payment_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'finance_fee_payment_detail' payment.id %}" 
+                                               class="btn btn-outline-primary" 
+                                               title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="#" 
+                                               class="btn btn-outline-secondary" 
+                                               title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-5">
+                                        <i class="bi bi-inbox display-1 text-muted"></i>
+                                        <p class="text-muted mt-3">No payments found matching your criteria</p>
+                                        <a href="{% url 'finance_fee_payment_list' %}" class="btn btn-outline-primary">
+                                            Clear Filters
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} payments
+                        </div>
+                        <nav>
+                            <ul class="pagination mb-0">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle filters
+    const toggleButton = document.getElementById('toggleFilters');
+    const filterSection = document.getElementById('filterSection');
+    
+    toggleButton.addEventListener('click', function() {
+        filterSection.classList.toggle('d-none');
+        const icon = this.querySelector('i');
+        icon.classList.toggle('bi-chevron-down');
+        icon.classList.toggle('bi-chevron-up');
+    });
+    
+    // Auto-hide messages
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s';
+            msg.style.opacity = '0';
+            setTimeout(() => msg.style.display = 'none', 500);
+        });
+    }, 5000);
+    
+    // Close message buttons
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+    
+    // Animate statistics cards on load
+    const statCards = document.querySelectorAll('.card');
+    statCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+});
+</script>
+
+<style>
+.alert-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
+}
+
+.table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    transition: all 0.3s ease;
+}
+</style>
+
+{% endblock %}

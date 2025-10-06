@@ -170,6 +170,10 @@ urlpatterns = [
     path('fee-structure/delete/<int:fee_structure_id>/', views.delete_fee_structure, name='finance_delete_fee_structure'),
     path('fee-structure/add/', views.add_fee_structure, name='finance_add_fee_structure'),
 
+    # Fee Payment Management URLs
+    path('finance/payments/', views.finance_fee_payment_list, name='finance_fee_payment_list'),
+    path('finance/payments/<int:payment_id>/', views.finance_fee_payment_detail, name='finance_fee_payment_detail'),
+
     # Admin or HOD views
     path('dashboard/lecturer-allocation/', views.lecturer_allocation_dashboard, name='lecturer_allocation_dashboard'),
     path('dashboard/allocate-course/', views.allocate_course_to_lecturer, name='allocate_course_to_lecturer'),

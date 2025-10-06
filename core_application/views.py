@@ -6118,6 +6118,238 @@ def finance_programme_fee_detail(request, programme_id):
     return render(request, 'finance/programme_fee_detail.html', context)
 
 
+# finance/views.py (Add these views)
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, Count
+from django.core.paginator import Paginator
+from django.utils import timezone
+from decimal import Decimal
+from datetime import datetime, timedelta
+
+from .models import (
+    User, Student, FeePayment, FeeStructure, 
+    AcademicYear, Semester, Programme, Faculty, Department
+)
+
+
+def finance_user_required(view_func):
+    """Decorator to ensure only finance users can access the view"""
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, "Please login to access this page.")
+            return redirect('login')
+        
+        if request.user.user_type != 'finance':
+            messages.error(request, "You don't have permission to access this page.")
+            return redirect('dashboard')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+@login_required
+@finance_user_required
+def finance_fee_payment_list(request):
+    """List all fee payments with filtering and search"""
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    payment_status = request.GET.get('status', '')
+    payment_method = request.GET.get('method', '')
+    academic_year_id = request.GET.get('academic_year', '')
+    semester_id = request.GET.get('semester', '')
+    programme_id = request.GET.get('programme', '')
+    faculty_id = request.GET.get('faculty', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Base queryset
+    payments = FeePayment.objects.select_related(
+        'student__user',
+        'student__programme',
+        'fee_structure__programme',
+        'fee_structure__academic_year',
+        'processed_by'
+    ).all()
+    
+    # Apply filters
+    if search_query:
+        payments = payments.filter(
+            Q(student__student_id__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(receipt_number__icontains=search_query) |
+            Q(transaction_reference__icontains=search_query) |
+            Q(mpesa_receipt__icontains=search_query)
+        )
+    
+    if payment_status:
+        payments = payments.filter(payment_status=payment_status)
+    
+    if payment_method:
+        payments = payments.filter(payment_method=payment_method)
+    
+    if academic_year_id:
+        payments = payments.filter(fee_structure__academic_year_id=academic_year_id)
+    
+    if semester_id:
+        payments = payments.filter(fee_structure__semester_id=semester_id)
+    
+    if programme_id:
+        payments = payments.filter(student__programme_id=programme_id)
+    
+    if faculty_id:
+        payments = payments.filter(student__programme__faculty_id=faculty_id)
+    
+    if date_from:
+        payments = payments.filter(payment_date__gte=date_from)
+    
+    if date_to:
+        payments = payments.filter(payment_date__lte=date_to)
+    
+    # Calculate statistics
+    total_payments = payments.count()
+    total_amount = payments.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    completed_payments = payments.filter(payment_status='completed').count()
+    pending_payments = payments.filter(payment_status='pending').count()
+    
+    # Payment method breakdown
+    payment_methods_stats = payments.values('payment_method').annotate(
+        count=Count('id'),
+        total=Sum('amount_paid')
+    ).order_by('-total')
+    
+    # Recent payments (last 7 days)
+    last_week = timezone.now().date() - timedelta(days=7)
+    recent_payments_count = payments.filter(payment_date__gte=last_week).count()
+    recent_payments_amount = payments.filter(payment_date__gte=last_week).aggregate(
+        total=Sum('amount_paid')
+    )['total'] or Decimal('0.00')
+    
+    # Order by most recent
+    payments = payments.order_by('-payment_date', '-id')
+    
+    # Pagination
+    paginator = Paginator(payments, 20)  # 20 payments per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    semesters = Semester.objects.all().order_by('-academic_year', '-semester_number')
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    faculties = Faculty.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'page_obj': page_obj,
+        'total_payments': total_payments,
+        'total_amount': total_amount,
+        'completed_payments': completed_payments,
+        'pending_payments': pending_payments,
+        'payment_methods_stats': payment_methods_stats,
+        'recent_payments_count': recent_payments_count,
+        'recent_payments_amount': recent_payments_amount,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'programmes': programmes,
+        'faculties': faculties,
+        'search_query': search_query,
+        'selected_status': payment_status,
+        'selected_method': payment_method,
+        'selected_academic_year': academic_year_id,
+        'selected_semester': semester_id,
+        'selected_programme': programme_id,
+        'selected_faculty': faculty_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'payment_status_choices': FeePayment.PAYMENT_STATUS,
+        'payment_method_choices': FeePayment.PAYMENT_METHODS,
+    }
+    
+    return render(request, 'finance/fee_payment_list.html', context)
+
+
+@login_required
+@finance_user_required
+def finance_fee_payment_detail(request, payment_id):
+    """View detailed information about a specific payment"""
+    
+    payment = get_object_or_404(
+        FeePayment.objects.select_related(
+            'student__user',
+            'student__programme__faculty',
+            'student__programme__department',
+            'fee_structure__programme',
+            'fee_structure__academic_year',
+            'processed_by'
+        ),
+        id=payment_id
+    )
+    
+    # Get all payments for this student
+    student_payments = FeePayment.objects.filter(
+        student=payment.student
+    ).select_related(
+        'fee_structure__academic_year',
+        'fee_structure__programme',
+        'processed_by'
+    ).order_by('-payment_date', '-id')
+    
+    # Calculate student payment statistics
+    student_total_paid = student_payments.filter(
+        payment_status='completed'
+    ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    
+    student_pending_payments = student_payments.filter(
+        payment_status='pending'
+    ).count()
+    
+    # Get fee structure details
+    fee_structure = payment.fee_structure
+    total_required = fee_structure.net_fee() if fee_structure else Decimal('0.00')
+    
+    # Calculate balance for current semester
+    semester_payments = student_payments.filter(
+        fee_structure=fee_structure,
+        payment_status='completed'
+    ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    
+    semester_balance = total_required - semester_payments
+    
+    # Group student payments by academic year for tabs
+    payments_by_year = {}
+    for pmt in student_payments:
+        year_key = pmt.fee_structure.academic_year.year if pmt.fee_structure else "Unknown"
+        if year_key not in payments_by_year:
+            payments_by_year[year_key] = []
+        payments_by_year[year_key].append(pmt)
+    
+    # Calculate totals by year
+    year_totals = {}
+    for year, pmts in payments_by_year.items():
+        year_totals[year] = {
+            'count': len(pmts),
+            'total': sum(p.amount_paid for p in pmts if p.payment_status == 'completed'),
+            'pending': sum(1 for p in pmts if p.payment_status == 'pending')
+        }
+    
+    context = {
+        'payment': payment,
+        'student_payments': student_payments,
+        'payments_by_year': payments_by_year,
+        'year_totals': year_totals,
+        'student_total_paid': student_total_paid,
+        'student_pending_payments': student_pending_payments,
+        'semester_balance': semester_balance,
+        'total_required': total_required,
+        'semester_payments': semester_payments,
+    }
+    
+    return render(request, 'finance/fee_payment_detail.html', context)
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages

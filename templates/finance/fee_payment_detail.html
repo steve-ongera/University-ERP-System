@@ -1,0 +1,609 @@
+{% extends 'finance_base.html' %}
+{% load fee_filters %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container-fluid onprintContainer">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">Payment Details</h2>
+                            <p class="text-muted mb-0">Receipt No: <strong>{{ payment.receipt_number }}</strong></p>
+                        </div>
+                        <div class="no-print">
+                            <a href="{% url 'finance_fee_payment_list' %}" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-arrow-left"></i> Back to List
+                            </a>
+                            <button class="btn btn-outline-success" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Status Banner -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            {% if payment.payment_status == 'completed' %}
+            <div class="alert alert-success d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-3 display-6"></i>
+                <div>
+                    <h5 class="mb-1">Payment Completed Successfully</h5>
+                    <p class="mb-0">This payment has been processed and confirmed.</p>
+                </div>
+            </div>
+            {% elif payment.payment_status == 'pending' %}
+            <div class="alert alert-warning d-flex align-items-center">
+                <i class="bi bi-clock-history me-3 display-6"></i>
+                <div>
+                    <h5 class="mb-1">Payment Pending Verification</h5>
+                    <p class="mb-0">This payment is awaiting verification and approval.</p>
+                </div>
+            </div>
+            {% elif payment.payment_status == 'failed' %}
+            <div class="alert alert-danger d-flex align-items-center">
+                <i class="bi bi-x-circle-fill me-3 display-6"></i>
+                <div>
+                    <h5 class="mb-1">Payment Failed</h5>
+                    <p class="mb-0">This payment transaction failed to complete.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Payment Details -->
+    <div class="row mb-4">
+        <!-- Payment Information -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-receipt"></i> Payment Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted" width="40%">Receipt Number:</td>
+                            <td><strong>{{ payment.receipt_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Amount Paid:</td>
+                            <td><strong class="text-success fs-4">KSh {{ payment.amount_paid|floatformat:2 }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Payment Date:</td>
+                            <td><strong>{{ payment.payment_date|date:"l, d F Y" }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Payment Method:</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Payment Status:</td>
+                            <td>
+                                {% if payment.payment_status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif payment.payment_status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif payment.payment_status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ payment.get_payment_status_display }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if payment.transaction_reference %}
+                        <tr>
+                            <td class="text-muted">Transaction Reference:</td>
+                            <td><code>{{ payment.transaction_reference }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if payment.mpesa_receipt %}
+                        <tr>
+                            <td class="text-muted">M-Pesa Receipt:</td>
+                            <td><code>{{ payment.mpesa_receipt }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if payment.bank_slip_number %}
+                        <tr>
+                            <td class="text-muted">Bank Slip Number:</td>
+                            <td><code>{{ payment.bank_slip_number }}</code></td>
+                        </tr>
+                        {% endif %}
+                        {% if payment.processed_by %}
+                        <tr>
+                            <td class="text-muted">Processed By:</td>
+                            <td>{{ payment.processed_by.get_full_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if payment.remarks %}
+                        <tr>
+                            <td class="text-muted" valign="top">Remarks:</td>
+                            <td>{{ payment.remarks }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-person"></i> Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="text-muted" width="40%">Student ID:</td>
+                            <td><strong>{{ payment.student.student_id }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Full Name:</td>
+                            <td><strong>{{ payment.student.user.get_full_name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Email:</td>
+                            <td>{{ payment.student.user.email }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Phone:</td>
+                            <td>{{ payment.student.user.phone|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Programme:</td>
+                            <td><strong>{{ payment.student.programme.name }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Programme Code:</td>
+                            <td><span class="badge bg-primary">{{ payment.student.programme.code }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Faculty:</td>
+                            <td>{{ payment.student.programme.faculty.name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Current Year/Semester:</td>
+                            <td>Year {{ payment.student.current_year }}, Semester {{ payment.student.current_semester }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Student Status:</td>
+                            <td>
+                                <span class="badge bg-{% if payment.student.status == 'active' %}success{% else %}secondary{% endif %}">
+                                    {{ payment.student.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Structure & Balance Information -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-cash-stack"></i> Fee Structure & Balance Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-muted mb-2">Total Required</h6>
+                                <h4 class="fw-bold text-primary mb-0">KSh {{ total_required|floatformat:0 }}</h4>
+                                <small class="text-muted">This Semester</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-muted mb-2">Total Paid</h6>
+                                <h4 class="fw-bold text-success mb-0">KSh {{ semester_payments|floatformat:0 }}</h4>
+                                <small class="text-muted">This Semester</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-muted mb-2">Balance</h6>
+                                <h4 class="fw-bold {% if semester_balance > 0 %}text-danger{% else %}text-success{% endif %} mb-0">
+                                    KSh {{ semester_balance|floatformat:0 }}
+                                </h4>
+                                <small class="text-muted">Remaining</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-muted mb-2">All-Time Total</h6>
+                                <h4 class="fw-bold text-info mb-0">KSh {{ student_total_paid|floatformat:0 }}</h4>
+                                <small class="text-muted">All Payments</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if payment.fee_structure %}
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold mb-3">Academic Period Details</h6>
+                            <table class="table table-sm table-bordered">
+                                <tr>
+                                    <td class="text-muted" width="30%">Academic Year:</td>
+                                    <td><strong>{{ payment.fee_structure.academic_year.year }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Programme Year:</td>
+                                    <td>Year {{ payment.fee_structure.year }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Semester:</td>
+                                    <td>Semester {{ payment.fee_structure.semester }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Payment History with Tabs -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-clock-history"></i> Student Payment History</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Summary Stats -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded text-center">
+                                <h5 class="text-muted mb-1">Total Payments</h5>
+                                <h3 class="fw-bold mb-0">{{ student_payments.count }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded text-center">
+                                <h5 class="text-muted mb-1">Total Amount Paid</h5>
+                                <h3 class="fw-bold text-success mb-0">KSh {{ student_total_paid|floatformat:0 }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-light p-3 rounded text-center">
+                                <h5 class="text-muted mb-1">Pending Payments</h5>
+                                <h3 class="fw-bold text-warning mb-0">{{ student_pending_payments }}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Year Tabs -->
+                    {% if payments_by_year %}
+                    <ul class="nav nav-tabs mb-3" id="yearTabs" role="tablist">
+                        {% for year, payments in payments_by_year.items %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                    id="year-{{ forloop.counter }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#year-{{ forloop.counter }}" 
+                                    type="button" 
+                                    role="tab">
+                                {{ year }}
+                                <span class="badge bg-secondary ms-2">{{ year_totals|dict_get:year|dict_get:'count' }}</span>
+                                <span class="badge bg-success ms-1">KSh {{ year_totals|dict_get:year|dict_get:'total'|floatformat:0 }}</span>
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="yearTabsContent">
+                        {% for year, payments in payments_by_year.items %}
+                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                             id="year-{{ forloop.counter }}" 
+                             role="tabpanel">
+                            
+                            <!-- Year Summary -->
+                            <div class="alert alert-info mb-3">
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <strong>Total Payments:</strong> {{ year_totals|dict_get:year|dict_get:'count' }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Total Amount:</strong> KSh {{ year_totals|dict_get:year|dict_get:'total'|floatformat:0 }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Pending:</strong> {{ year_totals|dict_get:year|dict_get:'pending' }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payments Table -->
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Receipt No.</th>
+                                            <th>Payment Date</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Status</th>
+                                            <th>Year/Semester</th>
+                                            <th>Reference</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for pmt in payments %}
+                                        <tr {% if pmt.id == payment.id %}class="table-primary"{% endif %}>
+                                            <td>
+                                                <strong>{{ pmt.receipt_number }}</strong>
+                                                {% if pmt.id == payment.id %}
+                                                    <span class="badge bg-primary ms-1">Current</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ pmt.payment_date|date:"d/m/Y" }}</td>
+                                            <td><strong class="text-success">KSh {{ pmt.amount_paid|floatformat:2 }}</strong></td>
+                                            <td>
+                                                <small class="badge bg-secondary">
+                                                    {{ pmt.get_payment_method_display }}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                {% if pmt.payment_status == 'completed' %}
+                                                    <span class="badge bg-success">Completed</span>
+                                                {% elif pmt.payment_status == 'pending' %}
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                {% elif pmt.payment_status == 'failed' %}
+                                                    <span class="badge bg-danger">Failed</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ pmt.get_payment_status_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if pmt.fee_structure %}
+                                                    <small>Y{{ pmt.fee_structure.year }}S{{ pmt.fee_structure.semester }}</small>
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    {% if pmt.mpesa_receipt %}
+                                                        {{ pmt.mpesa_receipt }}
+                                                    {% elif pmt.transaction_reference %}
+                                                        {{ pmt.transaction_reference|truncatechars:15 }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                {% if pmt.id != payment.id %}
+                                                <a href="{% url 'finance_fee_payment_detail' pmt.id %}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="2" class="text-end"><strong>Year Total:</strong></td>
+                                            <td colspan="6">
+                                                <strong class="text-success">
+                                                    KSh {{ year_totals|dict_get:year|dict_get:'total'|floatformat:2 }}
+                                                </strong>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning text-center">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-3 mb-0">No payment history available for this student.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4 no-print">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-end">
+                    <a href="{% url 'finance_fee_payment_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to List
+                    </a>
+                    <a href="#" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-pencil"></i> Edit Payment
+                    </a>
+                    <button class="btn btn-success" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const triggerTabList = document.querySelectorAll('#yearTabs button');
+    triggerTabList.forEach(triggerEl => {
+        const tabTrigger = new bootstrap.Tab(triggerEl);
+        
+        triggerEl.addEventListener('click', event => {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+    
+    // Auto-hide messages
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s';
+            msg.style.opacity = '0';
+            setTimeout(() => msg.style.display = 'none', 500);
+        });
+    }, 5000);
+    
+    // Close message buttons
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+    
+    // Highlight current payment in tables
+    const currentPaymentRows = document.querySelectorAll('.table-primary');
+    currentPaymentRows.forEach(row => {
+        row.style.fontWeight = '500';
+    });
+    
+    // Animate cards on load
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// Custom template filter for dict access (add to your templatetags)
+</script>
+
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .onprintContainer {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    .nav-tabs {
+        display: none !important;
+    }
+    
+    .tab-content .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    .btn {
+        display: none !important;
+    }
+}
+
+.alert-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
+}
+
+.table-borderless td {
+    padding: 0.5rem 0.75rem;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    color: #d63384;
+}
+
+.table-primary {
+    background-color: #cfe2ff !important;
+    border-left: 3px solid #0d6efd;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+</style>
+
+{% endblock %}
