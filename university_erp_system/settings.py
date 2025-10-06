@@ -53,7 +53,17 @@ MIDDLEWARE = [
     'core_application.middleware.UserSessionMiddleware',  
     'core_application.middleware.ActivityTrackingMiddleware',
     'core_application.middleware.BankWebhookIPWhitelistMiddleware',
+
+    # Add custom security  middleware
+    'core_application.middleware.SecurityAuditMiddleware',
+    'core_application.middleware.DeletionControlMiddleware',
+    #'core_application.signals.AuditMiddleware',  # For tracking user in signals
+
 ]
+
+# Backup Settings
+MAX_BACKUPS = 30  # Keep last 30 backups
+BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 
 ROOT_URLCONF = 'university_erp_system.urls'
 
