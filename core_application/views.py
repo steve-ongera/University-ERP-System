@@ -6242,28 +6242,44 @@ def delete_fee_structure(request, fee_structure_id):
     return render(request, 'finance/delete_fee_structure.html', context)
 
 
+
 @login_required
 def add_fee_structure(request):
-    """Add a new fee structure for a programme"""
-    
-    # Check if user is finance staff
+    """
+    View for finance users to create fee structures for a specific programme, year, and semester
+    """
+    # Check if user is finance
     if request.user.user_type != 'finance':
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('dashboard')
     
-    # Get parameters from URL
-    programme_id = request.GET.get('programme')
-    year = request.GET.get('year')
-    semester = request.GET.get('semester')
-    academic_year_id = request.GET.get('academic_year')
+    # Get parameters from GET or POST
+    programme_id = request.GET.get('programme_id') or request.POST.get('programme_id')
+    year = int(request.GET.get('year', 1) or request.POST.get('year', 1))
+    semester = int(request.GET.get('semester', 1) or request.POST.get('semester', 1))
     
-    # Validate required parameters
-    if not all([programme_id, year, semester, academic_year_id]):
-        messages.error(request, 'Missing required parameters.')
-        return redirect('finance_fee_structure_list')
+    if not programme_id:
+        messages.error(request, 'Programme ID is required.')
+        return redirect('finance_dashboard')
     
+    # Get the programme
     programme = get_object_or_404(Programme, id=programme_id)
-    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    # Get current academic year
+    try:
+        academic_year = AcademicYear.objects.get(is_current=True)
+    except AcademicYear.DoesNotExist:
+        messages.error(request, 'No active academic year found. Please contact administrator.')
+        return redirect('finance_dashboard')
+    
+    # Validate year and semester
+    if year < 1 or year > programme.duration_years:
+        messages.error(request, f'Invalid year. Programme duration is {programme.duration_years} years.')
+        return redirect('finance_programme_fee_detail', programme_id=programme.id)
+    
+    if semester < 1 or semester > programme.semesters_per_year:
+        messages.error(request, f'Invalid semester. Programme has {programme.semesters_per_year} semesters per year.')
+        return redirect('finance_programme_fee_detail', programme_id=programme.id)
     
     # Check if fee structure already exists
     existing_fee = FeeStructure.objects.filter(
@@ -6274,22 +6290,30 @@ def add_fee_structure(request):
     ).first()
     
     if existing_fee:
-        messages.warning(
-            request, 
-            f'Fee structure already exists for {programme.name} - Year {year}, Semester {semester}. '
-            'Redirecting to edit page.'
-        )
-        return redirect('finance_edit_fee_structure', fee_structure_id=existing_fee.id)
+        messages.warning(request, 'Fee structure already exists for this programme, year, and semester.')
+        return redirect('finance_programme_fee_detail', programme_id=programme.id)
     
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Create new fee structure
+                # Extract and validate fee data
+                tuition_fee = Decimal(request.POST.get('tuition_fee', 0))
+                
+                if tuition_fee <= 0:
+                    messages.error(request, 'Tuition fee must be greater than zero.')
+                    return render(request, 'finance/create_fee_structure.html', {
+                        'programme': programme,
+                        'academic_year': academic_year,
+                        'year': year,
+                        'semester': semester,
+                    })
+                
+                # Create fee structure
                 fee_structure = FeeStructure.objects.create(
                     programme=programme,
                     academic_year=academic_year,
-                    year=int(year),
-                    semester=int(semester),
+                    year=year,
+                    semester=semester,
                     tuition_fee=Decimal(request.POST.get('tuition_fee', 0)),
                     registration_fee=Decimal(request.POST.get('registration_fee', 0)),
                     examination_fee=Decimal(request.POST.get('examination_fee', 0)),
@@ -6311,13 +6335,15 @@ def add_fee_structure(request):
                 
                 messages.success(
                     request, 
-                    f'Fee structure for {programme.name} - Year {year}, Semester {semester} created successfully!'
+                    f'Fee structure created successfully for {programme.name} - Year {year}, Semester {semester}. '
+                    f'Total Fee: KSh {fee_structure.total_fee():,.2f}, Net Payable: KSh {fee_structure.net_fee():,.2f}'
                 )
-                
                 return redirect('finance_programme_fee_detail', programme_id=programme.id)
                 
+        except ValueError as e:
+            messages.error(request, f'Invalid fee amount entered. Please enter valid numbers.')
         except Exception as e:
-            messages.error(request, f'Error creating fee structure: {str(e)}')
+            messages.error(request, f'An error occurred: {str(e)}')
     
     context = {
         'programme': programme,

@@ -168,6 +168,7 @@ urlpatterns = [
     path('finance/programme/<int:programme_id>/fees/', views.finance_programme_fee_detail, name='finance_programme_fee_detail'),
     path('fee-structure/edit/<int:fee_structure_id>/', views.edit_fee_structure, name='finance_edit_fee_structure'),
     path('fee-structure/delete/<int:fee_structure_id>/', views.delete_fee_structure, name='finance_delete_fee_structure'),
+    path('fee-structure/add/', views.add_fee_structure, name='finance_add_fee_structure'),
 
     # Admin or HOD views
     path('dashboard/lecturer-allocation/', views.lecturer_allocation_dashboard, name='lecturer_allocation_dashboard'),

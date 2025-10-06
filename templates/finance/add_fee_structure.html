@@ -1,0 +1,538 @@
+{% extends 'finance_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">
+                            <i class="bi bi-plus-circle text-success"></i> Add New Fee Structure
+                        </h2>
+                        <p class="text-muted mb-0">
+                            {{ programme.name }} - {{ academic_year.year }} - Year {{ year }}, Semester {{ semester }}
+                        </p>
+                        <p class="mb-0">
+                            <span class="badge bg-primary">{{ programme.code }}</span>
+                            <span class="badge bg-info">{{ programme.get_programme_type_display }}</span>
+                            <span class="badge bg-secondary">{{ programme.faculty.code }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <a href="{% url 'finance_programme_fee_detail' programme.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Alert -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="bi bi-info-circle fs-4 me-3"></i>
+                <div>
+                    <strong>Create Fee Structure</strong>
+                    <p class="mb-0">Fill in all the fee components below. Fields marked with <span class="text-danger">*</span> are required. You can leave optional fees at 0 if they don't apply.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Form -->
+    <form method="POST" id="feeStructureForm">
+        {% csrf_token %}
+        <input type="hidden" name="programme_id" value="{{ programme.id }}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <input type="hidden" name="semester" value="{{ semester }}">
+        
+        <!-- Core Academic Fees -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-book"></i> Core Academic Fees
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tuition_fee" class="form-label fw-bold">
+                                    Tuition Fee <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="tuition_fee" name="tuition_fee" 
+                                           value="0" required>
+                                </div>
+                                <small class="text-muted">Main academic fee for the semester</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="registration_fee" class="form-label fw-bold">Registration Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="registration_fee" name="registration_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Student registration charges</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="examination_fee" class="form-label fw-bold">Examination Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="examination_fee" name="examination_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Examination administration costs</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="library_fee" class="form-label fw-bold">Library Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="library_fee" name="library_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Library services and resources</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Practical & Technology Fees -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-cpu"></i> Practical & Technology Fees
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="laboratory_fee" class="form-label fw-bold">Laboratory Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="laboratory_fee" name="laboratory_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Lab equipment and materials</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="fieldwork_fee" class="form-label fw-bold">Fieldwork Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="fieldwork_fee" name="fieldwork_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Field trips and practical work</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="technology_fee" class="form-label fw-bold">Technology Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="technology_fee" name="technology_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">IT services and equipment</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accommodation & Welfare Fees -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-house"></i> Accommodation & Welfare Fees
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="accommodation_fee" class="form-label fw-bold">Accommodation Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="accommodation_fee" name="accommodation_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Campus housing charges</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="meals_fee" class="form-label fw-bold">Meals Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="meals_fee" name="meals_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Catering services</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="medical_fee" class="form-label fw-bold">Medical Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="medical_fee" name="medical_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Healthcare services</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="insurance_fee" class="form-label fw-bold">Insurance Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="insurance_fee" name="insurance_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Student insurance coverage</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Activity Fees -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-trophy"></i> Student Activity Fees
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="student_union_fee" class="form-label fw-bold">Student Union Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="student_union_fee" name="student_union_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Student organization fees</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="sports_fee" class="form-label fw-bold">Sports Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="sports_fee" name="sports_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Sports facilities and activities</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="graduation_fee" class="form-label fw-bold">Graduation Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="graduation_fee" name="graduation_fee" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Graduation ceremony costs</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="other_fees" class="form-label fw-bold">Other Fees</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="other_fees" name="other_fees" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Miscellaneous charges</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subsidies & Scholarships -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-gift"></i> Subsidies & Scholarships
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="government_subsidy" class="form-label fw-bold">Government Subsidy</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="government_subsidy" name="government_subsidy" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Government funding support</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="scholarship_amount" class="form-label fw-bold">Scholarship Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KSh</span>
+                                    <input type="number" step="0.01" min="0" class="form-control fee-input" 
+                                           id="scholarship_amount" name="scholarship_amount" 
+                                           value="0">
+                                </div>
+                                <small class="text-muted">Scholarship awards</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Summary (Live Calculation) -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-lg border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-calculator"></i> Fee Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table">
+                                    <tr>
+                                        <td class="fw-bold">Total Gross Fees:</td>
+                                        <td class="text-end fw-bold text-primary" id="totalGrossFee">
+                                            KSh 0.00
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-success">Government Subsidy:</td>
+                                        <td class="text-end text-success" id="subsidyDisplay">
+                                            -KSh 0.00
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-success">Scholarship:</td>
+                                        <td class="text-end text-success" id="scholarshipDisplay">
+                                            -KSh 0.00
+                                        </td>
+                                    </tr>
+                                    <tr class="table-warning">
+                                        <td class="fw-bold fs-5">Net Payable:</td>
+                                        <td class="text-end fw-bold fs-5 text-danger" id="netPayable">
+                                            KSh 0.00
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> 
+                                    <strong>Note:</strong> All calculations are updated in real-time as you enter the fees.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row p-3">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body text-end">
+                        <a href="{% url 'finance_programme_fee_detail' programme.id %}" class="btn btn-outline-secondary btn-lg me-2">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-lg"></i> Create Fee Structure
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const feeInputs = document.querySelectorAll('.fee-input');
+    
+    function updateTotals() {
+        let totalGross = 0;
+        
+        const feeFields = [
+            'tuition_fee', 'registration_fee', 'examination_fee', 'library_fee',
+            'laboratory_fee', 'fieldwork_fee', 'technology_fee', 'accommodation_fee',
+            'meals_fee', 'medical_fee', 'insurance_fee', 'student_union_fee',
+            'sports_fee', 'graduation_fee', 'other_fees'
+        ];
+        
+        feeFields.forEach(field => {
+            const input = document.getElementById(field);
+            if (input && input.value) {
+                totalGross += parseFloat(input.value) || 0;
+            }
+        });
+        
+        const subsidy = parseFloat(document.getElementById('government_subsidy').value) || 0;
+        const scholarship = parseFloat(document.getElementById('scholarship_amount').value) || 0;
+        const netPayable = totalGross - subsidy - scholarship;
+        
+        document.getElementById('totalGrossFee').textContent = 
+            'KSh ' + totalGross.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('subsidyDisplay').textContent = 
+            '-KSh ' + subsidy.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('scholarshipDisplay').textContent = 
+            '-KSh ' + scholarship.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('netPayable').textContent = 
+            'KSh ' + netPayable.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    
+    feeInputs.forEach(input => {
+        input.addEventListener('input', updateTotals);
+    });
+    
+    updateTotals();
+    
+    const form = document.getElementById('feeStructureForm');
+    form.addEventListener('submit', function(e) {
+        const tuitionFee = parseFloat(document.getElementById('tuition_fee').value) || 0;
+        
+        if (tuitionFee <= 0) {
+            e.preventDefault();
+            alert('Tuition fee must be greater than zero.');
+            document.getElementById('tuition_fee').focus();
+            return false;
+        }
+        
+        return true;
+    });
+    
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+    
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s';
+            msg.style.opacity = '0';
+            setTimeout(() => msg.style.display = 'none', 500);
+        });
+    }, 5000);
+});
+</script>
+
+<style>
+.card {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0;
+}
+
+.form-label {
+    margin-bottom: 0.5rem;
+}
+
+.input-group-text {
+    font-weight: 600;
+}
+
+.fee-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.alert-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.close-message {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
+}
+</style>
+
+{% endblock %}
