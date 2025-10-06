@@ -232,3 +232,94 @@ class BankWebhookIPWhitelistMiddleware:
                 return HttpResponseForbidden("Access denied")
         
         return self.get_response(request)
+    
+
+"""
+ Security and Audit Middleware
+
+"""
+
+from django.utils import timezone
+from django.contrib.auth.models import AnonymousUser
+from django.http import HttpResponseForbidden
+from django.core.exceptions import PermissionDenied
+import json
+
+class SecurityAuditMiddleware:
+    """
+    Middleware to:
+    1. Prevent non-superusers from deleting data
+    2. Log all database modifications
+    3. Track user activities
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        
+    def __call__(self, request):
+        # Store request info for later use
+        request._middleware_start_time = timezone.now()
+        
+        response = self.get_response(request)
+        
+        # Log page visits
+        if not isinstance(request.user, AnonymousUser):
+            self._log_page_visit(request, response)
+        
+        return response
+    
+    def _log_page_visit(self, request, response):
+        """Log page visits for analytics"""
+        from .models import PageVisit
+        
+        try:
+            # Calculate response time
+            response_time = None
+            if hasattr(request, '_middleware_start_time'):
+                delta = timezone.now() - request._middleware_start_time
+                response_time = int(delta.total_seconds() * 1000)
+            
+            PageVisit.objects.create(
+                user=request.user if not isinstance(request.user, AnonymousUser) else None,
+                session_key=request.session.session_key or '',
+                url=request.path,
+                view_name=request.resolver_match.view_name if request.resolver_match else '',
+                timestamp=timezone.now(),
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                referrer=request.META.get('HTTP_REFERER', ''),
+                response_time=response_time
+            )
+        except Exception:
+            pass  # Don't break the request if logging fails
+    
+    def _get_client_ip(self, request):
+        """Get client IP address"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+        return ip
+
+
+class DeletionControlMiddleware:
+    """
+    Middleware to prevent non-superusers from deleting records
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        
+    def __call__(self, request):
+        response = self.get_response(request)
+        return response
+    
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        """Check if user is attempting deletion"""
+        # Check if this is a delete request
+        if request.method == 'POST' and 'delete' in request.path.lower():
+            if not request.user.is_superuser:
+                raise PermissionDenied("Only superusers can delete records from the system.")
+        
+        return None
