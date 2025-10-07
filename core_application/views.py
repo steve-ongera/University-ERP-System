@@ -21731,3 +21731,716 @@ def finance_dashboard(request):
     }
     
     return render(request, 'finance/finance_dashboard.html', context)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Q, Avg, Sum
+from django.http import JsonResponse, HttpResponseForbidden
+from django.utils import timezone
+from django.core.paginator import Paginator
+from functools import wraps
+from .models import (
+    User, Department, Course, Programme, Lecturer, Student, 
+    LecturerCourseAssignment, Enrollment, Grade, Timetable,
+    Examination, DefermentApplication, SpecialExamApplication,
+    ClearanceRequest, AcademicYear, Semester, StudentReporting
+)
+
+# Decorator to check if user is COD
+def cod_required(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('admin_login')
+        
+        if request.user.user_type != 'cod':
+            messages.error(request, 'Access denied. COD privileges required.')
+            return HttpResponseForbidden('Access Denied: COD privileges required')
+        
+        # Check if user is head of a department
+        if not hasattr(request.user, 'headed_departments') or not request.user.headed_departments.exists():
+            messages.error(request, 'You are not assigned as head of any department.')
+            return redirect('admin_dashboard')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+# Dashboard
+@login_required
+@cod_required
+def cod_dashboard(request):
+    """COD Dashboard with department overview"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Statistics
+    total_lecturers = Lecturer.objects.filter(department=department, is_active=True).count()
+    total_programmes = Programme.objects.filter(department=department, is_active=True).count()
+    total_courses = Course.objects.filter(department=department, is_active=True).count()
+    
+    # Students in department programmes
+    total_students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).count()
+    
+    # Current semester enrollments
+    current_enrollments = Enrollment.objects.filter(
+        course__department=department,
+        semester=current_semester,
+        is_active=True
+    ).count() if current_semester else 0
+    
+    # Pending applications
+    pending_deferments = DefermentApplication.objects.filter(
+        student__programme__department=department,
+        status='pending'
+    ).count()
+    
+    pending_special_exams = SpecialExamApplication.objects.filter(
+        course__department=department,
+        status='pending'
+    ).count()
+    
+    pending_clearances = ClearanceRequest.objects.filter(
+        student__programme__department=department,
+        clearance_type='department',
+        status='pending'
+    ).count()
+    
+    # Recent activities
+    recent_enrollments = Enrollment.objects.filter(
+        course__department=department,
+        semester=current_semester
+    ).select_related('student__user', 'course').order_by('-enrollment_date')[:5]
+    
+    # Lecturer workload
+    lecturer_assignments = LecturerCourseAssignment.objects.filter(
+        course__department=department,
+        semester=current_semester,
+        is_active=True
+    ).select_related('lecturer__user', 'course').values(
+        'lecturer__user__first_name', 
+        'lecturer__user__last_name'
+    ).annotate(
+        total_courses=Count('id')
+    ).order_by('-total_courses')[:5]
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+        'total_lecturers': total_lecturers,
+        'total_programmes': total_programmes,
+        'total_courses': total_courses,
+        'total_students': total_students,
+        'current_enrollments': current_enrollments,
+        'pending_deferments': pending_deferments,
+        'pending_special_exams': pending_special_exams,
+        'pending_clearances': pending_clearances,
+        'recent_enrollments': recent_enrollments,
+        'lecturer_assignments': lecturer_assignments,
+    }
+    
+    return render(request, 'cod/dashboard.html', context)
+
+
+# Department Information
+@login_required
+@cod_required
+def department_info(request):
+    """View and manage department information"""
+    department = request.user.headed_departments.first()
+    
+    if request.method == 'POST':
+        # Update department information
+        department.description = request.POST.get('description')
+        department.save()
+        messages.success(request, 'Department information updated successfully.')
+        return redirect('cod_department_info')
+    
+    context = {
+        'department': department,
+    }
+    return render(request, 'cod/department_info.html', context)
+
+
+# Programmes Management
+@login_required
+@cod_required
+def department_programmes(request):
+    """List all programmes in the department"""
+    department = request.user.headed_departments.first()
+    programmes = Programme.objects.filter(department=department).select_related('faculty')
+    
+    context = {
+        'department': department,
+        'programmes': programmes,
+    }
+    return render(request, 'cod/programmes.html', context)
+
+
+# Courses Management
+@login_required
+@cod_required
+def department_courses(request):
+    """List all courses in the department"""
+    department = request.user.headed_departments.first()
+    courses = Course.objects.filter(department=department).prefetch_related('prerequisites')
+    
+    context = {
+        'department': department,
+        'courses': courses,
+    }
+    return render(request, 'cod/courses.html', context)
+
+
+# Lecturers Management
+@login_required
+@cod_required
+def lecturers_list(request):
+    """List all lecturers in the department"""
+    department = request.user.headed_departments.first()
+    lecturers = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).select_related('user')
+    
+    context = {
+        'department': department,
+        'lecturers': lecturers,
+    }
+    return render(request, 'cod/lecturers_list.html', context)
+
+
+@login_required
+@cod_required
+def lecturer_detail(request, lecturer_id):
+    """View detailed information about a lecturer"""
+    department = request.user.headed_departments.first()
+    lecturer = get_object_or_404(Lecturer, id=lecturer_id, department=department)
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get current assignments
+    current_assignments = LecturerCourseAssignment.objects.filter(
+        lecturer=lecturer,
+        semester=current_semester,
+        is_active=True
+    ).select_related('course', 'academic_year')
+    
+    context = {
+        'department': department,
+        'lecturer': lecturer,
+        'current_semester': current_semester,
+        'current_assignments': current_assignments,
+    }
+    return render(request, 'cod/lecturer_detail.html', context)
+
+
+# Course Assignments
+@login_required
+@cod_required
+def course_assignments(request):
+    """Manage lecturer course assignments"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    assignments = LecturerCourseAssignment.objects.filter(
+        course__department=department,
+        semester=current_semester,
+        is_active=True
+    ).select_related('lecturer__user', 'course', 'academic_year')
+    
+    # Get unassigned courses
+    assigned_course_ids = assignments.values_list('course_id', flat=True)
+    unassigned_courses = Course.objects.filter(
+        department=department,
+        is_active=True
+    ).exclude(id__in=assigned_course_ids)
+    
+    lecturers = Lecturer.objects.filter(department=department, is_active=True)
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+        'assignments': assignments,
+        'unassigned_courses': unassigned_courses,
+        'lecturers': lecturers,
+    }
+    return render(request, 'cod/course_assignments.html', context)
+
+
+@login_required
+@cod_required
+def assign_course(request):
+    """Assign a course to a lecturer"""
+    if request.method == 'POST':
+        department = request.user.headed_departments.first()
+        course_id = request.POST.get('course_id')
+        lecturer_id = request.POST.get('lecturer_id')
+        
+        course = get_object_or_404(Course, id=course_id, department=department)
+        lecturer = get_object_or_404(Lecturer, id=lecturer_id, department=department)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        # Check if already assigned
+        existing = LecturerCourseAssignment.objects.filter(
+            lecturer=lecturer,
+            course=course,
+            semester=current_semester,
+            academic_year=current_academic_year
+        ).first()
+        
+        if existing:
+            messages.warning(request, 'This course is already assigned to this lecturer.')
+        else:
+            LecturerCourseAssignment.objects.create(
+                lecturer=lecturer,
+                course=course,
+                semester=current_semester,
+                academic_year=current_academic_year,
+                assigned_by=request.user,
+                lecture_venue=request.POST.get('lecture_venue', ''),
+                lecture_time=request.POST.get('lecture_time', ''),
+            )
+            messages.success(request, f'{course.name} assigned to {lecturer.user.get_full_name()} successfully.')
+        
+        return redirect('cod_course_assignments')
+    
+    return redirect('cod_course_assignments')
+
+
+@login_required
+@cod_required
+def unassign_course(request, assignment_id):
+    """Remove a course assignment"""
+    department = request.user.headed_departments.first()
+    assignment = get_object_or_404(
+        LecturerCourseAssignment,
+        id=assignment_id,
+        course__department=department
+    )
+    
+    assignment.is_active = False
+    assignment.save()
+    
+    messages.success(request, 'Course assignment removed successfully.')
+    return redirect('cod_course_assignments')
+
+
+# Workload Analysis
+@login_required
+@cod_required
+def workload_analysis(request):
+    """Analyze lecturer workload distribution"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    workload_data = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).annotate(
+        total_courses=Count(
+            'course_assignments',
+            filter=Q(
+                course_assignments__semester=current_semester,
+                course_assignments__is_active=True
+            )
+        ),
+        total_credit_hours=Sum(
+            'course_assignments__course__credit_hours',
+            filter=Q(
+                course_assignments__semester=current_semester,
+                course_assignments__is_active=True
+            )
+        )
+    ).select_related('user').order_by('-total_courses')
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'workload_data': workload_data,
+    }
+    return render(request, 'cod/workload_analysis.html', context)
+
+
+# Students Management
+@login_required
+@cod_required
+def students_list(request):
+    """List all students in department programmes"""
+    department = request.user.headed_departments.first()
+    
+    # Filters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    status = request.GET.get('status')
+    
+    students = Student.objects.filter(
+        programme__department=department
+    ).select_related('user', 'programme')
+    
+    if programme_id:
+        students = students.filter(programme_id=programme_id)
+    if year:
+        students = students.filter(current_year=year)
+    if status:
+        students = students.filter(status=status)
+    
+    programmes = Programme.objects.filter(department=department)
+    
+    # Pagination
+    paginator = Paginator(students, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'department': department,
+        'page_obj': page_obj,
+        'programmes': programmes,
+    }
+    return render(request, 'cod/students_list.html', context)
+
+
+@login_required
+@cod_required
+def student_detail(request, student_id):
+    """View detailed student information"""
+    department = request.user.headed_departments.first()
+    student = get_object_or_404(
+        Student,
+        id=student_id,
+        programme__department=department
+    )
+    
+    # Get enrollments
+    enrollments = Enrollment.objects.filter(
+        student=student
+    ).select_related('course', 'semester', 'lecturer').order_by('-semester__start_date')
+    
+    # Get grades
+    grades = Grade.objects.filter(
+        enrollment__student=student
+    ).select_related('enrollment__course')
+    
+    context = {
+        'department': department,
+        'student': student,
+        'enrollments': enrollments,
+        'grades': grades,
+    }
+    return render(request, 'cod/student_detail.html', context)
+
+
+# Enrollments
+@login_required
+@cod_required
+def enrollments_list(request):
+    """View enrollments for department courses"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    enrollments = Enrollment.objects.filter(
+        course__department=department,
+        semester=current_semester
+    ).select_related('student__user', 'course', 'lecturer__user')
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'enrollments': enrollments,
+    }
+    return render(request, 'cod/enrollments_list.html', context)
+
+
+# Student Performance
+@login_required
+@cod_required
+def student_performance(request):
+    """Analyze student performance in department"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Programme-wise performance
+    programme_performance = Programme.objects.filter(
+        department=department
+    ).annotate(
+        total_students=Count('students', filter=Q(students__status='active')),
+        avg_gpa=Avg('students__cumulative_gpa')
+    )
+    
+    # Course-wise pass rates
+    course_performance = Course.objects.filter(
+        department=department
+    ).annotate(
+        total_enrollments=Count('enrollments'),
+        passed=Count('enrollments__grade', filter=Q(enrollments__grade__is_passed=True))
+    )
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'programme_performance': programme_performance,
+        'course_performance': course_performance,
+    }
+    return render(request, 'cod/student_performance.html', context)
+
+
+# Timetable Management
+@login_required
+@cod_required
+def view_timetable(request):
+    """View department timetable"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    timetable_slots = Timetable.objects.filter(
+        course__department=department,
+        semester=current_semester,
+        is_active=True
+    ).select_related('course', 'lecturer__user', 'programme').order_by('day_of_week', 'start_time')
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'timetable_slots': timetable_slots,
+    }
+    return render(request, 'cod/view_timetable.html', context)
+
+
+# Examination Management
+@login_required
+@cod_required
+def exam_schedule(request):
+    """View and manage exam schedules"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    examinations = Examination.objects.filter(
+        course__department=department,
+        semester=current_semester
+    ).select_related('course').prefetch_related('invigilators').order_by('exam_date', 'start_time')
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'examinations': examinations,
+    }
+    return render(request, 'cod/exam_schedule.html', context)
+
+
+@login_required
+@cod_required
+def marks_approval(request):
+    """Approve marks submitted by lecturers"""
+    department = request.user.headed_departments.first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get courses with submitted marks pending approval
+    pending_marks = Grade.objects.filter(
+        enrollment__course__department=department,
+        enrollment__semester=current_semester,
+        total_marks__isnull=False
+    ).select_related('enrollment__student__user', 'enrollment__course')
+    
+    context = {
+        'department': department,
+        'current_semester': current_semester,
+        'pending_marks': pending_marks,
+    }
+    return render(request, 'cod/marks_approval.html', context)
+
+
+# Special Exam Applications
+@login_required
+@cod_required
+def special_exam_applications(request):
+    """Review special exam applications"""
+    department = request.user.headed_departments.first()
+    
+    status_filter = request.GET.get('status', 'pending')
+    applications = SpecialExamApplication.objects.filter(
+        course__department=department,
+        status=status_filter
+    ).select_related('student__user', 'course', 'semester').order_by('-application_date')
+    
+    context = {
+        'department': department,
+        'applications': applications,
+        'status_filter': status_filter,
+    }
+    return render(request, 'cod/special_exam_applications.html', context)
+
+
+@login_required
+@cod_required
+def process_special_exam(request, application_id):
+    """Approve or reject special exam application"""
+    if request.method == 'POST':
+        department = request.user.headed_departments.first()
+        application = get_object_or_404(
+            SpecialExamApplication,
+            id=application_id,
+            course__department=department
+        )
+        
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            application.status = 'approved'
+            application.scheduled_exam_date = request.POST.get('exam_date')
+            application.exam_venue = request.POST.get('exam_venue')
+            messages.success(request, 'Special exam application approved.')
+        elif action == 'reject':
+            application.status = 'rejected'
+            messages.info(request, 'Special exam application rejected.')
+        
+        application.processed_by = request.user
+        application.processed_date = timezone.now()
+        application.admin_remarks = remarks
+        application.save()
+        
+        return redirect('cod_special_exam_applications')
+    
+    return redirect('cod_special_exam_applications')
+
+
+# Deferment Applications
+@login_required
+@cod_required
+def deferment_applications(request):
+    """Review deferment applications"""
+    department = request.user.headed_departments.first()
+    
+    status_filter = request.GET.get('status', 'pending')
+    applications = DefermentApplication.objects.filter(
+        student__programme__department=department,
+        status=status_filter
+    ).select_related('student__user', 'student__programme').order_by('-application_date')
+    
+    context = {
+        'department': department,
+        'applications': applications,
+        'status_filter': status_filter,
+    }
+    return render(request, 'cod/deferment_applications.html', context)
+
+
+@login_required
+@cod_required
+def process_deferment(request, application_id):
+    """Approve or reject deferment application"""
+    if request.method == 'POST':
+        department = request.user.headed_departments.first()
+        application = get_object_or_404(
+            DefermentApplication,
+            id=application_id,
+            student__programme__department=department
+        )
+        
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            application.status = 'approved'
+            application.approved_start_date = request.POST.get('start_date')
+            application.approved_end_date = request.POST.get('end_date')
+            messages.success(request, 'Deferment application approved.')
+        elif action == 'reject':
+            application.status = 'rejected'
+            messages.info(request, 'Deferment application rejected.')
+        
+        application.processed_by = request.user
+        application.processed_date = timezone.now()
+        application.admin_remarks = remarks
+        application.save()
+        
+        return redirect('cod_deferment_applications')
+    
+    return redirect('cod_deferment_applications')
+
+
+# Clearance Requests
+@login_required
+@cod_required
+def clearance_requests(request):
+    """Process department clearance requests"""
+    department = request.user.headed_departments.first()
+    
+    status_filter = request.GET.get('status', 'pending')
+    requests_list = ClearanceRequest.objects.filter(
+        student__programme__department=department,
+        clearance_type='department',
+        status=status_filter
+    ).select_related('student__user', 'student__programme').order_by('-request_date')
+    
+    context = {
+        'department': department,
+        'clearance_requests': requests_list,
+        'status_filter': status_filter,
+    }
+    return render(request, 'cod/clearance_requests.html', context)
+
+
+@login_required
+@cod_required
+def process_clearance(request, clearance_id):
+    """Approve or reject clearance request"""
+    if request.method == 'POST':
+        department = request.user.headed_departments.first()
+        clearance = get_object_or_404(
+            ClearanceRequest,
+            id=clearance_id,
+            student__programme__department=department
+        )
+        
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            clearance.status = 'approved'
+            messages.success(request, 'Clearance approved.')
+        elif action == 'reject':
+            clearance.status = 'rejected'
+            messages.info(request, 'Clearance rejected.')
+        
+        clearance.processed_by = request.user
+        clearance.processed_date = timezone.now()
+        clearance.remarks = remarks
+        clearance.save()
+        
+        return redirect('cod_clearance_requests')
+    
+    return redirect('cod_clearance_requests')
+
+
+# Reports
+@login_required
+@cod_required
+def department_report(request):
+    """Generate comprehensive department report"""
+    department = request.user.headed_departments.first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Summary statistics
+    stats = {
+        'total_programmes': Programme.objects.filter(department=department, is_active=True).count(),
+        'total_courses': Course.objects.filter(department=department, is_active=True).count(),
+        'total_lecturers': Lecturer.objects.filter(department=department, is_active=True).count(),
+        'total_students': Student.objects.filter(programme__department=department, status='active').count(),
+    }
+    
+    context = {
+        'department': department,
+        'current_academic_year': current_academic_year,
+        'stats': stats,
+    }
+    return render(request, 'cod/department_report.html', context)
