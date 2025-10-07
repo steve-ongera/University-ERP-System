@@ -526,4 +526,30 @@ urlpatterns = [
     #finance dashboard
     path('finance-dashboard/', views.finance_dashboard, name='finance_dashboard'),
 
+     #Cod Operation urls Dashboard
+    path('cod/dashboard/', views.cod_dashboard, name='cod_dashboard'),
+    path('cod/department/info/', views.department_info, name='cod_department_info'),
+    path('cod/department/programmes/', views.department_programmes, name='cod_department_programmes'),
+    path('cod/department/courses/', views.department_courses, name='cod_department_courses'),
+    path('cod/lecturers/', views.lecturers_list, name='cod_lecturers_list'),
+    path('cod/lecturers/<int:lecturer_id>/', views.lecturer_detail, name='cod_lecturer_detail'),
+    path('cod/assignments/', views.course_assignments, name='cod_course_assignments'),
+    path('cod/assignments/assign/', views.assign_course, name='cod_assign_course'),
+    path('cod/assignments/<int:assignment_id>/unassign/', views.unassign_course, name='cod_unassign_course'),
+    path('cod/workload/', views.workload_analysis, name='cod_workload_analysis'),
+    path('cod/students/', views.students_list, name='cod_students_list'),
+    path('cod/students/<int:student_id>/', views.student_detail, name='cod_student_detail'),
+    path('cod/enrollments/', views.enrollments_list, name='cod_enrollments_list'),
+    path('cod/performance/', views.student_performance, name='cod_student_performance'),
+    path('cod/timetable/', views.view_timetable, name='cod_view_timetable'),
+    path('cod/exams/schedule/', views.exam_schedule, name='cod_exam_schedule'),
+    path('cod/exams/marks-approval/', views.marks_approval, name='cod_marks_approval'),
+    path('cod/applications/special-exams/', views.special_exam_applications, name='cod_special_exam_applications'),
+    path('cod/applications/special-exams/<int:application_id>/process/', views.process_special_exam, name='cod_process_special_exam'),
+    path('cod/applications/deferments/', views.deferment_applications, name='cod_deferment_applications'),
+    path('cod/applications/deferments/<int:application_id>/process/', views.process_deferment, name='cod_process_deferment'),
+    path('cod/clearances/', views.clearance_requests, name='cod_clearance_requests'),
+    path('cod/clearances/<int:clearance_id>/process/', views.process_clearance, name='cod_process_clearance'),
+    path('cod/reports/department/', views.department_report, name='cod_department_report'),
+
 ]
