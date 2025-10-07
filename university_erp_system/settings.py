@@ -253,7 +253,7 @@ LOGGING = {
         },
     },
     'loggers': {
-        'your_app.views': {  # Replace with your app name
+        'core_application.views': {  
             'handlers': ['security_file', 'console'],
             'level': 'INFO',
             'propagate': True,
