@@ -19,7 +19,7 @@ class User(AbstractUser):
         ('staff', 'Staff'),
         ('registrar', 'Registrar'),
         ('dean', 'Dean'),
-        ('hod', 'Head of Department'),
+        ('cod', 'Chairman of Department'),
         ('hostel_warden' , 'Hostel Warden'),
         ('finance', 'Finance'),
     )
