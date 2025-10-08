@@ -1,0 +1,71 @@
+<!-- ==================== cod/enrollments_list.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-journal-check text-success"></i> Course Enrollments
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Current Semester Enrollments</h5>
+                </div>
+                <div class="card-body">
+                    {% if enrollments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Course Code</th>
+                                    <th>Course Name</th>
+                                    <th>Lecturer</th>
+                                    <th>Enrollment Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ enrollment.student.student_id }}</span></td>
+                                    <td>{{ enrollment.student.user.get_full_name }}</td>
+                                    <td><span class="badge bg-primary">{{ enrollment.course.code }}</span></td>
+                                    <td>{{ enrollment.course.name }}</td>
+                                    <td>{{ enrollment.lecturer.user.get_full_name|default:"Not Assigned" }}</td>
+                                    <td>{{ enrollment.enrollment_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if enrollment.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                        {% if enrollment.is_repeat %}
+                                        <span class="badge bg-warning">Repeat</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No enrollments found for current semester</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

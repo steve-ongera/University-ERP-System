@@ -1,0 +1,46 @@
+<!-- ==================== cod/department_programmes.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-diagram-3 text-info"></i> Department Programmes
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - Total: {{ programmes|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        {% for programme in programmes %}
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">{{ programme.code }}</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold">{{ programme.name }}</h6>
+                    <p class="mb-2"><strong>Type:</strong> {{ programme.get_programme_type_display }}</p>
+                    <p class="mb-2"><strong>Mode:</strong> {{ programme.get_study_mode_display }}</p>
+                    <p class="mb-2"><strong>Duration:</strong> {{ programme.duration_years }} years</p>
+                    <p class="mb-2"><strong>Credit Hours Required:</strong> {{ programme.credit_hours_required }}</p>
+                    <p class="mb-2"><strong>Total Semesters:</strong> {{ programme.total_semesters }}</p>
+                    <p class="mb-2"><strong>Faculty:</strong> {{ programme.faculty.name }}</p>
+                    <p class="mb-0">
+                        {% if programme.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

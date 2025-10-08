@@ -22262,7 +22262,7 @@ def marks_approval(request):
 # Special Exam Applications
 @login_required
 @cod_required
-def special_exam_applications(request):
+def cod_special_exam_applications(request):
     """Review special exam applications"""
     department = request.user.headed_departments.first()
     
@@ -22317,7 +22317,7 @@ def process_special_exam(request, application_id):
 # Deferment Applications
 @login_required
 @cod_required
-def deferment_applications(request):
+def cod_deferment_applications(request):
     """Review deferment applications"""
     department = request.user.headed_departments.first()
     
@@ -22372,7 +22372,7 @@ def process_deferment(request, application_id):
 # Clearance Requests
 @login_required
 @cod_required
-def clearance_requests(request):
+def cod_clearance_requests(request):
     """Process department clearance requests"""
     department = request.user.headed_departments.first()
     

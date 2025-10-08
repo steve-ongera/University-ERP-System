@@ -1,0 +1,67 @@
+<!-- ==================== cod/view_timetable.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-calendar3 text-primary"></i> Department Timetable
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Class Schedule</h5>
+                </div>
+                <div class="card-body">
+                    {% if timetable_slots %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Time</th>
+                                    <th>Course</th>
+                                    <th>Lecturer</th>
+                                    <th>Programme</th>
+                                    <th>Year</th>
+                                    <th>Venue</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for slot in timetable_slots %}
+                                <tr>
+                                    <td><strong>{{ slot.get_day_of_week_display }}</strong></td>
+                                    <td>{{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ slot.course.code }}</span><br>
+                                        <small>{{ slot.course.name }}</small>
+                                    </td>
+                                    <td>{{ slot.lecturer.user.get_full_name }}</td>
+                                    <td>{{ slot.programme.code }}</td>
+                                    <td>Year {{ slot.year }}</td>
+                                    <td><i class="bi bi-geo-alt"></i> {{ slot.venue }}</td>
+                                    <td><span class="badge bg-info">{{ slot.get_class_type_display }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No timetable slots available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

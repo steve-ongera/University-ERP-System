@@ -1,0 +1,70 @@
+<!-- ==================== cod/workload_analysis.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-bar-chart text-primary"></i> Lecturer Workload Analysis
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Workload Distribution</h5>
+                </div>
+                <div class="card-body">
+                    {% if workload_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Lecturer Name</th>
+                                    <th>Academic Rank</th>
+                                    <th>Total Courses</th>
+                                    <th>Total Credit Hours</th>
+                                    <th>Workload Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lecturer in workload_data %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ lecturer.user.get_full_name }}</td>
+                                    <td>{{ lecturer.get_academic_rank_display }}</td>
+                                    <td><span class="badge bg-primary">{{ lecturer.total_courses|default:0 }}</span></td>
+                                    <td><span class="badge bg-success">{{ lecturer.total_credit_hours|default:0 }} hrs</span></td>
+                                    <td>
+                                        {% if lecturer.total_credit_hours > 20 %}
+                                        <span class="badge bg-danger">Overloaded</span>
+                                        {% elif lecturer.total_credit_hours >= 15 %}
+                                        <span class="badge bg-warning">Full Load</span>
+                                        {% elif lecturer.total_credit_hours > 0 %}
+                                        <span class="badge bg-success">Normal</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Assignment</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No workload data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

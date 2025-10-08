@@ -1,0 +1,121 @@
+<!-- ==================== cod/clearance_requests.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-check-circle text-info"></i> Department Clearance Requests
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Filter -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <a href="?status=pending" class="btn btn-outline-warning {% if status_filter == 'pending' %}active{% endif %}">
+                    Pending
+                </a>
+                <a href="?status=approved" class="btn btn-outline-success {% if status_filter == 'approved' %}active{% endif %}">
+                    Approved
+                </a>
+                <a href="?status=rejected" class="btn btn-outline-danger {% if status_filter == 'rejected' %}active{% endif %}">
+                    Rejected
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if clearance_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Programme</th>
+                                    <th>Reason</th>
+                                    <th>Request Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for clearance in clearance_requests %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ clearance.student.student_id }}</span></td>
+                                    <td>{{ clearance.student.user.get_full_name }}</td>
+                                    <td>{{ clearance.student.programme.code }}</td>
+                                    <td>{{ clearance.reason|truncatewords:10 }}</td>
+                                    <td>{{ clearance.request_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if clearance.status == 'pending' %}warning{% elif clearance.status == 'approved' %}success{% else %}danger{% endif %}">
+                                            {{ clearance.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if clearance.status == 'pending' %}
+                                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#clearanceModal{{ clearance.id }}">
+                                            <i class="bi bi-check-lg"></i> Process
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewModal{{ clearance.id }}">
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Process Modal -->
+                                <div class="modal fade" id="clearanceModal{{ clearance.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title">Process Clearance</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form method="POST" action="{% url 'cod_process_clearance' clearance.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-body">
+                                                    <p><strong>Student:</strong> {{ clearance.student.user.get_full_name }}</p>
+                                                    <p><strong>Reason:</strong> {{ clearance.reason }}</p>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Remarks</label>
+                                                        <textarea name="remarks" class="form-control" rows="3" required></textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                                                        <i class="bi bi-check-lg"></i> Approve
+                                                    </button>
+                                                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                                                        <i class="bi bi-x-lg"></i> Reject
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No clearance requests found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

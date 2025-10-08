@@ -1,0 +1,78 @@
+<!-- ==================== cod/department_courses.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-book text-success"></i> Department Courses
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - Total: {{ courses|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">All Courses</h5>
+                </div>
+                <div class="card-body">
+                    {% if courses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Course Name</th>
+                                    <th>Level</th>
+                                    <th>Type</th>
+                                    <th>Credit Hours</th>
+                                    <th>Contact Hours</th>
+                                    <th>Prerequisites</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in courses %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ course.code }}</span></td>
+                                    <td>{{ course.name }}</td>
+                                    <td>{{ course.get_level_display }}</td>
+                                    <td><span class="badge bg-info">{{ course.get_course_type_display }}</span></td>
+                                    <td>{{ course.credit_hours }}</td>
+                                    <td>{{ course.total_contact_hours }}</td>
+                                    <td>
+                                        {% if course.prerequisites.all %}
+                                            {% for prereq in course.prerequisites.all %}
+                                                <span class="badge bg-secondary">{{ prereq.code }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if course.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No courses found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

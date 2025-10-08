@@ -1,0 +1,74 @@
+<!-- ==================== cod/marks_approval.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-check2-square text-success"></i> Marks Approval
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning">
+                    <h5 class="fw-bold mb-0">Pending Marks Approval</h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_marks %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Course</th>
+                                    <th>CA Marks</th>
+                                    <th>Exam Marks</th>
+                                    <th>Total Marks</th>
+                                    <th>Grade</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in pending_marks %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ grade.enrollment.student.student_id }}</span></td>
+                                    <td>{{ grade.enrollment.student.user.get_full_name }}</td>
+                                    <td><span class="badge bg-primary">{{ grade.enrollment.course.code }}</span></td>
+                                    <td>{{ grade.continuous_assessment|floatformat:2 }}</td>
+                                    <td>{{ grade.final_exam|floatformat:2 }}</td>
+                                    <td><strong>{{ grade.total_marks|floatformat:2 }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-{% if grade.is_passed %}success{% else %}danger{% endif %}">
+                                            {{ grade.grade }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if grade.is_passed %}
+                                        <span class="badge bg-success">Passed</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Failed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No pending marks for approval</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

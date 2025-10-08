@@ -1,0 +1,80 @@
+<!-- ==================== cod/department_info.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-building text-primary"></i> Department Information
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ department.name }}</p>
+                    <p><strong>Code:</strong> {{ department.code }}</p>
+                    <p><strong>Faculty:</strong> {{ department.faculty.name }}</p>
+                    <p><strong>Head of Department:</strong> {{ department.head_of_department.get_full_name }}</p>
+                    <p><strong>Established:</strong> {{ department.established_date }}</p>
+                    <p><strong>Status:</strong> 
+                        {% if department.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Description</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <textarea name="description" class="form-control" rows="6">{{ department.description }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Update Description
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Programmes:</span>
+                        <strong class="text-primary">{{ department.programmes.count }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Courses:</span>
+                        <strong class="text-success">{{ department.courses.count }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Lecturers:</span>
+                        <strong class="text-info">{{ department.lecturers.count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

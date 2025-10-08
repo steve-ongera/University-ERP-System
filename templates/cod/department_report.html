@@ -1,0 +1,174 @@
+<!-- ==================== cod/department_report.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">
+                            <i class="bi bi-file-earmark-bar-graph text-primary"></i> Department Report
+                        </h2>
+                        <p class="text-muted mb-0">{{ department.name }} - {{ current_academic_year.year }}</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row p-3">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-diagram-3 fs-1 text-primary mb-2"></i>
+                    <h3 class="fw-bold text-primary">{{ stats.total_programmes }}</h3>
+                    <p class="text-muted mb-0">Programmes</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-book fs-1 text-success mb-2"></i>
+                    <h3 class="fw-bold text-success">{{ stats.total_courses }}</h3>
+                    <p class="text-muted mb-0">Courses</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-info">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 text-info mb-2"></i>
+                    <h3 class="fw-bold text-info">{{ stats.total_lecturers }}</h3>
+                    <p class="text-muted mb-0">Lecturers</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-badge fs-1 text-warning mb-2"></i>
+                    <h3 class="fw-bold text-warning">{{ stats.total_students }}</h3>
+                    <p class="text-muted mb-0">Active Students</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Overview -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Department Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Department Information</h6>
+                            <p><strong>Name:</strong> {{ department.name }}</p>
+                            <p><strong>Code:</strong> {{ department.code }}</p>
+                            <p><strong>Faculty:</strong> {{ department.faculty.name }}</p>
+                            <p><strong>Head of Department:</strong> {{ department.head_of_department.get_full_name }}</p>
+                            <p><strong>Established:</strong> {{ department.established_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Academic Year Summary</h6>
+                            <p><strong>Academic Year:</strong> {{ current_academic_year.year }}</p>
+                            <p><strong>Total Programmes:</strong> {{ stats.total_programmes }}</p>
+                            <p><strong>Total Courses Offered:</strong> {{ stats.total_courses }}</p>
+                            <p><strong>Faculty Members:</strong> {{ stats.total_lecturers }}</p>
+                            <p><strong>Enrolled Students:</strong> {{ stats.total_students }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Summary -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Programme Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">The department offers {{ stats.total_programmes }} academic programmes across various levels including Bachelor's degrees, Master's programs, and PhD tracks.</p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Note:</strong> This is a summary report. For detailed programme-specific analytics, please use the individual programme management sections.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lecturer Distribution -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">Faculty Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <p>The department has {{ stats.total_lecturers }} active faculty members across various academic ranks, providing quality education and research guidance to students.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Enrollment -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning">
+                    <h5 class="fw-bold mb-0">Student Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <p>Currently, {{ stats.total_students }} students are actively enrolled in various programmes offered by the department. This includes students at different year levels and study modes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <p class="text-muted mb-0">
+                        Report Generated on: {{ current_date|date:"F d, Y H:i" }}<br>
+                        Generated by: {{ user.get_full_name }} (Chairman of Department)
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, nav, .sidebar {
+        display: none !important;
+    }
+    .card {
+        border: 1px solid #dee2e6;
+        page-break-inside: avoid;
+    }
+}
+</style>
+
+{% endblock %}

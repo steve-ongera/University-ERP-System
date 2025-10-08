@@ -1,0 +1,110 @@
+<!-- ==================== cod/deferment_applications.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-pause-circle text-warning"></i> Deferment Applications
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Filter -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <a href="?status=pending" class="btn btn-outline-warning {% if status_filter == 'pending' %}active{% endif %}">
+                    Pending
+                </a>
+                <a href="?status=approved" class="btn btn-outline-success {% if status_filter == 'approved' %}active{% endif %}">
+                    Approved
+                </a>
+                <a href="?status=rejected" class="btn btn-outline-danger {% if status_filter == 'rejected' %}active{% endif %}">
+                    Rejected
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if applications %}
+                    {% for application in applications %}
+                    <div class="card mb-3 border-start border-4 {% if application.status == 'pending' %}border-warning{% elif application.status == 'approved' %}border-success{% else %}border-danger{% endif %}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold">{{ application.student.user.get_full_name }}</h5>
+                                    <p class="mb-1"><strong>Student ID:</strong> {{ application.student.student_id }}</p>
+                                    <p class="mb-1"><strong>Programme:</strong> {{ application.student.programme.name }}</p>
+                                    <p class="mb-1"><strong>Type:</strong> {{ application.get_deferment_type_display }}</p>
+                                    <p class="mb-1"><strong>Duration:</strong> {{ application.requested_duration_months }} months</p>
+                                    <p class="mb-1"><strong>Start Date:</strong> {{ application.requested_start_date }}</p>
+                                    <p class="mb-2"><strong>Reason:</strong></p>
+                                    <p class="text-muted">{{ application.reason }}</p>
+                                    {% if application.supporting_document %}
+                                    <p><i class="bi bi-paperclip"></i> <a href="{{ application.supporting_document.url }}" target="_blank">View Document</a></p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <p><span class="badge bg-{{ application.status == 'pending' and 'warning' or application.status == 'approved' and 'success' or 'danger' }}">{{ application.get_status_display }}</span></p>
+                                    <p class="text-muted small">Applied: {{ application.application_date|date:"M d, Y" }}</p>
+                                    {% if application.status == 'pending' %}
+                                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#defermentModal{{ application.id }}">
+                                        <i class="bi bi-check-lg"></i> Process
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Process Modal -->
+                    <div class="modal fade" id="defermentModal{{ application.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title">Process Deferment</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{% url 'cod_process_deferment' application.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Approved Start Date</label>
+                                            <input type="date" name="start_date" class="form-control" value="{{ application.requested_start_date|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Approved End Date</label>
+                                            <input type="date" name="end_date" class="form-control">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Remarks</label>
+                                            <textarea name="remarks" class="form-control" rows="3"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
+                                        <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-center text-muted">No applications found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,77 @@
+
+<!-- ==================== cod/exam_schedule.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-file-earmark-text text-danger"></i> Examination Schedule
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="fw-bold mb-0">Examination Schedule</h5>
+                </div>
+                <div class="card-body">
+                    {% if examinations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course Code</th>
+                                    <th>Course Name</th>
+                                    <th>Exam Type</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Duration</th>
+                                    <th>Venue</th>
+                                    <th>Invigilators</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exam in examinations %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ exam.course.code }}</span></td>
+                                    <td>{{ exam.course.name }}</td>
+                                    <td><span class="badge bg-info">{{ exam.get_exam_type_display }}</span></td>
+                                    <td>{{ exam.exam_date|date:"M d, Y" }}</td>
+                                    <td>{{ exam.start_time|time:"H:i" }} - {{ exam.end_time|time:"H:i" }}</td>
+                                    <td>{{ exam.duration_minutes }} mins</td>
+                                    <td><i class="bi bi-geo-alt"></i> {{ exam.venue }}</td>
+                                    <td>
+                                        {% for invigilator in exam.invigilators.all %}
+                                        <small>{{ invigilator.user.get_full_name }}</small>{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if exam.is_published %}
+                                        <span class="badge bg-success">Published</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Draft</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No examinations scheduled</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

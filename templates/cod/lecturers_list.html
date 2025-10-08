@@ -1,0 +1,77 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">
+                            <i class="bi bi-people text-primary"></i> Department Lecturers
+                        </h2>
+                        <p class="text-muted mb-0">{{ department.name }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">All Lecturers ({{ lecturers|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if lecturers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Employee No.</th>
+                                    <th>Name</th>
+                                    <th>Rank</th>
+                                    <th>Qualifications</th>
+                                    <th>Employment Type</th>
+                                    <th>Contact</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lecturer in lecturers %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ lecturer.employee_number }}</span></td>
+                                    <td>
+                                        <i class="bi bi-person-circle"></i>
+                                        {{ lecturer.user.get_full_name }}
+                                    </td>
+                                    <td>{{ lecturer.get_academic_rank_display }}</td>
+                                    <td>{{ lecturer.highest_qualification }}</td>
+                                    <td><span class="badge bg-secondary">{{ lecturer.get_employment_type_display }}</span></td>
+                                    <td>
+                                        <small>
+                                            <i class="bi bi-envelope"></i> {{ lecturer.user.email }}<br>
+                                            <i class="bi bi-phone"></i> {{ lecturer.user.phone }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'cod_lecturer_detail' lecturer.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted">No lecturers found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

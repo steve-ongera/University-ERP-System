@@ -1,0 +1,143 @@
+<!-- ==================== cod/student_performance.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="fw-bold mb-2">
+                    <i class="bi bi-graph-up text-success"></i> Student Performance Analysis
+                </h2>
+                <p class="text-muted mb-0">{{ department.name }} - {{ current_semester }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Performance -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Programme-wise Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if programme_performance %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Programme Code</th>
+                                    <th>Programme Name</th>
+                                    <th>Total Students</th>
+                                    <th>Average GPA</th>
+                                    <th>Performance Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for programme in programme_performance %}
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ programme.code }}</span></td>
+                                    <td>{{ programme.name }}</td>
+                                    <td>{{ programme.total_students }}</td>
+                                    <td>
+                                        {% if programme.avg_gpa %}
+                                        <strong>{{ programme.avg_gpa|floatformat:2 }}</strong>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if programme.avg_gpa %}
+                                            {% if programme.avg_gpa >= 3.5 %}
+                                            <span class="badge bg-success">Excellent</span>
+                                            {% elif programme.avg_gpa >= 3.0 %}
+                                            <span class="badge bg-info">Very Good</span>
+                                            {% elif programme.avg_gpa >= 2.5 %}
+                                            <span class="badge bg-warning">Good</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Needs Improvement</span>
+                                            {% endif %}
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Data</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No programme performance data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Performance -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Course-wise Pass Rates</h5>
+                </div>
+                <div class="card-body">
+                    {% if course_performance %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course Code</th>
+                                    <th>Course Name</th>
+                                    <th>Total Enrollments</th>
+                                    <th>Passed</th>
+                                    <th>Pass Rate</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in course_performance %}
+                                <tr>
+                                    <td><span class="badge bg-info">{{ course.code }}</span></td>
+                                    <td>{{ course.name }}</td>
+                                    <td>{{ course.total_enrollments }}</td>
+                                    <td>{{ course.passed }}</td>
+                                    <td>
+                                        {% if course.total_enrollments > 0 %}
+                                        {% widthratio course.passed course.total_enrollments 100 %}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if course.total_enrollments > 0 %}
+                                            {% widthratio course.passed course.total_enrollments 100 as pass_rate %}
+                                            {% if pass_rate >= 80 %}
+                                            <span class="badge bg-success">Excellent</span>
+                                            {% elif pass_rate >= 60 %}
+                                            <span class="badge bg-info">Good</span>
+                                            {% elif pass_rate >= 40 %}
+                                            <span class="badge bg-warning">Fair</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Poor</span>
+                                            {% endif %}
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Data</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-5">No course performance data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

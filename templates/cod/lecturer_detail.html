@@ -1,0 +1,100 @@
+<!-- ==================== cod/lecturer_detail.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">
+                            <i class="bi bi-person-badge text-primary"></i> {{ lecturer.user.get_full_name }}
+                        </h2>
+                        <p class="text-muted mb-0">
+                            {{ lecturer.get_academic_rank_display }} - {{ lecturer.employee_number }}
+                        </p>
+                    </div>
+                    <a href="{% url 'cod_lecturers_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ lecturer.user.email }}</p>
+                    <p><strong>Phone:</strong> {{ lecturer.user.phone }}</p>
+                    <p><strong>Department:</strong> {{ lecturer.department.name }}</p>
+                    <p><strong>Office:</strong> {{ lecturer.office_location|default:"Not set" }}</p>
+                    <p><strong>Joining Date:</strong> {{ lecturer.joining_date }}</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Qualifications</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Highest:</strong> {{ lecturer.highest_qualification }}</p>
+                    <p><strong>University:</strong> {{ lecturer.university_graduated|default:"N/A" }}</p>
+                    <p><strong>Year:</strong> {{ lecturer.graduation_year|default:"N/A" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">Current Course Assignments</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_assignments %}
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Name</th>
+                                <th>Credit Hours</th>
+                                <th>Venue</th>
+                                <th>Schedule</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assignment in current_assignments %}
+                            <tr>
+                                <td><span class="badge bg-primary">{{ assignment.course.code }}</span></td>
+                                <td>{{ assignment.course.name }}</td>
+                                <td>{{ assignment.course.credit_hours }}</td>
+                                <td>{{ assignment.lecture_venue|default:"TBA" }}</td>
+                                <td>{{ assignment.lecture_time|default:"TBA" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-center text-muted">No current assignments</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-warning">
+                    <h5 class="fw-bold mb-0">Research Interests</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ lecturer.research_interests|default:"Not specified" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

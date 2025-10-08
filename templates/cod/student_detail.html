@@ -1,0 +1,118 @@
+<!-- ==================== cod/student_detail.html ==================== -->
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">{{ student.user.get_full_name }}</h2>
+                        <p class="text-muted mb-0">{{ student.student_id }} - {{ student.programme.name }}</p>
+                    </div>
+                    <a href="{% url 'cod_students_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row p-3">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ student.user.email }}</p>
+                    <p><strong>Phone:</strong> {{ student.user.phone }}</p>
+                    <p><strong>Year:</strong> {{ student.current_year }}</p>
+                    <p><strong>Semester:</strong> {{ student.current_semester }}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-success">{{ student.get_status_display }}</span></p>
+                    <p><strong>GPA:</strong> {{ student.cumulative_gpa|default:"N/A" }}</p>
+                    <p><strong>Admission Date:</strong> {{ student.admission_date }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">Course Enrollments</h5>
+                </div>
+                <div class="card-body">
+                    {% if enrollments %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Semester</th>
+                                    <th>Lecturer</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ enrollment.course.code }}</td>
+                                    <td>{{ enrollment.semester }}</td>
+                                    <td>{{ enrollment.lecturer.user.get_full_name|default:"TBA" }}</td>
+                                    <td>
+                                        {% if enrollment.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted">No enrollments</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">Academic Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if grades %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Course</th>
+                                    <th>Grade</th>
+                                    <th>Total Marks</th>
+                                    <th>Grade Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in grades %}
+                                <tr>
+                                    <td>{{ grade.enrollment.course.code }}</td>
+                                    <td><span class="badge bg-primary">{{ grade.grade }}</span></td>
+                                    <td>{{ grade.total_marks|floatformat:2 }}</td>
+                                    <td>{{ grade.grade_points }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted">No grades available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
