@@ -1,0 +1,337 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container">
+    <!-- Header -->
+    <div class="row p-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-2">
+                            <i class="bi bi-speedometer2 text-primary"></i> COD Dashboard
+                        </h2>
+                        <p class="text-muted mb-0">
+                            {{ department.name }} ({{ department.code }})
+                        </p>
+                        {% if current_academic_year %}
+                        <p class="mb-0">
+                            <span class="badge bg-primary">{{ current_academic_year.year }}</span>
+                            {% if current_semester %}
+                            <span class="badge bg-info">Semester {{ current_semester.semester_number }}</span>
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <i class="bi bi-building fs-1 text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row p-3">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill fs-1 text-primary mb-2"></i>
+                    <h3 class="fw-bold text-primary">{{ total_lecturers }}</h3>
+                    <p class="text-muted mb-0">Lecturers</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-book-fill fs-1 text-success mb-2"></i>
+                    <h3 class="fw-bold text-success">{{ total_courses }}</h3>
+                    <p class="text-muted mb-0">Courses</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-info">
+                <div class="card-body text-center">
+                    <i class="bi bi-diagram-3-fill fs-1 text-info mb-2"></i>
+                    <h3 class="fw-bold text-info">{{ total_programmes }}</h3>
+                    <p class="text-muted mb-0">Programmes</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-badge-fill fs-1 text-warning mb-2"></i>
+                    <h3 class="fw-bold text-warning">{{ total_students }}</h3>
+                    <p class="text-muted mb-0">Active Students</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Semester Stats -->
+    {% if current_semester %}
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-calendar-check"></i> Current Semester Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center border-end">
+                            <h4 class="fw-bold text-primary">{{ current_enrollments }}</h4>
+                            <p class="text-muted mb-0">Total Enrollments</p>
+                        </div>
+                        <div class="col-md-4 text-center border-end">
+                            <h4 class="fw-bold text-success">{{ lecturer_assignments|length }}</h4>
+                            <p class="text-muted mb-0">Course Assignments</p>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <h4 class="fw-bold text-info">{{ current_semester.start_date|date:"M d" }} - {{ current_semester.end_date|date:"M d, Y" }}</h4>
+                            <p class="text-muted mb-0">Semester Period</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Applications -->
+    <div class="row p-3">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Deferments</h6>
+                            <h3 class="fw-bold text-warning mb-0">{{ pending_deferments }}</h3>
+                        </div>
+                        <i class="bi bi-pause-circle fs-1 text-warning"></i>
+                    </div>
+                    <a href="{% url 'cod_deferment_applications' %}" class="btn btn-sm btn-outline-warning mt-2 w-100">
+                        <i class="bi bi-eye"></i> View Applications
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-start border-danger border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Special Exams</h6>
+                            <h3 class="fw-bold text-danger mb-0">{{ pending_special_exams }}</h3>
+                        </div>
+                        <i class="bi bi-file-earmark-text fs-1 text-danger"></i>
+                    </div>
+                    <a href="{% url 'cod_special_exam_applications' %}" class="btn btn-sm btn-outline-danger mt-2 w-100">
+                        <i class="bi bi-eye"></i> View Applications
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-start border-info border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Clearances</h6>
+                            <h3 class="fw-bold text-info mb-0">{{ pending_clearances }}</h3>
+                        </div>
+                        <i class="bi bi-check-circle fs-1 text-info"></i>
+                    </div>
+                    <a href="{% url 'cod_clearance_requests' %}" class="btn btn-sm btn-outline-info mt-2 w-100">
+                        <i class="bi bi-eye"></i> View Requests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Enrollments -->
+    <div class="row p-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Enrollments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_enrollments %}
+                    <div class="list-group list-group-flush">
+                        {% for enrollment in recent_enrollments %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ enrollment.student.user.get_full_name }}</h6>
+                                    <p class="mb-0 text-muted small">
+                                        <i class="bi bi-book"></i> {{ enrollment.course.code }} - {{ enrollment.course.name }}
+                                    </p>
+                                </div>
+                                <span class="badge bg-success">{{ enrollment.enrollment_date|date:"M d" }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No recent enrollments</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-bar-chart"></i> Lecturer Workload
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if lecturer_assignments %}
+                    <div class="list-group list-group-flush">
+                        {% for assignment in lecturer_assignments %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">{{ assignment.lecturer__user__first_name }} {{ assignment.lecturer__user__last_name }}</h6>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ assignment.total_courses }} courses</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No course assignments yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row p-3">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-lightning-fill"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="{% url 'cod_course_assignments' %}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-plus-circle"></i><br>Assign Courses
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'cod_lecturers_list' %}" class="btn btn-outline-success w-100">
+                                <i class="bi bi-people"></i><br>View Lecturers
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'cod_students_list' %}" class="btn btn-outline-info w-100">
+                                <i class="bi bi-person-badge"></i><br>View Students
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'cod_department_report' %}" class="btn btn-outline-warning w-100">
+                                <i class="bi bi-file-earmark-bar-graph"></i><br>View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const closeButtons = document.querySelectorAll('.close-message');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.parentElement.style.display = 'none';
+        });
+    });
+    
+    setTimeout(() => {
+        const messages = document.querySelectorAll('.alert-message');
+        messages.forEach(msg => {
+            msg.style.transition = 'opacity 0.5s';
+            msg.style.opacity = '0';
+            setTimeout(() => msg.style.display = 'none', 500);
+        });
+    }, 5000);
+});
+</script>
+
+<style>
+.card {
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0;
+}
+
+.alert-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    position: relative;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.close-message {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.close-message:hover {
+    opacity: 0.7;
+}
+</style>
+
+{% endblock %}

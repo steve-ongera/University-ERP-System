@@ -73,6 +73,7 @@ def login_view(request):
                 'dean': 'dean_dashboard',
                 'hostel_warden': 'hostel_dashboard',
                 'finance': 'finance_dashboard',
+                'cod': 'cod_dashboard',
             }
             
             redirect_name = redirect_map.get(user.user_type)
