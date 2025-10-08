@@ -21769,16 +21769,23 @@ def cod_required(view_func):
     return wrapper
 
 
-# Dashboard
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Avg, Q, Sum, F
+from django.utils import timezone
+from datetime import timedelta
+import json
+from collections import defaultdict
+
 @login_required
 @cod_required
 def cod_dashboard(request):
-    """COD Dashboard with department overview"""
+    """Enhanced COD Dashboard with comprehensive analytics"""
     department = request.user.headed_departments.first()
     current_semester = Semester.objects.filter(is_current=True).first()
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     
-    # Statistics
+    # Basic Statistics
     total_lecturers = Lecturer.objects.filter(department=department, is_active=True).count()
     total_programmes = Programme.objects.filter(department=department, is_active=True).count()
     total_courses = Course.objects.filter(department=department, is_active=True).count()
@@ -21819,17 +21826,289 @@ def cod_dashboard(request):
         semester=current_semester
     ).select_related('student__user', 'course').order_by('-enrollment_date')[:5]
     
-    # Lecturer workload
-    lecturer_assignments = LecturerCourseAssignment.objects.filter(
+    # ============ ANALYTICS DATA FOR CHARTS ============
+    
+    # 1. Programme Enrollment Distribution (Donut Chart)
+    programme_enrollments = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).values('programme__name').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    programme_chart_data = {
+        'labels': [p['programme__name'] for p in programme_enrollments],
+        'data': [p['count'] for p in programme_enrollments],
+        'colors': ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c']
+    }
+    
+    # 2. Student Gender Distribution (Pie Chart)
+    gender_distribution = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).values('user__gender').annotate(
+        count=Count('id')
+    )
+    
+    gender_chart_data = {
+        'labels': [g['user__gender'].title() if g['user__gender'] else 'Not Specified' 
+                   for g in gender_distribution],
+        'data': [g['count'] for g in gender_distribution],
+        'colors': ['#3498db', '#e74c3c', '#95a5a6']
+    }
+    
+    # 3. Course Enrollment Trend (Line Chart - Last 6 Semesters)
+    last_6_semesters = Semester.objects.filter(
+        academic_year__in=AcademicYear.objects.order_by('-year')[:3]
+    ).order_by('academic_year__year', 'semester_number')[:6]
+    
+    enrollment_trend_data = {
+        'labels': [],
+        'data': []
+    }
+    
+    for semester in last_6_semesters:
+        label = f"{semester.academic_year.year} S{semester.semester_number}"
+        enrollment_count = Enrollment.objects.filter(
+            course__department=department,
+            semester=semester,
+            is_active=True
+        ).count()
+        enrollment_trend_data['labels'].append(label)
+        enrollment_trend_data['data'].append(enrollment_count)
+    
+    # 4. Course Performance by Level (Bar Chart)
+    course_levels = ['100', '200', '300', '400', '500', '600']
+    performance_data = {
+        'labels': [f'Level {level}' for level in course_levels],
+        'data': []
+    }
+    
+    for level in course_levels:
+        avg_grade = Grade.objects.filter(
+            enrollment__course__department=department,
+            enrollment__course__level=level,
+            enrollment__semester=current_semester
+        ).aggregate(avg=Avg('grade_points'))['avg'] or 0
+        performance_data['data'].append(round(float(avg_grade), 2))
+    
+    # 5. Lecturer Workload Distribution (Horizontal Bar Chart)
+    lecturer_workload = LecturerCourseAssignment.objects.filter(
         course__department=department,
         semester=current_semester,
         is_active=True
-    ).select_related('lecturer__user', 'course').values(
+    ).select_related('lecturer__user').values(
         'lecturer__user__first_name', 
         'lecturer__user__last_name'
     ).annotate(
         total_courses=Count('id')
-    ).order_by('-total_courses')[:5]
+    ).order_by('-total_courses')[:8]
+    
+    workload_chart_data = {
+        'labels': [f"{l['lecturer__user__first_name']} {l['lecturer__user__last_name']}" 
+                   for l in lecturer_workload],
+        'data': [l['total_courses'] for l in lecturer_workload]
+    }
+    
+    # 6. Assignment Submission Rate (Donut Chart)
+    if current_semester:
+        total_assignments = Assignment.objects.filter(
+            lecturer_assignment__course__department=department,
+            lecturer_assignment__semester=current_semester,
+            is_published=True
+        ).count()
+        
+        submitted_assignments = AssignmentSubmission.objects.filter(
+            assignment__lecturer_assignment__course__department=department,
+            assignment__lecturer_assignment__semester=current_semester,
+            is_submitted=True
+        ).count()
+        
+        expected_submissions = total_assignments * current_enrollments if total_assignments > 0 else 1
+        submission_rate = (submitted_assignments / expected_submissions * 100) if expected_submissions > 0 else 0
+        
+        submission_chart_data = {
+            'labels': ['Submitted', 'Pending'],
+            'data': [
+                round(submission_rate, 2),
+                round(100 - submission_rate, 2)
+            ],
+            'colors': ['#2ecc71', '#e74c3c']
+        }
+    else:
+        submission_chart_data = {
+            'labels': ['Submitted', 'Pending'],
+            'data': [0, 100],
+            'colors': ['#2ecc71', '#e74c3c']
+        }
+    
+    # 7. Student Status Distribution (Bar Chart)
+    status_distribution = Student.objects.filter(
+        programme__department=department
+    ).values('status').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    status_chart_data = {
+        'labels': [s['status'].replace('_', ' ').title() for s in status_distribution],
+        'data': [s['count'] for s in status_distribution]
+    }
+    
+    # 8. Course Type Distribution (Pie Chart)
+    course_types = Course.objects.filter(
+        department=department,
+        is_active=True
+    ).values('course_type').annotate(
+        count=Count('id')
+    )
+    
+    course_type_chart_data = {
+        'labels': [c['course_type'].replace('_', ' ').title() for c in course_types],
+        'data': [c['count'] for c in course_types],
+        'colors': ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']
+    }
+    
+    # 9. Student Admission Trend (Line Chart - Last 5 Years)
+    current_year = timezone.now().year
+    admission_years = range(current_year - 4, current_year + 1)
+    
+    admission_trend_data = {
+        'labels': [str(year) for year in admission_years],
+        'data': []
+    }
+    
+    for year in admission_years:
+        count = Student.objects.filter(
+            programme__department=department,
+            admission_date__year=year
+        ).count()
+        admission_trend_data['data'].append(count)
+    
+    # 10. Grade Distribution (Bar Chart)
+    grade_distribution = Grade.objects.filter(
+        enrollment__course__department=department,
+        enrollment__semester=current_semester
+    ).values('grade').annotate(
+        count=Count('id')
+    ).order_by('grade')
+    
+    grade_chart_data = {
+        'labels': [g['grade'] for g in grade_distribution if g['grade']],
+        'data': [g['count'] for g in grade_distribution if g['grade']]
+    }
+    
+    # 11. Attendance Rate by Course (Horizontal Bar Chart)
+    if current_semester:
+        courses_with_attendance = Course.objects.filter(
+            department=department,
+            is_active=True,
+            timetable_slots__semester=current_semester
+        ).annotate(
+            total_sessions=Count('timetable_slots__attendance_sessions'),
+            total_attendance=Count('timetable_slots__attendance_records')
+        ).filter(total_sessions__gt=0)[:8]
+        
+        attendance_by_course_data = {
+            'labels': [course.code for course in courses_with_attendance],
+            'data': []
+        }
+        
+        for course in courses_with_attendance:
+            enrolled = Enrollment.objects.filter(
+                course=course,
+                semester=current_semester,
+                is_active=True
+            ).count()
+            expected_attendance = course.total_sessions * enrolled if enrolled > 0 else 1
+            rate = (course.total_attendance / expected_attendance * 100) if expected_attendance > 0 else 0
+            attendance_by_course_data['data'].append(round(rate, 2))
+    else:
+        attendance_by_course_data = {
+            'labels': [],
+            'data': []
+        }
+    
+    # 12. Recent Applications Status (Stacked Bar Chart)
+    recent_months = []
+    for i in range(5, -1, -1):
+        month = timezone.now() - timedelta(days=30 * i)
+        recent_months.append(month.strftime('%b %Y'))
+    
+    applications_trend = {
+        'labels': recent_months,
+        'deferments': [],
+        'special_exams': [],
+        'clearances': []
+    }
+    
+    for i in range(5, -1, -1):
+        month = timezone.now() - timedelta(days=30 * i)
+        start_date = month.replace(day=1)
+        end_date = (start_date + timedelta(days=32)).replace(day=1)
+        
+        deferments = DefermentApplication.objects.filter(
+            student__programme__department=department,
+            application_date__gte=start_date,
+            application_date__lt=end_date
+        ).count()
+        
+        special_exams = SpecialExamApplication.objects.filter(
+            course__department=department,
+            application_date__gte=start_date,
+            application_date__lt=end_date
+        ).count()
+        
+        clearances = ClearanceRequest.objects.filter(
+            student__programme__department=department,
+            clearance_type='department',
+            request_date__gte=start_date,
+            request_date__lt=end_date
+        ).count()
+        
+        applications_trend['deferments'].append(deferments)
+        applications_trend['special_exams'].append(special_exams)
+        applications_trend['clearances'].append(clearances)
+    
+    # Top Performing Students
+    top_students = Student.objects.filter(
+        programme__department=department,
+        status='active',
+        cumulative_gpa__isnull=False
+    ).select_related('user', 'programme').order_by('-cumulative_gpa')[:5]
+    
+    # Recent Activities with Icons
+    recent_activities = []
+    
+    # Recent assignments
+    recent_assignments = Assignment.objects.filter(
+        lecturer_assignment__course__department=department,
+        lecturer_assignment__semester=current_semester
+    ).select_related('lecturer_assignment__course').order_by('-posted_date')[:3]
+    
+    for assignment in recent_assignments:
+        recent_activities.append({
+            'icon': 'fa-file-alt',
+            'color': 'primary',
+            'message': f"New assignment posted for {assignment.lecturer_assignment.course.code}",
+            'date': assignment.posted_date
+        })
+    
+    # Recent deferments
+    recent_defer = DefermentApplication.objects.filter(
+        student__programme__department=department
+    ).select_related('student__user').order_by('-application_date')[:2]
+    
+    for defer in recent_defer:
+        recent_activities.append({
+            'icon': 'fa-pause-circle',
+            'color': 'warning',
+            'message': f"Deferment application from {defer.student.student_id}",
+            'date': defer.application_date
+        })
+    
+    # Sort by date
+    recent_activities.sort(key=lambda x: x['date'], reverse=True)
+    recent_activities = recent_activities[:10]
     
     context = {
         'department': department,
@@ -21844,11 +22123,25 @@ def cod_dashboard(request):
         'pending_special_exams': pending_special_exams,
         'pending_clearances': pending_clearances,
         'recent_enrollments': recent_enrollments,
-        'lecturer_assignments': lecturer_assignments,
+        'top_students': top_students,
+        'recent_activities': recent_activities,
+        
+        # Chart Data (JSON encoded for JavaScript)
+        'programme_chart_data': json.dumps(programme_chart_data),
+        'gender_chart_data': json.dumps(gender_chart_data),
+        'enrollment_trend_data': json.dumps(enrollment_trend_data),
+        'performance_data': json.dumps(performance_data),
+        'workload_chart_data': json.dumps(workload_chart_data),
+        'submission_chart_data': json.dumps(submission_chart_data),
+        'status_chart_data': json.dumps(status_chart_data),
+        'course_type_chart_data': json.dumps(course_type_chart_data),
+        'admission_trend_data': json.dumps(admission_trend_data),
+        'grade_chart_data': json.dumps(grade_chart_data),
+        'attendance_by_course_data': json.dumps(attendance_by_course_data),
+        'applications_trend': json.dumps(applications_trend),
     }
     
     return render(request, 'cod/dashboard.html', context)
-
 
 # Department Information
 @login_required
