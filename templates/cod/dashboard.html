@@ -1,337 +1,903 @@
 {% extends 'cod_base.html' %}
 {% load static %}
 
+{% block title %}COD Dashboard - {{ department.name }}{% endblock %}
+
+
 {% block content %}
-
-<div class="message-container" id="system-messages">
-    {% for message in messages %}
-    <div class="alert-message alert-{{ message.tags }}">
-        {{ message }}
-        <span class="close-message">&times;</span>
-    </div>
-    {% endfor %}
-</div>
-
-<div class="container">
-    <!-- Header -->
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="fw-bold mb-2">
-                            <i class="bi bi-speedometer2 text-primary"></i> COD Dashboard
-                        </h2>
-                        <p class="text-muted mb-0">
-                            {{ department.name }} ({{ department.code }})
-                        </p>
-                        {% if current_academic_year %}
-                        <p class="mb-0">
-                            <span class="badge bg-primary">{{ current_academic_year.year }}</span>
-                            {% if current_semester %}
-                            <span class="badge bg-info">Semester {{ current_semester.semester_number }}</span>
-                            {% endif %}
-                        </p>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <i class="bi bi-building fs-1 text-primary"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Stats -->
-    <div class="row p-3">
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-primary">
-                <div class="card-body text-center">
-                    <i class="bi bi-people-fill fs-1 text-primary mb-2"></i>
-                    <h3 class="fw-bold text-primary">{{ total_lecturers }}</h3>
-                    <p class="text-muted mb-0">Lecturers</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-success">
-                <div class="card-body text-center">
-                    <i class="bi bi-book-fill fs-1 text-success mb-2"></i>
-                    <h3 class="fw-bold text-success">{{ total_courses }}</h3>
-                    <p class="text-muted mb-0">Courses</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-info">
-                <div class="card-body text-center">
-                    <i class="bi bi-diagram-3-fill fs-1 text-info mb-2"></i>
-                    <h3 class="fw-bold text-info">{{ total_programmes }}</h3>
-                    <p class="text-muted mb-0">Programmes</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-warning">
-                <div class="card-body text-center">
-                    <i class="bi bi-person-badge-fill fs-1 text-warning mb-2"></i>
-                    <h3 class="fw-bold text-warning">{{ total_students }}</h3>
-                    <p class="text-muted mb-0">Active Students</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Current Semester Stats -->
-    {% if current_semester %}
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">
-                        <i class="bi bi-calendar-check"></i> Current Semester Overview
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 text-center border-end">
-                            <h4 class="fw-bold text-primary">{{ current_enrollments }}</h4>
-                            <p class="text-muted mb-0">Total Enrollments</p>
-                        </div>
-                        <div class="col-md-4 text-center border-end">
-                            <h4 class="fw-bold text-success">{{ lecturer_assignments|length }}</h4>
-                            <p class="text-muted mb-0">Course Assignments</p>
-                        </div>
-                        <div class="col-md-4 text-center">
-                            <h4 class="fw-bold text-info">{{ current_semester.start_date|date:"M d" }} - {{ current_semester.end_date|date:"M d, Y" }}</h4>
-                            <p class="text-muted mb-0">Semester Period</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Pending Applications -->
-    <div class="row p-3">
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-start border-warning border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Pending Deferments</h6>
-                            <h3 class="fw-bold text-warning mb-0">{{ pending_deferments }}</h3>
-                        </div>
-                        <i class="bi bi-pause-circle fs-1 text-warning"></i>
-                    </div>
-                    <a href="{% url 'cod_deferment_applications' %}" class="btn btn-sm btn-outline-warning mt-2 w-100">
-                        <i class="bi bi-eye"></i> View Applications
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-start border-danger border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Pending Special Exams</h6>
-                            <h3 class="fw-bold text-danger mb-0">{{ pending_special_exams }}</h3>
-                        </div>
-                        <i class="bi bi-file-earmark-text fs-1 text-danger"></i>
-                    </div>
-                    <a href="{% url 'cod_special_exam_applications' %}" class="btn btn-sm btn-outline-danger mt-2 w-100">
-                        <i class="bi bi-eye"></i> View Applications
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4 mb-3">
-            <div class="card shadow-sm border-start border-info border-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Pending Clearances</h6>
-                            <h3 class="fw-bold text-info mb-0">{{ pending_clearances }}</h3>
-                        </div>
-                        <i class="bi bi-check-circle fs-1 text-info"></i>
-                    </div>
-                    <a href="{% url 'cod_clearance_requests' %}" class="btn btn-sm btn-outline-info mt-2 w-100">
-                        <i class="bi bi-eye"></i> View Requests
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Enrollments -->
-    <div class="row p-3">
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h5 class="fw-bold mb-0">
-                        <i class="bi bi-clock-history"></i> Recent Enrollments
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if recent_enrollments %}
-                    <div class="list-group list-group-flush">
-                        {% for enrollment in recent_enrollments %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">{{ enrollment.student.user.get_full_name }}</h6>
-                                    <p class="mb-0 text-muted small">
-                                        <i class="bi bi-book"></i> {{ enrollment.course.code }} - {{ enrollment.course.name }}
-                                    </p>
-                                </div>
-                                <span class="badge bg-success">{{ enrollment.enrollment_date|date:"M d" }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">No recent enrollments</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="fw-bold mb-0">
-                        <i class="bi bi-bar-chart"></i> Lecturer Workload
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if lecturer_assignments %}
-                    <div class="list-group list-group-flush">
-                        {% for assignment in lecturer_assignments %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0">{{ assignment.lecturer__user__first_name }} {{ assignment.lecturer__user__last_name }}</h6>
-                                </div>
-                                <span class="badge bg-primary rounded-pill">{{ assignment.total_courses }} courses</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">No course assignments yet</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="fw-bold mb-0">
-                        <i class="bi bi-lightning-fill"></i> Quick Actions
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <a href="{% url 'cod_course_assignments' %}" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-plus-circle"></i><br>Assign Courses
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="{% url 'cod_lecturers_list' %}" class="btn btn-outline-success w-100">
-                                <i class="bi bi-people"></i><br>View Lecturers
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="{% url 'cod_students_list' %}" class="btn btn-outline-info w-100">
-                                <i class="bi bi-person-badge"></i><br>View Students
-                            </a>
-                        </div>
-                        <div class="col-md-3">
-                            <a href="{% url 'cod_department_report' %}" class="btn btn-outline-warning w-100">
-                                <i class="bi bi-file-earmark-bar-graph"></i><br>View Reports
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const closeButtons = document.querySelectorAll('.close-message');
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            this.parentElement.style.display = 'none';
-        });
-    });
-    
-    setTimeout(() => {
-        const messages = document.querySelectorAll('.alert-message');
-        messages.forEach(msg => {
-            msg.style.transition = 'opacity 0.5s';
-            msg.style.opacity = '0';
-            setTimeout(() => msg.style.display = 'none', 500);
-        });
-    }, 5000);
-});
-</script>
+<link rel="stylesheet" href="{% static 'css/cod_dashboard.css' %}">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 
 <style>
-.card {
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
-
-.card-header {
-    border-radius: 8px 8px 0 0;
-}
-
-.alert-message {
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 5px;
-    position: relative;
-}
-
-.alert-success {
-    background-color: #d1e7dd;
-    color: #0f5132;
-    border: 1px solid #badbcc;
-}
-
-.alert-error, .alert-danger {
-    background-color: #f8d7da;
-    color: #842029;
-    border: 1px solid #f5c2c7;
-}
-
-.close-message {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    font-size: 1.5rem;
-    line-height: 1;
-}
-
-.close-message:hover {
-    opacity: 0.7;
-}
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .activity-item {
+        border-left: 3px solid #e9ecef;
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    .activity-item:hover {
+        border-left-color: #3498db;
+        background-color: #f8f9fa;
+    }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="fw-bold">Department Dashboard</h1>
+            <p class="text-muted">{{ department.name }} ({{ department.code }})</p>
+            <p class="text-muted">Academic Year: {% if current_academic_year %}{{ current_academic_year.year }}{% else %}Not Set{% endif %} | Semester: {% if current_semester %}{{ current_semester.semester_number }}{% else %}Not Set{% endif %}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <span class="fw-bold text-muted">{{ current_date|date:"l, F d, Y" }}</span>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-primary shadow-sm h-100" style="border-left-color: #3498db;">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs text-uppercase text-muted mb-1">Total Students</div>
+                            <div class="h3 mb-0 fw-bold">{{ total_students }}</div>
+                            <div class="mt-2 small text-success">
+                                <i class="fas fa-user-graduate"></i> Active
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-success shadow-sm h-100" style="border-left-color: #2ecc71;">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs text-uppercase text-muted mb-1">Lecturers</div>
+                            <div class="h3 mb-0 fw-bold">{{ total_lecturers }}</div>
+                            <div class="mt-2 small text-info">
+                                <i class="fas fa-chalkboard-teacher"></i> Active Faculty
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-info shadow-sm h-100" style="border-left-color: #f39c12;">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs text-uppercase text-muted mb-1">Programmes</div>
+                            <div class="h3 mb-0 fw-bold">{{ total_programmes }}</div>
+                            <div class="mt-2 small text-success">
+                                <i class="fas fa-graduation-cap"></i> Active
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-warning shadow-sm h-100" style="border-left-color: #e74c3c;">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs text-uppercase text-muted mb-1">Courses</div>
+                            <div class="h3 mb-0 fw-bold">{{ total_courses }}</div>
+                            <div class="mt-2 small text-info">
+                                <i class="fas fa-book"></i> Active Units
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-book fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Applications Row -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-pause-circle fa-3x text-warning mb-3"></i>
+                    <h3 class="fw-bold">{{ pending_deferments }}</h3>
+                    <p class="text-muted mb-0">Pending Deferments</p>
+                    <a href="#" class="btn btn-sm btn-outline-warning mt-2">Review</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-medical fa-3x text-info mb-3"></i>
+                    <h3 class="fw-bold">{{ pending_special_exams }}</h3>
+                    <p class="text-muted mb-0">Special Exam Applications</p>
+                    <a href="#" class="btn btn-sm btn-outline-info mt-2">Review</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h3 class="fw-bold">{{ pending_clearances }}</h3>
+                    <p class="text-muted mb-0">Clearance Requests</p>
+                    <a href="#" class="btn btn-sm btn-outline-success mt-2">Review</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <!-- Programme Enrollment Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Programme Enrollment Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="programmeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gender Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Student Gender Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="genderChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row mb-4">
+        <!-- Enrollment Trend -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Course Enrollment Trend (Last 6 Semesters)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="enrollmentTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assignment Submission Rate -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Assignment Submission</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="submissionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="row mb-4">
+        <!-- Lecturer Workload -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Lecturer Workload (Courses Assigned)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="workloadChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Performance by Level -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Average Performance by Level</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 4 -->
+    <div class="row mb-4">
+        <!-- Student Status Distribution -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Student Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Type Distribution -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Course Types</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="courseTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grade Distribution -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Grade Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="gradeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 5 -->
+    <div class="row mb-4">
+        <!-- Admission Trend -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Student Admissions Trend (Last 5 Years)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="admissionTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance by Course -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Attendance Rates</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="attendanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="row mb-4">
+        <!-- Recent Activities -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-9">
+                            <h5 class="card-title mb-0 fw-semibold">Recent Activities</h5>
+                        </div>
+                        <div class="col-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for activity in recent_activities %}
+                    <div class="activity-item">
+                        <div class="d-flex">
+                            <i class="fas {{ activity.icon }} text-{{ activity.color }} me-3 mt-1"></i>
+                            <div class="flex-grow-1">
+                                <p class="mb-1 small">{{ activity.message }}</p>
+                                <small class="text-muted">{{ activity.date|timesince }} ago</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-2"></i>
+                        <p>No recent activities</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Students -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white border-bottom">
+                    <div class="row">
+                        <div class="col-9">
+                            <h5 class="card-title mb-0 fw-semibold">Top Performing Students</h5>
+                        </div>
+                        <div class="col-3 text-end">
+                            <a href="#" class="small text-primary">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for student in top_students %}
+                        <div class="list-group-item border-0 px-0 py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">{{ student.user.get_full_name }}</h6>
+                                    <small class="text-muted">{{ student.student_id }} - {{ student.programme.code }}</small>
+                                </div>
+                                <span class="badge bg-success rounded-pill">{{ student.cumulative_gpa|floatformat:2 }} GPA</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-trophy fa-3x mb-2"></i>
+                            <p>No data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Applications Trend -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-semibold">Applications Trend (Last 6 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="applicationsTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    Chart.defaults.plugins.legend.position = 'bottom';
+
+    // 1. Programme Enrollment Distribution (Donut Chart)
+    const programmeData = {{ programme_chart_data|safe }};
+    const programmeCtx = document.getElementById('programmeChart').getContext('2d');
+    new Chart(programmeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: programmeData.labels,
+            datasets: [{
+                data: programmeData.data,
+                backgroundColor: programmeData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '60%'
+        }
+    });
+
+    // 2. Gender Distribution (Pie Chart)
+    const genderData = {{ gender_chart_data|safe }};
+    const genderCtx = document.getElementById('genderChart').getContext('2d');
+    new Chart(genderCtx, {
+        type: 'pie',
+        data: {
+            labels: genderData.labels,
+            datasets: [{
+                data: genderData.data,
+                backgroundColor: genderData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // 3. Enrollment Trend (Line Chart)
+    const enrollmentData = {{ enrollment_trend_data|safe }};
+    const enrollmentCtx = document.getElementById('enrollmentTrendChart').getContext('2d');
+    new Chart(enrollmentCtx, {
+        type: 'line',
+        data: {
+            labels: enrollmentData.labels,
+            datasets: [{
+                label: 'Enrollments',
+                data: enrollmentData.data,
+                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(52, 152, 219, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 4. Assignment Submission Rate (Donut Chart)
+    const submissionData = {{ submission_chart_data|safe }};
+    const submissionCtx = document.getElementById('submissionChart').getContext('2d');
+    new Chart(submissionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: submissionData.labels,
+            datasets: [{
+                data: submissionData.data,
+                backgroundColor: submissionData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+
+    // 5. Lecturer Workload (Horizontal Bar Chart)
+    const workloadData = {{ workload_chart_data|safe }};
+    const workloadCtx = document.getElementById('workloadChart').getContext('2d');
+    new Chart(workloadCtx, {
+        type: 'bar',
+        data: {
+            labels: workloadData.labels,
+            datasets: [{
+                label: 'Courses',
+                data: workloadData.data,
+                backgroundColor: 'rgba(155, 89, 182, 0.8)',
+                borderColor: 'rgba(155, 89, 182, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 6. Course Performance by Level (Bar Chart)
+    const performanceData = {{ performance_data|safe }};
+    const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(performanceCtx, {
+        type: 'bar',
+        data: {
+            labels: performanceData.labels,
+            datasets: [{
+                label: 'Average GPA',
+                data: performanceData.data,
+                backgroundColor: 'rgba(243, 156, 18, 0.8)',
+                borderColor: 'rgba(243, 156, 18, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 4.0,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 7. Student Status Distribution (Bar Chart)
+    const statusData = {{ status_chart_data|safe }};
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'bar',
+        data: {
+            labels: statusData.labels,
+            datasets: [{
+                label: 'Students',
+                data: statusData.data,
+                backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                borderColor: 'rgba(46, 204, 113, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 8. Course Type Distribution (Pie Chart)
+    const courseTypeData = {{ course_type_chart_data|safe }};
+    const courseTypeCtx = document.getElementById('courseTypeChart').getContext('2d');
+    new Chart(courseTypeCtx, {
+        type: 'pie',
+        data: {
+            labels: courseTypeData.labels,
+            datasets: [{
+                data: courseTypeData.data,
+                backgroundColor: courseTypeData.colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 9. Grade Distribution (Bar Chart)
+    const gradeData = {{ grade_chart_data|safe }};
+    const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+    new Chart(gradeCtx, {
+        type: 'bar',
+        data: {
+            labels: gradeData.labels,
+            datasets: [{
+                label: 'Students',
+                data: gradeData.data,
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 10. Admission Trend (Line Chart)
+    const admissionData = {{ admission_trend_data|safe }};
+    const admissionCtx = document.getElementById('admissionTrendChart').getContext('2d');
+    new Chart(admissionCtx, {
+        type: 'line',
+        data: {
+            labels: admissionData.labels,
+            datasets: [{
+                label: 'New Admissions',
+                data: admissionData.data,
+                borderColor: 'rgba(231, 76, 60, 1)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(231, 76, 60, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 11. Attendance by Course (Horizontal Bar Chart)
+    const attendanceData = {{ attendance_by_course_data|safe }};
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    new Chart(attendanceCtx, {
+        type: 'bar',
+        data: {
+            labels: attendanceData.labels,
+            datasets: [{
+                label: 'Attendance %',
+                data: attendanceData.data,
+                backgroundColor: 'rgba(26, 188, 156, 0.8)',
+                borderColor: 'rgba(26, 188, 156, 1)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                y: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 12. Applications Trend (Stacked Bar Chart)
+    const applicationsData = {{ applications_trend|safe }};
+    const applicationsTrendCtx = document.getElementById('applicationsTrendChart').getContext('2d');
+    new Chart(applicationsTrendCtx, {
+        type: 'bar',
+        data: {
+            labels: applicationsData.labels,
+            datasets: [{
+                label: 'Deferments',
+                data: applicationsData.deferments,
+                backgroundColor: 'rgba(241, 196, 15, 0.8)',
+                borderColor: 'rgba(241, 196, 15, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Special Exams',
+                data: applicationsData.special_exams,
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Clearances',
+                data: applicationsData.clearances,
+                backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                borderColor: 'rgba(46, 204, 113, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
