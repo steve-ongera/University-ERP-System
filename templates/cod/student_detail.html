@@ -1,5 +1,6 @@
 {% extends 'cod_base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block content %}
 
@@ -425,40 +426,28 @@
                                                         <small class="text-muted">Courses</small>
                                                     </div>
                                                 </div>
+                                                {% for key, perf in semester_performance.items %}
+                                                    {% if perf.year == year and perf.semester == semester_num %}
                                                 <div class="col-md-3">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-success">
-                                                            {% with key=year|add:"|"|add:semester_num|stringformat:"s" %}
-                                                            {{ semester_performance|get_item:key.credits_earned|default:0 }}
-                                                            {% endwith %}
-                                                        </div>
+                                                        <div class="fw-bold text-success">{{ perf.credits_earned|default:0 }}</div>
                                                         <small class="text-muted">Credits Earned</small>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-info">
-                                                            {% for key, perf in semester_performance.items %}
-                                                                {% if perf.year == year and perf.semester == semester_num %}
-                                                                    {{ perf.gpa|floatformat:2|default:"N/A" }}
-                                                                {% endif %}
-                                                            {% endfor %}
-                                                        </div>
+                                                        <div class="fw-bold text-info">{{ perf.gpa|floatformat:2|default:"0.00" }}</div>
                                                         <small class="text-muted">Semester GPA</small>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3">
                                                     <div class="text-center p-2 bg-light rounded">
-                                                        <div class="fw-bold text-warning">
-                                                            {% for key, perf in semester_performance.items %}
-                                                                {% if perf.year == year and perf.semester == semester_num %}
-                                                                    {{ perf.avg_marks|floatformat:1|default:"N/A" }}%
-                                                                {% endif %}
-                                                            {% endfor %}
-                                                        </div>
+                                                        <div class="fw-bold text-warning">{{ perf.avg_marks|floatformat:1|default:"0.0" }}%</div>
                                                         <small class="text-muted">Avg Marks</small>
                                                     </div>
                                                 </div>
+                                                    {% endif %}
+                                                {% endfor %}
                                             </div>
 
                                             <!-- Courses Table -->

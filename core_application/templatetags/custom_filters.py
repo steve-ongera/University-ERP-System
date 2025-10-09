@@ -67,3 +67,64 @@ def subtract(value, arg):
         return value - arg
     except (TypeError, ValueError):
         return value
+
+
+from django import template
+
+register = template.Library()
+
+@register.filter
+def get_item(dictionary, key):
+    """
+    Get item from dictionary using key
+    Usage: {{ dictionary|get_item:key }}
+    """
+    if dictionary is None:
+        return None
+    return dictionary.get(key)
+
+@register.filter
+def multiply(value, arg):
+    """
+    Multiply the value by the argument
+    Usage: {{ value|multiply:arg }}
+    """
+    try:
+        return float(value) * float(arg)
+    except (ValueError, TypeError):
+        return ''
+
+@register.filter
+def subtract(value, arg):
+    """
+    Subtract the argument from the value
+    Usage: {{ value|subtract:arg }}
+    """
+    try:
+        return float(value) - float(arg)
+    except (ValueError, TypeError):
+        return ''
+
+@register.filter
+def percentage(value, total):
+    """
+    Calculate percentage
+    Usage: {{ value|percentage:total }}
+    """
+    try:
+        if float(total) == 0:
+            return 0
+        return (float(value) / float(total)) * 100
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 0
+
+@register.filter
+def index(sequence, position):
+    """
+    Get item at index from list/tuple
+    Usage: {{ list|index:0 }}
+    """
+    try:
+        return sequence[int(position)]
+    except (IndexError, ValueError, TypeError):
+        return None
