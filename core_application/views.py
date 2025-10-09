@@ -22369,37 +22369,125 @@ def workload_analysis(request):
 @login_required
 @cod_required
 def students_list(request):
-    """List all students in department programmes"""
+    """List all students in department programmes with advanced filtering"""
     department = request.user.headed_departments.first()
     
-    # Filters
-    programme_id = request.GET.get('programme')
-    year = request.GET.get('year')
-    status = request.GET.get('status')
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    programme_id = request.GET.get('programme', '')
+    year = request.GET.get('year', '')
+    semester = request.GET.get('semester', '')
+    status = request.GET.get('status', '')
+    admission_type = request.GET.get('admission_type', '')
+    sponsor_type = request.GET.get('sponsor_type', '')
     
+    # Base queryset
     students = Student.objects.filter(
         programme__department=department
-    ).select_related('user', 'programme')
+    ).select_related(
+        'user', 
+        'programme', 
+        'programme__department'
+    ).prefetch_related(
+        'enrollments'
+    )
     
+    # Apply search filter
+    if search_query:
+        students = students.filter(
+            Q(student_id__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(programme__name__icontains=search_query) |
+            Q(programme__code__icontains=search_query)
+        )
+    
+    # Apply filters
     if programme_id:
         students = students.filter(programme_id=programme_id)
     if year:
         students = students.filter(current_year=year)
+    if semester:
+        students = students.filter(current_semester=semester)
     if status:
         students = students.filter(status=status)
+    if admission_type:
+        students = students.filter(admission_type=admission_type)
+    if sponsor_type:
+        students = students.filter(sponsor_type=sponsor_type)
     
-    programmes = Programme.objects.filter(department=department)
+    # Order by most recent first
+    students = students.order_by('-admission_date', 'user__first_name')
+    
+    # Get statistics
+    total_students = students.count()
+    active_students = students.filter(status='active').count()
+    deferred_students = students.filter(status='deferred').count()
+    suspended_students = students.filter(status='suspended').count()
+    graduated_students = students.filter(status='graduated').count()
+    
+    # Get programmes for filter
+    programmes = Programme.objects.filter(department=department).order_by('name')
     
     # Pagination
     paginator = Paginator(students, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Choices for filters (assuming these are defined in your Student model)
+    status_choices = Student.STATUS_CHOICES if hasattr(Student, 'STATUS_CHOICES') else [
+        ('active', 'Active'),
+        ('deferred', 'Deferred'),
+        ('suspended', 'Suspended'),
+        ('graduated', 'Graduated'),
+        ('discontinued', 'Discontinued'),
+    ]
+    
+    year_choices = [(i, f'Year {i}') for i in range(1, 6)]
+    semester_choices = [(i, f'Semester {i}') for i in range(1, 3)]
+    
+    admission_type_choices = Student.ADMISSION_TYPE_CHOICES if hasattr(Student, 'ADMISSION_TYPE_CHOICES') else [
+        ('regular', 'Regular'),
+        ('direct', 'Direct Entry'),
+        ('transfer', 'Transfer'),
+    ]
+    
+    sponsor_type_choices = Student.SPONSOR_TYPE_CHOICES if hasattr(Student, 'SPONSOR_TYPE_CHOICES') else [
+        ('self', 'Self Sponsored'),
+        ('government', 'Government'),
+        ('scholarship', 'Scholarship'),
+        ('company', 'Company'),
+    ]
+    
     context = {
         'department': department,
         'page_obj': page_obj,
+        'students': page_obj,  # For template compatibility
         'programmes': programmes,
+        'total_students': total_students,
+        'active_students': active_students,
+        'deferred_students': deferred_students,
+        'suspended_students': suspended_students,
+        'graduated_students': graduated_students,
+        
+        # Filter values
+        'search_query': search_query,
+        'programme_filter': programme_id,
+        'year_filter': year,
+        'semester_filter': semester,
+        'status_filter': status,
+        'admission_type_filter': admission_type,
+        'sponsor_type_filter': sponsor_type,
+        
+        # Choices for dropdowns
+        'status_choices': status_choices,
+        'year_choices': year_choices,
+        'semester_choices': semester_choices,
+        'admission_type_choices': admission_type_choices,
+        'sponsor_type_choices': sponsor_type_choices,
     }
+    
     return render(request, 'cod/students_list.html', context)
 
 

@@ -1,60 +1,168 @@
-<!-- ==================== cod/students_list.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
+
+<!-- System Messages -->
+<div class="message-container" id="system-messages">
+    {% for message in messages %}
+    <div class="alert-message alert-{{ message.tags }}">
+        {{ message }}
+        <span class="close-message">&times;</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container onprintContainer">
+    <!-- Header Section -->
     <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
+        <div class="row d-flex flex-row align-items-center">
+            <div class="col-md-8">
                 <h2 class="fw-bold mb-2">
-                    <i class="bi bi-person-badge text-primary"></i> Department Students
+                    <i class="bi bi-people-fill text-primary"></i> Department Students
                 </h2>
-                <p class="text-muted mb-0">{{ department.name }}</p>
+                <p class="text-muted mb-1">{{ department.name }}</p>
+                <div class="d-flex gap-3 mt-2">
+                    <small class="badge bg-primary">Total: {{ total_students }}</small>
+                    <small class="badge bg-success">Active: {{ active_students }}</small>
+                    <small class="badge bg-warning text-dark">Deferred: {{ deferred_students }}</small>
+                    <small class="badge bg-danger">Suspended: {{ suspended_students }}</small>
+                    <small class="badge bg-info">Graduated: {{ graduated_students }}</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-success" onclick="exportStudents()">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="printTable()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Filters -->
+    
+    <!-- Search and Filter Section -->
     <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Programme</label>
-                            <select name="programme" class="form-select">
-                                <option value="">All Programmes</option>
-                                {% for prog in programmes %}
-                                <option value="{{ prog.id }}">{{ prog.name }}</option>
-                                {% endfor %}
-                            </select>
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Search & Filter Students
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <!-- Search -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Search Students</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control" name="search" 
+                                   value="{{ search_query }}" 
+                                   placeholder="Search by name, ID, email, programme...">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Year</label>
-                            <select name="year" class="form-select">
-                                <option value="">All Years</option>
-                                <option value="1">Year 1</option>
-                                <option value="2">Year 2</option>
-                                <option value="3">Year 3</option>
-                                <option value="4">Year 4</option>
-                            </select>
+                    </div>
+                    
+                    <!-- Status Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select class="form-select" name="status">
+                            <option value="">All Status</option>
+                            {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" 
+                                    {% if status_code == status_filter %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Programme Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Programme</label>
+                        <select class="form-select" name="programme">
+                            <option value="">All Programmes</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}" 
+                                    {% if programme.id|stringformat:"s" == programme_filter %}selected{% endif %}>
+                                {{ programme.code }} - {{ programme.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Year Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Year</label>
+                        <select class="form-select" name="year">
+                            <option value="">All Years</option>
+                            {% for year_code, year_name in year_choices %}
+                            <option value="{{ year_code }}" 
+                                    {% if year_code|stringformat:"s" == year_filter %}selected{% endif %}>
+                                {{ year_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Semester Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Semester</label>
+                        <select class="form-select" name="semester">
+                            <option value="">All Semesters</option>
+                            {% for semester_code, semester_name in semester_choices %}
+                            <option value="{{ semester_code }}" 
+                                    {% if semester_code|stringformat:"s" == semester_filter %}selected{% endif %}>
+                                {{ semester_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Admission Type Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Admission Type</label>
+                        <select class="form-select" name="admission_type">
+                            <option value="">All Types</option>
+                            {% for admission_code, admission_name in admission_type_choices %}
+                            <option value="{{ admission_code }}" 
+                                    {% if admission_code == admission_type_filter %}selected{% endif %}>
+                                {{ admission_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Sponsor Type Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Sponsor</label>
+                        <select class="form-select" name="sponsor_type">
+                            <option value="">All Sponsors</option>
+                            {% for sponsor_code, sponsor_name in sponsor_type_choices %}
+                            <option value="{{ sponsor_code }}" 
+                                    {% if sponsor_code == sponsor_type_filter %}selected{% endif %}>
+                                {{ sponsor_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                            <a href="{% url 'cod_students_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Clear
+                            </a>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="deferred">Deferred</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-primary w-100">Filter</button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -64,36 +172,113 @@
         <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">Students List</h5>
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-table"></i> Students List
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% if page_obj %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle" id="studentsTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Student ID</th>
+                                    <th>Photo</th>
+                                    <th>Registration No.</th>
                                     <th>Name</th>
                                     <th>Programme</th>
-                                    <th>Year</th>
+                                    <th>Year/Semester</th>
                                     <th>Status</th>
-                                    <th>GPA</th>
+                                    <th>Admission</th>
+                                    <th>Sponsor</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for student in page_obj %}
                                 <tr>
-                                    <td><span class="badge bg-info">{{ student.student_id }}</span></td>
-                                    <td>{{ student.user.get_full_name }}</td>
-                                    <td>{{ student.programme.code }}</td>
-                                    <td>Year {{ student.current_year }}</td>
-                                    <td><span class="badge bg-success">{{ student.get_status_display }}</span></td>
-                                    <td>{{ student.cumulative_gpa|default:"N/A" }}</td>
                                     <td>
-                                        <a href="{% url 'cod_student_detail' student.id %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View
-                                        </a>
+                                        {% if student.user.profile_picture %}
+                                        <img src="{{ student.user.profile_picture.url }}" 
+                                             class="rounded-circle" width="45" height="45" 
+                                             alt="Profile">
+                                        {% else %}
+                                        <div class="bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                             style="width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <span class="text-white fw-bold">
+                                                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-dark">{{ student.student_id }}</span>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong class="text-primary">{{ student.user.get_full_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="bi bi-envelope"></i> 
+                                                {{ student.user.email|default:"No email" }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ student.programme.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <span class="badge bg-secondary">{{ student.programme.code }}</span>
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <span class="badge bg-info">Year {{ student.current_year }}</span>
+                                            <span class="badge bg-secondary">Sem {{ student.current_semester }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if student.status == 'active' %}bg-success
+                                            {% elif student.status == 'deferred' %}bg-warning text-dark
+                                            {% elif student.status == 'suspended' %}bg-danger
+                                            {% elif student.status == 'graduated' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ student.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <i class="bi bi-calendar3"></i> 
+                                            {{ student.admission_date|date:"M d, Y" }}
+                                            <br>
+                                            <span class="text-muted">{{ student.get_admission_type_display|default:"Regular" }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ student.get_sponsor_type_display|default:"Self" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'cod_student_detail' student.id %}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="#" 
+                                               class="btn btn-sm btn-outline-info" 
+                                               title="Performance">
+                                                <i class="bi bi-graph-up"></i>
+                                            </a>
+                                            <a href="#" 
+                                               class="btn btn-sm btn-outline-success" 
+                                               title="Transcript">
+                                                <i class="bi bi-file-text"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -103,34 +288,250 @@
 
                     <!-- Pagination -->
                     {% if page_obj.has_other_pages %}
-                    <nav>
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
-                            </li>
-                            {% endif %}
-                            
-                            {% for num in page_obj.paginator.page_range %}
-                            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-                            </li>
-                            {% endfor %}
-                            
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
+                    <div class="mt-4">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for i in page_obj.paginator.page_range %}
+                                {% if page_obj.number == i %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                                {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">{{ i }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if semester_filter %}&semester={{ semester_filter }}{% endif %}{% if admission_type_filter %}&admission_type={{ admission_type_filter }}{% endif %}{% if sponsor_type_filter %}&sponsor_type={{ sponsor_type_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        <div class="text-center text-muted">
+                            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} students
+                        </div>
+                    </div>
                     {% endif %}
                     {% else %}
-                    <p class="text-center text-muted">No students found</p>
+                    <div class="text-center py-5">
+                        <div class="d-flex flex-column align-items-center">
+                            <i class="bi bi-person-x text-muted" style="font-size: 4rem;"></i>
+                            <h4 class="text-muted mt-3">No students found</h4>
+                            <p class="text-muted">Try adjusting your search criteria or filters.</p>
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Custom Styling */
+.onprintContainer {
+    background-color: #fff;
+    border-radius: 10px;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-top-left-radius: 10px !important;
+    border-top-right-radius: 10px !important;
+}
+
+.table-responsive {
+    border-radius: 8px;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    transition: background-color 0.2s;
+}
+
+.btn-group .btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Message Container */
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+}
+
+.alert-message {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-error, .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+.close-message {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.5;
+}
+
+.close-message:hover {
+    opacity: 1;
+}
+
+/* Pagination */
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.page-link {
+    color: #007bff;
+}
+
+.page-link:hover {
+    color: #0056b3;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        border-radius: 0.25rem !important;
+        margin-bottom: 0.25rem;
+    }
+}
+
+@media print {
+    .btn, .pagination, .card-header, .message-container {
+        display: none !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide messages after 5 seconds
+    const messages = document.querySelectorAll('.alert-message');
+    messages.forEach(message => {
+        setTimeout(() => {
+            message.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => message.remove(), 300);
+        }, 5000);
+    });
+    
+    // Close message on click
+    document.querySelectorAll('.close-message').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+});
+
+// Export students function
+function exportStudents() {
+    const params = new URLSearchParams(window.location.search);
+    let exportUrl = "#";
+    if (params.toString()) {
+        exportUrl += '?' + params.toString();
+    }
+    window.location.href = exportUrl;
+}
+
+// Print table function
+function printTable() {
+    window.print();
+}
+</script>
+
 {% endblock %}
