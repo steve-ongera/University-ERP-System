@@ -81,7 +81,7 @@
         <ul class="menu" style="padding-left: 0; margin: 0; list-style: none;">
             <!-- Dashboard -->
             <li class="menu-link active" id="dashboard" style="margin-bottom: 2px;">
-                <a class="menu_sub" href="#" style="display: flex; align-items: center; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+                <a class="menu_sub" href="{% url 'cod_dashboard'%}" style="display: flex; align-items: center; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
                     <i class="ri-dashboard-line" style="margin-right: 10px; font-size: 16px;"></i> 
                     <span style="white-space: nowrap;">Dashboard</span>
                 </a>
@@ -96,13 +96,13 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="dept-info" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Department Info</a>
+                        <a id="dept-info" href="{% url 'cod_department_info'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Department Info</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="dept-programmes" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Programmes</a>
+                        <a id="dept-programmes" href="{% url 'cod_department_programmes'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Programmes</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="dept-courses" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Courses/Units</a>
+                        <a id="dept-courses" href="{% url 'cod_department_courses'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Courses/Units</a>
                     </li>
                 </ul>
             </li>
@@ -116,10 +116,10 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="lecturers" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Lecturers</a>
+                        <a id="lecturers" href="{% url 'cod_lecturers_list'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Lecturers</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="lecturer-assignments" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Course Assignments</a>
+                        <a id="lecturer-assignments" href="{% url 'cod_course_assignments'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Course Assignments</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
                         <a id="workload" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Workload Analysis</a>
@@ -136,13 +136,13 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="student-list" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Student List</a>
+                        <a id="student-list" href="{% url 'cod_students_list'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Student List</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="enrollments" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Enrollments</a>
+                        <a id="enrollments" href="{% url 'cod_enrollments_list'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Enrollments</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="student-performance" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Performance</a>
+                        <a id="student-performance" href="{% url 'cod_student_performance'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Performance</a>
                     </li>
                 </ul>
             </li>
@@ -156,7 +156,7 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="view-timetable" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">View Timetable</a>
+                        <a id="view-timetable" href="{% url 'cod_view_timetable'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">View Timetable</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
                         <a id="manage-timetable" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Manage Timetable</a>
@@ -173,16 +173,16 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="exam-schedule" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Exam Schedule</a>
+                        <a id="exam-schedule" href="{% url 'cod_exam_schedule'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Exam Schedule</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="marks-approval" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Marks Approval</a>
+                        <a id="marks-approval" href="{% url 'cod_marks_approval'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Marks Approval</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
                         <a id="results" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Results</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="special-exams" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Special Exams</a>
+                        <a id="special-exams" href="{% url 'cod_special_exam_applications'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Special Exams</a>
                     </li>
                 </ul>
             </li>
@@ -196,13 +196,13 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="deferments" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Deferments</a>
+                        <a id="deferments" href="{% url 'cod_deferment_applications'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Deferments</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="special-exam-apps" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Special Exam Apps</a>
+                        <a id="special-exam-apps" href="{% url 'cod_special_exam_applications'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Special Exam Apps</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="clearances" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Clearances</a>
+                        <a id="clearances" href="{% url 'cod_clearance_requests'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Clearances</a>
                     </li>
                 </ul>
             </li>
@@ -216,7 +216,7 @@
                 </a>
                 <ul style="padding-left: 15px; margin: 0; list-style: none; display: none;">
                     <li class="sub-item" style="margin-top: 2px;">
-                        <a id="department-report" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Department Report</a>
+                        <a id="department-report" href="{% url 'cod_department_report'%}" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Department Report</a>
                     </li>
                     <li class="sub-item" style="margin-top: 2px;">
                         <a id="enrollment-report" href="#" style="display: block; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px;">Enrollment Report</a>
