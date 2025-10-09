@@ -22490,36 +22490,224 @@ def students_list(request):
     
     return render(request, 'cod/students_list.html', context)
 
-
 @login_required
 @cod_required
-def student_detail(request, student_id):
-    """View detailed student information"""
+def cod_student_detail(request, student_id):
+    """View detailed student information with comprehensive data"""
     department = request.user.headed_departments.first()
+    
+    if not department:
+        messages.error(request, "You are not assigned as head of any department.")
+        return redirect('dashboard')
+    
+    # Get student with related data
     student = get_object_or_404(
-        Student,
+        Student.objects.select_related(
+            'user',
+            'programme',
+            'programme__department',
+            'programme__faculty'
+        ),
         id=student_id,
         programme__department=department
     )
     
-    # Get enrollments
+    # Get all academic years and semesters
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    
+    # Get enrollments with related data
     enrollments = Enrollment.objects.filter(
         student=student
-    ).select_related('course', 'semester', 'lecturer').order_by('-semester__start_date')
+    ).select_related(
+        'course',
+        'semester',
+        'semester__academic_year',
+        'lecturer__user'
+    ).order_by('-semester__start_date', 'course__code')
     
-    # Get grades
+    # Separate current and past enrollments
+    current_enrollments = enrollments.filter(is_active=True)
+    past_enrollments = enrollments.filter(is_active=False)
+    
+    # Get grades with detailed information
     grades = Grade.objects.filter(
         enrollment__student=student
-    ).select_related('enrollment__course')
+    ).select_related(
+        'enrollment__course',
+        'enrollment__semester',
+        'enrollment__semester__academic_year'
+    ).order_by('-enrollment__semester__start_date')
+    
+    # Calculate academic statistics
+    academic_stats = grades.aggregate(
+        avg_total=Avg('total_marks'),
+        avg_grade_points=Avg('grade_points'),
+        total_courses=Count('id', distinct=True)
+    )
+    
+    # Grade distribution
+    grade_distribution = {}
+    for grade in grades:
+        grade_letter = grade.grade
+        grade_distribution[grade_letter] = grade_distribution.get(grade_letter, 0) + 1
+    
+    # Get attendance records
+    attendance_records = Attendance.objects.filter(
+        student=student
+    ).select_related(
+        'timetable_slot__course',
+        'attendance_session'
+    ).order_by('-attendance_session__session_date')
+    
+    # Calculate attendance statistics
+    total_sessions = attendance_records.count()
+    present_count = attendance_records.filter(status='present').count()
+    attendance_percentage = (present_count / total_sessions * 100) if total_sessions > 0 else 0
+    
+    # Organize enrollments by academic year and semester
+    enrollments_by_period = {}
+    for enrollment in enrollments:
+        year_key = enrollment.semester.academic_year.year
+        semester_key = enrollment.semester.semester_number
+        
+        if year_key not in enrollments_by_period:
+            enrollments_by_period[year_key] = {}
+        
+        if semester_key not in enrollments_by_period[year_key]:
+            enrollments_by_period[year_key][semester_key] = {
+                'enrollments': [],
+                'semester_obj': enrollment.semester
+            }
+        
+        enrollments_by_period[year_key][semester_key]['enrollments'].append(enrollment)
+    
+    # Calculate semester-wise performance with detailed stats
+    semester_performance = {}
+    for enrollment in enrollments:
+        semester_key = f"{enrollment.semester.academic_year.year}|{enrollment.semester.semester_number}"
+        semester_display = f"{enrollment.semester.academic_year.year} - Semester {enrollment.semester.semester_number}"
+        
+        if semester_key not in semester_performance:
+            semester_performance[semester_key] = {
+                'display': semester_display,
+                'year': enrollment.semester.academic_year.year,
+                'semester': enrollment.semester.semester_number,
+                'enrollments': [],
+                'total_courses': 0,
+                'completed_courses': 0,
+                'gpa': 0,
+                'total_credits': 0,
+                'total_marks': 0,
+                'grade_points_sum': 0,
+                'credits_earned': 0
+            }
+        
+        semester_performance[semester_key]['enrollments'].append(enrollment)
+        semester_performance[semester_key]['total_courses'] += 1
+        
+        # Check if course is completed (has grade)
+        try:
+            grade_obj = enrollment.grade
+            if grade_obj:
+                semester_performance[semester_key]['completed_courses'] += 1
+                semester_performance[semester_key]['grade_points_sum'] += grade_obj.grade_points or 0
+                semester_performance[semester_key]['total_marks'] += grade_obj.total_marks or 0
+                semester_performance[semester_key]['total_credits'] += enrollment.course.credit_hours or 0
+                
+                if grade_obj.is_passed:
+                    semester_performance[semester_key]['credits_earned'] += enrollment.course.credit_hours or 0
+        except Grade.DoesNotExist:
+            pass
+    
+    # Calculate average GPA and marks for each semester
+    for semester_key in semester_performance:
+        completed = semester_performance[semester_key]['completed_courses']
+        if completed > 0:
+            semester_performance[semester_key]['gpa'] = semester_performance[semester_key]['grade_points_sum'] / completed
+            semester_performance[semester_key]['avg_marks'] = semester_performance[semester_key]['total_marks'] / completed
+    
+    # Prepare performance chart data
+    performance_chart_data = {
+        'labels': [],
+        'gpa_data': [],
+        'avg_marks_data': []
+    }
+    
+    for semester_key in sorted(semester_performance.keys()):
+        perf = semester_performance[semester_key]
+        performance_chart_data['labels'].append(f"Y{perf['year'][-4:]} S{perf['semester']}")
+        performance_chart_data['gpa_data'].append(round(perf['gpa'], 2))
+        performance_chart_data['avg_marks_data'].append(round(perf.get('avg_marks', 0), 2))
+    
+    # Organize attendance by semester
+    attendance_by_semester = {}
+    for record in attendance_records:
+        semester_key = f"{record.attendance_session.semester.academic_year.year}|{record.attendance_session.semester.semester_number}"
+        
+        if semester_key not in attendance_by_semester:
+            attendance_by_semester[semester_key] = {
+                'year': record.attendance_session.semester.academic_year.year,
+                'semester': record.attendance_session.semester.semester_number,
+                'records': [],
+                'total': 0,
+                'present': 0,
+                'absent': 0,
+                'late': 0
+            }
+        
+        attendance_by_semester[semester_key]['records'].append(record)
+        attendance_by_semester[semester_key]['total'] += 1
+        
+        if record.status == 'present':
+            attendance_by_semester[semester_key]['present'] += 1
+        elif record.status == 'absent':
+            attendance_by_semester[semester_key]['absent'] += 1
+        elif record.status == 'late':
+            attendance_by_semester[semester_key]['late'] += 1
+    
+    # Calculate attendance percentage for each semester
+    for semester_key in attendance_by_semester:
+        total = attendance_by_semester[semester_key]['total']
+        present = attendance_by_semester[semester_key]['present']
+        attendance_by_semester[semester_key]['percentage'] = (present / total * 100) if total > 0 else 0
     
     context = {
         'department': department,
         'student': student,
+        
+        # Enrollment data
         'enrollments': enrollments,
+        'current_enrollments': current_enrollments,
+        'past_enrollments': past_enrollments,
+        'total_enrollments': enrollments.count(),
+        'active_enrollments': current_enrollments.count(),
+        'enrollments_by_period': enrollments_by_period,
+        
+        # Academic performance
         'grades': grades,
+        'academic_stats': academic_stats,
+        'grade_distribution': grade_distribution,
+        'semester_performance': semester_performance,
+        'performance_chart_data': performance_chart_data,
+        
+        # Attendance
+        'attendance_records': attendance_records[:20],
+        'attendance_by_semester': attendance_by_semester,
+        'total_sessions': total_sessions,
+        'present_count': present_count,
+        'absent_count': attendance_records.filter(status='absent').count(),
+        'late_count': attendance_records.filter(status='late').count(),
+        'attendance_percentage': round(attendance_percentage, 2),
+        
+        # Academic years for filtering
+        'academic_years': academic_years,
+        
+        # Statistics
+        'total_credits_completed': sum([e.course.credit_hours for e in past_enrollments if e.course.credit_hours and hasattr(e, 'grade') and e.grade.is_passed]),
+        'cgpa': student.cumulative_gpa if student.cumulative_gpa else 0,
     }
+    
     return render(request, 'cod/student_detail.html', context)
-
 
 # Enrollments
 @login_required
