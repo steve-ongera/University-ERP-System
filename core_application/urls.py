@@ -529,6 +529,8 @@ urlpatterns = [
      #Cod Operation urls Dashboard
     path('cod/dashboard/', views.cod_dashboard, name='cod_dashboard'),
     path('cod/department/info/', views.department_info, name='cod_department_info'),
+    path('cod/download-students/<int:programme_id>/<int:year>/', views.download_students_csv, name='cod_download_students'),
+    path('cod/download-all-students/<int:programme_id>/', views.download_all_programme_students_csv, name='cod_download_all_programme_students'),
     path('cod/department/programmes/', views.department_programmes, name='cod_department_programmes'),
     path('cod/department/courses/', views.department_courses, name='cod_department_courses'),
     path('cod/lecturers/', views.lecturers_list, name='cod_lecturers_list'),

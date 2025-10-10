@@ -22144,11 +22144,23 @@ def cod_dashboard(request):
     return render(request, 'cod/dashboard.html', context)
 
 # Department Information
+# views.py
+from django.db.models import Count, Q
+from django.http import HttpResponse
+import csv
+
 @login_required
 @cod_required
 def department_info(request):
-    """View and manage department information"""
+    """View and manage department information with student statistics"""
     department = request.user.headed_departments.first()
+    
+    if not department:
+        messages.error(request, 'No department assigned to you.')
+        return redirect('cod_dashboard')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     
     if request.method == 'POST':
         # Update department information
@@ -22157,10 +22169,175 @@ def department_info(request):
         messages.success(request, 'Department information updated successfully.')
         return redirect('cod_department_info')
     
+    # Get all programmes in the department
+    programmes = department.programmes.filter(is_active=True).order_by('name')
+    
+    # Prepare programme statistics
+    programme_stats = []
+    for programme in programmes:
+        # Count students by year for current academic year
+        year_stats = []
+        for year in range(1, programme.duration_years + 1):
+            student_count = Student.objects.filter(
+                programme=programme,
+                current_year=year,
+                status='active'
+            ).count()
+            
+            year_stats.append({
+                'year': year,
+                'count': student_count
+            })
+        
+        total_students = sum(y['count'] for y in year_stats)
+        
+        programme_stats.append({
+            'programme': programme,
+            'year_stats': year_stats,
+            'total': total_students
+        })
+    
+    # Overall department statistics
+    total_department_students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).count()
+    
     context = {
         'department': department,
+        'current_academic_year': current_academic_year,
+        'programme_stats': programme_stats,
+        'total_department_students': total_department_students,
+        'total_programmes': programmes.count(),
+        'total_courses': department.courses.filter(is_active=True).count(),
+        'total_lecturers': department.lecturers.filter(is_active=True).count(),
     }
     return render(request, 'cod/department_info.html', context)
+
+
+@login_required
+@cod_required
+def download_students_csv(request, programme_id, year):
+    """Download list of students for a specific programme and year"""
+    department = request.user.headed_departments.first()
+    
+    try:
+        programme = Programme.objects.get(
+            id=programme_id,
+            department=department,
+            is_active=True
+        )
+    except Programme.DoesNotExist:
+        messages.error(request, 'Programme not found.')
+        return redirect('cod_department_info')
+    
+    # Get students
+    students = Student.objects.filter(
+        programme=programme,
+        current_year=year,
+        status='active'
+    ).select_related('user').order_by('student_id')
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    filename = f'{programme.code}_Year{year}_Students.csv'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Student ID',
+        'First Name',
+        'Last Name',
+        'Email',
+        'Phone',
+        'Programme Name',
+        'Programme Code',
+        'Year of Study',
+        'Status',
+        'Admission Date',
+        'Gender',
+        'National ID'
+    ])
+    
+    for student in students:
+        writer.writerow([
+            student.student_id,
+            student.user.first_name,
+            student.user.last_name,
+            student.user.email,
+            student.user.phone,
+            programme.name,
+            programme.code,
+            year,
+            student.get_status_display(),
+            student.admission_date,
+            student.user.get_gender_display() if student.user.gender else '',
+            student.user.national_id or ''
+        ])
+    
+    return response
+
+
+@login_required
+@cod_required
+def download_all_programme_students_csv(request, programme_id):
+    """Download all students for a specific programme (all years)"""
+    department = request.user.headed_departments.first()
+    
+    try:
+        programme = Programme.objects.get(
+            id=programme_id,
+            department=department,
+            is_active=True
+        )
+    except Programme.DoesNotExist:
+        messages.error(request, 'Programme not found.')
+        return redirect('cod_department_info')
+    
+    # Get all active students in programme
+    students = Student.objects.filter(
+        programme=programme,
+        status='active'
+    ).select_related('user').order_by('current_year', 'student_id')
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    filename = f'{programme.code}_All_Students.csv'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Student ID',
+        'First Name',
+        'Last Name',
+        'Email',
+        'Phone',
+        'Programme Name',
+        'Programme Code',
+        'Year of Study',
+        'Status',
+        'Admission Date',
+        'Gender',
+        'National ID'
+    ])
+    
+    for student in students:
+        writer.writerow([
+            student.student_id,
+            student.user.first_name,
+            student.user.last_name,
+            student.user.email,
+            student.user.phone,
+            programme.name,
+            programme.code,
+            student.current_year,
+            student.get_status_display(),
+            student.admission_date,
+            student.user.get_gender_display() if student.user.gender else '',
+            student.user.national_id or ''
+        ])
+    
+    return response
 
 
 # Programmes Management

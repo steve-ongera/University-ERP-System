@@ -1,50 +1,204 @@
-<!-- ==================== cod/department_info.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h2 class="fw-bold mb-2">
-                    <i class="bi bi-building text-primary"></i> Department Information
-                </h2>
+<style>
+    /* Breadcrumb Container */
+    .breadcrumb {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+     
+    }
+
+    /* Breadcrumb Items */
+    .breadcrumb-item {
+        font-size: 0.95rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* Active Item */
+    .breadcrumb-item.active {
+        color: #0d6efd; /* bootstrap primary blue */
+        font-weight: 600;
+    }
+
+    /* Links */
+    .breadcrumb-item a {
+        text-decoration: none;
+        color: #495057;
+        transition: color 0.2s ease-in-out;
+    }
+
+    .breadcrumb-item a:hover {
+        color: #0d6efd; /* hover turns blue */
+    }
+
+    /* Icons inside breadcrumb */
+    .breadcrumb-item i {
+        margin-right: 5px;
+        font-size: 1rem;
+        color: #0d6efd; /* highlight icons */
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}" class="text-decoration-none">
+                   Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                 Department Information
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-building"></i> {{ department.name }}
+                    </h2>
+                    <p class="mb-0 opacity-75">Department Code: {{ department.code }}</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">Details</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Name:</strong> {{ department.name }}</p>
-                    <p><strong>Code:</strong> {{ department.code }}</p>
-                    <p><strong>Faculty:</strong> {{ department.faculty.name }}</p>
-                    <p><strong>Head of Department:</strong> {{ department.head_of_department.get_full_name }}</p>
-                    <p><strong>Established:</strong> {{ department.established_date }}</p>
-                    <p><strong>Status:</strong> 
-                        {% if department.is_active %}
-                        <span class="badge bg-success">Active</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                        {% endif %}
-                    </p>
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ total_department_students }}</h3>
+                    <p class="text-muted small mb-0">Total Students</p>
                 </div>
             </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="bi bi-book-fill" style="font-size: 2rem;"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ total_programmes }}</h3>
+                    <p class="text-muted small mb-0">Programmes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="bi bi-journal-text" style="font-size: 2rem;"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ total_courses }}</h3>
+                    <p class="text-muted small mb-0">Courses</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="bi bi-person-badge-fill" style="font-size: 2rem;"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ total_lecturers }}</h3>
+                    <p class="text-muted small mb-0">Lecturers</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <div class="card shadow-sm mt-3">
-                <div class="card-header bg-success text-white">
-                    <h5 class="fw-bold mb-0">Description</h5>
+    <!-- Department Details and Description -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-info-circle"></i> Department Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong class="text-muted">Faculty:</strong></p>
+                            <p>{{ department.faculty.name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong class="text-muted">Head of Department:</strong></p>
+                            <p>{{ department.head_of_department.get_full_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong class="text-muted">Established Date:</strong></p>
+                            <p>{{ department.established_date|date:"F j, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong class="text-muted">Status:</strong></p>
+                            <p>
+                                {% if department.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-calendar-event"></i> Academic Year
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if current_academic_year %}
+                    <div class="text-center py-3">
+                        <h4 class="fw-bold text-primary mb-2">{{ current_academic_year.year }}</h4>
+                        <p class="text-muted small mb-1">Start: {{ current_academic_year.start_date|date:"M j, Y" }}</p>
+                        <p class="text-muted small mb-0">End: {{ current_academic_year.end_date|date:"M j, Y" }}</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> No current academic year set
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Description Update Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-pencil-square"></i> Department Description
+                    </h5>
                 </div>
                 <div class="card-body">
                     <form method="POST">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <textarea name="description" class="form-control" rows="6">{{ department.description }}</textarea>
+                            <textarea name="description" class="form-control" rows="5" 
+                                      placeholder="Enter department description...">{{ department.description }}</textarea>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Update Description
@@ -53,28 +207,185 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="fw-bold mb-0">Quick Stats</h5>
+    <!-- Student Statistics by Programme -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-bar-chart-fill"></i> Student Statistics by Programme
+                    </h5>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Programmes:</span>
-                        <strong class="text-primary">{{ department.programmes.count }}</strong>
+                <div class="card-body p-0">
+                    {% if programme_stats %}
+                        {% for prog_stat in programme_stats %}
+                        <div class="programme-section border-bottom">
+                            <!-- Programme Header -->
+                            <div class="p-4 bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="fw-bold mb-1">{{ prog_stat.programme.name }}</h5>
+                                        <p class="text-muted mb-0 small">
+                                            Code: {{ prog_stat.programme.code }} | 
+                                            Duration: {{ prog_stat.programme.duration_years }} Years | 
+                                            Total Students: <strong>{{ prog_stat.total }}</strong>
+                                        </p>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary toggle-year-tabs" 
+                                            data-programme-id="{{ prog_stat.programme.id }}">
+                                        <i class="bi bi-chevron-down"></i> Show Years
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Year Tabs (Hidden by default) -->
+                            <div class="year-tabs-container" id="programme-{{ prog_stat.programme.id }}" style="display: none;">
+                                <div class="p-3 bg-white">
+                                    <!-- Year Tab Navigation -->
+                                    <ul class="nav nav-tabs mb-3" id="yearTabs-{{ prog_stat.programme.id }}" role="tablist">
+                                        {% for year_stat in prog_stat.year_stats %}
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                                                    id="year{{ year_stat.year }}-tab-{{ prog_stat.programme.id }}" 
+                                                    data-bs-toggle="tab" 
+                                                    data-bs-target="#year{{ year_stat.year }}-{{ prog_stat.programme.id }}" 
+                                                    type="button" 
+                                                    role="tab">
+                                                Year {{ year_stat.year }}
+                                                <span class="badge bg-primary ms-1">{{ year_stat.count }}</span>
+                                            </button>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    <!-- Year Tab Content -->
+                                    <div class="tab-content" id="yearTabsContent-{{ prog_stat.programme.id }}">
+                                        {% for year_stat in prog_stat.year_stats %}
+                                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                             id="year{{ year_stat.year }}-{{ prog_stat.programme.id }}" 
+                                             role="tabpanel">
+                                            <div class="p-3 bg-light rounded">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <div>
+                                                        <h6 class="fw-bold mb-1">Year {{ year_stat.year }} Students</h6>
+                                                        <p class="text-muted mb-0 small">Total: {{ year_stat.count }} student{{ year_stat.count|pluralize }}</p>
+                                                    </div>
+                                                    <a href="{% url 'cod_download_students' prog_stat.programme.id year_stat.year %}" 
+                                                       class="btn btn-sm btn-success">
+                                                        <i class="bi bi-download"></i> Download CSV
+                                                    </a>
+                                                </div>
+                                                
+                                                {% if year_stat.count > 0 %}
+                                                <div class="alert alert-info mb-0" role="alert">
+                                                    <i class="bi bi-info-circle"></i> 
+                                                    Click the download button to get a CSV file with all student details for this year.
+                                                </div>
+                                                {% else %}
+                                                <div class="alert alert-warning mb-0" role="alert">
+                                                    <i class="bi bi-exclamation-triangle"></i> 
+                                                    No active students enrolled in Year {{ year_stat.year }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    <!-- Download All Button -->
+                                    <div class="mt-3 text-center">
+                                        <a href="{% url 'cod_download_all_programme_students' prog_stat.programme.id %}" 
+                                           class="btn btn-primary">
+                                            <i class="bi bi-download"></i> Download All Students (All Years)
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="p-4 text-center">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                        <p class="text-muted mt-2">No active programmes found in this department.</p>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Courses:</span>
-                        <strong class="text-success">{{ department.courses.count }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Lecturers:</span>
-                        <strong class="text-info">{{ department.lecturers.count }}</strong>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+    color: #0d6efd;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    font-weight: 600;
+}
+
+.programme-section:last-child {
+    border-bottom: none !important;
+}
+
+.toggle-year-tabs i {
+    transition: transform 0.3s ease;
+}
+
+.toggle-year-tabs.expanded i {
+    transform: rotate(180deg);
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    font-size: 1.2rem;
+}
+
+.breadcrumb-item a {
+    color: #6c757d;
+}
+
+.breadcrumb-item a:hover {
+    color: #0d6efd;
+}
+
+.breadcrumb-item.active {
+    color: #495057;
+    font-weight: 500;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle year tabs for each programme
+    document.querySelectorAll('.toggle-year-tabs').forEach(button => {
+        button.addEventListener('click', function() {
+            const programmeId = this.getAttribute('data-programme-id');
+            const container = document.getElementById('programme-' + programmeId);
+            const icon = this.querySelector('i');
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                this.classList.add('expanded');
+                this.innerHTML = '<i class="bi bi-chevron-up"></i> Hide Years';
+            } else {
+                container.style.display = 'none';
+                this.classList.remove('expanded');
+                this.innerHTML = '<i class="bi bi-chevron-down"></i> Show Years';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
