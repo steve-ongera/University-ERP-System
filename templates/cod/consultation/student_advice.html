@@ -1,0 +1,425 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .advice-card {
+        border-radius: 10px;
+        border: none;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .advice-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .recommendation-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    .course-list-item {
+        padding: 0.75rem;
+        border-left: 3px solid;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+
+    .course-list-item.failed {
+        border-left-color: #dc3545;
+        background: #f8d7da;
+    }
+
+    .course-list-item.weak {
+        border-left-color: #ffc107;
+        background: #fff3cd;
+    }
+
+    .stat-box {
+        text-align: center;
+        padding: 1.5rem;
+        border-radius: 8px;
+        background: white;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_student_consultation' %}">
+                    <i class="bi bi-people"></i> Student Consultation
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_student_consultation_detail' student.student_id %}">
+                    {{ student.student_id }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-lightbulb"></i> Academic Advice
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-info text-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-lightbulb-fill"></i> Academic Advice & Recommendations
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                Personalized guidance for {{ student.user.get_full_name }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'cod_student_consultation_detail' student.student_id %}" 
+                               class="btn btn-light">
+                                <i class="bi bi-arrow-left"></i> Back to Results
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stat-box border-0 shadow-sm">
+                <div class="display-6 fw-bold text-primary">
+                    {{ student.cumulative_gpa|floatformat:2|default:"N/A" }}
+                </div>
+                <div class="text-muted fw-bold">Cumulative GPA</div>
+                <div class="progress mt-2" style="height: 8px;">
+                    {% if student.cumulative_gpa %}
+                    <div class="progress-bar 
+                        {% if student.cumulative_gpa >= 3.7 %}bg-success
+                        {% elif student.cumulative_gpa >= 3.0 %}bg-info
+                        {% elif student.cumulative_gpa >= 2.0 %}bg-warning
+                        {% else %}bg-danger{% endif %}" 
+                        style="width: {{ student.cumulative_gpa|floatformat:2|floatformat:0|default:0 }}0%;">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-box border-0 shadow-sm">
+                <div class="display-6 fw-bold text-success">
+                    {{ passed_courses }}/{{ total_courses }}
+                </div>
+                <div class="text-muted fw-bold">Courses Passed</div>
+                <div class="mt-2">
+                    {% if total_courses > 0 %}
+                    <span class="badge bg-success">
+                        {% widthratio passed_courses total_courses 100 %}% Pass Rate
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-box border-0 shadow-sm">
+                <div class="display-6 fw-bold text-danger">
+                    {{ failed_courses|length }}
+                </div>
+                <div class="text-muted fw-bold">Failed Courses</div>
+                <div class="mt-2">
+                    <span class="badge bg-warning text-dark">
+                        {{ weak_courses|length }} Weak Areas
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card advice-card">
+                <div class="card-header bg-primary bg-opacity-10 border-0">
+                    <h4 class="fw-bold text-primary mb-0">
+                        <i class="bi bi-megaphone"></i> Key Recommendations
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if recommendations %}
+                        {% for rec in recommendations %}
+                        <div class="alert alert-{{ rec.type }} recommendation-badge border-0 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    {% if rec.type == 'success' %}
+                                        <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                                    {% elif rec.type == 'info' %}
+                                        <i class="bi bi-info-circle-fill" style="font-size: 2rem;"></i>
+                                    {% elif rec.type == 'warning' %}
+                                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem;"></i>
+                                    {% elif rec.type == 'danger' %}
+                                        <i class="bi bi-x-circle-fill" style="font-size: 2rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h5 class="alert-heading fw-bold mb-2">{{ rec.title }}</h5>
+                                    <p class="mb-0">{{ rec.message }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> No specific recommendations at this time.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Failed Courses -->
+    {% if failed_courses %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card advice-card border-danger">
+                <div class="card-header bg-danger bg-opacity-10 border-0">
+                    <h5 class="fw-bold text-danger mb-0">
+                        <i class="bi bi-x-circle"></i> Failed Courses - Immediate Action Required
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        These courses must be retaken and passed to meet graduation requirements.
+                    </p>
+                    <div class="row g-3">
+                        {% for item in failed_courses %}
+                        <div class="col-md-6">
+                            <div class="course-list-item failed">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ item.course.code }}</h6>
+                                        <p class="mb-1">{{ item.course.name }}</p>
+                                        <small class="text-muted">
+                                            Credit Hours: {{ item.course.credit_hours }}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if item.grade %}
+                                            <span class="badge bg-danger">{{ item.grade.grade }}</span>
+                                            <br>
+                                            <small class="text-muted">{{ item.grade.total_marks|floatformat:1 }}%</small>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No Grade</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-top border-danger">
+                                    <strong class="text-danger">
+                                        <i class="bi bi-arrow-repeat"></i> Retake Required
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Weak Areas -->
+    {% if weak_courses %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card advice-card border-warning">
+                <div class="card-header bg-warning bg-opacity-10 border-0">
+                    <h5 class="fw-bold text-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Areas Needing Improvement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        These courses show weak performance (C grade or below). Consider additional study or tutoring.
+                    </p>
+                    <div class="row g-3">
+                        {% for item in weak_courses %}
+                        <div class="col-md-6">
+                            <div class="course-list-item weak">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ item.course.code }}</h6>
+                                        <p class="mb-1">{{ item.course.name }}</p>
+                                        <small class="text-muted">
+                                            Credit Hours: {{ item.course.credit_hours }}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-warning text-dark">{{ item.grade.grade }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ item.grade.total_marks|floatformat:1 }}%</small>
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-top border-warning">
+                                    <strong class="text-warning">
+                                        <i class="bi bi-lightbulb"></i> Review & Practice Recommended
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Plan -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card advice-card">
+                <div class="card-header bg-success bg-opacity-10 border-0">
+                    <h5 class="fw-bold text-success mb-0">
+                        <i class="bi bi-clipboard-check"></i> Recommended Action Plan
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-primary mb-3">
+                                        <i class="bi bi-1-circle-fill"></i> Immediate Actions
+                                    </h6>
+                                    <ul class="list-unstyled">
+                                        {% if failed_courses %}
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Register for retake of {{ failed_courses|length }} failed course{{ failed_courses|length|pluralize }}
+                                        </li>
+                                        {% endif %}
+                                        {% if weak_courses %}
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Seek tutoring/mentoring for weak subjects
+                                        </li>
+                                        {% endif %}
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Meet with course lecturers for guidance
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Attend all classes regularly
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-primary mb-3">
+                                        <i class="bi bi-2-circle-fill"></i> Long-term Strategies
+                                    </h6>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Develop a consistent study schedule
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Form study groups with peers
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Utilize library and online resources
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check2 text-success"></i> 
+                                            Regular self-assessment and practice
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Resources -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card advice-card border-info">
+                <div class="card-header bg-info bg-opacity-10 border-0">
+                    <h5 class="fw-bold text-info mb-0">
+                        <i class="bi bi-headset"></i> Available Support Resources
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                    <i class="bi bi-person-video3 text-info" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Academic Counseling</h6>
+                                    <p class="text-muted small mb-0">
+                                        Schedule one-on-one sessions with academic advisors
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                    <i class="bi bi-book text-info" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Library Resources</h6>
+                                    <p class="text-muted small mb-0">
+                                        Access past papers, reference materials, and e-books
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                                    <i class="bi bi-people text-info" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Peer Tutoring</h6>
+                                    <p class="text-muted small mb-0">
+                                        Connect with senior students for guidance
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

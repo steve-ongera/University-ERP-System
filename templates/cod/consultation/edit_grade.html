@@ -1,0 +1,478 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .grade-form-card {
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .course-info-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .marks-input-group {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .marks-input {
+        font-size: 1.1rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .grade-preview {
+        background: #e7f3ff;
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-top: 1rem;
+    }
+
+    .grade-calculator {
+        position: sticky;
+        top: 20px;
+    }
+
+    .calculation-display {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0d6efd;
+    }
+
+    .mark-label {
+        font-size: 0.85rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_student_consultation' %}">
+                    <i class="bi bi-people"></i> Student Consultation
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_student_consultation_detail' enrollment.student.student_id %}">
+                    {{ enrollment.student.student_id }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-pencil"></i> {% if is_new %}Create{% else %}Edit{% endif %} Grade
+            </li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-12">
+            <!-- Page Header -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-pencil-square"></i> {% if is_new %}Create New Grade{% else %}Edit Grade{% endif %}
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ enrollment.course.code }} - {{ enrollment.semester.academic_year.year }}
+                            </p>
+                        </div>
+                        <a href="{% url 'cod_student_consultation_detail' enrollment.student.student_id %}" 
+                           class="btn btn-light">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grade Form -->
+            <div class="grade-form-card">
+                <div class="card border-0 shadow">
+                    <div class="card-body p-4">
+                        <!-- Course Information -->
+                        <div class="course-info-box">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h4 class="fw-bold mb-2">{{ enrollment.course.name }}</h4>
+                                    <p class="mb-1">
+                                        <span class="badge bg-light text-primary">{{ enrollment.course.code }}</span>
+                                        <span class="badge bg-light text-primary">{{ enrollment.course.credit_hours }} Credit Hours</span>
+                                    </p>
+                                    <p class="mb-0 opacity-75">
+                                        Student: {{ enrollment.student.user.get_full_name }} ({{ enrollment.student.student_id }})
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="bg-white bg-opacity-25 rounded p-3">
+                                        <div class="small opacity-75">Semester</div>
+                                        <div class="h5 fw-bold mb-0">
+                                            {{ enrollment.semester.academic_year.year }}
+                                            <br>
+                                            <small>Semester {{ enrollment.semester.semester_number }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if grade %}
+                        <div class="alert alert-info border-0">
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Current Grade:</strong> {{ grade.grade }} 
+                            ({{ grade.total_marks|floatformat:2 }}%) - 
+                            {{ grade.grade_points|floatformat:2 }} Points
+                        </div>
+                        {% endif %}
+
+                        <form method="POST" id="gradeForm">
+                            {% csrf_token %}
+                            
+                            <div class="row">
+                                <!-- Left Column - Input Fields -->
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold mb-3">
+                                        <i class="bi bi-pencil"></i> Enter Marks
+                                    </h5>
+
+                                    <!-- CAT Marks -->
+                                    <div class="marks-input-group">
+                                        <label class="form-label fw-bold mb-2">
+                                            Continuous Assessment Test (CAT)
+                                            <span class="badge bg-primary">Required</span>
+                                        </label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   max="40" 
+                                                   name="continuous_assessment" 
+                                                   id="ca_marks"
+                                                   class="form-control marks-input" 
+                                                   value="{% if grade %}{{ grade.continuous_assessment }}{% endif %}"
+                                                   placeholder="0.00"
+                                                   required>
+                                            <span class="input-group-text">/ 40</span>
+                                        </div>
+                                        <small class="text-muted mark-label">
+                                            <i class="bi bi-info-circle"></i> Weighted at 40% of total grade
+                                        </small>
+                                    </div>
+
+                                    <!-- Final Exam -->
+                                    <div class="marks-input-group">
+                                        <label class="form-label fw-bold mb-2">
+                                            Final Examination
+                                            <span class="badge bg-primary">Required</span>
+                                        </label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   max="60" 
+                                                   name="final_exam" 
+                                                   id="exam_marks"
+                                                   class="form-control marks-input" 
+                                                   value="{% if grade %}{{ grade.final_exam }}{% endif %}"
+                                                   placeholder="0.00"
+                                                   required>
+                                            <span class="input-group-text">/ 60</span>
+                                        </div>
+                                        <small class="text-muted mark-label">
+                                            <i class="bi bi-info-circle"></i> Weighted at 60% of total grade
+                                        </small>
+                                    </div>
+
+                                    <!-- Practical Marks -->
+                                    <div class="marks-input-group">
+                                        <label class="form-label fw-bold mb-2">
+                                            Practical/Lab Work
+                                            <span class="badge bg-secondary">Optional</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   max="10" 
+                                                   name="practical_marks" 
+                                                   id="practical_marks"
+                                                   class="form-control" 
+                                                   value="{% if grade and grade.practical_marks %}{{ grade.practical_marks }}{% endif %}"
+                                                   placeholder="0.00">
+                                            <span class="input-group-text">/ 10</span>
+                                        </div>
+                                        <small class="text-muted mark-label">
+                                            <i class="bi bi-info-circle"></i> If applicable (weighted at 10%)
+                                        </small>
+                                    </div>
+
+                                    <!-- Project Marks -->
+                                    <div class="marks-input-group">
+                                        <label class="form-label fw-bold mb-2">
+                                            Project/Assignment
+                                            <span class="badge bg-secondary">Optional</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   max="10" 
+                                                   name="project_marks" 
+                                                   id="project_marks"
+                                                   class="form-control" 
+                                                   value="{% if grade and grade.project_marks %}{{ grade.project_marks }}{% endif %}"
+                                                   placeholder="0.00">
+                                            <span class="input-group-text">/ 10</span>
+                                        </div>
+                                        <small class="text-muted mark-label">
+                                            <i class="bi bi-info-circle"></i> If applicable (weighted at 10%)
+                                        </small>
+                                    </div>
+
+                                    <!-- Remarks -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">
+                                            Remarks/Comments
+                                            <span class="badge bg-secondary">Optional</span>
+                                        </label>
+                                        <textarea name="remarks" 
+                                                  class="form-control" 
+                                                  rows="3" 
+                                                  placeholder="Any additional comments about the student's performance...">{% if grade %}{{ grade.remarks }}{% endif %}</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Right Column - Live Calculator -->
+                                <div class="col-md-4">
+                                    <div class="grade-calculator">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary text-white">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="bi bi-calculator"></i> Grade Calculator
+                                                </h6>
+                                            </div>
+                                            <div class="card-body text-center">
+                                                <div class="mb-3">
+                                                    <small class="text-muted d-block mb-1">Total Marks</small>
+                                                    <div class="calculation-display" id="totalMarks">0.00</div>
+                                                    <small class="text-muted">out of 100</small>
+                                                </div>
+
+                                                <hr>
+
+                                                <div class="mb-3">
+                                                    <small class="text-muted d-block mb-1">Letter Grade</small>
+                                                    <h2 class="mb-0" id="letterGrade">
+                                                        <span class="badge bg-secondary">N/A</span>
+                                                    </h2>
+                                                </div>
+
+                                                <hr>
+
+                                                <div class="mb-2">
+                                                    <small class="text-muted d-block mb-1">Grade Points</small>
+                                                    <div class="h4 mb-0" id="gradePoints">0.00</div>
+                                                </div>
+
+                                                <div class="mb-2">
+                                                    <small class="text-muted d-block mb-1">Quality Points</small>
+                                                    <div class="h4 mb-0" id="qualityPoints">0.00</div>
+                                                    <small class="text-muted">({{ enrollment.course.credit_hours }} credit hrs)</small>
+                                                </div>
+
+                                                <hr>
+
+                                                <div id="passStatus" class="alert alert-secondary mb-0">
+                                                    <i class="bi bi-hourglass-split"></i> Calculating...
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grading Scale Reference -->
+                                        <div class="card border-0 bg-light mt-3">
+                                            <div class="card-body p-3">
+                                                <h6 class="fw-bold mb-2">Grading Scale</h6>
+                                                <small class="d-block mb-1">A+ (90-100) = 4.0</small>
+                                                <small class="d-block mb-1">A (80-89) = 4.0</small>
+                                                <small class="d-block mb-1">A- (75-79) = 3.7</small>
+                                                <small class="d-block mb-1">B+ (70-74) = 3.3</small>
+                                                <small class="d-block mb-1">B (65-69) = 3.0</small>
+                                                <small class="d-block mb-1">B- (60-64) = 2.7</small>
+                                                <small class="d-block mb-1">C+ (55-59) = 2.3</small>
+                                                <small class="d-block mb-1">C (50-54) = 2.0</small>
+                                                <small class="d-block mb-1">C- (45-49) = 1.7</small>
+                                                <small class="d-block mb-1">D+ (40-44) = 1.3</small>
+                                                <small class="d-block mb-1">D (35-39) = 1.0</small>
+                                                <small class="d-block">F (<35) = 0.0</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                                <a href="{% url 'cod_student_consultation_detail' enrollment.student.student_id %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-circle"></i> 
+                                    {% if is_new %}Create Grade{% else %}Update Grade{% endif %}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const caInput = document.getElementById('ca_marks');
+    const examInput = document.getElementById('exam_marks');
+    const practicalInput = document.getElementById('practical_marks');
+    const projectInput = document.getElementById('project_marks');
+    const creditHours = {{ enrollment.course.credit_hours }};
+
+    function calculateGrade() {
+        const ca = parseFloat(caInput.value) || 0;
+        const exam = parseFloat(examInput.value) || 0;
+        const practical = parseFloat(practicalInput.value) || 0;
+        const project = parseFloat(projectInput.value) || 0;
+
+        // Calculate total (CA 40% + Exam 60% + Optional 10% each)
+        let total = (ca * 0.4) + (exam * 0.6);
+        if (practical > 0) total += (practical * 0.1);
+        if (project > 0) total += (project * 0.1);
+
+        // Update total marks display
+        document.getElementById('totalMarks').textContent = total.toFixed(2);
+
+        // Determine grade
+        let grade, gradePoints, badgeClass;
+        if (total >= 90) {
+            grade = 'A+'; gradePoints = 4.0; badgeClass = 'bg-success';
+        } else if (total >= 80) {
+            grade = 'A'; gradePoints = 4.0; badgeClass = 'bg-success';
+        } else if (total >= 75) {
+            grade = 'A-'; gradePoints = 3.7; badgeClass = 'bg-success';
+        } else if (total >= 70) {
+            grade = 'B+'; gradePoints = 3.3; badgeClass = 'bg-info';
+        } else if (total >= 65) {
+            grade = 'B'; gradePoints = 3.0; badgeClass = 'bg-info';
+        } else if (total >= 60) {
+            grade = 'B-'; gradePoints = 2.7; badgeClass = 'bg-info';
+        } else if (total >= 55) {
+            grade = 'C+'; gradePoints = 2.3; badgeClass = 'bg-warning text-dark';
+        } else if (total >= 50) {
+            grade = 'C'; gradePoints = 2.0; badgeClass = 'bg-warning text-dark';
+        } else if (total >= 45) {
+            grade = 'C-'; gradePoints = 1.7; badgeClass = 'bg-warning text-dark';
+        } else if (total >= 40) {
+            grade = 'D+'; gradePoints = 1.3; badgeClass = 'bg-danger';
+        } else if (total >= 35) {
+            grade = 'D'; gradePoints = 1.0; badgeClass = 'bg-danger';
+        } else {
+            grade = 'F'; gradePoints = 0.0; badgeClass = 'bg-danger';
+        }
+
+        // Update displays
+        document.getElementById('letterGrade').innerHTML = `<span class="badge ${badgeClass}">${grade}</span>`;
+        document.getElementById('gradePoints').textContent = gradePoints.toFixed(2);
+        
+        const qualityPoints = gradePoints * creditHours;
+        document.getElementById('qualityPoints').textContent = qualityPoints.toFixed(2);
+
+        // Update pass/fail status
+        const passStatus = document.getElementById('passStatus');
+        if (gradePoints >= 1.7) {
+            passStatus.className = 'alert alert-success mb-0';
+            passStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> <strong>PASSED</strong>';
+        } else {
+            passStatus.className = 'alert alert-danger mb-0';
+            passStatus.innerHTML = '<i class="bi bi-x-circle-fill"></i> <strong>FAILED</strong>';
+        }
+    }
+
+    // Attach event listeners
+    caInput.addEventListener('input', calculateGrade);
+    examInput.addEventListener('input', calculateGrade);
+    practicalInput.addEventListener('input', calculateGrade);
+    projectInput.addEventListener('input', calculateGrade);
+
+    // Calculate on page load if there are existing values
+    calculateGrade();
+
+    // Form submission
+    const form = document.getElementById('gradeForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const button = form.querySelector('button[type="submit"]');
+        const originalText = button.innerHTML;
+        
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="bi bi-check-circle-fill"></i> ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                form.insertBefore(alert, form.firstChild);
+                
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '{% url "cod_student_consultation_detail" enrollment.student.student_id %}';
+                }, 2000);
+            } else {
+                alert('Error: ' + data.message);
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            alert('Error saving grade. Please try again.');
+            button.disabled = false;
+            button.innerHTML = originalText;
+        });
+    });
+});
+</script>
+
+{% endblock %}
