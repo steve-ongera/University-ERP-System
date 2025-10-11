@@ -1,0 +1,197 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .search-container {
+        max-width: 800px;
+        margin: 100px auto;
+    }
+
+    .search-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .search-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        padding: 40px;
+        text-align: center;
+        color: white;
+    }
+
+    .search-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    .search-body {
+        padding: 40px;
+    }
+
+    .search-input {
+        font-size: 1.1rem;
+        padding: 12px 15px;
+        border-radius: 8px;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .search-btn {
+        padding: 12px 30px;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        border: none;
+        transition: all 0.3s;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(13, 110, 253, 0.4);
+    }
+
+    .info-card {
+        background: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .quick-links {
+        margin-top: 30px;
+    }
+
+    .quick-link-btn {
+        padding: 15px;
+        border-radius: 8px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        transition: all 0.3s;
+        text-decoration: none;
+        color: #333;
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    .quick-link-btn:hover {
+        border-color: #0d6efd;
+        background: #f8f9ff;
+        transform: translateX(5px);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-person-search"></i> Student Consultation
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-person"></i> Student Consultation
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                Enter Student ID to view academic records and provide guidance
+                            </p>
+                        </div>
+                        <div class="bg-blue bg-opacity-20 rounded-circle p-3">
+                            <i class="bi bi-search" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-container">
+        <div class="card search-card border-0">
+            <div class="search-header">
+                <div class="search-icon">
+                    <i class="bi bi-person-search"></i>
+                </div>
+                <h2 class="fw-bold mb-2">Student Consultation</h2>
+                <p class="mb-0 opacity-90">Enter Student ID to view academic records and provide guidance</p>
+            </div>
+
+            <div class="search-body">
+                <form method="POST" id="searchForm">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Student ID <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-person-badge"></i>
+                            </span>
+                            <input type="text" 
+                                   name="student_id" 
+                                   class="form-control search-input border-start-0" 
+                                   placeholder="Enter Student ID (e.g., STD2024001)"
+                                   required
+                                   autofocus>
+                        </div>
+                        <small class="text-muted">Student must be enrolled in {{ department.name }}</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary search-btn w-100">
+                        <i class="bi bi-search me-2"></i>
+                        Search Student
+                    </button>
+                </form>
+
+                <div class="info-card">
+                    <h6 class="fw-bold mb-2">
+                        <i class="bi bi-info-circle me-2"></i>What you can do:
+                    </h6>
+                    <ul class="mb-0">
+                        <li>View complete academic transcript</li>
+                        <li>Check current class standing (First Class, Second Class, etc.)</li>
+                        <li>Edit or add missing grades</li>
+                        <li>Provide academic advice and recommendations</li>
+                        <li>Download official transcript as PDF</li>
+                    </ul>
+                </div>
+
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('searchForm').addEventListener('submit', function(e) {
+    const btn = this.querySelector('button[type="submit"]');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Searching...';
+    btn.disabled = true;
+});
+</script>
+
+{% endblock %}

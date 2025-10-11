@@ -561,4 +561,12 @@ urlpatterns = [
     path('results/download-excel/', views.cod_download_results_excel, name='cod_download_results_excel'),
     path('results/download-promotion-list/', views.cod_download_promotion_list, name='cod_download_promotion_list'),
 
+    # Student Consultation
+    path('consultation/', views.cod_student_consultation, name='cod_student_consultation'),
+    path('consultation/student/<str:student_id>/', views.cod_student_consultation_detail, name='cod_student_consultation_detail'),
+    path('consultation/student/<str:student_id>/advice/', views.cod_student_advice, name='cod_student_advice'),
+    path('consultation/edit-grade/<int:enrollment_id>/', views.cod_edit_grade, name='cod_edit_grade'),
+    path('consultation/quick-edit-grade/', views.cod_quick_edit_grade, name='cod_quick_edit_grade'),
+    path('consultation/student/<str:student_id>/transcript-pdf/', views.cod_download_transcript_pdf, name='cod_download_transcript_pdf'),
+
 ]

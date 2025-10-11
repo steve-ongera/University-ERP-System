@@ -23990,3 +23990,619 @@ def cod_download_promotion_list(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     return response
+
+    from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Avg, Count, Sum, F, Case, When, DecimalField
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.template.loader import render_to_string
+from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
+import tempfile
+from decimal import Decimal
+from .models import (
+    Department, Programme, Student, Course, Grade, Enrollment,
+    AcademicYear, Semester, User
+)
+
+
+@login_required
+def cod_student_consultation(request):
+    """Main consultation view - Search for student"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    student = None
+    student_id = request.GET.get('student_id') or request.POST.get('student_id')
+    
+    if student_id:
+        try:
+            # Get student and verify they belong to this department
+            student = Student.objects.select_related(
+                'user', 'programme', 'programme__department'
+            ).get(
+                student_id=student_id,
+                programme__department=department
+            )
+            
+            # Redirect to detailed view
+            return redirect('cod_student_consultation_detail', student_id=student.student_id)
+            
+        except Student.DoesNotExist:
+            messages.error(request, f"Student {student_id} not found in {department.name}")
+    
+    context = {
+        'department': department,
+    }
+    
+    return render(request, 'cod/consultation/search_student.html', context)
+
+
+@login_required
+def cod_student_consultation_detail(request, student_id):
+    """Detailed student consultation view with academic records"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get student
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        student_id=student_id,
+        programme__department=department
+    )
+    
+    # Get all academic years with results
+    academic_years = AcademicYear.objects.filter(
+        semesters__enrollments__student=student
+    ).distinct().order_by('-year')
+    
+    # Organize results by academic year and semester
+    results_by_year = []
+    overall_stats = {
+        'total_courses': 0,
+        'passed_courses': 0,
+        'failed_courses': 0,
+        'total_credit_hours': 0,
+        'total_quality_points': 0,
+    }
+    
+    for academic_year in academic_years:
+        semesters_data = []
+        
+        for semester in academic_year.semesters.filter(
+            enrollments__student=student
+        ).distinct().order_by('semester_number'):
+            
+            # Get enrollments for this semester
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=semester
+            ).select_related('course', 'lecturer', 'grade').order_by('course__code')
+            
+            # Calculate semester statistics
+            semester_quality_points = 0
+            semester_credit_hours = 0
+            grades_list = []
+            semester_passed = 0
+            semester_failed = 0
+            
+            for enrollment in enrollments:
+                try:
+                    grade = enrollment.grade
+                    grades_list.append({
+                        'enrollment': enrollment,
+                        'grade': grade,
+                        'can_edit': True,  # COD can edit all grades
+                    })
+                    
+                    if grade.grade_points and grade.quality_points:
+                        semester_quality_points += float(grade.quality_points)
+                        semester_credit_hours += enrollment.course.credit_hours
+                        overall_stats['total_quality_points'] += float(grade.quality_points)
+                        overall_stats['total_credit_hours'] += enrollment.course.credit_hours
+                    
+                    if grade.is_passed:
+                        semester_passed += 1
+                        overall_stats['passed_courses'] += 1
+                    else:
+                        semester_failed += 1
+                        overall_stats['failed_courses'] += 1
+                    
+                    overall_stats['total_courses'] += 1
+                    
+                except Grade.DoesNotExist:
+                    grades_list.append({
+                        'enrollment': enrollment,
+                        'grade': None,
+                        'can_edit': True,
+                    })
+                    overall_stats['total_courses'] += 1
+                    semester_failed += 1
+                    overall_stats['failed_courses'] += 1
+            
+            semester_gpa = (semester_quality_points / semester_credit_hours) if semester_credit_hours > 0 else 0
+            
+            semesters_data.append({
+                'semester': semester,
+                'grades': grades_list,
+                'semester_gpa': round(semester_gpa, 2),
+                'total_courses': len(grades_list),
+                'passed_courses': semester_passed,
+                'failed_courses': semester_failed,
+            })
+        
+        results_by_year.append({
+            'academic_year': academic_year,
+            'semesters': semesters_data,
+        })
+    
+    # Calculate overall GPA
+    overall_gpa = (overall_stats['total_quality_points'] / overall_stats['total_credit_hours']) if overall_stats['total_credit_hours'] > 0 else 0
+    overall_stats['gpa'] = round(overall_gpa, 2)
+    
+    # Calculate performance metrics
+    if overall_stats['total_courses'] > 0:
+        overall_stats['pass_rate'] = round((overall_stats['passed_courses'] / overall_stats['total_courses']) * 100, 2)
+    else:
+        overall_stats['pass_rate'] = 0
+    
+    # Determine class/standing
+    if overall_gpa >= 3.7:
+        class_standing = "First Class Honours"
+        class_color = "success"
+    elif overall_gpa >= 3.0:
+        class_standing = "Second Class Honours (Upper Division)"
+        class_color = "info"
+    elif overall_gpa >= 2.0:
+        class_standing = "Second Class Honours (Lower Division)"
+        class_color = "primary"
+    elif overall_gpa >= 1.5:
+        class_standing = "Pass"
+        class_color = "warning"
+    else:
+        class_standing = "Below Pass Standard"
+        class_color = "danger"
+    
+    # Get courses with missing grades
+    missing_grades = Enrollment.objects.filter(
+        student=student,
+        is_active=True
+    ).exclude(
+        id__in=Grade.objects.values_list('enrollment_id', flat=True)
+    ).select_related('course', 'semester', 'semester__academic_year')
+    
+    context = {
+        'department': department,
+        'student': student,
+        'results_by_year': results_by_year,
+        'overall_stats': overall_stats,
+        'class_standing': class_standing,
+        'class_color': class_color,
+        'missing_grades': missing_grades,
+    }
+    
+    return render(request, 'cod/consultation/student_detail.html', context)
+
+
+@login_required
+def cod_edit_grade(request, enrollment_id):
+    """Edit or create grade for a student"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get enrollment
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related('student', 'course', 'semester'),
+        id=enrollment_id,
+        course__department=department
+    )
+    
+    # Get or create grade
+    try:
+        grade = enrollment.grade
+        is_new = False
+    except Grade.DoesNotExist:
+        grade = None
+        is_new = True
+    
+    if request.method == 'POST':
+        ca_marks = request.POST.get('continuous_assessment')
+        exam_marks = request.POST.get('final_exam')
+        practical_marks = request.POST.get('practical_marks')
+        project_marks = request.POST.get('project_marks')
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            if is_new:
+                grade = Grade(enrollment=enrollment)
+            
+            # Update marks
+            if ca_marks:
+                grade.continuous_assessment = Decimal(ca_marks)
+            if exam_marks:
+                grade.final_exam = Decimal(exam_marks)
+            if practical_marks:
+                grade.practical_marks = Decimal(practical_marks)
+            if project_marks:
+                grade.project_marks = Decimal(project_marks)
+            
+            grade.remarks = remarks
+            grade.save()  # Calculations happen in model save method
+            
+            # Update student's cumulative GPA
+            update_student_gpa(enrollment.student)
+            
+            messages.success(request, f"Grade {'created' if is_new else 'updated'} successfully for {enrollment.course.code}")
+            return JsonResponse({
+                'success': True,
+                'message': f"Grade {'created' if is_new else 'updated'} successfully",
+                'grade': grade.grade,
+                'total_marks': float(grade.total_marks) if grade.total_marks else 0,
+                'is_passed': grade.is_passed,
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            }, status=400)
+    
+    context = {
+        'enrollment': enrollment,
+        'grade': grade,
+        'is_new': is_new,
+    }
+    
+    return render(request, 'cod/consultation/edit_grade.html', context)
+
+
+@login_required
+def cod_quick_edit_grade(request):
+    """Quick AJAX grade edit"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    
+    user = request.user
+    
+    # Verify COD
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+    
+    enrollment_id = request.POST.get('enrollment_id')
+    ca_marks = request.POST.get('continuous_assessment')
+    exam_marks = request.POST.get('final_exam')
+    practical_marks = request.POST.get('practical_marks')
+    project_marks = request.POST.get('project_marks')
+    
+    try:
+        enrollment = Enrollment.objects.select_related('course').get(
+            id=enrollment_id,
+            course__department=department
+        )
+        
+        # Get or create grade
+        try:
+            grade = enrollment.grade
+        except Grade.DoesNotExist:
+            grade = Grade(enrollment=enrollment)
+        
+        # Update marks
+        if ca_marks:
+            grade.continuous_assessment = Decimal(ca_marks)
+        if exam_marks:
+            grade.final_exam = Decimal(exam_marks)
+        if practical_marks:
+            grade.practical_marks = Decimal(practical_marks) if practical_marks else None
+        if project_marks:
+            grade.project_marks = Decimal(project_marks) if project_marks else None
+        
+        grade.save()
+        
+        # Update student's cumulative GPA
+        update_student_gpa(enrollment.student)
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Grade updated successfully',
+            'grade': grade.grade,
+            'total_marks': float(grade.total_marks) if grade.total_marks else 0,
+            'grade_points': float(grade.grade_points) if grade.grade_points else 0,
+            'is_passed': grade.is_passed,
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=400)
+
+
+def update_student_gpa(student):
+    """Recalculate and update student's cumulative GPA"""
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        is_active=True
+    ).select_related('course', 'grade')
+    
+    total_quality_points = 0
+    total_credit_hours = 0
+    
+    for enrollment in enrollments:
+        try:
+            grade = enrollment.grade
+            if grade.grade_points and grade.quality_points:
+                total_quality_points += float(grade.quality_points)
+                total_credit_hours += enrollment.course.credit_hours
+        except Grade.DoesNotExist:
+            continue
+    
+    if total_credit_hours > 0:
+        cumulative_gpa = total_quality_points / total_credit_hours
+        student.cumulative_gpa = round(Decimal(cumulative_gpa), 2)
+        student.total_credit_hours = total_credit_hours
+        student.save()
+
+
+@login_required
+def cod_download_transcript_pdf(request, student_id):
+    """Generate and download student transcript as PDF"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get student
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        student_id=student_id,
+        programme__department=department
+    )
+    
+    # Get all academic years with results
+    academic_years = AcademicYear.objects.filter(
+        semesters__enrollments__student=student
+    ).distinct().order_by('-year')
+    
+    # Organize results
+    results_by_year = []
+    overall_stats = {
+        'total_courses': 0,
+        'passed_courses': 0,
+        'total_credit_hours': 0,
+        'total_quality_points': 0,
+    }
+    
+    for academic_year in academic_years:
+        semesters_data = []
+        
+        for semester in academic_year.semesters.filter(
+            enrollments__student=student
+        ).distinct().order_by('semester_number'):
+            
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=semester
+            ).select_related('course', 'grade').order_by('course__code')
+            
+            semester_quality_points = 0
+            semester_credit_hours = 0
+            grades_list = []
+            
+            for enrollment in enrollments:
+                try:
+                    grade = enrollment.grade
+                    grades_list.append({
+                        'course': enrollment.course,
+                        'grade': grade,
+                    })
+                    
+                    if grade.grade_points and grade.quality_points:
+                        semester_quality_points += float(grade.quality_points)
+                        semester_credit_hours += enrollment.course.credit_hours
+                        overall_stats['total_quality_points'] += float(grade.quality_points)
+                        overall_stats['total_credit_hours'] += enrollment.course.credit_hours
+                    
+                    if grade.is_passed:
+                        overall_stats['passed_courses'] += 1
+                    
+                    overall_stats['total_courses'] += 1
+                    
+                except Grade.DoesNotExist:
+                    grades_list.append({
+                        'course': enrollment.course,
+                        'grade': None,
+                    })
+                    overall_stats['total_courses'] += 1
+            
+            semester_gpa = (semester_quality_points / semester_credit_hours) if semester_credit_hours > 0 else 0
+            
+            semesters_data.append({
+                'semester': semester,
+                'grades': grades_list,
+                'semester_gpa': round(semester_gpa, 2),
+            })
+        
+        results_by_year.append({
+            'academic_year': academic_year,
+            'semesters': semesters_data,
+        })
+    
+    # Calculate overall GPA and class
+    overall_gpa = (overall_stats['total_quality_points'] / overall_stats['total_credit_hours']) if overall_stats['total_credit_hours'] > 0 else 0
+    
+    if overall_gpa >= 3.7:
+        class_standing = "First Class Honours"
+    elif overall_gpa >= 3.0:
+        class_standing = "Second Class Honours (Upper Division)"
+    elif overall_gpa >= 2.0:
+        class_standing = "Second Class Honours (Lower Division)"
+    elif overall_gpa >= 1.5:
+        class_standing = "Pass"
+    else:
+        class_standing = "Below Pass Standard"
+    
+    # Prepare context for PDF
+    context = {
+        'student': student,
+        'department': department,
+        'results_by_year': results_by_year,
+        'overall_gpa': round(overall_gpa, 2),
+        'class_standing': class_standing,
+        'total_credit_hours': overall_stats['total_credit_hours'],
+        'generated_date': timezone.now(),
+        'generated_by': user,
+    }
+    
+    # Render HTML template
+    html_string = render_to_string('cod/consultation/transcript_pdf.html', context)
+    
+    # Generate PDF
+    font_config = FontConfiguration()
+    html = HTML(string=html_string)
+    
+    # Create temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as output:
+        html.write_pdf(output, font_config=font_config)
+        output.seek(0)
+        pdf_content = output.read()
+    
+    # Prepare response
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Transcript_{student.student_id}_{timezone.now().strftime("%Y%m%d")}.pdf"'
+    
+    return response
+
+
+@login_required
+def cod_student_advice(request, student_id):
+    """Provide academic advice and recommendations"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get student
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        student_id=student_id,
+        programme__department=department
+    )
+    
+    # Calculate current performance
+    enrollments = Enrollment.objects.filter(
+        student=student,
+        is_active=True
+    ).select_related('course', 'grade')
+    
+    total_courses = enrollments.count()
+    passed_courses = 0
+    failed_courses = []
+    weak_courses = []  # C grade or below
+    
+    for enrollment in enrollments:
+        try:
+            grade = enrollment.grade
+            if grade.is_passed:
+                passed_courses += 1
+                if grade.grade_points and grade.grade_points < 2.0:  # C or below
+                    weak_courses.append({
+                        'course': enrollment.course,
+                        'grade': grade,
+                    })
+            else:
+                failed_courses.append({
+                    'course': enrollment.course,
+                    'grade': grade,
+                })
+        except Grade.DoesNotExist:
+            failed_courses.append({
+                'course': enrollment.course,
+                'grade': None,
+            })
+    
+    # Generate recommendations
+    recommendations = []
+    
+    if student.cumulative_gpa:
+        gpa = float(student.cumulative_gpa)
+        
+        if gpa >= 3.7:
+            recommendations.append({
+                'type': 'success',
+                'title': 'Excellent Performance',
+                'message': 'You are performing excellently! Maintain this standard to achieve First Class Honours.'
+            })
+        elif gpa >= 3.0:
+            recommendations.append({
+                'type': 'info',
+                'title': 'Good Performance',
+                'message': 'You are on track for Second Class Honours (Upper). Focus on improving weak areas to achieve First Class.'
+            })
+        elif gpa >= 2.0:
+            recommendations.append({
+                'type': 'warning',
+                'title': 'Average Performance',
+                'message': 'Your performance is average. You need to improve significantly to achieve higher honors.'
+            })
+        else:
+            recommendations.append({
+                'type': 'danger',
+                'title': 'Below Standard',
+                'message': 'Your GPA is below the pass standard. Immediate intervention is required.'
+            })
+    
+    if failed_courses:
+        recommendations.append({
+            'type': 'danger',
+            'title': 'Failed Courses',
+            'message': f'You have {len(failed_courses)} failed course(s). You must retake these courses.'
+        })
+    
+    if weak_courses:
+        recommendations.append({
+            'type': 'warning',
+            'title': 'Weak Areas',
+            'message': f'You have {len(weak_courses)} course(s) with C grade or below. Consider revising these topics.'
+        })
+    
+    context = {
+        'department': department,
+        'student': student,
+        'total_courses': total_courses,
+        'passed_courses': passed_courses,
+        'failed_courses': failed_courses,
+        'weak_courses': weak_courses,
+        'recommendations': recommendations,
+    }
+    
+    return render(request, 'cod/consultation/student_advice.html', context)
