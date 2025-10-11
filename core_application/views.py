@@ -23191,3 +23191,802 @@ def department_report(request):
         'stats': stats,
     }
     return render(request, 'cod/department_report.html', context)
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Avg, Count, Sum, F, Case, When, FloatField
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+import csv
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+from io import BytesIO
+from datetime import datetime
+from .models import (
+    Department, Programme, Student, Course, Grade, Enrollment,
+    AcademicYear, Semester, User
+)
+
+
+@login_required
+def cod_results_dashboard(request):
+    """Main results dashboard for COD"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all programmes in the department
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).order_by('name')
+    
+    # Get all academic years
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    
+    # Statistics
+    total_students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).count()
+    
+    # Get students with results
+    students_with_results = Grade.objects.filter(
+        enrollment__course__department=department,
+        enrollment__semester__academic_year=current_academic_year
+    ).values('enrollment__student').distinct().count()
+    
+    # Calculate pass rate
+    if students_with_results > 0:
+        passed_students = Grade.objects.filter(
+            enrollment__course__department=department,
+            enrollment__semester__academic_year=current_academic_year,
+            is_passed=True
+        ).values('enrollment__student').distinct().count()
+        pass_rate = (passed_students / students_with_results * 100)
+    else:
+        pass_rate = 0
+    
+    # Average GPA
+    avg_gpa = Student.objects.filter(
+        programme__department=department,
+        status='active',
+        cumulative_gpa__isnull=False
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    context = {
+        'department': department,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'total_students': total_students,
+        'students_with_results': students_with_results,
+        'pass_rate': round(pass_rate, 2),
+        'avg_gpa': round(avg_gpa, 2),
+    }
+    
+    return render(request, 'cod/results/dashboard.html', context)
+
+
+@login_required
+def cod_view_results(request):
+    """View and filter student results"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    semester_id = request.GET.get('semester')
+    academic_year_id = request.GET.get('academic_year')
+    status = request.GET.get('status')
+    search_query = request.GET.get('search')
+    
+    # Base queryset - students in department
+    students = Student.objects.filter(
+        programme__department=department
+    ).select_related(
+        'user', 'programme'
+    ).order_by('student_id')
+    
+    # Apply filters
+    if programme_id:
+        students = students.filter(programme_id=programme_id)
+    
+    if year:
+        students = students.filter(current_year=year)
+    
+    if status:
+        students = students.filter(status=status)
+    
+    if search_query:
+        students = students.filter(
+            Q(student_id__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query)
+        )
+    
+    # Get academic year and semester for results
+    if academic_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    else:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    else:
+        semester = Semester.objects.filter(
+            academic_year=academic_year,
+            is_current=True
+        ).first() if academic_year else None
+    
+    # Prepare student results data
+    student_results = []
+    for student in students:
+        # Get enrollments for the selected semester
+        if semester:
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=semester,
+                is_active=True
+            ).select_related('course', 'grade')
+        else:
+            enrollments = []
+        
+        # Calculate semester GPA
+        total_quality_points = 0
+        total_credit_hours = 0
+        grades_list = []
+        
+        for enrollment in enrollments:
+            try:
+                grade = enrollment.grade
+                grades_list.append({
+                    'course': enrollment.course,
+                    'grade': grade.grade,
+                    'total_marks': grade.total_marks,
+                    'is_passed': grade.is_passed,
+                })
+                
+                if grade.grade_points and grade.quality_points:
+                    total_quality_points += float(grade.quality_points)
+                    total_credit_hours += enrollment.course.credit_hours
+            except Grade.DoesNotExist:
+                grades_list.append({
+                    'course': enrollment.course,
+                    'grade': 'N/A',
+                    'total_marks': None,
+                    'is_passed': None,
+                })
+        
+        # Calculate semester GPA
+        semester_gpa = (total_quality_points / total_credit_hours) if total_credit_hours > 0 else 0
+        
+        student_results.append({
+            'student': student,
+            'grades': grades_list,
+            'semester_gpa': round(semester_gpa, 2),
+            'cumulative_gpa': student.cumulative_gpa or 0,
+            'total_courses': len(grades_list),
+            'passed_courses': sum(1 for g in grades_list if g['is_passed']),
+        })
+    
+    # Pagination
+    paginator = Paginator(student_results, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).order_by('name')
+    
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    
+    semesters = Semester.objects.filter(
+        academic_year=academic_year
+    ).order_by('semester_number') if academic_year else []
+    
+    years_range = range(1, 9)
+    
+    context = {
+        'department': department,
+        'page_obj': page_obj,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'years_range': years_range,
+        'selected_programme': programme_id,
+        'selected_year': year,
+        'selected_semester': semester_id,
+        'selected_academic_year': academic_year_id,
+        'selected_status': status,
+        'search_query': search_query,
+        'current_semester': semester,
+        'current_academic_year': academic_year,
+    }
+    
+    return render(request, 'cod/results/view_results.html', context)
+
+
+@login_required
+def cod_student_results_detail(request, student_id):
+    """View detailed results for a specific student"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get student
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        student_id=student_id,
+        programme__department=department
+    )
+    
+    # Get all academic years with results
+    academic_years = AcademicYear.objects.filter(
+        semesters__enrollments__student=student
+    ).distinct().order_by('-year')
+    
+    # Organize results by academic year and semester
+    results_by_year = []
+    
+    for academic_year in academic_years:
+        semesters_data = []
+        
+        for semester in academic_year.semesters.filter(
+            enrollments__student=student
+        ).distinct().order_by('semester_number'):
+            
+            # Get enrollments for this semester
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                semester=semester
+            ).select_related('course', 'lecturer', 'grade').order_by('course__code')
+            
+            # Calculate semester statistics
+            total_quality_points = 0
+            total_credit_hours = 0
+            grades_list = []
+            
+            for enrollment in enrollments:
+                try:
+                    grade = enrollment.grade
+                    grades_list.append({
+                        'enrollment': enrollment,
+                        'grade': grade,
+                    })
+                    
+                    if grade.grade_points and grade.quality_points:
+                        total_quality_points += float(grade.quality_points)
+                        total_credit_hours += enrollment.course.credit_hours
+                except Grade.DoesNotExist:
+                    grades_list.append({
+                        'enrollment': enrollment,
+                        'grade': None,
+                    })
+            
+            semester_gpa = (total_quality_points / total_credit_hours) if total_credit_hours > 0 else 0
+            
+            semesters_data.append({
+                'semester': semester,
+                'grades': grades_list,
+                'semester_gpa': round(semester_gpa, 2),
+                'total_courses': len(grades_list),
+                'passed_courses': sum(1 for g in grades_list if g['grade'] and g['grade'].is_passed),
+            })
+        
+        results_by_year.append({
+            'academic_year': academic_year,
+            'semesters': semesters_data,
+        })
+    
+    context = {
+        'department': department,
+        'student': student,
+        'results_by_year': results_by_year,
+    }
+    
+    return render(request, 'cod/results/student_detail.html', context)
+
+
+@login_required
+def cod_promotion_analysis(request):
+    """Analyze students eligible for promotion"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    academic_year_id = request.GET.get('academic_year')
+    min_gpa = request.GET.get('min_gpa', 2.0)
+    
+    try:
+        min_gpa = float(min_gpa)
+    except ValueError:
+        min_gpa = 2.0
+    
+    # Get academic year
+    if academic_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    else:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Base queryset
+    students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).select_related('user', 'programme')
+    
+    # Apply filters
+    if programme_id:
+        students = students.filter(programme_id=programme_id)
+    
+    if year:
+        students = students.filter(current_year=year)
+    
+    # Analyze each student
+    promotion_data = []
+    
+    for student in students:
+        # Get all enrollments for the academic year
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester__academic_year=academic_year,
+            is_active=True
+        ).select_related('course')
+        
+        total_courses = enrollments.count()
+        
+        if total_courses == 0:
+            continue
+        
+        # Count passed and failed courses
+        passed_courses = 0
+        failed_courses = 0
+        total_quality_points = 0
+        total_credit_hours = 0
+        
+        for enrollment in enrollments:
+            try:
+                grade = enrollment.grade
+                if grade.is_passed:
+                    passed_courses += 1
+                else:
+                    failed_courses += 1
+                
+                if grade.grade_points and grade.quality_points:
+                    total_quality_points += float(grade.quality_points)
+                    total_credit_hours += enrollment.course.credit_hours
+            except Grade.DoesNotExist:
+                failed_courses += 1
+        
+        # Calculate year GPA
+        year_gpa = (total_quality_points / total_credit_hours) if total_credit_hours > 0 else 0
+        
+        # Determine eligibility
+        pass_rate = (passed_courses / total_courses * 100) if total_courses > 0 else 0
+        
+        eligible = (
+            failed_courses == 0 and
+            year_gpa >= min_gpa and
+            pass_rate >= 70
+        )
+        
+        promotion_data.append({
+            'student': student,
+            'total_courses': total_courses,
+            'passed_courses': passed_courses,
+            'failed_courses': failed_courses,
+            'year_gpa': round(year_gpa, 2),
+            'cumulative_gpa': student.cumulative_gpa or 0,
+            'pass_rate': round(pass_rate, 2),
+            'eligible': eligible,
+        })
+    
+    # Sort by eligibility and GPA
+    promotion_data.sort(key=lambda x: (x['eligible'], x['year_gpa']), reverse=True)
+    
+    # Pagination
+    paginator = Paginator(promotion_data, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    total_analyzed = len(promotion_data)
+    eligible_count = sum(1 for d in promotion_data if d['eligible'])
+    not_eligible_count = total_analyzed - eligible_count
+    
+    # Get filter options
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).order_by('name')
+    
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    years_range = range(1, 9)
+    
+    context = {
+        'department': department,
+        'page_obj': page_obj,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'years_range': years_range,
+        'selected_programme': programme_id,
+        'selected_year': year,
+        'selected_academic_year': academic_year_id,
+        'min_gpa': min_gpa,
+        'current_academic_year': academic_year,
+        'total_analyzed': total_analyzed,
+        'eligible_count': eligible_count,
+        'not_eligible_count': not_eligible_count,
+    }
+    
+    return render(request, 'cod/results/promotion_analysis.html', context)
+
+
+@login_required
+def cod_download_results_excel(request):
+    """Download results in Excel format"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    semester_id = request.GET.get('semester')
+    academic_year_id = request.GET.get('academic_year')
+    
+    # Validate required parameters
+    if not programme_id or not year or not academic_year_id:
+        messages.error(request, "Please select Programme, Year, and Academic Year.")
+        return redirect('cod_view_results')
+    
+    # Get objects
+    programme = get_object_or_404(Programme, id=programme_id, department=department)
+    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id, academic_year=academic_year)
+        semesters = [semester]
+    else:
+        semesters = academic_year.semesters.all().order_by('semester_number')
+    
+    # Get students
+    students = Student.objects.filter(
+        programme=programme,
+        current_year=year,
+        status='active'
+    ).select_related('user').order_by('student_id')
+    
+    # Create Excel workbook
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    
+    # Define styles
+    header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    for semester in semesters:
+        # Create sheet for each semester
+        ws = wb.create_sheet(title=f"Semester {semester.semester_number}")
+        
+        # Title
+        ws.merge_cells('A1:H1')
+        title_cell = ws['A1']
+        title_cell.value = f"{department.name} - {programme.name}"
+        title_cell.font = Font(bold=True, size=14)
+        title_cell.alignment = Alignment(horizontal='center')
+        
+        ws.merge_cells('A2:H2')
+        subtitle_cell = ws['A2']
+        subtitle_cell.value = f"Year {year} - {academic_year.year} - Semester {semester.semester_number}"
+        subtitle_cell.font = Font(size=12)
+        subtitle_cell.alignment = Alignment(horizontal='center')
+        
+        # Headers
+        headers = ['Student ID', 'Name', 'Email']
+        
+        # Get all courses for this semester
+        courses = Course.objects.filter(
+            course_programmes__programme=programme,
+            course_programmes__year=year,
+            course_programmes__semester=semester.semester_number
+        ).order_by('code')
+        
+        for course in courses:
+            headers.extend([
+                f"{course.code} Grade",
+                f"{course.code} Marks"
+            ])
+        
+        headers.extend(['Semester GPA', 'Cumulative GPA', 'Status'])
+        
+        # Write headers
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=4, column=col)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Write data
+        row = 5
+        for student in students:
+            col = 1
+            
+            # Student info
+            ws.cell(row=row, column=col, value=student.student_id).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=student.user.get_full_name()).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=student.user.email).border = border
+            col += 1
+            
+            # Course grades
+            total_quality_points = 0
+            total_credit_hours = 0
+            
+            for course in courses:
+                try:
+                    enrollment = Enrollment.objects.get(
+                        student=student,
+                        course=course,
+                        semester=semester
+                    )
+                    grade = enrollment.grade
+                    
+                    ws.cell(row=row, column=col, value=grade.grade).border = border
+                    col += 1
+                    ws.cell(row=row, column=col, value=float(grade.total_marks) if grade.total_marks else 0).border = border
+                    col += 1
+                    
+                    if grade.grade_points and grade.quality_points:
+                        total_quality_points += float(grade.quality_points)
+                        total_credit_hours += course.credit_hours
+                        
+                except (Enrollment.DoesNotExist, Grade.DoesNotExist):
+                    ws.cell(row=row, column=col, value='N/A').border = border
+                    col += 1
+                    ws.cell(row=row, column=col, value=0).border = border
+                    col += 1
+            
+            # Calculate GPA
+            semester_gpa = (total_quality_points / total_credit_hours) if total_credit_hours > 0 else 0
+            
+            ws.cell(row=row, column=col, value=round(semester_gpa, 2)).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=float(student.cumulative_gpa) if student.cumulative_gpa else 0).border = border
+            col += 1
+            ws.cell(row=row, column=col, value=student.status).border = border
+            
+            row += 1
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(cell.value)
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Prepare response
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"{programme.code}_Year{year}_{academic_year.year}_Results.xlsx"
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+
+@login_required
+def cod_download_promotion_list(request):
+    """Download promotion eligible students list"""
+    user = request.user
+    
+    # Get COD's department
+    try:
+        department = Department.objects.get(head_of_department=user)
+    except Department.DoesNotExist:
+        messages.error(request, "You are not assigned as Head of any department.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    academic_year_id = request.GET.get('academic_year')
+    eligible_only = request.GET.get('eligible_only', 'false') == 'true'
+    
+    if not academic_year_id:
+        messages.error(request, "Please select an Academic Year.")
+        return redirect('cod_promotion_analysis')
+    
+    academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    
+    # Create Excel workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Promotion List"
+    
+    # Define styles
+    header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=12)
+    eligible_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+    not_eligible_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+    
+    # Title
+    ws.merge_cells('A1:J1')
+    title_cell = ws['A1']
+    title_cell.value = f"{department.name} - Promotion Analysis"
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal='center')
+    
+    ws.merge_cells('A2:J2')
+    subtitle_cell = ws['A2']
+    subtitle_cell.value = f"Academic Year: {academic_year.year}"
+    subtitle_cell.font = Font(size=12)
+    subtitle_cell.alignment = Alignment(horizontal='center')
+    
+    # Headers
+    headers = [
+        'Student ID', 'Name', 'Programme', 'Current Year',
+        'Total Courses', 'Passed', 'Failed', 'Year GPA',
+        'Cumulative GPA', 'Eligible for Promotion'
+    ]
+    
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=col)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Get students and analyze
+    students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).select_related('user', 'programme')
+    
+    if programme_id:
+        students = students.filter(programme_id=programme_id)
+    
+    if year:
+        students = students.filter(current_year=year)
+    
+    row = 5
+    for student in students:
+        enrollments = Enrollment.objects.filter(
+            student=student,
+            semester__academic_year=academic_year,
+            is_active=True
+        )
+        
+        total_courses = enrollments.count()
+        if total_courses == 0:
+            continue
+        
+        passed_courses = 0
+        failed_courses = 0
+        total_quality_points = 0
+        total_credit_hours = 0
+        
+        for enrollment in enrollments:
+            try:
+                grade = enrollment.grade
+                if grade.is_passed:
+                    passed_courses += 1
+                else:
+                    failed_courses += 1
+                
+                if grade.grade_points and grade.quality_points:
+                    total_quality_points += float(grade.quality_points)
+                    total_credit_hours += enrollment.course.credit_hours
+            except Grade.DoesNotExist:
+                failed_courses += 1
+        
+        year_gpa = (total_quality_points / total_credit_hours) if total_credit_hours > 0 else 0
+        eligible = failed_courses == 0 and year_gpa >= 2.0
+        
+        if eligible_only and not eligible:
+            continue
+        
+        # Write data
+        ws.cell(row=row, column=1, value=student.student_id)
+        ws.cell(row=row, column=2, value=student.user.get_full_name())
+        ws.cell(row=row, column=3, value=student.programme.name)
+        ws.cell(row=row, column=4, value=student.current_year)
+        ws.cell(row=row, column=5, value=total_courses)
+        ws.cell(row=row, column=6, value=passed_courses)
+        ws.cell(row=row, column=7, value=failed_courses)
+        ws.cell(row=row, column=8, value=round(year_gpa, 2))
+        ws.cell(row=row, column=9, value=float(student.cumulative_gpa) if student.cumulative_gpa else 0)
+        ws.cell(row=row, column=10, value='Yes' if eligible else 'No')
+        
+        # Apply conditional formatting
+        fill = eligible_fill if eligible else not_eligible_fill
+        for col in range(1, 11):
+            ws.cell(row=row, column=col).fill = fill
+        
+        row += 1
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Prepare response
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"Promotion_List_{academic_year.year}.xlsx"
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
