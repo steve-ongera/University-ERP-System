@@ -1,0 +1,501 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .promotion-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        border-left: 4px solid;
+    }
+
+    .promotion-card.eligible {
+        border-left-color: #198754;
+        background-color: #f8fff9;
+    }
+
+    .promotion-card.not-eligible {
+        border-left-color: #dc3545;
+        background-color: #fff8f8;
+    }
+
+    .promotion-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .status-badge-large {
+        padding: 10px 20px;
+        font-size: 1rem;
+        border-radius: 20px;
+    }
+
+    .progress-custom {
+        height: 25px;
+        border-radius: 10px;
+    }
+
+    .stat-box {
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_results_dashboard' %}">
+                    <i class="bi bi-clipboard-data"></i> Results Management
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-arrow-up-circle"></i> Promotion Analysis
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-arrow-up-circle"></i> Promotion Analysis
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                Analyze student eligibility for promotion to next academic year
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#downloadPromotionModal">
+                            <i class="bi bi-download"></i> Download List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill text-primary mb-2" style="font-size: 2.5rem;"></i>
+                    <h3 class="fw-bold mb-1">{{ total_analyzed }}</h3>
+                    <p class="text-muted mb-0">Total Analyzed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle-fill text-success mb-2" style="font-size: 2.5rem;"></i>
+                    <h3 class="fw-bold mb-1 text-success">{{ eligible_count }}</h3>
+                    <p class="text-muted mb-0">Eligible for Promotion</p>
+                    <small class="text-muted">
+                        ({% if total_analyzed > 0 %}{% widthratio eligible_count total_analyzed 100 %}{% else %}0{% endif %}%)
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-x-circle-fill text-danger mb-2" style="font-size: 2.5rem;"></i>
+                    <h3 class="fw-bold mb-1 text-danger">{{ not_eligible_count }}</h3>
+                    <p class="text-muted mb-0">Not Eligible</p>
+                    <small class="text-muted">
+                        ({% if total_analyzed > 0 %}{% widthratio not_eligible_count total_analyzed 100 %}{% else %}0{% endif %}%)
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-funnel-fill"></i> Filters & Criteria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{% url 'cod_promotion_analysis' %}">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Programme</label>
+                                <select name="programme" class="form-select">
+                                    <option value="">All Programmes</option>
+                                    {% for programme in programmes %}
+                                    <option value="{{ programme.id }}" 
+                                            {% if selected_programme == programme.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ programme.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Current Year</label>
+                                <select name="year" class="form-select">
+                                    <option value="">All Years</option>
+                                    {% for year in years_range %}
+                                    <option value="{{ year }}" 
+                                            {% if selected_year == year|stringformat:"s" %}selected{% endif %}>
+                                        Year {{ year }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Academic Year <span class="text-danger">*</span></label>
+                                <select name="academic_year" class="form-select" required>
+                                    {% for ay in academic_years %}
+                                    <option value="{{ ay.id }}" 
+                                            {% if selected_academic_year == ay.id|stringformat:"s" or ay.is_current and not selected_academic_year %}selected{% endif %}>
+                                        {{ ay.year }}{% if ay.is_current %} ✓{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Minimum GPA</label>
+                                <input type="number" name="min_gpa" class="form-control" 
+                                       step="0.1" min="0" max="4" value="{{ min_gpa }}" 
+                                       placeholder="2.0">
+                            </div>
+
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i> Analyze
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Promotion Criteria:</strong> Students must pass all courses (0 failures), have Year GPA ≥ {{ min_gpa }}, and Pass Rate ≥ 70%
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="row">
+        <div class="col-12">
+            {% if page_obj %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="filter-view" id="all-students" checked>
+                        <label class="btn btn-outline-primary btn-sm" for="all-students" onclick="showAll()">
+                            <i class="bi bi-list"></i> All
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="filter-view" id="eligible-only">
+                        <label class="btn btn-outline-success btn-sm" for="eligible-only" onclick="showEligible()">
+                            <i class="bi bi-check-circle"></i> Eligible
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="filter-view" id="not-eligible-only">
+                        <label class="btn btn-outline-danger btn-sm" for="not-eligible-only" onclick="showNotEligible()">
+                            <i class="bi bi-x-circle"></i> Not Eligible
+                        </label>
+                    </div>
+                </div>
+
+                {% for data in page_obj %}
+                <div class="card promotion-card mb-3 {% if data.eligible %}eligible{% else %}not-eligible{% endif %}" 
+                     data-eligible="{{ data.eligible }}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <!-- Student Info -->
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="{% if data.eligible %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if data.eligible %}text-success{% else %}text-danger{% endif %} rounded-circle p-3 me-3">
+                                        <i class="bi bi-person-fill" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ data.student.user.get_full_name }}</h6>
+                                        <p class="mb-0">
+                                            <span class="badge bg-primary">{{ data.student.student_id }}</span>
+                                        </p>
+                                        <p class="text-muted small mb-0">
+                                            {{ data.student.programme.code }} - Year {{ data.student.current_year }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Course Statistics -->
+                            <div class="col-md-3">
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <div class="stat-box bg-light">
+                                            <div class="fw-bold text-primary">{{ data.total_courses }}</div>
+                                            <small class="text-muted">Total</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box bg-success bg-opacity-10">
+                                            <div class="fw-bold text-success">{{ data.passed_courses }}</div>
+                                            <small class="text-muted">Passed</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-box bg-danger bg-opacity-10">
+                                            <div class="fw-bold text-danger">{{ data.failed_courses }}</div>
+                                            <small class="text-muted">Failed</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GPA & Pass Rate -->
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">Year GPA</small>
+                                        <span class="fw-bold {% if data.year_gpa >= min_gpa %}text-success{% else %}text-danger{% endif %}">
+                                            {{ data.year_gpa }}
+                                        </span>
+                                    </div>
+                                    <div class="progress progress-custom">
+                                        <div class="progress-bar {% if data.year_gpa >= min_gpa %}bg-success{% else %}bg-danger{% endif %}" 
+                                             style="width: {% widthratio data.year_gpa 4 100 %}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">Pass Rate</small>
+                                        <span class="fw-bold {% if data.pass_rate >= 70 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ data.pass_rate }}%
+                                        </span>
+                                    </div>
+                                    <div class="progress progress-custom">
+                                        <div class="progress-bar {% if data.pass_rate >= 70 %}bg-success{% else %}bg-danger{% endif %}" 
+                                             style="width: {{ data.pass_rate }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status & Actions -->
+                            <div class="col-md-3 text-end">
+                                <div class="mb-3">
+                                    {% if data.eligible %}
+                                    <span class="badge bg-success status-badge-large">
+                                        <i class="bi bi-check-circle-fill"></i> ELIGIBLE
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger status-badge-large">
+                                        <i class="bi bi-x-circle-fill"></i> NOT ELIGIBLE
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    Cumulative GPA: <strong>{{ data.cumulative_gpa|floatformat:2 }}</strong>
+                                </div>
+                                <a href="{% url 'cod_student_results_detail' data.student.student_id %}" 
+                                   class="btn btn-sm btn-outline-primary w-100">
+                                    <i class="bi bi-eye"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Ineligibility Reasons -->
+                        {% if not data.eligible %}
+                        <div class="mt-3 pt-3 border-top">
+                            <small class="text-danger fw-bold">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Reasons for Ineligibility:
+                            </small>
+                            <ul class="small text-danger mb-0 mt-2">
+                                {% if data.failed_courses > 0 %}
+                                <li>Failed {{ data.failed_courses }} course{{ data.failed_courses|pluralize }}</li>
+                                {% endif %}
+                                {% if data.year_gpa < min_gpa %}
+                                <li>Year GPA ({{ data.year_gpa }}) below minimum requirement ({{ min_gpa }})</li>
+                                {% endif %}
+                                {% if data.pass_rate < 70 %}
+                                <li>Pass rate ({{ data.pass_rate }}%) below 70%</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Promotion analysis pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}&min_gpa={{ min_gpa }}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}&min_gpa={{ min_gpa }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}&min_gpa={{ min_gpa }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}&min_gpa={{ min_gpa }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}&min_gpa={{ min_gpa }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                    <h5 class="text-muted mt-3">No Students Found</h5>
+                    <p class="text-muted">Select filters and click Analyze to view promotion eligibility</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Download Promotion List Modal -->
+<div class="modal fade" id="downloadPromotionModal" tabindex="-1" aria-labelledby="downloadPromotionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="downloadPromotionModalLabel">
+                    <i class="bi bi-download"></i> Download Promotion List
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="GET" action="{% url 'cod_download_promotion_list' %}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Programme</label>
+                        <select name="programme" class="form-select">
+                            <option value="">All Programmes</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}" {% if selected_programme == programme.id|stringformat:"s" %}selected{% endif %}>
+                                {{ programme.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            {% for year in years_range %}
+                            <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>
+                                Year {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Academic Year <span class="text-danger">*</span></label>
+                        <select name="academic_year" class="form-select" required>
+                            <option value="">Select Academic Year</option>
+                            {% for ay in academic_years %}
+                            <option value="{{ ay.id }}" {% if selected_academic_year == ay.id|stringformat:"s" or ay.is_current and not selected_academic_year %}selected{% endif %}>
+                                {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="eligible_only" value="true" id="eligibleOnly">
+                            <label class="form-check-label" for="eligibleOnly">
+                                Download eligible students only
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> The Excel file will include student details, course statistics, GPA, and eligibility status with color coding.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-download"></i> Download Excel Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAll() {
+    document.querySelectorAll('.promotion-card').forEach(card => {
+        card.style.display = 'block';
+    });
+}
+
+function showEligible() {
+    document.querySelectorAll('.promotion-card').forEach(card => {
+        if (card.dataset.eligible === 'True') {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function showNotEligible() {
+    document.querySelectorAll('.promotion-card').forEach(card => {
+        if (card.dataset.eligible === 'False') {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+</script>
+
+{% endblock %}

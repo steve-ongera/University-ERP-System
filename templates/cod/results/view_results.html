@@ -1,0 +1,463 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .filter-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .student-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .student-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .grade-badge {
+        min-width: 50px;
+        font-weight: 600;
+    }
+
+    .gpa-display {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .course-item {
+        padding: 8px;
+        border-radius: 6px;
+        background: #f8f9fa;
+        text-align: center;
+        border: 1px solid #dee2e6;
+    }
+
+    .passed {
+        background-color: #d1e7dd;
+        border-color: #198754;
+    }
+
+    .failed {
+        background-color: #f8d7da;
+        border-color: #dc3545;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_results_dashboard' %}">
+                    <i class="bi bi-clipboard-data"></i> Results Management
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-eye"></i> View Results
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-eye"></i> Student Results
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {% if current_academic_year %}
+                                    {{ current_academic_year.year }}
+                                    {% if current_semester %}
+                                        - Semester {{ current_semester.semester_number }}
+                                    {% endif %}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#downloadModal">
+                            <i class="bi bi-download"></i> Download Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-funnel-fill"></i> Filters
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                            <i class="bi bi-chevron-down"></i> Toggle Filters
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse show" id="filterCollapse">
+                    <div class="card-body">
+                        <form method="GET" action="{% url 'cod_view_results' %}" id="filterForm">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Programme</label>
+                                    <select name="programme" class="form-select">
+                                        <option value="">All Programmes</option>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme.id }}" 
+                                                {% if selected_programme == programme.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ programme.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">Year</label>
+                                    <select name="year" class="form-select">
+                                        <option value="">All Years</option>
+                                        {% for year in years_range %}
+                                        <option value="{{ year }}" 
+                                                {% if selected_year == year|stringformat:"s" %}selected{% endif %}>
+                                            Year {{ year }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">Academic Year</label>
+                                    <select name="academic_year" class="form-select" id="academicYearSelect">
+                                        {% for ay in academic_years %}
+                                        <option value="{{ ay.id }}" 
+                                                {% if selected_academic_year == ay.id|stringformat:"s" or ay.is_current and not selected_academic_year %}selected{% endif %}>
+                                            {{ ay.year }}{% if ay.is_current %} ✓{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold">Semester</label>
+                                    <select name="semester" class="form-select">
+                                        <option value="">Current Semester</option>
+                                        {% for semester in semesters %}
+                                        <option value="{{ semester.id }}" 
+                                                {% if selected_semester == semester.id|stringformat:"s" %}selected{% endif %}>
+                                            Semester {{ semester.semester_number }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Search Student</label>
+                                    <input type="text" name="search" class="form-control" 
+                                           placeholder="ID, Name, Email..." 
+                                           value="{{ search_query }}">
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mt-2">
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-search"></i> Apply Filters
+                                    </button>
+                                </div>
+                                <div class="col-auto">
+                                    <a href="{% url 'cod_view_results' %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-x-circle"></i> Clear Filters
+                                    </a>
+                                </div>
+                                <div class="col-auto ms-auto">
+                                    <span class="text-muted">
+                                        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} student{{ page_obj.paginator.count|pluralize }}
+                                    </span>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="row">
+        <div class="col-12">
+            {% if page_obj %}
+                {% for student_data in page_obj %}
+                <div class="card student-card mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <!-- Student Info -->
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 me-3">
+                                        <i class="bi bi-person-fill" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">{{ student_data.student.user.get_full_name }}</h6>
+                                        <p class="text-muted small mb-0">
+                                            <span class="badge bg-primary">{{ student_data.student.student_id }}</span>
+                                        </p>
+                                        <p class="text-muted small mb-0">
+                                            {{ student_data.student.programme.code }} - Year {{ student_data.student.current_year }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GPA Info -->
+                            <div class="col-md-3 text-center">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Semester GPA</small>
+                                    <span class="gpa-display text-primary">{{ student_data.semester_gpa }}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Cumulative GPA</small>
+                                    <span class="fw-bold fs-5">{{ student_data.cumulative_gpa|floatformat:2 }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Course Stats -->
+                            <div class="col-md-3 text-center">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="p-2 bg-light rounded">
+                                            <div class="fw-bold text-primary">{{ student_data.total_courses }}</div>
+                                            <small class="text-muted">Total</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-success bg-opacity-10 rounded">
+                                            <div class="fw-bold text-success">{{ student_data.passed_courses }}</div>
+                                            <small class="text-muted">Passed</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-danger bg-opacity-10 rounded">
+                                            <div class="fw-bold text-danger">{{ student_data.total_courses|add:"-"|add:student_data.passed_courses }}</div>
+                                            <small class="text-muted">Failed</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 bg-warning bg-opacity-10 rounded">
+                                            <div class="fw-bold text-warning">
+                                                {% widthratio student_data.passed_courses student_data.total_courses 100 %}%
+                                            </div>
+                                            <small class="text-muted">Pass Rate</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="col-md-3 text-end">
+                                <a href="{% url 'cod_student_results_detail' student_data.student.student_id %}" 
+                                   class="btn btn-outline-primary btn-sm mb-2 w-100">
+                                    <i class="bi bi-eye"></i> View Details
+                                </a>
+                                <button class="btn btn-outline-secondary btn-sm w-100" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#grades-{{ student_data.student.id }}">
+                                    <i class="bi bi-list"></i> Show Grades
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Grades Collapse -->
+                        <div class="collapse mt-3" id="grades-{{ student_data.student.id }}">
+                            <hr>
+                            <h6 class="fw-bold mb-3">Course Grades</h6>
+                            {% if student_data.grades %}
+                            <div class="course-grid">
+                                {% for grade_data in student_data.grades %}
+                                <div class="course-item {% if grade_data.is_passed %}passed{% elif grade_data.is_passed == False %}failed{% endif %}">
+                                    <div class="fw-bold small">{{ grade_data.course.code }}</div>
+                                    <div class="badge grade-badge {% if grade_data.is_passed %}bg-success{% elif grade_data.is_passed == False %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ grade_data.grade }}
+                                    </div>
+                                    {% if grade_data.total_marks %}
+                                    <small class="text-muted d-block mt-1">{{ grade_data.total_marks|floatformat:1 }}%</small>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i> No grades available for this semester
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Results pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_programme %}&programme={{ selected_programme }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_academic_year %}&academic_year={{ selected_academic_year }}{% endif %}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                    <h5 class="text-muted mt-3">No Results Found</h5>
+                    <p class="text-muted">Try adjusting your filters or search criteria</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Download Modal -->
+<div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="downloadModalLabel">
+                    <i class="bi bi-download"></i> Download Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="GET" action="{% url 'cod_download_results_excel' %}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Programme <span class="text-danger">*</span></label>
+                        <select name="programme" class="form-select" required>
+                            <option value="">Select Programme</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}" {% if selected_programme == programme.id|stringformat:"s" %}selected{% endif %}>
+                                {{ programme.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Year <span class="text-danger">*</span></label>
+                        <select name="year" class="form-select" required>
+                            <option value="">Select Year</option>
+                            {% for year in years_range %}
+                            <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>
+                                Year {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Academic Year <span class="text-danger">*</span></label>
+                        <select name="academic_year" class="form-select" required>
+                            <option value="">Select Academic Year</option>
+                            {% for ay in academic_years %}
+                            <option value="{{ ay.id }}" {% if selected_academic_year == ay.id|stringformat:"s" or ay.is_current and not selected_academic_year %}selected{% endif %}>
+                                {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Semester</label>
+                        <select name="semester" class="form-select">
+                            <option value="">All Semesters</option>
+                            {% for semester in semesters %}
+                            <option value="{{ semester.id }}" {% if selected_semester == semester.id|stringformat:"s" %}selected{% endif %}>
+                                Semester {{ semester.semester_number }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank to download all semesters</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Results will be downloaded in Excel format with separate sheets for each semester.
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-download"></i> Download Excel Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form on filter change
+    const filterForm = document.getElementById('filterForm');
+    const selects = filterForm.querySelectorAll('select');
+    
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            // Don't auto-submit, let user click Apply
+        });
+    });
+});
+</script>
+
+{% endblock %}

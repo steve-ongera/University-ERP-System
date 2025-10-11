@@ -1,0 +1,343 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .breadcrumb {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-item {
+        font-size: 0.95rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .breadcrumb-item.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    .breadcrumb-item a {
+        text-decoration: none;
+        color: #495057;
+        transition: color 0.2s ease-in-out;
+    }
+
+    .breadcrumb-item a:hover {
+        color: #0d6efd;
+    }
+
+    .stat-card {
+        border-radius: 10px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+
+    .quick-action-card {
+        border-radius: 10px;
+        border-left: 4px solid;
+        transition: all 0.3s;
+    }
+
+    .quick-action-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-clipboard-data"></i> Results Management
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-clipboard-data"></i> Results Management Dashboard
+                    </h2>
+                    <p class="mb-0 opacity-75">{{ department.name }} - {{ current_academic_year.year }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="fw-bold mb-0">{{ total_students }}</h3>
+                            <p class="text-muted small mb-0">Total Students</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-success bg-opacity-10 text-success me-3">
+                            <i class="bi bi-file-earmark-check-fill"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="fw-bold mb-0">{{ students_with_results }}</h3>
+                            <p class="text-muted small mb-0">Students with Results</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-info bg-opacity-10 text-info me-3">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="fw-bold mb-0">{{ pass_rate }}%</h3>
+                            <p class="text-muted small mb-0">Pass Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 shadow-sm stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3">
+                            <i class="bi bi-star-fill"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h3 class="fw-bold mb-0">{{ avg_gpa }}</h3>
+                            <p class="text-muted small mb-0">Average GPA</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h5 class="fw-bold mb-3"><i class="bi bi-lightning-fill"></i> Quick Actions</h5>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm quick-action-card" style="border-left-color: #0d6efd !important;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded p-2 me-3">
+                            <i class="bi bi-eye-fill" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold mb-0">View Results</h5>
+                    </div>
+                    <p class="text-muted small mb-3">View and filter student results by programme, year, and semester.</p>
+                    <a href="{% url 'cod_view_results' %}" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-arrow-right-circle"></i> Go to Results
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm quick-action-card" style="border-left-color: #198754 !important;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 text-success rounded p-2 me-3">
+                            <i class="bi bi-arrow-up-circle-fill" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold mb-0">Promotion Analysis</h5>
+                    </div>
+                    <p class="text-muted small mb-3">Analyze students eligible for promotion to next academic year.</p>
+                    <a href="{% url 'cod_promotion_analysis' %}" class="btn btn-success btn-sm w-100">
+                        <i class="bi bi-arrow-right-circle"></i> Analyze Promotions
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm quick-action-card" style="border-left-color: #0dcaf0 !important;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info bg-opacity-10 text-info rounded p-2 me-3">
+                            <i class="bi bi-download" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold mb-0">Download Reports</h5>
+                    </div>
+                    <p class="text-muted small mb-3">Export results and reports in Excel format for analysis.</p>
+                    <button type="button" class="btn btn-info btn-sm w-100" data-bs-toggle="modal" data-bs-target="#downloadModal">
+                        <i class="bi bi-arrow-right-circle"></i> Download Options
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programmes Overview -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-book-fill"></i> Programmes in {{ department.name }}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Programme</th>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th>Duration</th>
+                                    <th class="text-center">Active Students</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for programme in programmes %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ programme.name }}</div>
+                                        <small class="text-muted">{{ programme.study_mode }}</small>
+                                    </td>
+                                    <td><span class="badge bg-primary">{{ programme.code }}</span></td>
+                                    <td>{{ programme.get_programme_type_display }}</td>
+                                    <td>{{ programme.duration_years }} Year{{ programme.duration_years|pluralize }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ programme.students.filter.count }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'cod_view_results' %}?programme={{ programme.id }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View Results
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="bi bi-inbox" style="font-size: 2rem; color: #ccc;"></i>
+                                        <p class="text-muted mt-2">No programmes found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Modal -->
+<div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="downloadModalLabel">
+                    <i class="bi bi-download"></i> Download Reports
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="GET" action="{% url 'cod_download_results_excel' %}" id="downloadForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Programme <span class="text-danger">*</span></label>
+                        <select name="programme" class="form-select" required>
+                            <option value="">Select Programme</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}">{{ programme.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Year <span class="text-danger">*</span></label>
+                        <select name="year" class="form-select" required>
+                            <option value="">Select Year</option>
+                            {% for i in "12345678" %}
+                            <option value="{{ i }}">Year {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Academic Year <span class="text-danger">*</span></label>
+                        <select name="academic_year" class="form-select" required>
+                            <option value="">Select Academic Year</option>
+                            {% for ay in academic_years %}
+                            <option value="{{ ay.id }}" {% if ay.is_current %}selected{% endif %}>
+                                {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Semester</label>
+                        <select name="semester" class="form-select">
+                            <option value="">All Semesters</option>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                            <option value="3">Semester 3</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-download"></i> Download Excel Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

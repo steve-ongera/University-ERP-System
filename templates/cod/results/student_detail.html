@@ -1,0 +1,268 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .academic-year-section {
+        border-left: 4px solid #0d6efd;
+        margin-bottom: 2rem;
+    }
+
+    .semester-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .semester-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .grade-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .grade-A, .grade-A-plus { background-color: #d1e7dd !important; }
+    .grade-B { background-color: #cfe2ff !important; }
+    .grade-C { background-color: #fff3cd !important; }
+    .grade-D, .grade-F { background-color: #f8d7da !important; }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 30px;
+        padding-bottom: 20px;
+        border-left: 2px solid #dee2e6;
+    }
+
+    .timeline-item:last-child {
+        border-left: none;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: -6px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_results_dashboard' %}">
+                    <i class="bi bi-clipboard-data"></i> Results Management
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_view_results' %}">
+                    <i class="bi bi-eye"></i> View Results
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ student.student_id }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Student Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-4 me-4">
+                                    <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                                </div>
+                                <div>
+                                    <h2 class="fw-bold mb-1">{{ student.user.get_full_name }}</h2>
+                                    <p class="text-muted mb-2">
+                                        <span class="badge bg-primary me-2">{{ student.student_id }}</span>
+                                        <span class="badge bg-secondary me-2">{{ student.programme.code }}</span>
+                                        <span class="badge bg-info">Year {{ student.current_year }}</span>
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="bi bi-envelope me-2"></i>{{ student.user.email }}
+                                        <span class="mx-2">|</span>
+                                        <i class="bi bi-telephone me-2"></i>{{ student.user.phone }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-3">
+                                <small class="text-muted d-block">Cumulative GPA</small>
+                                <h1 class="fw-bold text-primary mb-0">{{ student.cumulative_gpa|default:"N/A" }}</h1>
+                            </div>
+                            <span class="badge {% if student.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
+                                {{ student.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Record -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-book"></i> Academic Record
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if results_by_year %}
+                        {% for year_data in results_by_year %}
+                        <div class="academic-year-section p-3 bg-light rounded mb-4">
+                            <h4 class="fw-bold text-primary mb-3">
+                                <i class="bi bi-calendar-event"></i> {{ year_data.academic_year.year }}
+                            </h4>
+
+                            {% for semester_data in year_data.semesters %}
+                            <div class="semester-card bg-white p-4 mb-3 shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="fw-bold mb-0">
+                                        <i class="bi bi-journal-text"></i> Semester {{ semester_data.semester.semester_number }}
+                                    </h5>
+                                    <div class="text-end">
+                                        <div class="d-flex gap-3 align-items-center">
+                                            <div>
+                                                <small class="text-muted d-block">Semester GPA</small>
+                                                <h4 class="fw-bold text-primary mb-0">{{ semester_data.semester_gpa }}</h4>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted d-block">Pass Rate</small>
+                                                <h4 class="fw-bold text-success mb-0">
+                                                    {% widthratio semester_data.passed_courses semester_data.total_courses 100 %}%
+                                                </h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-2 text-center">
+                                            <small class="text-muted d-block">Total Courses</small>
+                                            <span class="fw-bold fs-5">{{ semester_data.total_courses }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-2 text-center bg-success bg-opacity-10">
+                                            <small class="text-muted d-block">Passed</small>
+                                            <span class="fw-bold fs-5 text-success">{{ semester_data.passed_courses }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-2 text-center bg-danger bg-opacity-10">
+                                            <small class="text-muted d-block">Failed</small>
+                                            <span class="fw-bold fs-5 text-danger">
+                                                {{ semester_data.total_courses|add:"-"|add:semester_data.passed_courses }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if semester_data.grades %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover grade-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Course Code</th>
+                                                <th>Course Name</th>
+                                                <th class="text-center">Credit Hours</th>
+                                                <th class="text-center">CA (40%)</th>
+                                                <th class="text-center">Exam (60%)</th>
+                                                <th class="text-center">Total Marks</th>
+                                                <th class="text-center">Grade</th>
+                                                <th class="text-center">Grade Points</th>
+                                                <th class="text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for grade_item in semester_data.grades %}
+                                            <tr class="{% if grade_item.grade %}grade-{{ grade_item.grade.grade|slice:'0:1' }}{% endif %}">
+                                                <td class="fw-bold">{{ grade_item.enrollment.course.code }}</td>
+                                                <td>{{ grade_item.enrollment.course.name }}</td>
+                                                <td class="text-center">{{ grade_item.enrollment.course.credit_hours }}</td>
+                                                {% if grade_item.grade %}
+                                                <td class="text-center">{{ grade_item.grade.continuous_assessment|default:"-" }}</td>
+                                                <td class="text-center">{{ grade_item.grade.final_exam|default:"-" }}</td>
+                                                <td class="text-center fw-bold">{{ grade_item.grade.total_marks|floatformat:1 }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge {% if grade_item.grade.is_passed %}bg-success{% else %}bg-danger{% endif %} px-3">
+                                                        {{ grade_item.grade.grade }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">{{ grade_item.grade.grade_points|default:"-" }}</td>
+                                                <td class="text-center">
+                                                    {% if grade_item.grade.is_passed %}
+                                                    <i class="bi bi-check-circle-fill text-success"></i> Passed
+                                                    {% else %}
+                                                    <i class="bi bi-x-circle-fill text-danger"></i> Failed
+                                                    {% endif %}
+                                                </td>
+                                                {% else %}
+                                                <td colspan="6" class="text-center text-muted">
+                                                    <i class="bi bi-hourglass-split"></i> Grade Not Available
+                                                </td>
+                                                {% endif %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle"></i> No courses enrolled for this semester
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                        <h5 class="text-muted mt-3">No Academic Records Found</h5>
+                        <p class="text-muted">This student has no enrollment or grade records yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{% url 'cod_view_results' %}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left"></i> Back to Results
+            </a>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="bi bi-printer"></i> Print Transcript
+            </button>
+        </div>
+    </div>
+</div>
+
+<style media="print">
+    .breadcrumb, .btn, .card-header { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+</style>
+
+{% endblock %}
