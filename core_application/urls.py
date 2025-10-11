@@ -554,4 +554,11 @@ urlpatterns = [
     path('cod/clearances/<int:clearance_id>/process/', views.process_clearance, name='cod_process_clearance'),
     path('cod/reports/department/', views.department_report, name='cod_department_report'),
 
+    path('results/dashboard/', views.cod_results_dashboard, name='cod_results_dashboard'),
+    path('results/view/', views.cod_view_results, name='cod_view_results'),
+    path('results/student/<str:student_id>/', views.cod_student_results_detail, name='cod_student_results_detail'),
+    path('results/promotion-analysis/', views.cod_promotion_analysis, name='cod_promotion_analysis'),
+    path('results/download-excel/', views.cod_download_results_excel, name='cod_download_results_excel'),
+    path('results/download-promotion-list/', views.cod_download_promotion_list, name='cod_download_promotion_list'),
+
 ]
