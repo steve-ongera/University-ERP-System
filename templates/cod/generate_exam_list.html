@@ -1,0 +1,406 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .filter-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .requirement-card {
+        border-left: 4px solid #0d6efd;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+
+    .feature-icon {
+        width: 50px;
+        height: 50px;
+        background: #e7f3ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #0d6efd;
+        font-size: 1.5rem;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Generate Exam Attendance Sheet
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Exam Attendance Sheet Generator
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                Generate Excel attendance sheets for examinations
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="info-box">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="fw-bold mb-2">
+                            <i class="bi bi-info-circle"></i> Department: {{ department.name }}
+                        </h5>
+                        <p class="mb-0">
+                            Generate comprehensive exam attendance sheets including regular students and special exam applicants. 
+                            You can choose to include or exclude students with fee balances.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <i class="bi bi-file-excel" style="font-size: 4rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto mb-3">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <h6 class="fw-bold">Regular Students</h6>
+                    <p class="small text-muted mb-0">Include all enrolled students for the selected course</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto mb-3">
+                        <i class="bi bi-file-medical"></i>
+                    </div>
+                    <h6 class="fw-bold">Special Exams</h6>
+                    <p class="small text-muted mb-0">Automatically includes approved special exam applications</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto mb-3">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <h6 class="fw-bold">Fee Status</h6>
+                    <p class="small text-muted mb-0">Track payment status and outstanding balances</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="feature-icon mx-auto mb-3">
+                        <i class="bi bi-file-excel"></i>
+                    </div>
+                    <h6 class="fw-bold">Excel Export</h6>
+                    <p class="small text-muted mb-0">Professional formatted Excel sheets ready to print</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generation Form -->
+    <div class="row">
+        <div class="col-lg-12 mx-auto">
+            <div class="card filter-card">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-sliders"></i> Select Parameters
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="GET" action="{% url 'cod_download_exam_attendance_sheet' %}" id="examSheetForm">
+                        <div class="row g-3">
+                            <!-- Academic Year -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold required-field">Academic Year</label>
+                                <select name="academic_year" class="form-select" id="academicYearSelect" required>
+                                    <option value="">Select Academic Year</option>
+                                    {% for ay in academic_years %}
+                                    <option value="{{ ay.id }}" {% if ay.is_current %}selected{% endif %}>
+                                        {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Semester -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold required-field">Semester</label>
+                                <select name="semester" class="form-select" id="semesterSelect" required>
+                                    <option value="">Select Semester</option>
+                                    {% for semester in semesters %}
+                                    <option value="{{ semester.id }}" {% if semester.is_current %}selected{% endif %}>
+                                        Semester {{ semester.semester_number }}{% if semester.is_current %} (Current){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Programme -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold required-field">Programme</label>
+                                <select name="programme" class="form-select" id="programmeSelect" required>
+                                    <option value="">Select Programme</option>
+                                    {% for programme in programmes %}
+                                    <option value="{{ programme.id }}">
+                                        {{ programme.name }} ({{ programme.code }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Year of Study -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold required-field">Year of Study</label>
+                                <select name="year" class="form-select" id="yearSelect" required>
+                                    <option value="">Select Year</option>
+                                    {% for year in years_range %}
+                                    <option value="{{ year }}">Year {{ year }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Course/Unit -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold required-field">Course/Unit</label>
+                                <select name="course" class="form-select" id="courseSelect" required>
+                                    <option value="">First select programme, year and semester</option>
+                                </select>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Only courses with active enrollments are shown
+                                </small>
+                            </div>
+
+                            <!-- Fee Balance Option -->
+                            <div class="col-12">
+                                <div class="requirement-card">
+                                    <label class="form-label fw-bold mb-3">
+                                        <i class="bi bi-cash-stack"></i> Fee Balance Filter
+                                    </label>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="include_fee_balance" 
+                                               id="feeBalanceNo" value="no" checked>
+                                        <label class="form-check-label" for="feeBalanceNo">
+                                            <strong>Exclude students with fee balance</strong>
+                                            <small class="d-block text-muted">Only students who have fully paid fees</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="include_fee_balance" 
+                                               id="feeBalanceYes" value="yes">
+                                        <label class="form-check-label" for="feeBalanceYes">
+                                            <strong>Include all students regardless of fee balance</strong>
+                                            <small class="d-block text-muted">Students with balances will be marked in the sheet</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- What's Included Info -->
+                        <div class="alert alert-info mt-4">
+                            <h6 class="fw-bold mb-2">
+                                <i class="bi bi-clipboard-check"></i> The generated sheet will include:
+                            </h6>
+                            <ul class="mb-0 small">
+                                <li>Student ID and Full Name</li>
+                                <li>Enrollment Type (Regular/Special Exam)</li>
+                                <li>Fee Payment Status with color coding</li>
+                                <li>Signature column for attendance</li>
+                                <li>Sheet Code column (for students to fill exam sheet code)</li>
+                                <li>Remarks column</li>
+                                <li>Lecturer and course information</li>
+                                <li>Summary statistics</li>
+                            </ul>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-download"></i> Generate Excel Attendance Sheet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="row mt-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-question-circle"></i> Instructions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Select the academic year and semester for the examination</li>
+                        <li class="mb-2">Choose the programme and year of study</li>
+                        <li class="mb-2">Select the specific course/unit</li>
+                        <li class="mb-2">Decide whether to include students with fee balances</li>
+                        <li class="mb-2">Click "Generate Excel Attendance Sheet" to download</li>
+                        <li class="mb-2">Print the sheet and use it during the examination</li>
+                        <li class="mb-0">Students will sign and fill in their exam sheet codes</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const academicYearSelect = document.getElementById('academicYearSelect');
+    const semesterSelect = document.getElementById('semesterSelect');
+    const programmeSelect = document.getElementById('programmeSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const courseSelect = document.getElementById('courseSelect');
+
+    // Load semesters when academic year changes
+    academicYearSelect.addEventListener('change', function() {
+        const academicYearId = this.value;
+        semesterSelect.innerHTML = '<option value="">Loading...</option>';
+        courseSelect.innerHTML = '<option value="">First select all required fields</option>';
+        
+        if (!academicYearId) {
+            semesterSelect.innerHTML = '<option value="">Select Academic Year first</option>';
+            return;
+        }
+
+        // Reload page with academic year parameter to get semesters
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('academic_year', academicYearId);
+        window.location.href = currentUrl.toString();
+    });
+
+    // Load courses when programme, year, or semester changes
+    function loadCourses() {
+        const programmeId = programmeSelect.value;
+        const year = yearSelect.value;
+        const semesterId = semesterSelect.value;
+
+        if (!programmeId || !year || !semesterId) {
+            courseSelect.innerHTML = '<option value="">First select programme, year and semester</option>';
+            courseSelect.disabled = true;
+            return;
+        }
+
+        courseSelect.innerHTML = '<option value="">Loading courses...</option>';
+        courseSelect.disabled = true;
+
+        // Fetch courses via AJAX
+        fetch(`{% url 'cod_get_courses_for_programme' %}?programme=${programmeId}&year=${year}&semester=${semesterId}`)
+            .then(response => response.json())
+            .then(data => {
+                courseSelect.innerHTML = '';
+                
+                if (data.courses && data.courses.length > 0) {
+                    courseSelect.innerHTML = '<option value="">Select Course/Unit</option>';
+                    data.courses.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.id;
+                        option.textContent = `${course.code} - ${course.name}`;
+                        courseSelect.appendChild(option);
+                    });
+                    courseSelect.disabled = false;
+                } else {
+                    courseSelect.innerHTML = '<option value="">No courses found with active enrollments</option>';
+                    courseSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading courses:', error);
+                courseSelect.innerHTML = '<option value="">Error loading courses</option>';
+                courseSelect.disabled = true;
+            });
+    }
+
+    programmeSelect.addEventListener('change', loadCourses);
+    yearSelect.addEventListener('change', loadCourses);
+    semesterSelect.addEventListener('change', loadCourses);
+
+    // Form validation
+    document.getElementById('examSheetForm').addEventListener('submit', function(e) {
+        const requiredFields = [
+            { element: academicYearSelect, name: 'Academic Year' },
+            { element: semesterSelect, name: 'Semester' },
+            { element: programmeSelect, name: 'Programme' },
+            { element: yearSelect, name: 'Year of Study' },
+            { element: courseSelect, name: 'Course/Unit' }
+        ];
+
+        for (let field of requiredFields) {
+            if (!field.element.value) {
+                e.preventDefault();
+                alert(`Please select ${field.name}`);
+                field.element.focus();
+                return false;
+            }
+        }
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+        submitBtn.disabled = true;
+    });
+
+    // Load courses if all required fields are already selected (e.g., from URL params)
+    if (programmeSelect.value && yearSelect.value && semesterSelect.value) {
+        loadCourses();
+    }
+});
+</script>
+
+{% endblock %}
