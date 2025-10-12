@@ -1,46 +1,145 @@
-<!-- ==================== cod/department_programmes.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h2 class="fw-bold mb-2">
-                    <i class="bi bi-diagram-3 text-info"></i> Department Programmes
-                </h2>
-                <p class="text-muted mb-0">{{ department.name }} - Total: {{ programmes|length }}</p>
+<style>
+    .programme-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        border-left: 4px solid #0dcaf0;
+    }
+
+    .programme-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-diagram-3"></i> Department Programmes
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-diagram-3"></i> Department Programmes
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ department.name }} ({{ department.code }})
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="fw-bold mb-0">{{ programmes|length }}</h3>
+                            <small class="opacity-75">Total Programmes</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
-        {% for programme in programmes %}
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-info text-white">
-                    <h5 class="fw-bold mb-0">{{ programme.code }}</h5>
+    <!-- Programmes List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-list-ul"></i> All Programmes
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <h6 class="fw-bold">{{ programme.name }}</h6>
-                    <p class="mb-2"><strong>Type:</strong> {{ programme.get_programme_type_display }}</p>
-                    <p class="mb-2"><strong>Mode:</strong> {{ programme.get_study_mode_display }}</p>
-                    <p class="mb-2"><strong>Duration:</strong> {{ programme.duration_years }} years</p>
-                    <p class="mb-2"><strong>Credit Hours Required:</strong> {{ programme.credit_hours_required }}</p>
-                    <p class="mb-2"><strong>Total Semesters:</strong> {{ programme.total_semesters }}</p>
-                    <p class="mb-2"><strong>Faculty:</strong> {{ programme.faculty.name }}</p>
-                    <p class="mb-0">
-                        {% if programme.is_active %}
-                        <span class="badge bg-success">Active</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                        {% endif %}
-                    </p>
+                    {% if programmes %}
+                        <div class="row g-3">
+                            {% for programme in programmes %}
+                            <div class="col-md-6">
+                                <div class="programme-card p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">{{ programme.name }}</h6>
+                                            <p class="text-muted small mb-0">
+                                                <span class="badge bg-info me-2">{{ programme.code }}</span>
+                                                {% if programme.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-2">
+
+                                    <div class="row g-2 small">
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Type:</span>
+                                                <span class="fw-semibold">{{ programme.get_programme_type_display }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Mode:</span>
+                                                <span class="fw-semibold">{{ programme.get_study_mode_display }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Duration:</span>
+                                                <span class="fw-semibold">{{ programme.duration_years }} years</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Semesters:</span>
+                                                <span class="fw-semibold">{{ programme.total_semesters }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Credit Hours:</span>
+                                                <span class="fw-semibold">{{ programme.credit_hours_required }} CH</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Faculty:</span>
+                                                <span class="fw-semibold">{{ programme.faculty.name }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                            <h5 class="text-muted mt-3">No Programmes Found</h5>
+                            <p class="text-muted">No active programmes in your department</p>
+                            <a href="{% url 'cod_dashboard' %}" class="btn btn-info mt-3">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endblock %}
