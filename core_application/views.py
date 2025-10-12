@@ -24606,3 +24606,423 @@ def cod_student_advice(request, student_id):
     }
     
     return render(request, 'cod/consultation/student_advice.html', context)
+
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, F, DecimalField
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+from datetime import datetime
+from .models import (
+    User, Department, Programme, Course, Student, Enrollment, 
+    AcademicYear, Semester, FeeStructure, FeePayment,
+    SpecialExamApplication, LecturerCourseAssignment
+)
+
+@login_required
+def cod_generate_exam_list(request):
+    """COD view to generate exam attendance sheets"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied. Only COD can access this page.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        cod_department = request.user.headed_departments.first()
+        if not cod_department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get department programmes
+    programmes = Programme.objects.filter(department=cod_department, is_active=True)
+    
+    # Get academic years
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get semesters for selected academic year
+    selected_academic_year_id = request.GET.get('academic_year')
+    if selected_academic_year_id:
+        semesters = Semester.objects.filter(
+            academic_year_id=selected_academic_year_id
+        ).order_by('semester_number')
+    else:
+        semesters = Semester.objects.filter(
+            academic_year=current_academic_year
+        ).order_by('semester_number') if current_academic_year else []
+    
+    # Years range (1-8 for university)
+    years_range = range(1, 9)
+    
+    context = {
+        'department': cod_department,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'semesters': semesters,
+        'years_range': years_range,
+    }
+    
+    return render(request, 'cod/generate_exam_list.html', context)
+
+
+@login_required
+def cod_download_exam_attendance_sheet(request):
+    """Generate and download exam attendance sheet in Excel format"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    academic_year_id = request.GET.get('academic_year')
+    semester_id = request.GET.get('semester')
+    course_id = request.GET.get('course')
+    include_fee_balance = request.GET.get('include_fee_balance', 'no')
+    
+    # Validate required parameters
+    if not all([programme_id, year, academic_year_id, semester_id, course_id]):
+        messages.error(request, "Please fill all required fields.")
+        return redirect('cod_generate_exam_list')
+    
+    try:
+        # Get objects
+        programme = Programme.objects.get(id=programme_id)
+        academic_year = AcademicYear.objects.get(id=academic_year_id)
+        semester = Semester.objects.get(id=semester_id)
+        course = Course.objects.get(id=course_id)
+        
+        # Get course assignment (lecturer info)
+        course_assignment = LecturerCourseAssignment.objects.filter(
+            course=course,
+            academic_year=academic_year,
+            semester=semester,
+            is_active=True
+        ).first()
+        
+        # Base query for enrolled students
+        enrollments = Enrollment.objects.filter(
+            course=course,
+            semester=semester,
+            is_active=True,
+            student__programme=programme,
+            student__current_year=year,
+            student__status='active'
+        ).select_related(
+            'student__user',
+            'student__programme'
+        ).order_by('student__user__last_name', 'student__user__first_name')
+        
+        # Students list
+        students_list = []
+        
+        # Regular enrolled students
+        for enrollment in enrollments:
+            student = enrollment.student
+            
+            # Check fee payment status
+            if include_fee_balance == 'no':
+                # Only include students with no fee balance
+                fee_status = get_student_fee_status(student, semester)
+                if fee_status['has_balance']:
+                    continue
+            
+            # Get fee balance
+            fee_info = get_student_fee_status(student, semester)
+            
+            students_list.append({
+                'student': student,
+                'enrollment_type': 'Regular',
+                'fee_balance': fee_info['balance'],
+                'is_fully_paid': not fee_info['has_balance']
+            })
+        
+        # Students with approved special exam applications
+        special_exam_students = SpecialExamApplication.objects.filter(
+            course=course,
+            semester=semester,
+            student__programme=programme,
+            student__current_year=year,
+            status__in=['approved', 'scheduled'],
+            student__status='active'
+        ).select_related('student__user')
+        
+        for application in special_exam_students:
+            student = application.student
+            
+            # Check if student already in list (from regular enrollment)
+            if not any(s['student'].id == student.id for s in students_list):
+                fee_info = get_student_fee_status(student, semester)
+                
+                students_list.append({
+                    'student': student,
+                    'enrollment_type': 'Special Exam',
+                    'special_exam_date': application.scheduled_exam_date,
+                    'fee_balance': fee_info['balance'],
+                    'is_fully_paid': not fee_info['has_balance']
+                })
+        
+        # Generate Excel file
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{course.code} Attendance"
+        
+        # Styling
+        header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        title_font = Font(bold=True, size=14)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Document Header
+        current_row = 1
+        
+        # University/Institution Name (you can customize)
+        ws.merge_cells(f'A{current_row}:H{current_row}')
+        ws[f'A{current_row}'] = "UNIVERSITY EXAMINATION ATTENDANCE SHEET"
+        ws[f'A{current_row}'].font = Font(bold=True, size=16)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='center', vertical='center')
+        current_row += 2
+        
+        # Course Information
+        info_data = [
+            ['Programme:', programme.name, 'Course Code:', course.code],
+            ['Department:', programme.department.name, 'Course Name:', course.name],
+            ['Academic Year:', academic_year.year, 'Year of Study:', f'Year {year}'],
+            ['Semester:', f'Semester {semester.semester_number}', 'Credit Hours:', course.credit_hours],
+        ]
+        
+        if course_assignment:
+            info_data.append([
+                'Lecturer:', 
+                course_assignment.lecturer.user.get_full_name(),
+                'Date:', 
+                datetime.now().strftime('%d/%m/%Y')
+            ])
+        else:
+            info_data.append(['Date:', datetime.now().strftime('%d/%m/%Y'), '', ''])
+        
+        for row_data in info_data:
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws.cell(row=current_row, column=col_idx, value=value)
+                if col_idx % 2 == 1:  # Labels
+                    cell.font = Font(bold=True)
+            current_row += 1
+        
+        current_row += 1
+        
+        # Table Headers
+        headers = [
+            'No.',
+            'Student ID',
+            'Full Name',
+            'Type',
+            'Fee Status',
+            'Signature',
+            'Sheet Code',
+            'Remarks'
+        ]
+        
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=current_row, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Set row height for header
+        ws.row_dimensions[current_row].height = 25
+        current_row += 1
+        
+        # Student Data
+        for idx, student_data in enumerate(students_list, 1):
+            student = student_data['student']
+            
+            # Prepare row data
+            row_data = [
+                idx,
+                student.student_id,
+                student.user.get_full_name(),
+                student_data['enrollment_type'],
+                'Paid' if student_data['is_fully_paid'] else f"Balance: {student_data['fee_balance']}",
+                '',  # Signature column (empty for manual signing)
+                '',  # Sheet code column (empty for student to fill)
+                ''   # Remarks
+            ]
+            
+            # Write row
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws.cell(row=current_row, column=col_idx, value=value)
+                cell.border = border
+                cell.alignment = Alignment(horizontal='left' if col_idx > 1 else 'center', vertical='center')
+                
+                # Color code fee status
+                if col_idx == 5:  # Fee Status column
+                    if student_data['is_fully_paid']:
+                        cell.fill = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid")
+                    else:
+                        cell.fill = PatternFill(start_color="F8D7DA", end_color="F8D7DA", fill_type="solid")
+            
+            # Set row height
+            ws.row_dimensions[current_row].height = 30
+            current_row += 1
+        
+        # Summary section
+        current_row += 2
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = f"Total Students: {len(students_list)}"
+        ws[f'A{current_row}'].font = Font(bold=True, size=12)
+        current_row += 1
+        
+        paid_students = sum(1 for s in students_list if s['is_fully_paid'])
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = f"Students with Full Payment: {paid_students}"
+        ws[f'A{current_row}'].font = Font(bold=True)
+        current_row += 1
+        
+        balance_students = len(students_list) - paid_students
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = f"Students with Fee Balance: {balance_students}"
+        ws[f'A{current_row}'].font = Font(bold=True)
+        current_row += 1
+        
+        special_exam_count = sum(1 for s in students_list if s['enrollment_type'] == 'Special Exam')
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = f"Special Exam Students: {special_exam_count}"
+        ws[f'A{current_row}'].font = Font(bold=True)
+        
+        # Signature section
+        current_row += 3
+        ws.merge_cells(f'A{current_row}:C{current_row}')
+        ws[f'A{current_row}'] = "Lecturer's Signature: ___________________________"
+        current_row += 2
+        
+        ws.merge_cells(f'A{current_row}:C{current_row}')
+        ws[f'A{current_row}'] = "Invigilator's Signature: ___________________________"
+        
+        # Column widths
+        column_widths = {
+            'A': 6,   # No.
+            'B': 15,  # Student ID
+            'C': 30,  # Full Name
+            'D': 15,  # Type
+            'E': 20,  # Fee Status
+            'F': 25,  # Signature
+            'G': 20,  # Sheet Code
+            'H': 20   # Remarks
+        }
+        
+        for col, width in column_widths.items():
+            ws.column_dimensions[col].width = width
+        
+        # Prepare response
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"Exam_Attendance_{course.code}_{programme.code}_Y{year}_{academic_year.year.replace('/', '-')}_S{semester.semester_number}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        wb.save(response)
+        return response
+        
+    except Programme.DoesNotExist:
+        messages.error(request, "Programme not found.")
+    except Course.DoesNotExist:
+        messages.error(request, "Course not found.")
+    except Exception as e:
+        messages.error(request, f"Error generating attendance sheet: {str(e)}")
+    
+    return redirect('cod_generate_exam_list')
+
+
+def get_student_fee_status(student, semester):
+    """Calculate student's fee balance for a semester"""
+    try:
+        # Get fee structure for student's programme, year and semester
+        fee_structure = FeeStructure.objects.filter(
+            programme=student.programme,
+            academic_year=semester.academic_year,
+            year=student.current_year,
+            semester=semester.semester_number
+        ).first()
+        
+        if not fee_structure:
+            return {
+                'balance': 0,
+                'has_balance': False,
+                'total_fee': 0,
+                'paid': 0
+            }
+        
+        total_fee = fee_structure.net_fee()
+        
+        # Get total payments
+        total_paid = FeePayment.objects.filter(
+            student=student,
+            fee_structure=fee_structure,
+            payment_status='completed'
+        ).aggregate(
+            total=Sum('amount_paid')
+        )['total'] or 0
+        
+        balance = total_fee - total_paid
+        
+        return {
+            'balance': balance,
+            'has_balance': balance > 0,
+            'total_fee': total_fee,
+            'paid': total_paid
+        }
+    except Exception as e:
+        return {
+            'balance': 0,
+            'has_balance': False,
+            'total_fee': 0,
+            'paid': 0
+        }
+
+
+@login_required
+def cod_get_courses_for_programme(request):
+    """AJAX endpoint to get courses for selected programme, year and semester"""
+    from django.http import JsonResponse
+    
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    semester_id = request.GET.get('semester')
+    
+    if not all([programme_id, year, semester_id]):
+        return JsonResponse({'courses': []})
+    
+    try:
+        semester = Semester.objects.get(id=semester_id)
+        
+        # Get courses for this programme/year/semester that have enrollments
+        courses = Course.objects.filter(
+            course_programmes__programme_id=programme_id,
+            course_programmes__year=year,
+            course_programmes__semester=semester.semester_number,
+            course_programmes__is_active=True,
+            enrollments__semester=semester,
+            enrollments__is_active=True
+        ).distinct().values('id', 'code', 'name')
+        
+        return JsonResponse({'courses': list(courses)})
+    except Exception as e:
+        return JsonResponse({'courses': [], 'error': str(e)})
