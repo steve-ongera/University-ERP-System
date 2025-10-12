@@ -564,14 +564,14 @@ urlpatterns = [
     path('research/<int:research_id>/edit/', views.cod_edit_research, name='cod_edit_research'),
     path('research/<int:research_id>/delete/', views.cod_delete_research, name='cod_delete_research'),
      
-     #cod timetable
-     path('cod/timetable/view/', views.cod_view_timetable, name='cod_view_timetable'),
-     path('cod/timetable/dashboard/', views.cod_timetable_dashboard, name='cod_timetable_dashboard'),
-     path('cod/timetable/create/', views.cod_create_timetable, name='cod_create_timetable'),
-     path('cod/timetable/save/', views.cod_save_timetable_slot, name='cod_save_timetable_slot'),
-     path('cod/timetable/delete/<int:slot_id>/', views.cod_delete_timetable_slot, name='cod_delete_timetable_slot'),
-     path('cod/timetable/get-courses/', views.cod_get_courses_ajax, name='cod_get_courses_ajax'),
-
+   
+     # Timetable Dashboard
+    path('cod/timetable/dashboard/', views.cod_timetable_dashboard, name='cod_timetable_dashboard'),
+    path('cod/timetable/create/', views.cod_create_timetable, name='cod_create_timetable'),
+    path('cod/timetable/view/<int:programme_id>/<int:year>/<int:semester_id>/',  views.cod_view_timetable, name='cod_view_timetable'),
+    path('cod/timetable/save-slot/', views.cod_save_timetable_slot, name='cod_save_timetable_slot'),
+    path('cod/timetable/delete-slot/', views.cod_delete_timetable_slot, name='cod_delete_timetable_slot'),
+    path('cod/timetable/get-courses/', views.cod_get_courses_ajax, name='cod_get_courses_ajax'),
 
     path('results/dashboard/', views.cod_results_dashboard, name='cod_results_dashboard'),
     path('results/view/', views.cod_view_results, name='cod_view_results'),
