@@ -128,3 +128,43 @@ def index(sequence, position):
         return sequence[int(position)]
     except (IndexError, ValueError, TypeError):
         return None
+    
+
+from django import template
+
+register = template.Library()
+
+@register.filter(name='range_filter')
+def range_filter(value):
+    """
+    Creates a range from 1 to value (inclusive)
+    Usage: {% for year in programme.duration_years|range_filter %}
+    """
+    try:
+        return range(1, int(value) + 1)
+    except (ValueError, TypeError):
+        return range(0)
+
+
+@register.filter(name='get_range')
+def get_range(value, start=1):
+    """
+    Alternative filter that allows specifying start value
+    Usage: {% for i in 5|get_range %}
+    """
+    try:
+        return range(start, int(value) + 1)
+    except (ValueError, TypeError):
+        return range(0)
+
+
+@register.filter(name='times')
+def times(number):
+    """
+    Returns a range for the given number
+    Usage: {% for i in 5|times %}
+    """
+    try:
+        return range(1, int(number) + 1)
+    except (ValueError, TypeError):
+        return range(0)

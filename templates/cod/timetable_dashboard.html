@@ -1,0 +1,209 @@
+{% extends 'cod_base.html' %}
+<!-- Custom template tag for range -->
+{% load custom_filters %}
+
+{% load static %}
+
+{% block content %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        transition: all 0.3s;
+        border-left: 4px solid;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+
+    .stat-card.primary {
+        border-left-color: #0d6efd;
+    }
+
+    .stat-card.success {
+        border-left-color: #198754;
+    }
+
+    .stat-card.warning {
+        border-left-color: #ffc107;
+    }
+
+    .programme-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .programme-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-calendar3"></i> Timetable Management
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-calendar3"></i> Timetable Management
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ department.name }} ({{ department.code }})
+                            </p>
+                        </div>
+                        <a href="{% url 'cod_create_timetable' %}" class="btn btn-light btn-lg">
+                            <i class="bi bi-plus-circle"></i> Create New Timetable
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Semester Info -->
+    {% if current_semester %}
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-info-circle fs-4 me-3"></i>
+            <div>
+                <strong>Current Academic Period:</strong> {{ current_academic_year.year }} - Semester {{ current_semester.semester_number }}
+                <br>
+                <small>Registration: {{ current_semester.registration_start_date|date:"M d, Y" }} - {{ current_semester.registration_end_date|date:"M d, Y" }}</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Programmes List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-mortarboard"></i> Department Programmes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if programmes %}
+                        <div class="row g-3">
+                            {% for programme in programmes %}
+                            <div class="col-md-6">
+                                <div class="programme-card p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h6 class="fw-bold mb-1">{{ programme.name }}</h6>
+                                            <p class="text-muted small mb-0">
+                                                <span class="badge bg-primary me-2">{{ programme.code }}</span>
+                                                <span class="badge bg-info">{{ programme.get_programme_type_display }}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-4">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <div class="fw-bold text-primary">{{ programme.duration_years }}</div>
+                                                <small class="text-muted">Years</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <div class="fw-bold text-success">{{ programme.semesters_per_year }}</div>
+                                                <small class="text-muted">Semesters/Yr</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="text-center p-2 bg-light rounded">
+                                                <div class="fw-bold text-info">{{ programme.credit_hours_required }}</div>
+                                                <small class="text-muted">Total CH</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="btn-group w-100" role="group">
+                                        {% for year in programme.duration_years|range_filter %}
+                                        <a href="{% url 'cod_create_timetable' %}?programme={{ programme.id }}&year={{ year }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            Year {{ year }}
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                        <h5 class="text-muted mt-3">No Programmes Found</h5>
+                        <p class="text-muted">No active programmes in your department</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-lightbulb"></i> Quick Guide
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Select a programme and year from the list above</li>
+                        <li class="mb-2">Choose the academic year and semester</li>
+                        <li class="mb-2">Drag courses from the sidebar to time slots</li>
+                        <li class="mb-2">Assign lecturers and venues for each slot</li>
+                        <li class="mb-0">Preview and publish the timetable</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-check-circle"></i> Best Practices
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">Avoid scheduling consecutive 3-hour sessions</li>
+                        <li class="mb-2">Distribute heavy courses throughout the week</li>
+                        <li class="mb-2">Consider lecturer availability and workload</li>
+                        <li class="mb-2">Leave gaps for student breaks</li>
+                        <li class="mb-0">Check for venue and lecturer conflicts</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

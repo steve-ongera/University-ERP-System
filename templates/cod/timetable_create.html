@@ -1,0 +1,827 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .timetable-container {
+        overflow-x: auto;
+    }
+
+    .timetable-table {
+        min-width: 1200px;
+        border-collapse: separate;
+        border-spacing: 2px;
+    }
+
+    .timetable-table th {
+        background: #0d6efd;
+        color: white;
+        padding: 12px 8px;
+        text-align: center;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .time-cell {
+        background: #f8f9fa;
+        font-weight: 600;
+        text-align: center;
+        padding: 10px 5px;
+        min-width: 80px;
+        font-size: 0.85rem;
+    }
+
+    .timetable-cell {
+        width: 150px;
+        height: 80px;
+        border: 2px dashed #dee2e6;
+        background: white;
+        position: relative;
+        padding: 5px;
+        transition: all 0.3s;
+    }
+
+    .timetable-cell:hover {
+        border-color: #0d6efd;
+        background: #f8f9fa;
+    }
+
+    .timetable-cell.drag-over {
+        border-color: #198754;
+        background: #d1e7dd;
+    }
+
+    .course-item {
+        background: #0d6efd;
+        color: white;
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        cursor: move;
+        transition: all 0.2s;
+    }
+
+    .course-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .course-item.dragging {
+        opacity: 0.5;
+    }
+
+    .timetable-slot {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 6px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        cursor: move;
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        bottom: 5px;
+        overflow: hidden;
+    }
+
+    .timetable-slot:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .timetable-slot .course-code {
+        font-weight: 700;
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+    }
+
+    .timetable-slot .lecturer-name,
+    .timetable-slot .venue {
+        font-size: 0.7rem;
+        opacity: 0.9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .delete-slot {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .timetable-slot:hover .delete-slot {
+        opacity: 1;
+    }
+
+    .course-sidebar {
+        height: 600px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .lecturer-select, .venue-input {
+        font-size: 0.85rem;
+        padding: 4px 8px;
+        margin-top: 5px;
+    }
+
+    .filter-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 20px;
+        margin-bottom: 10px;
+    }
+
+    .legend-color {
+        width: 30px;
+        height: 20px;
+        border-radius: 4px;
+        margin-right: 8px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+
+    .save-btn-fixed {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_timetable_dashboard' %}">
+                    <i class="bi bi-calendar3"></i> Timetable Management
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                Create Timetable
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-calendar-plus"></i> Create Timetable
+                    </h2>
+                    <p class="mb-0 opacity-75">{{ department.name }} ({{ department.code }})</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-section">
+        <form method="GET" action="{% url 'cod_create_timetable' %}" id="filterForm">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Programme <span class="text-danger">*</span></label>
+                    <select name="programme" class="form-select" id="programmeSelect" required>
+                        <option value="">Select Programme</option>
+                        {% for prog in programmes %}
+                        <option value="{{ prog.id }}" 
+                                {% if selected_programme and selected_programme.id == prog.id %}selected{% endif %}>
+                            {{ prog.name }} ({{ prog.code }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Year <span class="text-danger">*</span></label>
+                    <select name="year" class="form-select" id="yearSelect" required>
+                        <option value="">Select Year</option>
+                        {% for yr in years_range %}
+                        <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>
+                            Year {{ yr }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Academic Year <span class="text-danger">*</span></label>
+                    <select name="academic_year" class="form-select" id="academicYearSelect" required>
+                        <option value="">Select Academic Year</option>
+                        {% for ay in academic_years %}
+                        <option value="{{ ay.id }}" 
+                                {% if selected_academic_year and selected_academic_year.id == ay.id %}selected{% endif %}>
+                            {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Semester <span class="text-danger">*</span></label>
+                    <select name="semester" class="form-select" id="semesterSelect" required>
+                        <option value="">Select Semester</option>
+                        {% for sem in semesters %}
+                        <option value="{{ sem.id }}" 
+                                {% if selected_semester and selected_semester.id == sem.id %}selected{% endif %}>
+                            Semester {{ sem.semester_number }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Load Timetable
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if selected_programme and selected_year and selected_semester %}
+    <!-- Legend -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-info-circle"></i> Instructions
+            </h6>
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-2">
+                        <strong>How to create timetable:</strong>
+                    </p>
+                    <ol class="mb-0">
+                        <li>Drag a course from the left sidebar</li>
+                        <li>Drop it into the desired time slot</li>
+                        <li>Select lecturer and enter venue</li>
+                        <li>Click save to confirm the slot</li>
+                        <li>To delete, click the × button on the slot</li>
+                    </ol>
+                </div>
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                        <span>Scheduled Class</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: white; border: 2px dashed #dee2e6;"></div>
+                        <span>Empty Slot</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Course Sidebar -->
+        <div class="col-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-book"></i> Available Courses
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="course-sidebar" id="courseSidebar">
+                        {% if courses %}
+                            {% for course in courses %}
+                            <div class="course-item" draggable="true" 
+                                 data-course-id="{{ course.id }}"
+                                 data-course-code="{{ course.code }}"
+                                 data-course-name="{{ course.name }}">
+                                <div class="fw-bold small">{{ course.code }}</div>
+                                <div class="small" style="font-size: 0.7rem;">{{ course.name|truncatewords:4 }}</div>
+                                <div class="small" style="font-size: 0.65rem; opacity: 0.8;">
+                                    {{ course.credit_hours }} CH
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted p-3">
+                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                <p class="small mb-0 mt-2">No courses available</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timetable Grid -->
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-calendar-week"></i> 
+                            {{ selected_programme.code }} - Year {{ selected_year }} - {{ selected_semester }}
+                        </h5>
+                        <a href="{% url 'cod_view_timetable' selected_programme.id selected_year selected_semester.id %}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> Preview
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="timetable-container">
+                        <table class="table timetable-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 80px;">Time</th>
+                                    {% for day in days %}
+                                    <th>{{ day|title }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for time_slot in time_slots %}
+                                <tr>
+                                    <td class="time-cell">
+                                        {{ time_slot.0 }}<br>{{ time_slot.1 }}
+                                    </td>
+                                    {% for day in days %}
+                                    <td class="timetable-cell" 
+                                        data-day="{{ day }}"
+                                        data-start-time="{{ time_slot.0 }}"
+                                        data-end-time="{{ time_slot.1 }}">
+                                        <!-- Existing timetable slots will be loaded here -->
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="bi bi-calendar-x" style="font-size: 5rem; color: #dee2e6;"></i>
+                <h4 class="text-muted mt-3">No Timetable Loaded</h4>
+                <p class="text-muted">Please select a programme, year, and semester to create timetable</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Slot Configuration Modal -->
+<div class="modal fade" id="slotModal" tabindex="-1" aria-labelledby="slotModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="slotModalLabel">
+                    <i class="bi bi-gear"></i> Configure Timetable Slot
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="slotForm">
+                    <input type="hidden" id="slotCourseId">
+                    <input type="hidden" id="slotDay">
+                    <input type="hidden" id="slotStartTime">
+                    <input type="hidden" id="slotEndTime">
+                    <input type="hidden" id="slotTimetableId">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Course</label>
+                        <input type="text" class="form-control" id="slotCourseName" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Time Slot</label>
+                        <input type="text" class="form-control" id="slotTimeDisplay" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Day</label>
+                        <input type="text" class="form-control" id="slotDayDisplay" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="slotLecturer" class="form-label fw-bold">
+                            Lecturer <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="slotLecturer" required>
+                            <option value="">Select Lecturer</option>
+                            {% for lecturer in lecturers %}
+                            <option value="{{ lecturer.id }}">
+                                {{ lecturer.user.get_full_name }} - {{ lecturer.get_academic_rank_display }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="slotVenue" class="form-label fw-bold">
+                            Venue <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="slotVenue" 
+                               list="venuesList" placeholder="Enter or select venue" required>
+                        <datalist id="venuesList">
+                            {% for venue in venues %}
+                            <option value="{{ venue }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="slotClassType" class="form-label fw-bold">Class Type</label>
+                        <select class="form-select" id="slotClassType">
+                            <option value="lecture">Lecture</option>
+                            <option value="tutorial">Tutorial</option>
+                            <option value="practical">Practical</option>
+                            <option value="seminar">Seminar</option>
+                            <option value="fieldwork">Field Work</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="saveSlotBtn">
+                    <i class="bi bi-check-circle"></i> Save Slot
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- jQuery (required for easier DOM manipulation) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+// CSRF Token for AJAX requests
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Load existing timetable entries
+const existingTimetable = {{ existing_timetable|safe|default:"[]" }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Load existing timetable
+    loadExistingTimetable();
+
+    // Drag and Drop for courses
+    const courseItems = document.querySelectorAll('.course-item');
+    const timetableCells = document.querySelectorAll('.timetable-cell');
+
+    courseItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+
+    timetableCells.forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('dragenter', handleDragEnter);
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop);
+    });
+
+    // Academic Year change - load semesters
+    $('#academicYearSelect').on('change', function() {
+        const academicYearId = $(this).val();
+        if (academicYearId) {
+            loadSemesters(academicYearId);
+        }
+    });
+
+    // Save slot button
+    $('#saveSlotBtn').on('click', function() {
+        saveSlot();
+    });
+});
+
+let draggedCourse = null;
+
+function handleDragStart(e) {
+    draggedCourse = {
+        id: this.dataset.courseId,
+        code: this.dataset.courseCode,
+        name: this.dataset.courseName
+    };
+    this.classList.add('dragging');
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+
+    if (draggedCourse) {
+        // Check if cell is empty
+        if (this.children.length === 0) {
+            // Show modal to configure slot
+            showSlotModal(draggedCourse, this);
+        } else {
+            showNotification('This time slot is already occupied!', 'warning');
+        }
+    }
+
+    return false;
+}
+
+function showSlotModal(course, cell) {
+    const modal = new bootstrap.Modal(document.getElementById('slotModal'));
+    
+    // Set form values
+    document.getElementById('slotCourseId').value = course.id;
+    document.getElementById('slotCourseName').value = `${course.code} - ${course.name}`;
+    document.getElementById('slotDay').value = cell.dataset.day;
+    document.getElementById('slotDayDisplay').value = cell.dataset.day.charAt(0).toUpperCase() + cell.dataset.day.slice(1);
+    document.getElementById('slotStartTime').value = cell.dataset.startTime;
+    document.getElementById('slotEndTime').value = cell.dataset.endTime;
+    document.getElementById('slotTimeDisplay').value = `${cell.dataset.startTime} - ${cell.dataset.endTime}`;
+    document.getElementById('slotTimetableId').value = '';
+
+    // Store cell reference
+    document.getElementById('slotModal').dataset.cellDay = cell.dataset.day;
+    document.getElementById('slotModal').dataset.cellStartTime = cell.dataset.startTime;
+
+    // Reset lecturer and venue
+    document.getElementById('slotLecturer').value = '';
+    document.getElementById('slotVenue').value = '';
+    document.getElementById('slotClassType').value = 'lecture';
+
+    modal.show();
+}
+
+function saveSlot() {
+    const courseId = document.getElementById('slotCourseId').value;
+    const lecturerId = document.getElementById('slotLecturer').value;
+    const venue = document.getElementById('slotVenue').value;
+    const classType = document.getElementById('slotClassType').value;
+    const day = document.getElementById('slotDay').value;
+    const startTime = document.getElementById('slotStartTime').value;
+    const endTime = document.getElementById('slotEndTime').value;
+    const timetableId = document.getElementById('slotTimetableId').value;
+
+    if (!lecturerId || !venue) {
+        showNotification('Please select lecturer and enter venue!', 'warning');
+        return;
+    }
+
+    // Show loading
+    const saveBtn = document.getElementById('saveSlotBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    saveBtn.disabled = true;
+
+    // Prepare data
+    const data = {
+        programme_id: '{{ selected_programme.id }}',
+        course_id: courseId,
+        lecturer_id: lecturerId,
+        venue: venue,
+        class_type: classType,
+        day: day,
+        start_time: startTime,
+        end_time: endTime,
+        year: {{ selected_year }},
+        semester_id: '{{ selected_semester.id }}',
+    };
+
+    if (timetableId) {
+        data.timetable_id = timetableId;
+    }
+
+    // Send AJAX request
+    $.ajax({
+        url: '{% url "cod_save_timetable_slot" %}',
+        type: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showNotification(response.message, 'success');
+                
+                // Add slot to timetable
+                const cell = document.querySelector(
+                    `.timetable-cell[data-day="${day}"][data-start-time="${startTime}"]`
+                );
+                
+                if (cell) {
+                    cell.innerHTML = createSlotHTML(
+                        response.timetable_id,
+                        response.course_code,
+                        response.lecturer_name,
+                        response.venue
+                    );
+                }
+
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('slotModal')).hide();
+            } else {
+                showNotification(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred';
+            showNotification(error, 'danger');
+        },
+        complete: function() {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    });
+}
+
+function createSlotHTML(timetableId, courseCode, lecturerName, venue) {
+    return `
+        <div class="timetable-slot" data-timetable-id="${timetableId}">
+            <button class="delete-slot" onclick="deleteSlot(${timetableId}, event)">×</button>
+            <div class="course-code">${courseCode}</div>
+            <div class="lecturer-name"><i class="bi bi-person"></i> ${lecturerName}</div>
+            <div class="venue"><i class="bi bi-geo-alt"></i> ${venue}</div>
+        </div>
+    `;
+}
+
+function deleteSlot(timetableId, event) {
+    event.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this timetable slot?')) {
+        return;
+    }
+
+    $.ajax({
+        url: '{% url "cod_delete_timetable_slot" %}',
+        type: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        data: JSON.stringify({ timetable_id: timetableId }),
+        success: function(response) {
+            if (response.success) {
+                showNotification(response.message, 'success');
+                
+                // Remove slot from DOM
+                const slot = document.querySelector(`.timetable-slot[data-timetable-id="${timetableId}"]`);
+                if (slot && slot.parentElement) {
+                    slot.parentElement.innerHTML = '';
+                }
+            } else {
+                showNotification(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred';
+            showNotification(error, 'danger');
+        }
+    });
+}
+
+function loadExistingTimetable() {
+    {% if existing_timetable %}
+    const timetable = [
+        {% for entry in existing_timetable %}
+        {
+            id: {{ entry.id }},
+            day: '{{ entry.day_of_week }}',
+            startTime: '{{ entry.start_time|time:"H:i" }}',
+            courseCode: '{{ entry.course.code }}',
+            lecturer: '{{ entry.lecturer.user.get_full_name|escapejs }}',
+            venue: '{{ entry.venue }}'
+        },
+        {% endfor %}
+    ];
+
+    timetable.forEach(entry => {
+        const cell = document.querySelector(
+            `.timetable-cell[data-day="${entry.day}"][data-start-time="${entry.startTime}"]`
+        );
+        
+        if (cell) {
+            cell.innerHTML = createSlotHTML(
+                entry.id,
+                entry.courseCode,
+                entry.lecturer,
+                entry.venue
+            );
+        }
+    });
+    {% endif %}
+}
+
+function loadSemesters(academicYearId) {
+    // In a real implementation, this would be an AJAX call
+    // For now, we'll just submit the form
+    $('#filterForm').submit();
+}
+
+function showNotification(message, type) {
+    // Create toast notification
+    const toastHTML = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    // Add to container or create one
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+
+    const toastElement = document.createElement('div');
+    toastElement.innerHTML = toastHTML;
+    container.appendChild(toastElement.firstElementChild);
+
+    const toast = new bootstrap.Toast(toastElement.firstElementChild);
+    toast.show();
+
+    // Remove after hidden
+    toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+</script>
+
+{% endblock %}

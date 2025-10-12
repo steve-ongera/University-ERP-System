@@ -25932,3 +25932,426 @@ def cod_delete_research(request, research_id):
         return redirect('cod_research_dashboard')
     
     return redirect('cod_research_detail', research_id=research_id)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+import json
+from datetime import datetime, time
+from .models import (
+    User, Department, Programme, Course, Lecturer, 
+    AcademicYear, Semester, Timetable, LecturerCourseAssignment,
+    ProgrammeCourse
+)
+
+
+@login_required
+def cod_timetable_dashboard(request):
+    """Timetable management dashboard"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied. Only COD can access this page.")
+        return redirect('cod_dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get programmes in department
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).order_by('name')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all academic years and semesters
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'department': department,
+        'programmes': programmes,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'cod/timetable_dashboard.html', context)
+
+
+@login_required
+def cod_create_timetable(request):
+    """Create timetable for a programme"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    year = request.GET.get('year')
+    academic_year_id = request.GET.get('academic_year')
+    semester_id = request.GET.get('semester')
+    
+    # Get programmes in department
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).order_by('name')
+    
+    # Get academic years and semesters
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Initialize variables
+    selected_programme = None
+    selected_year = None
+    selected_academic_year = None
+    selected_semester = None
+    courses = []
+    lecturers = []
+    existing_timetable = []
+    venues = []
+    
+    if programme_id and year and semester_id:
+        selected_programme = get_object_or_404(
+            Programme, 
+            id=programme_id, 
+            department=department
+        )
+        selected_year = int(year)
+        selected_semester = get_object_or_404(Semester, id=semester_id)
+        selected_academic_year = selected_semester.academic_year
+        
+        # Get courses for the selected programme and year
+        programme_courses = ProgrammeCourse.objects.filter(
+            programme=selected_programme,
+            year=selected_year,
+            semester=selected_semester.semester_number,
+            is_active=True
+        ).select_related('course')
+        
+        courses = [pc.course for pc in programme_courses]
+        
+        # Get lecturers in department
+        lecturers = Lecturer.objects.filter(
+            department=department,
+            is_active=True
+        ).select_related('user')
+        
+        # Get existing timetable entries
+        existing_timetable = Timetable.objects.filter(
+            programme=selected_programme,
+            year=selected_year,
+            semester=selected_semester,
+            is_active=True
+        ).select_related('course', 'lecturer__user')
+        
+        # Common venues (you can fetch from database if you have a Venue model)
+        venues = [
+            'LH 01', 'LH 02', 'LH 03', 'LH 04', 'LH 05',
+            'Lab 101', 'Lab 102', 'Lab 201', 'Lab 202',
+            'Tutorial Room 1', 'Tutorial Room 2', 'Tutorial Room 3',
+            'Computer Lab A', 'Computer Lab B', 'Seminar Room',
+        ]
+    
+    # Get semesters for selected academic year
+    semesters = []
+    if academic_year_id or selected_academic_year:
+        ay_id = academic_year_id if academic_year_id else selected_academic_year.id
+        semesters = Semester.objects.filter(
+            academic_year_id=ay_id
+        ).order_by('semester_number')
+    
+    # Time slots (8 AM to 6 PM)
+    time_slots = [
+        ('08:00', '09:00'), ('09:00', '10:00'), ('10:00', '11:00'),
+        ('11:00', '12:00'), ('12:00', '13:00'), ('13:00', '14:00'),
+        ('14:00', '15:00'), ('15:00', '16:00'), ('16:00', '17:00'),
+        ('17:00', '18:00'),
+    ]
+    
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    
+    context = {
+        'department': department,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'selected_programme': selected_programme,
+        'selected_year': selected_year,
+        'selected_academic_year': selected_academic_year,
+        'selected_semester': selected_semester,
+        'courses': courses,
+        'lecturers': lecturers,
+        'existing_timetable': existing_timetable,
+        'venues': venues,
+        'time_slots': time_slots,
+        'days': days,
+        'years_range': range(1, 9),
+    }
+    
+    return render(request, 'cod/timetable_create.html', context)
+
+
+@login_required
+@require_POST
+def cod_save_timetable_slot(request):
+    """Save a timetable slot via AJAX"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        return JsonResponse({
+            'success': False,
+            'error': 'Access denied'
+        }, status=403)
+    
+    try:
+        # Parse JSON data
+        data = json.loads(request.body)
+        
+        # Get COD's department
+        department = request.user.headed_departments.first()
+        if not department:
+            return JsonResponse({
+                'success': False,
+                'error': 'Department not found'
+            }, status=400)
+        
+        # Get related objects
+        programme = get_object_or_404(
+            Programme, 
+            id=data['programme_id'],
+            department=department
+        )
+        course = get_object_or_404(Course, id=data['course_id'])
+        lecturer = get_object_or_404(Lecturer, id=data['lecturer_id'])
+        semester = get_object_or_404(Semester, id=data['semester_id'])
+        
+        # Convert time strings to time objects
+        start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+        end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+        
+        # Check for conflicts
+        conflict = Timetable.objects.filter(
+            Q(lecturer=lecturer) | Q(venue=data['venue']),
+            semester=semester,
+            day_of_week=data['day'],
+            start_time=start_time,
+            is_active=True
+        ).exclude(id=data.get('timetable_id')).exists()
+        
+        if conflict:
+            return JsonResponse({
+                'success': False,
+                'error': 'Conflict detected: Lecturer or venue already occupied at this time'
+            }, status=400)
+        
+        # Create or update timetable slot
+        if data.get('timetable_id'):
+            # Update existing slot
+            timetable = get_object_or_404(Timetable, id=data['timetable_id'])
+            timetable.course = course
+            timetable.lecturer = lecturer
+            timetable.day_of_week = data['day']
+            timetable.start_time = start_time
+            timetable.end_time = end_time
+            timetable.venue = data['venue']
+            timetable.class_type = data.get('class_type', 'lecture')
+            timetable.save()
+            message = 'Timetable slot updated successfully'
+        else:
+            # Create new slot
+            timetable = Timetable.objects.create(
+                course=course,
+                lecturer=lecturer,
+                semester=semester,
+                day_of_week=data['day'],
+                start_time=start_time,
+                end_time=end_time,
+                venue=data['venue'],
+                class_type=data.get('class_type', 'lecture'),
+                programme=programme,
+                year=data['year'],
+                semester_number=semester.semester_number,
+                is_active=True
+            )
+            message = 'Timetable slot created successfully'
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'timetable_id': timetable.id,
+            'course_name': course.name,
+            'course_code': course.code,
+            'lecturer_name': lecturer.user.get_full_name(),
+            'venue': timetable.venue,
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@require_POST
+def cod_delete_timetable_slot(request):
+    """Delete a timetable slot via AJAX"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        return JsonResponse({
+            'success': False,
+            'error': 'Access denied'
+        }, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        timetable_id = data.get('timetable_id')
+        
+        # Get COD's department
+        department = request.user.headed_departments.first()
+        if not department:
+            return JsonResponse({
+                'success': False,
+                'error': 'Department not found'
+            }, status=400)
+        
+        # Get and delete timetable slot
+        timetable = get_object_or_404(
+            Timetable,
+            id=timetable_id,
+            programme__department=department
+        )
+        timetable.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Timetable slot deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+def cod_view_timetable(request, programme_id, year, semester_id):
+    """View completed timetable"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get related objects
+    programme = get_object_or_404(
+        Programme,
+        id=programme_id,
+        department=department
+    )
+    semester = get_object_or_404(Semester, id=semester_id)
+    
+    # Get timetable entries
+    timetable_entries = Timetable.objects.filter(
+        programme=programme,
+        year=year,
+        semester=semester,
+        is_active=True
+    ).select_related('course', 'lecturer__user').order_by('day_of_week', 'start_time')
+    
+    # Time slots and days
+    time_slots = [
+        ('08:00', '09:00'), ('09:00', '10:00'), ('10:00', '11:00'),
+        ('11:00', '12:00'), ('12:00', '13:00'), ('13:00', '14:00'),
+        ('14:00', '15:00'), ('15:00', '16:00'), ('16:00', '17:00'),
+        ('17:00', '18:00'),
+    ]
+    
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    
+    context = {
+        'department': department,
+        'programme': programme,
+        'year': year,
+        'semester': semester,
+        'timetable_entries': timetable_entries,
+        'time_slots': time_slots,
+        'days': days,
+    }
+    
+    return render(request, 'cod/timetable_view.html', context)
+
+
+@login_required
+def cod_get_courses_ajax(request):
+    """Get courses for programme and year via AJAX"""
+    
+    try:
+        programme_id = request.GET.get('programme_id')
+        year = request.GET.get('year')
+        semester_number = request.GET.get('semester_number')
+        
+        # Get courses
+        programme_courses = ProgrammeCourse.objects.filter(
+            programme_id=programme_id,
+            year=year,
+            semester=semester_number,
+            is_active=True
+        ).select_related('course')
+        
+        courses_data = [{
+            'id': pc.course.id,
+            'code': pc.course.code,
+            'name': pc.course.name,
+            'credit_hours': pc.course.credit_hours,
+            'course_type': pc.course.get_course_type_display(),
+        } for pc in programme_courses]
+        
+        return JsonResponse({
+            'success': True,
+            'courses': courses_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
