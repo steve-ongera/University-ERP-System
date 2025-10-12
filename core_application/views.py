@@ -23170,27 +23170,526 @@ def process_clearance(request, clearance_id):
 
 
 # Reports
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Avg, Q, Sum, F, Case, When, IntegerField, FloatField
+from django.db.models.functions import Coalesce
+from django.http import JsonResponse, HttpResponse
+from datetime import datetime, timedelta
+from collections import defaultdict
+import json
+from .models import (
+    User, Department, Programme, Course, Student, Enrollment, 
+    AcademicYear, Semester, Grade, Lecturer, LecturerCourseAssignment,
+    FeeStructure, FeePayment
+)
+
+
 @login_required
-@cod_required
-def department_report(request):
-    """Generate comprehensive department report"""
-    department = request.user.headed_departments.first()
+def cod_department_report(request):
+    """Department overview report with statistics and graphs"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied. Only COD can access this page.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    selected_academic_year_id = request.GET.get('academic_year')
+    selected_semester_id = request.GET.get('semester')
+    
+    # Get academic years and semesters
+    academic_years = AcademicYear.objects.all().order_by('-year')
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     
-    # Summary statistics
-    stats = {
-        'total_programmes': Programme.objects.filter(department=department, is_active=True).count(),
-        'total_courses': Course.objects.filter(department=department, is_active=True).count(),
-        'total_lecturers': Lecturer.objects.filter(department=department, is_active=True).count(),
-        'total_students': Student.objects.filter(programme__department=department, status='active').count(),
-    }
+    if selected_academic_year_id:
+        academic_year = AcademicYear.objects.get(id=selected_academic_year_id)
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number')
+    else:
+        academic_year = current_academic_year
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number') if academic_year else []
+    
+    if selected_semester_id:
+        semester = Semester.objects.get(id=selected_semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Department Statistics
+    total_programmes = Programme.objects.filter(department=department, is_active=True).count()
+    total_courses = Course.objects.filter(department=department, is_active=True).count()
+    total_lecturers = Lecturer.objects.filter(department=department, is_active=True).count()
+    
+    # Student Statistics
+    total_students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).count()
+    
+    # Students by programme (for pie chart)
+    students_by_programme = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).values('programme__name', 'programme__code').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Students by year (for bar chart)
+    students_by_year = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    # Students by gender (for donut chart)
+    students_by_gender = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).values('user__gender').annotate(
+        count=Count('id')
+    )
+    
+    # Students by status (for donut chart)
+    students_by_status = Student.objects.filter(
+        programme__department=department
+    ).values('status').annotate(
+        count=Count('id')
+    )
+    
+    # Enrollment trends (for line chart)
+    enrollment_trends = []
+    if academic_year:
+        for sem in Semester.objects.filter(academic_year=academic_year).order_by('semester_number'):
+            count = Enrollment.objects.filter(
+                course__department=department,
+                semester=sem,
+                is_active=True
+            ).count()
+            enrollment_trends.append({
+                'semester': f"Sem {sem.semester_number}",
+                'count': count
+            })
+    
+    # Course distribution by level (for bar chart)
+    courses_by_level = Course.objects.filter(
+        department=department,
+        is_active=True
+    ).values('level').annotate(
+        count=Count('id')
+    ).order_by('level')
+    
+    # Lecturer distribution by rank (for pie chart)
+    lecturers_by_rank = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).values('academic_rank').annotate(
+        count=Count('id')
+    )
+    
+    # Programme types distribution
+    programmes_by_type = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).values('programme_type').annotate(
+        count=Count('id')
+    )
+    
+    # Recent enrollments (last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_enrollments = Enrollment.objects.filter(
+        course__department=department,
+        enrollment_date__gte=thirty_days_ago
+    ).count()
     
     context = {
         'department': department,
+        'academic_years': academic_years,
         'current_academic_year': current_academic_year,
-        'stats': stats,
+        'academic_year': academic_year,
+        'semesters': semesters,
+        'semester': semester,
+        'selected_academic_year': selected_academic_year_id,
+        'selected_semester': selected_semester_id,
+        
+        # Statistics
+        'total_programmes': total_programmes,
+        'total_courses': total_courses,
+        'total_lecturers': total_lecturers,
+        'total_students': total_students,
+        'recent_enrollments': recent_enrollments,
+        
+        # Chart Data (will be converted to JSON in template)
+        'students_by_programme': list(students_by_programme),
+        'students_by_year': list(students_by_year),
+        'students_by_gender': list(students_by_gender),
+        'students_by_status': list(students_by_status),
+        'enrollment_trends': enrollment_trends,
+        'courses_by_level': list(courses_by_level),
+        'lecturers_by_rank': list(lecturers_by_rank),
+        'programmes_by_type': list(programmes_by_type),
     }
+    
     return render(request, 'cod/department_report.html', context)
+
+
+@login_required
+def cod_enrollment_report(request):
+    """Enrollment analysis report with detailed statistics"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    selected_academic_year_id = request.GET.get('academic_year')
+    selected_semester_id = request.GET.get('semester')
+    selected_programme_id = request.GET.get('programme')
+    selected_year = request.GET.get('year')
+    
+    # Get academic years, semesters, and programmes
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    programmes = Programme.objects.filter(department=department, is_active=True)
+    
+    if selected_academic_year_id:
+        academic_year = AcademicYear.objects.get(id=selected_academic_year_id)
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number')
+    else:
+        academic_year = current_academic_year
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number') if academic_year else []
+    
+    if selected_semester_id:
+        semester = Semester.objects.get(id=selected_semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Base query for enrollments
+    enrollment_query = Enrollment.objects.filter(
+        course__department=department,
+        is_active=True
+    )
+    
+    if semester:
+        enrollment_query = enrollment_query.filter(semester=semester)
+    
+    if selected_programme_id:
+        enrollment_query = enrollment_query.filter(student__programme_id=selected_programme_id)
+    
+    if selected_year:
+        enrollment_query = enrollment_query.filter(student__current_year=selected_year)
+    
+    # Total enrollments
+    total_enrollments = enrollment_query.count()
+    
+    # Enrollments by programme (for bar chart)
+    enrollments_by_programme = enrollment_query.values(
+        'student__programme__name',
+        'student__programme__code'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Enrollments by course (top 10 - for horizontal bar chart)
+    enrollments_by_course = enrollment_query.values(
+        'course__code',
+        'course__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Enrollments by year of study (for pie chart)
+    enrollments_by_year = enrollment_query.values(
+        'student__current_year'
+    ).annotate(
+        count=Count('id')
+    ).order_by('student__current_year')
+    
+    # Enrollment status breakdown (for donut chart)
+    enrollment_status = {
+        'active': enrollment_query.filter(is_active=True).count(),
+        'repeat': enrollment_query.filter(is_repeat=True).count(),
+        'audit': enrollment_query.filter(is_audit=True).count(),
+    }
+    
+    # Monthly enrollment trends (for line chart)
+    enrollment_monthly_trends = []
+    if semester:
+        # Get enrollments by month for the semester period
+        start_date = semester.start_date
+        end_date = semester.end_date
+        
+        current_date = start_date
+        while current_date <= end_date:
+            month_enrollments = enrollment_query.filter(
+                enrollment_date__year=current_date.year,
+                enrollment_date__month=current_date.month
+            ).count()
+            
+            enrollment_monthly_trends.append({
+                'month': current_date.strftime('%b %Y'),
+                'count': month_enrollments
+            })
+            
+            # Move to next month
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
+    
+    # Enrollment by lecturer (top 10 - for bar chart)
+    enrollments_by_lecturer = enrollment_query.filter(
+        lecturer__isnull=False
+    ).values(
+        'lecturer__user__first_name',
+        'lecturer__user__last_name',
+        'lecturer__employee_number'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Average enrollments per course
+    avg_enrollments_per_course = enrollment_query.values('course').annotate(
+        count=Count('id')
+    ).aggregate(avg=Avg('count'))['avg'] or 0
+    
+    # Course capacity analysis (courses with most enrollments)
+    course_capacity = enrollment_query.values(
+        'course__code',
+        'course__name',
+        'course__credit_hours'
+    ).annotate(
+        enrollment_count=Count('id')
+    ).order_by('-enrollment_count')[:10]
+    
+    context = {
+        'department': department,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'academic_year': academic_year,
+        'semesters': semesters,
+        'semester': semester,
+        'programmes': programmes,
+        'selected_academic_year': selected_academic_year_id,
+        'selected_semester': selected_semester_id,
+        'selected_programme': selected_programme_id,
+        'selected_year': selected_year,
+        'years_range': range(1, 9),
+        
+        # Statistics
+        'total_enrollments': total_enrollments,
+        'avg_enrollments_per_course': round(avg_enrollments_per_course, 2),
+        
+        # Chart Data
+        'enrollments_by_programme': list(enrollments_by_programme),
+        'enrollments_by_course': list(enrollments_by_course),
+        'enrollments_by_year': list(enrollments_by_year),
+        'enrollment_status': enrollment_status,
+        'enrollment_monthly_trends': enrollment_monthly_trends,
+        'enrollments_by_lecturer': list(enrollments_by_lecturer),
+        'course_capacity': list(course_capacity),
+    }
+    
+    return render(request, 'cod/enrollment_report.html', context)
+
+
+@login_required
+def cod_performance_report(request):
+    """Student performance analysis report with grade statistics"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    selected_academic_year_id = request.GET.get('academic_year')
+    selected_semester_id = request.GET.get('semester')
+    selected_programme_id = request.GET.get('programme')
+    selected_year = request.GET.get('year')
+    
+    # Get academic years, semesters, and programmes
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    programmes = Programme.objects.filter(department=department, is_active=True)
+    
+    if selected_academic_year_id:
+        academic_year = AcademicYear.objects.get(id=selected_academic_year_id)
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number')
+    else:
+        academic_year = current_academic_year
+        semesters = Semester.objects.filter(academic_year=academic_year).order_by('semester_number') if academic_year else []
+    
+    if selected_semester_id:
+        semester = Semester.objects.get(id=selected_semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Base query for grades
+    grade_query = Grade.objects.filter(
+        enrollment__course__department=department
+    ).select_related('enrollment__student', 'enrollment__course')
+    
+    if semester:
+        grade_query = grade_query.filter(enrollment__semester=semester)
+    
+    if selected_programme_id:
+        grade_query = grade_query.filter(enrollment__student__programme_id=selected_programme_id)
+    
+    if selected_year:
+        grade_query = grade_query.filter(enrollment__student__current_year=selected_year)
+    
+    # Total graded students
+    total_graded = grade_query.count()
+    
+    # Pass/Fail Statistics
+    passed_students = grade_query.filter(is_passed=True).count()
+    failed_students = total_graded - passed_students
+    pass_rate = (passed_students / total_graded * 100) if total_graded > 0 else 0
+    
+    # Average GPA
+    avg_gpa = grade_query.aggregate(avg=Avg('grade_points'))['avg'] or 0
+    
+    # Grade distribution (for bar chart)
+    grade_distribution = grade_query.values('grade').annotate(
+        count=Count('id')
+    ).order_by('grade')
+    
+    # Performance by programme (for bar chart)
+    performance_by_programme = grade_query.values(
+        'enrollment__student__programme__name',
+        'enrollment__student__programme__code'
+    ).annotate(
+        avg_gpa=Avg('grade_points'),
+        pass_rate=Count(Case(When(is_passed=True, then=1))) * 100.0 / Count('id')
+    ).order_by('-avg_gpa')
+    
+    # Performance by year of study (for line chart)
+    performance_by_year = grade_query.values(
+        'enrollment__student__current_year'
+    ).annotate(
+        avg_gpa=Avg('grade_points'),
+        total=Count('id'),
+        passed=Count(Case(When(is_passed=True, then=1)))
+    ).order_by('enrollment__student__current_year')
+    
+    # Top performing courses (for bar chart)
+    top_performing_courses = grade_query.values(
+        'enrollment__course__code',
+        'enrollment__course__name'
+    ).annotate(
+        avg_marks=Avg('total_marks'),
+        pass_rate=Count(Case(When(is_passed=True, then=1))) * 100.0 / Count('id')
+    ).order_by('-avg_marks')[:10]
+    
+    # Poor performing courses (for bar chart)
+    poor_performing_courses = grade_query.values(
+        'enrollment__course__code',
+        'enrollment__course__name'
+    ).annotate(
+        avg_marks=Avg('total_marks'),
+        pass_rate=Count(Case(When(is_passed=True, then=1))) * 100.0 / Count('id')
+    ).order_by('pass_rate')[:10]
+    
+    # GPA distribution ranges (for pie chart)
+    gpa_ranges = {
+        'Excellent (3.7-4.0)': grade_query.filter(grade_points__gte=3.7).count(),
+        'Very Good (3.3-3.6)': grade_query.filter(grade_points__gte=3.3, grade_points__lt=3.7).count(),
+        'Good (3.0-3.2)': grade_query.filter(grade_points__gte=3.0, grade_points__lt=3.3).count(),
+        'Satisfactory (2.0-2.9)': grade_query.filter(grade_points__gte=2.0, grade_points__lt=3.0).count(),
+        'Below Average (<2.0)': grade_query.filter(grade_points__lt=2.0).count(),
+    }
+    
+    # Pass/Fail trend by semester (for line chart)
+    pass_fail_trends = []
+    if academic_year:
+        for sem in Semester.objects.filter(academic_year=academic_year).order_by('semester_number'):
+            sem_grades = Grade.objects.filter(
+                enrollment__course__department=department,
+                enrollment__semester=sem
+            )
+            total = sem_grades.count()
+            passed = sem_grades.filter(is_passed=True).count()
+            pass_rate_sem = (passed / total * 100) if total > 0 else 0
+            
+            pass_fail_trends.append({
+                'semester': f"Sem {sem.semester_number}",
+                'pass_rate': round(pass_rate_sem, 2),
+                'fail_rate': round(100 - pass_rate_sem, 2)
+            })
+    
+    # Gender performance comparison (for bar chart)
+    gender_performance = grade_query.values(
+        'enrollment__student__user__gender'
+    ).annotate(
+        avg_gpa=Avg('grade_points'),
+        pass_rate=Count(Case(When(is_passed=True, then=1))) * 100.0 / Count('id')
+    )
+    
+    context = {
+        'department': department,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'academic_year': academic_year,
+        'semesters': semesters,
+        'semester': semester,
+        'programmes': programmes,
+        'selected_academic_year': selected_academic_year_id,
+        'selected_semester': selected_semester_id,
+        'selected_programme': selected_programme_id,
+        'selected_year': selected_year,
+        'years_range': range(1, 9),
+        
+        # Statistics
+        'total_graded': total_graded,
+        'passed_students': passed_students,
+        'failed_students': failed_students,
+        'pass_rate': round(pass_rate, 2),
+        'avg_gpa': round(avg_gpa, 2),
+        
+        # Chart Data
+        'grade_distribution': list(grade_distribution),
+        'performance_by_programme': list(performance_by_programme),
+        'performance_by_year': list(performance_by_year),
+        'top_performing_courses': list(top_performing_courses),
+        'poor_performing_courses': list(poor_performing_courses),
+        'gpa_ranges': gpa_ranges,
+        'pass_fail_trends': pass_fail_trends,
+        'gender_performance': list(gender_performance),
+    }
+    
+    return render(request, 'cod/performance_report.html', context)
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required

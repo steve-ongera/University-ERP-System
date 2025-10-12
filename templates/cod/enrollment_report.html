@@ -1,0 +1,431 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 30px;
+    }
+
+    .filter-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-clipboard-data"></i> Enrollment Report
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-success text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-clipboard-data"></i> Enrollment Analysis Report
+                    </h2>
+                    <p class="mb-0 opacity-75">{{ department.name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Academic Year</label>
+                            <select name="academic_year" class="form-select" onchange="this.form.submit()">
+                                {% for ay in academic_years %}
+                                <option value="{{ ay.id }}" {% if academic_year.id == ay.id %}selected{% endif %}>
+                                    {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Semester</label>
+                            <select name="semester" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Semesters</option>
+                                {% for sem in semesters %}
+                                <option value="{{ sem.id }}" {% if semester and semester.id == sem.id %}selected{% endif %}>
+                                    Semester {{ sem.semester_number }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Programme</label>
+                            <select name="programme" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Programmes</option>
+                                {% for prog in programmes %}
+                                <option value="{{ prog.id }}" {% if selected_programme == prog.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ prog.code }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Year of Study</label>
+                            <select name="year" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Years</option>
+                                {% for year in years_range %}
+                                <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>
+                                    Year {{ year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="stat-card bg-success bg-opacity-10" style="border-left-color: #198754;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="fw-bold text-success mb-1">{{ total_enrollments }}</h3>
+                        <p class="text-muted mb-0">Total Enrollments</p>
+                    </div>
+                    <div class="bg-success bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-clipboard-check-fill text-success" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card bg-info bg-opacity-10" style="border-left-color: #0dcaf0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="fw-bold text-info mb-1">{{ avg_enrollments_per_course }}</h3>
+                        <p class="text-muted mb-0">Average Enrollments per Course</p>
+                    </div>
+                    <div class="bg-info bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-graph-up-arrow text-info" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row g-4 mb-4">
+        <!-- Enrollments by Programme - Bar Chart -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-fill"></i> Enrollments by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentsByProgrammeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row g-4 mb-4">
+        <!-- Enrollments by Course (Top 10) - Horizontal Bar Chart -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-line-fill"></i> Top 10 Courses by Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentsByCourseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="row g-4 mb-4">
+        <!-- Enrollments by Year - Pie Chart -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill"></i> Enrollments by Year of Study</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentsByYearChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrollment Status - Donut Chart -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-bullseye"></i> Enrollment Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 4 -->
+    <div class="row g-4 mb-4">
+        <!-- Monthly Enrollment Trends - Line Chart -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up"></i> Monthly Enrollment Trends</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 5 -->
+    <div class="row g-4 mb-4">
+        <!-- Enrollments by Lecturer (Top 10) - Bar Chart -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-person-badge"></i> Top 10 Lecturers by Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="enrollmentsByLecturerChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colors = [
+        '#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0',
+        '#6610f2', '#d63384', '#fd7e14', '#20c997', '#6c757d'
+    ];
+
+    // Enrollments by Programme - Bar Chart
+    const progData = {{ enrollments_by_programme|safe }};
+    if (progData.length > 0) {
+        new Chart(document.getElementById('enrollmentsByProgrammeChart'), {
+            type: 'bar',
+            data: {
+                labels: progData.map(p => p.student__programme__code),
+                datasets: [{
+                    label: 'Number of Enrollments',
+                    data: progData.map(p => p.count),
+                    backgroundColor: colors[0],
+                    borderColor: colors[0],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Enrollments by Course - Horizontal Bar Chart
+    const courseData = {{ enrollments_by_course|safe }};
+    if (courseData.length > 0) {
+        new Chart(document.getElementById('enrollmentsByCourseChart'), {
+            type: 'bar',
+            data: {
+                labels: courseData.map(c => c.course__code),
+                datasets: [{
+                    label: 'Number of Enrollments',
+                    data: courseData.map(c => c.count),
+                    backgroundColor: colors[1],
+                    borderColor: colors[1],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const course = courseData[context.dataIndex];
+                                return `${course.course__name}: ${context.parsed.x} students`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Enrollments by Year - Pie Chart
+    const yearData = {{ enrollments_by_year|safe }};
+    if (yearData.length > 0) {
+        new Chart(document.getElementById('enrollmentsByYearChart'), {
+            type: 'pie',
+            data: {
+                labels: yearData.map(y => `Year ${y.student__current_year}`),
+                datasets: [{
+                    data: yearData.map(y => y.count),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+
+    // Enrollment Status - Donut Chart
+    const statusData = {{ enrollment_status|safe }};
+    new Chart(document.getElementById('enrollmentStatusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Repeat', 'Audit'],
+            datasets: [{
+                data: [statusData.active, statusData.repeat, statusData.audit],
+                backgroundColor: [colors[1], colors[3], colors[4]]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Monthly Enrollment Trends - Line Chart
+    const trendData = {{ enrollment_monthly_trends|safe }};
+    if (trendData.length > 0) {
+        new Chart(document.getElementById('enrollmentTrendsChart'), {
+            type: 'line',
+            data: {
+                labels: trendData.map(t => t.month),
+                datasets: [{
+                    label: 'Enrollments',
+                    data: trendData.map(t => t.count),
+                    borderColor: colors[0],
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Enrollments by Lecturer - Bar Chart
+    const lecturerData = {{ enrollments_by_lecturer|safe }};
+    if (lecturerData.length > 0) {
+        new Chart(document.getElementById('enrollmentsByLecturerChart'), {
+            type: 'bar',
+            data: {
+                labels: lecturerData.map(l => `${l.lecturer__user__first_name} ${l.lecturer__user__last_name}`),
+                datasets: [{
+                    label: 'Number of Enrollments',
+                    data: lecturerData.map(l => l.count),
+                    backgroundColor: colors[5],
+                    borderColor: colors[5],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

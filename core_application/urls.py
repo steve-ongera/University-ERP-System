@@ -552,8 +552,11 @@ urlpatterns = [
     path('cod/applications/deferments/<int:application_id>/process/', views.process_deferment, name='cod_process_deferment'),
     path('cod/clearances/', views.cod_clearance_requests, name='cod_clearance_requests'),
     path('cod/clearances/<int:clearance_id>/process/', views.process_clearance, name='cod_process_clearance'),
-    path('cod/reports/department/', views.department_report, name='cod_department_report'),
-
+    # COD Reports URLs
+    path('cod/reports/department/', views.cod_department_report, name='cod_department_report'),
+    path('cod/reports/enrollment/', views.cod_enrollment_report, name='cod_enrollment_report'), 
+    path('cod/reports/performance/', views.cod_performance_report, name='cod_performance_report'),
+    
     path('results/dashboard/', views.cod_results_dashboard, name='cod_results_dashboard'),
     path('results/view/', views.cod_view_results, name='cod_view_results'),
     path('results/student/<str:student_id>/', views.cod_student_results_detail, name='cod_student_results_detail'),

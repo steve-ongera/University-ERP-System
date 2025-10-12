@@ -1,174 +1,475 @@
-<!-- ==================== cod/department_report.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
+<style>
+    .stat-card {
+        border-radius: 10px;
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 30px;
+    }
+
+    .filter-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-bar-chart-fill"></i> Department Report
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-bar-chart-fill"></i> Department Overview Report
+                    </h2>
+                    <p class="mb-0 opacity-75">{{ department.name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Academic Year</label>
+                            <select name="academic_year" class="form-select" onchange="this.form.submit()">
+                                {% for ay in academic_years %}
+                                <option value="{{ ay.id }}" {% if academic_year.id == ay.id %}selected{% endif %}>
+                                    {{ ay.year }}{% if ay.is_current %} (Current){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Semester</label>
+                            <select name="semester" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Semesters</option>
+                                {% for sem in semesters %}
+                                <option value="{{ sem.id }}" {% if semester and semester.id == sem.id %}selected{% endif %}>
+                                    Semester {{ sem.semester_number }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary bg-opacity-10" style="border-left-color: #0d6efd;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="fw-bold mb-2">
-                            <i class="bi bi-file-earmark-bar-graph text-primary"></i> Department Report
-                        </h2>
-                        <p class="text-muted mb-0">{{ department.name }} - {{ current_academic_year.year }}</p>
+                        <h3 class="fw-bold text-primary mb-1">{{ total_programmes }}</h3>
+                        <p class="text-muted mb-0">Programmes</p>
                     </div>
+                    <div class="bg-primary bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-mortarboard-fill text-primary" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success bg-opacity-10" style="border-left-color: #198754;">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button class="btn btn-primary" onclick="window.print()">
-                            <i class="bi bi-printer"></i> Print Report
-                        </button>
+                        <h3 class="fw-bold text-success mb-1">{{ total_students }}</h3>
+                        <p class="text-muted mb-0">Active Students</p>
+                    </div>
+                    <div class="bg-success bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-people-fill text-success" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning bg-opacity-10" style="border-left-color: #ffc107;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="fw-bold text-warning mb-1">{{ total_courses }}</h3>
+                        <p class="text-muted mb-0">Courses</p>
+                    </div>
+                    <div class="bg-warning bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-book-fill text-warning" style="font-size: 1.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info bg-opacity-10" style="border-left-color: #0dcaf0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="fw-bold text-info mb-1">{{ total_lecturers }}</h3>
+                        <p class="text-muted mb-0">Lecturers</p>
+                    </div>
+                    <div class="bg-info bg-opacity-25 rounded-circle p-3">
+                        <i class="bi bi-person-badge-fill text-info" style="font-size: 1.5rem;"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Summary Statistics -->
-    <div class="row p-3">
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-primary">
-                <div class="card-body text-center">
-                    <i class="bi bi-diagram-3 fs-1 text-primary mb-2"></i>
-                    <h3 class="fw-bold text-primary">{{ stats.total_programmes }}</h3>
-                    <p class="text-muted mb-0">Programmes</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-success">
-                <div class="card-body text-center">
-                    <i class="bi bi-book fs-1 text-success mb-2"></i>
-                    <h3 class="fw-bold text-success">{{ stats.total_courses }}</h3>
-                    <p class="text-muted mb-0">Courses</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-info">
-                <div class="card-body text-center">
-                    <i class="bi bi-people fs-1 text-info mb-2"></i>
-                    <h3 class="fw-bold text-info">{{ stats.total_lecturers }}</h3>
-                    <p class="text-muted mb-0">Lecturers</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card shadow-sm border-warning">
-                <div class="card-body text-center">
-                    <i class="bi bi-person-badge fs-1 text-warning mb-2"></i>
-                    <h3 class="fw-bold text-warning">{{ stats.total_students }}</h3>
-                    <p class="text-muted mb-0">Active Students</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Department Overview -->
-    <div class="row p-3">
-        <div class="col-md-12">
+    <!-- Charts Row 1 -->
+    <div class="row g-4 mb-4">
+        <!-- Students by Programme - Pie Chart -->
+        <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">Department Overview</h5>
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up"></i> Enrollment Trends</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="fw-bold mb-3">Department Information</h6>
-                            <p><strong>Name:</strong> {{ department.name }}</p>
-                            <p><strong>Code:</strong> {{ department.code }}</p>
-                            <p><strong>Faculty:</strong> {{ department.faculty.name }}</p>
-                            <p><strong>Head of Department:</strong> {{ department.head_of_department.get_full_name }}</p>
-                            <p><strong>Established:</strong> {{ department.established_date|date:"M d, Y" }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="fw-bold mb-3">Academic Year Summary</h6>
-                            <p><strong>Academic Year:</strong> {{ current_academic_year.year }}</p>
-                            <p><strong>Total Programmes:</strong> {{ stats.total_programmes }}</p>
-                            <p><strong>Total Courses Offered:</strong> {{ stats.total_courses }}</p>
-                            <p><strong>Faculty Members:</strong> {{ stats.total_lecturers }}</p>
-                            <p><strong>Enrolled Students:</strong> {{ stats.total_students }}</p>
-                        </div>
+                    <div class="chart-container">
+                        <canvas id="enrollmentTrendsChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Programme Summary -->
-    <div class="row p-3">
-        <div class="col-md-12">
+    <!-- Charts Row 3 -->
+    <div class="row g-4 mb-4">
+        <!-- Courses by Level - Bar Chart -->
+        <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h5 class="fw-bold mb-0">Programme Summary</h5>
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart-line"></i> Courses by Level</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">The department offers {{ stats.total_programmes }} academic programmes across various levels including Bachelor's degrees, Master's programs, and PhD tracks.</p>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> 
-                        <strong>Note:</strong> This is a summary report. For detailed programme-specific analytics, please use the individual programme management sections.
+                    <div class="chart-container">
+                        <canvas id="coursesByLevelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lecturers by Rank - Donut Chart -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-people"></i> Lecturers by Academic Rank</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="lecturersByRankChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Lecturer Distribution -->
-    <div class="row p-3">
-        <div class="col-md-12">
+    <!-- Charts Row 4 -->
+    <div class="row g-4 mb-4">
+        <!-- Students by Status - Pie Chart -->
+        <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="fw-bold mb-0">Faculty Distribution</h5>
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-activity"></i> Students by Status</h5>
                 </div>
                 <div class="card-body">
-                    <p>The department has {{ stats.total_lecturers }} active faculty members across various academic ranks, providing quality education and research guidance to students.</p>
+                    <div class="chart-container">
+                        <canvas id="studentsByStatusChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Student Enrollment -->
-    <div class="row p-3">
-        <div class="col-md-12">
+        <!-- Programme Types - Pie Chart -->
+        <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header bg-warning">
-                    <h5 class="fw-bold mb-0">Student Enrollment</h5>
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-diagram-3"></i> Programme Types Distribution</h5>
                 </div>
                 <div class="card-body">
-                    <p>Currently, {{ stats.total_students }} students are actively enrolled in various programmes offered by the department. This includes students at different year levels and study modes.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Report Footer -->
-    <div class="row p-3">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body text-center">
-                    <p class="text-muted mb-0">
-                        Report Generated on: {{ current_date|date:"F d, Y H:i" }}<br>
-                        Generated by: {{ user.get_full_name }} (Chairman of Department)
-                    </p>
+                    <div class="chart-container">
+                        <canvas id="programmeTypesChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-@media print {
-    .btn, nav, .sidebar {
-        display: none !important;
-    }
-    .card {
-        border: 1px solid #dee2e6;
-        page-break-inside: avoid;
-    }
-}
-</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart colors
+    const colors = [
+        '#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0',
+        '#6610f2', '#d63384', '#fd7e14', '#20c997', '#6c757d'
+    ];
 
-{% endblock %}
+    // Students by Programme - Pie Chart
+    const programmeData = {{ students_by_programme|safe }};
+    if (programmeData.length > 0) {
+        new Chart(document.getElementById('studentsByProgrammeChart'), {
+            type: 'pie',
+            data: {
+                labels: programmeData.map(p => p.programme__code),
+                datasets: [{
+                    data: programmeData.map(p => p.count),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Students by Year - Bar Chart
+    const yearData = {{ students_by_year|safe }};
+    if (yearData.length > 0) {
+        new Chart(document.getElementById('studentsByYearChart'), {
+            type: 'bar',
+            data: {
+                labels: yearData.map(y => `Year ${y.current_year}`),
+                datasets: [{
+                    label: 'Number of Students',
+                    data: yearData.map(y => y.count),
+                    backgroundColor: '#0d6efd',
+                    borderColor: '#0d6efd',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Students by Gender - Donut Chart
+    const genderData = {{ students_by_gender|safe }};
+    if (genderData.length > 0) {
+        new Chart(document.getElementById('studentsByGenderChart'), {
+            type: 'doughnut',
+            data: {
+                labels: genderData.map(g => {
+                    if (g.user__gender === 'male') return 'Male';
+                    if (g.user__gender === 'female') return 'Female';
+                    return 'Other';
+                }),
+                datasets: [{
+                    data: genderData.map(g => g.count),
+                    backgroundColor: ['#0d6efd', '#d63384', '#6c757d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Enrollment Trends - Line Chart
+    const trendData = {{ enrollment_trends|safe }};
+    if (trendData.length > 0) {
+        new Chart(document.getElementById('enrollmentTrendsChart'), {
+            type: 'line',
+            data: {
+                labels: trendData.map(t => t.semester),
+                datasets: [{
+                    label: 'Enrollments',
+                    data: trendData.map(t => t.count),
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Courses by Level - Bar Chart
+    const levelData = {{ courses_by_level|safe }};
+    if (levelData.length > 0) {
+        new Chart(document.getElementById('coursesByLevelChart'), {
+            type: 'bar',
+            data: {
+                labels: levelData.map(l => `Level ${l.level}`),
+                datasets: [{
+                    label: 'Number of Courses',
+                    data: levelData.map(l => l.count),
+                    backgroundColor: '#ffc107',
+                    borderColor: '#ffc107',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Lecturers by Rank - Donut Chart
+    const rankData = {{ lecturers_by_rank|safe }};
+    if (rankData.length > 0) {
+        new Chart(document.getElementById('lecturersByRankChart'), {
+            type: 'doughnut',
+            data: {
+                labels: rankData.map(r => r.academic_rank.replace('_', ' ').toUpperCase()),
+                datasets: [{
+                    data: rankData.map(r => r.count),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+
+    // Students by Status - Pie Chart
+    const statusData = {{ students_by_status|safe }};
+    if (statusData.length > 0) {
+        new Chart(document.getElementById('studentsByStatusChart'), {
+            type: 'pie',
+            data: {
+                labels: statusData.map(s => s.status.replace('_', ' ').toUpperCase()),
+                datasets: [{
+                    data: statusData.map(s => s.count),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+
+    // Programme Types - Pie Chart
+    const typeData = {{ programmes_by_type|safe }};
+    if (typeData.length > 0) {
+        new Chart(document.getElementById('programmeTypesChart'), {
+            type: 'pie',
+            data: {
+                labels: typeData.map(t => t.programme_type.replace('_', ' ').toUpperCase()),
+                datasets: [{
+                    data: typeData.map(t => t.count),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %} 
