@@ -2,76 +2,225 @@
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="fw-bold mb-2">
-                            <i class="bi bi-people text-primary"></i> Department Lecturers
-                        </h2>
-                        <p class="text-muted mb-0">{{ department.name }}</p>
+<style>
+    .table-hover tbody tr {
+        transition: all 0.3s;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-people"></i> Department Lecturers
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-people"></i> Department Lecturers
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ department.name }} ({{ department.code }})
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="fw-bold mb-0">{{ lecturers|length }}</h3>
+                            <small class="opacity-75">Total Lecturers</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
-        <div class="col-md-12">
+    <!-- Lecturers Table -->
+    <div class="row">
+        <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">All Lecturers ({{ lecturers|length }})</h5>
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-list-ul"></i> All Lecturers
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% if lecturers %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Employee No.</th>
-                                    <th>Name</th>
-                                    <th>Rank</th>
-                                    <th>Qualifications</th>
-                                    <th>Employment Type</th>
-                                    <th>Contact</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lecturer in lecturers %}
-                                <tr>
-                                    <td><span class="badge bg-info">{{ lecturer.employee_number }}</span></td>
-                                    <td>
-                                        <i class="bi bi-person-circle"></i>
-                                        {{ lecturer.user.get_full_name }}
-                                    </td>
-                                    <td>{{ lecturer.get_academic_rank_display }}</td>
-                                    <td>{{ lecturer.highest_qualification }}</td>
-                                    <td><span class="badge bg-secondary">{{ lecturer.get_employment_type_display }}</span></td>
-                                    <td>
-                                        <small>
-                                            <i class="bi bi-envelope"></i> {{ lecturer.user.email }}<br>
-                                            <i class="bi bi-phone"></i> {{ lecturer.user.phone }}
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'cod_lecturer_detail' lecturer.id %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Employee No.</th>
+                                        <th>Name</th>
+                                        <th>Rank</th>
+                                        <th>Qualifications</th>
+                                        <th>Employment Type</th>
+                                        <th>Contact</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lecturer in lecturers %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-info">{{ lecturer.employee_number }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-person-circle text-primary me-2" style="font-size: 1.5rem;"></i>
+                                                <div>
+                                                    <strong>{{ lecturer.user.get_full_name }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">{{ lecturer.user.username }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ lecturer.get_academic_rank_display }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ lecturer.highest_qualification }}</strong>
+                                            {% if lecturer.university_graduated %}
+                                                <br>
+                                                <small class="text-muted">{{ lecturer.university_graduated }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ lecturer.get_employment_type_display }}</span>
+                                        </td>
+                                        <td>
+                                            <small>
+                                                <i class="bi bi-envelope text-primary"></i> {{ lecturer.user.email }}<br>
+                                                {% if lecturer.user.phone %}
+                                                    <i class="bi bi-phone text-success"></i> {{ lecturer.user.phone }}
+                                                {% endif %}
+                                            </small>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if lecturer.is_active %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Active
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-x-circle"></i> Inactive
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{% url 'cod_lecturer_detail' lecturer.id %}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
-                    <p class="text-center text-muted">No lecturers found</p>
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                            <h5 class="text-muted mt-3">No Lecturers Found</h5>
+                            <p class="text-muted">No lecturers available in your department</p>
+                            <a href="{% url 'cod_dashboard' %}" class="btn btn-primary mt-3">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Lecturer Statistics -->
+    {% if lecturers %}
+    <div class="row mt-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-people text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">{{ lecturers|length }}</h3>
+                    <p class="text-muted mb-0">Total Lecturers</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-trophy text-warning" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with professor_count=0 %}
+                            {% for lecturer in lecturers %}
+                                {% if lecturer.academic_rank == 'professor' or lecturer.academic_rank == 'associate_professor' %}
+                                    {% with professor_count=professor_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ professor_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Professors</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-briefcase text-info" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with permanent_count=0 %}
+                            {% for lecturer in lecturers %}
+                                {% if lecturer.employment_type == 'permanent' %}
+                                    {% with permanent_count=permanent_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ permanent_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Permanent Staff</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with active_count=0 %}
+                            {% for lecturer in lecturers %}
+                                {% if lecturer.is_active %}
+                                    {% with active_count=active_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ active_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Active Lecturers</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

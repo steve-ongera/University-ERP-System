@@ -1,99 +1,289 @@
-<!-- ==================== cod/lecturer_detail.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="fw-bold mb-2">
-                            <i class="bi bi-person-badge text-primary"></i> {{ lecturer.user.get_full_name }}
-                        </h2>
-                        <p class="text-muted mb-0">
-                            {{ lecturer.get_academic_rank_display }} - {{ lecturer.employee_number }}
-                        </p>
+<style>
+    .info-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .info-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .info-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_lecturers_list' %}">
+                    <i class="bi bi-people"></i> Lecturers
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-person-badge"></i> {{ lecturer.user.get_full_name }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body profile-header text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="me-4">
+                                {% if lecturer.user.profile_picture %}
+                                    <img src="{{ lecturer.user.profile_picture.url }}" 
+                                         alt="{{ lecturer.user.get_full_name }}"
+                                         class="rounded-circle"
+                                         style="width: 80px; height: 80px; object-fit: cover; border: 3px solid white;">
+                                {% else %}
+                                    <i class="bi bi-person-circle" style="font-size: 5rem;"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h2 class="fw-bold mb-1">{{ lecturer.user.get_full_name }}</h2>
+                                <p class="mb-1 opacity-75">
+                                    <span class="badge bg-light text-dark">{{ lecturer.get_academic_rank_display }}</span>
+                                    <span class="badge bg-light text-dark">{{ lecturer.employee_number }}</span>
+                                </p>
+                                <p class="mb-0 opacity-75">
+                                    <i class="bi bi-building"></i> {{ lecturer.department.name }}
+                                </p>
+                            </div>
+                        </div>
+                        <a href="{% url 'cod_lecturers_list' %}" class="btn btn-light">
+                            <i class="bi bi-arrow-left"></i> Back to List
+                        </a>
                     </div>
-                    <a href="{% url 'cod_lecturers_list' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back
-                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
-        <div class="col-md-4">
-            <div class="card shadow-sm">
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column - Personal Info -->
+        <div class="col-md-4 mb-4">
+            <!-- Personal Information Card -->
+            <div class="card info-card shadow-sm mb-3">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="fw-bold mb-0">Personal Information</h5>
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-person"></i> Personal Information
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <p><strong>Email:</strong> {{ lecturer.user.email }}</p>
-                    <p><strong>Phone:</strong> {{ lecturer.user.phone }}</p>
-                    <p><strong>Department:</strong> {{ lecturer.department.name }}</p>
-                    <p><strong>Office:</strong> {{ lecturer.office_location|default:"Not set" }}</p>
-                    <p><strong>Joining Date:</strong> {{ lecturer.joining_date }}</p>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-envelope"></i> Email:</span>
+                            <span class="fw-semibold text-end">{{ lecturer.user.email }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-phone"></i> Phone:</span>
+                            <span class="fw-semibold">{{ lecturer.user.phone|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-building"></i> Department:</span>
+                            <span class="fw-semibold text-end">{{ lecturer.department.name }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-door-open"></i> Office:</span>
+                            <span class="fw-semibold">{{ lecturer.office_location|default:"Not set" }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-calendar-check"></i> Joined:</span>
+                            <span class="fw-semibold">{{ lecturer.joining_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted"><i class="bi bi-briefcase"></i> Type:</span>
+                            <span class="badge bg-secondary">{{ lecturer.get_employment_type_display }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm mt-3">
+            <!-- Qualifications Card -->
+            <div class="card info-card shadow-sm mb-3">
                 <div class="card-header bg-success text-white">
-                    <h5 class="fw-bold mb-0">Qualifications</h5>
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-award"></i> Qualifications
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <p><strong>Highest:</strong> {{ lecturer.highest_qualification }}</p>
-                    <p><strong>University:</strong> {{ lecturer.university_graduated|default:"N/A" }}</p>
-                    <p><strong>Year:</strong> {{ lecturer.graduation_year|default:"N/A" }}</p>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Highest:</span>
+                            <span class="fw-semibold text-end">{{ lecturer.highest_qualification }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">University:</span>
+                            <span class="fw-semibold text-end">{{ lecturer.university_graduated|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Year:</span>
+                            <span class="fw-semibold">{{ lecturer.graduation_year|default:"N/A" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experience Card -->
+            <div class="card info-card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history"></i> Experience
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Teaching:</span>
+                            <span class="fw-semibold">{{ lecturer.teaching_experience_years }} years</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Research:</span>
+                            <span class="fw-semibold">{{ lecturer.research_experience_years }} years</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Industry:</span>
+                            <span class="fw-semibold">{{ lecturer.industry_experience_years }} years</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- Right Column - Course Assignments & Research -->
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="fw-bold mb-0">Current Course Assignments</h5>
+            <!-- Current Course Assignments Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-book"></i> Current Course Assignments
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% if current_assignments %}
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Course Code</th>
-                                <th>Course Name</th>
-                                <th>Credit Hours</th>
-                                <th>Venue</th>
-                                <th>Schedule</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for assignment in current_assignments %}
-                            <tr>
-                                <td><span class="badge bg-primary">{{ assignment.course.code }}</span></td>
-                                <td>{{ assignment.course.name }}</td>
-                                <td>{{ assignment.course.credit_hours }}</td>
-                                <td>{{ assignment.lecture_venue|default:"TBA" }}</td>
-                                <td>{{ assignment.lecture_time|default:"TBA" }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Course Code</th>
+                                        <th>Course Name</th>
+                                        <th class="text-center">Credit Hours</th>
+                                        <th>Venue</th>
+                                        <th>Schedule</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for assignment in current_assignments %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary">{{ assignment.course.code }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ assignment.course.name }}</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ assignment.course.credit_hours }} CH</span>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-geo-alt text-muted"></i> {{ assignment.lecture_venue|default:"TBA" }}
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-clock text-muted"></i> {{ assignment.lecture_time|default:"TBA" }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Total Workload -->
+                        <div class="alert alert-info mt-3 mb-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-info-circle"></i> Total Assigned Courses:</span>
+                                <strong>{{ current_assignments|length }} course{{ current_assignments|length|pluralize }}</strong>
+                            </div>
+                        </div>
                     {% else %}
-                    <p class="text-center text-muted">No current assignments</p>
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                            <p class="text-muted mt-3 mb-0">No current course assignments</p>
+                        </div>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card shadow-sm mt-3">
-                <div class="card-header bg-warning">
-                    <h5 class="fw-bold mb-0">Research Interests</h5>
+            <!-- Research Interests Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-lightbulb"></i> Research Interests
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <p>{{ lecturer.research_interests|default:"Not specified" }}</p>
+                    {% if lecturer.research_interests %}
+                        <p class="mb-0">{{ lecturer.research_interests }}</p>
+                    {% else %}
+                        <p class="text-muted mb-0">No research interests specified</p>
+                    {% endif %}
                 </div>
             </div>
+
+            <!-- Publications Card -->
+            {% if lecturer.publications %}
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-journal-text"></i> Publications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ lecturer.publications }}</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

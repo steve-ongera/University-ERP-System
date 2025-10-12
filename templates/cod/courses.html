@@ -1,78 +1,213 @@
-<!-- ==================== cod/department_courses.html ==================== -->
 {% extends 'cod_base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="container">
-    <div class="row p-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h2 class="fw-bold mb-2">
-                    <i class="bi bi-book text-success"></i> Department Courses
-                </h2>
-                <p class="text-muted mb-0">{{ department.name }} - Total: {{ courses|length }}</p>
+<style>
+    .table-hover tbody tr {
+        transition: all 0.3s;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-book"></i> Department Courses
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-book"></i> Department Courses
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ department.name }} ({{ department.code }})
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h3 class="fw-bold mb-0">{{ courses|length }}</h3>
+                            <small class="opacity-75">Total Courses</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
-        <div class="col-md-12">
+    <!-- Courses Table -->
+    <div class="row">
+        <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h5 class="fw-bold mb-0">All Courses</h5>
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-list-ul"></i> All Courses
+                    </h5>
                 </div>
                 <div class="card-body">
                     {% if courses %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Course Name</th>
-                                    <th>Level</th>
-                                    <th>Type</th>
-                                    <th>Credit Hours</th>
-                                    <th>Contact Hours</th>
-                                    <th>Prerequisites</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for course in courses %}
-                                <tr>
-                                    <td><span class="badge bg-primary">{{ course.code }}</span></td>
-                                    <td>{{ course.name }}</td>
-                                    <td>{{ course.get_level_display }}</td>
-                                    <td><span class="badge bg-info">{{ course.get_course_type_display }}</span></td>
-                                    <td>{{ course.credit_hours }}</td>
-                                    <td>{{ course.total_contact_hours }}</td>
-                                    <td>
-                                        {% if course.prerequisites.all %}
-                                            {% for prereq in course.prerequisites.all %}
-                                                <span class="badge bg-secondary">{{ prereq.code }}</span>
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if course.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Course Name</th>
+                                        <th>Level</th>
+                                        <th>Type</th>
+                                        <th class="text-center">Credit Hours</th>
+                                        <th class="text-center">Contact Hours</th>
+                                        <th>Prerequisites</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for course in courses %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary">{{ course.code }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ course.name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ course.get_level_display }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ course.get_course_type_display }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="fw-bold text-primary">{{ course.credit_hours }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="fw-bold text-success">{{ course.total_contact_hours }}</span>
+                                        </td>
+                                        <td>
+                                            {% if course.prerequisites.all %}
+                                                {% for prereq in course.prerequisites.all %}
+                                                    <span class="badge bg-warning text-dark mb-1">{{ prereq.code }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">None</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if course.is_active %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Active
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-x-circle"></i> Inactive
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
-                    <p class="text-center text-muted py-5">No courses found</p>
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                            <h5 class="text-muted mt-3">No Courses Found</h5>
+                            <p class="text-muted">No courses available in your department</p>
+                            <a href="{% url 'cod_dashboard' %}" class="btn btn-success mt-3">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Course Statistics (Optional) -->
+    {% if courses %}
+    <div class="row mt-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-left-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-book text-success" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">{{ courses|length }}</h3>
+                    <p class="text-muted mb-0">Total Courses</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-left-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-star text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with core_count=0 %}
+                            {% for course in courses %}
+                                {% if course.course_type == 'core' %}
+                                    {% with core_count=core_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ core_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Core Courses</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-left-info">
+                <div class="card-body text-center">
+                    <i class="bi bi-grid text-info" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with elective_count=0 %}
+                            {% for course in courses %}
+                                {% if course.course_type == 'elective' %}
+                                    {% with elective_count=elective_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ elective_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Elective Courses</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-left-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                    <h3 class="fw-bold mt-2 mb-0">
+                        {% with active_count=0 %}
+                            {% for course in courses %}
+                                {% if course.is_active %}
+                                    {% with active_count=active_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        {{ active_count }}
+                        {% endwith %}
+                    </h3>
+                    <p class="text-muted mb-0">Active Courses</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
