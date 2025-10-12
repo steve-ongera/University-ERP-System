@@ -3,44 +3,106 @@
 {% load custom_filters %}
 
 {% block content %}
+<style>
+    .profile-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
 
-<!-- System Messages -->
-<div class="message-container" id="system-messages">
-    {% for message in messages %}
-    <div class="alert-message alert-{{ message.tags }}">
-        {{ message }}
-        <span class="close-message">&times;</span>
-    </div>
-    {% endfor %}
-</div>
+    .profile-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
 
-<div class="container onprintContainer">
-    <!-- Header Section -->
-    <div class="row p-3">
-        <div class="row d-flex flex-row align-items-center">
-            <div class="col-md-8">
-                <h2 class="fw-bold card-stitle mb-2">Student Details</h2>
-                <p class="text-muted mb-0">{{ department.name }}</p>
-            </div>
-            <div class="col-md-4">
-                <div class="btn-group float-end" role="group">
-                    <a href="{% url 'cod_students_list' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Back
-                    </a>
-                    <button class="btn btn-outline-success" onclick="window.print()">
-                        <i class="bi bi-printer"></i> Print
-                    </button>
+    .stat-box {
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        background: #f8f9fa;
+        transition: all 0.3s;
+    }
+
+    .stat-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: none;
+        border-bottom: 3px solid transparent;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        border-bottom: 3px solid #0d6efd;
+        background: none;
+    }
+
+    .grade-item {
+        transition: transform 0.2s;
+    }
+
+    .grade-item:hover {
+        transform: translateY(-5px);
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4 no-print">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_students_list' %}">
+                    <i class="bi bi-people-fill"></i> Students
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ student.user.get_full_name }}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">Student Details</h2>
+                            <p class="mb-0 opacity-75">{{ department.name }}</p>
+                        </div>
+                        <div class="d-flex gap-2 no-print">
+                            <a href="{% url 'cod_students_list' %}" class="btn btn-light">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                            <button class="btn btn-success" onclick="window.print()">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row p-3">
+    <div class="row">
         <!-- Profile Card -->
         <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
+            <div class="card profile-card shadow-sm h-100">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
+                    <h5 class="mb-0">
                         <i class="bi bi-person-badge"></i> Student Profile
                     </h5>
                 </div>
@@ -81,19 +143,19 @@
                     <!-- Quick Stats -->
                     <div class="row mb-3">
                         <div class="col-4">
-                            <div class="stat-card text-center p-2 bg-light rounded">
+                            <div class="stat-box">
                                 <div class="stat-value text-primary fw-bold" style="font-size: 1.5rem;">{{ cgpa|floatformat:2|default:"0.00" }}</div>
                                 <div class="stat-label small text-muted">CGPA</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="stat-card text-center p-2 bg-light rounded">
+                            <div class="stat-box">
                                 <div class="stat-value text-success fw-bold" style="font-size: 1.5rem;">{{ total_credits_completed|default:0 }}</div>
                                 <div class="stat-label small text-muted">Credits</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="stat-card text-center p-2 bg-light rounded">
+                            <div class="stat-box">
                                 <div class="stat-value text-warning fw-bold" style="font-size: 1.5rem;">{{ attendance_percentage|floatformat:1 }}%</div>
                                 <div class="stat-label small text-muted">Attendance</div>
                             </div>
@@ -306,25 +368,25 @@
                             </h5>
                             <div class="row">
                                 <div class="col-md-3 mb-3">
-                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                    <div class="stat-box">
                                         <div class="stat-value text-primary" style="font-size: 2rem;">{{ cgpa|floatformat:2|default:"0.00" }}</div>
                                         <div class="stat-label small text-muted">CGPA</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                    <div class="stat-box">
                                         <div class="stat-value text-success" style="font-size: 2rem;">{{ total_credits_completed|default:0 }}</div>
                                         <div class="stat-label small text-muted">Credits Earned</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                    <div class="stat-box">
                                         <div class="stat-value text-info" style="font-size: 2rem;">{{ academic_stats.total_courses|default:0 }}</div>
                                         <div class="stat-label small text-muted">Courses Taken</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <div class="stat-card text-center p-3 bg-light rounded">
+                                    <div class="stat-box">
                                         <div class="stat-value text-warning" style="font-size: 2rem;">{{ attendance_percentage|floatformat:1 }}%</div>
                                         <div class="stat-label small text-muted">Attendance</div>
                                     </div>
@@ -910,52 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    // Close message functionality
-    document.querySelectorAll('.close-message').forEach(function(button) {
-        button.addEventListener('click', function() {
-            this.parentElement.style.display = 'none';
-        });
-    });
 });
 </script>
-
-<style>
-.profile-picture {
-    width: 150px;
-    height: 150px;
-    object-fit: cover;
-}
-
-.grade-item {
-    transition: transform 0.2s;
-}
-
-.grade-item:hover {
-    transform: translateY(-5px);
-}
-
-.stat-card {
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.nav-pills .nav-link {
-    color: #495057;
-}
-
-.nav-pills .nav-link.active {
-    background-color: #0d6efd;
-}
-
-@media print {
-    .btn-group, .nav-tabs, .nav-pills {
-        display: none !important;
-    }
-}
-</style>
 
 {% endblock %}
