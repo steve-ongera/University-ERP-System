@@ -569,4 +569,9 @@ urlpatterns = [
     path('consultation/quick-edit-grade/', views.cod_quick_edit_grade, name='cod_quick_edit_grade'),
     path('consultation/student/<str:student_id>/transcript-pdf/', views.cod_download_transcript_pdf, name='cod_download_transcript_pdf'),
 
+    # Exam Attendance Sheet Generation
+    path('cod/generate-exam-list/', views.cod_generate_exam_list, name='cod_generate_exam_list'), 
+    path('cod/download-exam-attendance-sheet/', views.cod_download_exam_attendance_sheet, name='cod_download_exam_attendance_sheet'), 
+    path('cod/get-courses-for-programme/', views.cod_get_courses_for_programme, name='cod_get_courses_for_programme'),
+
 ]
