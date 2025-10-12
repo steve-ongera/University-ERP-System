@@ -1,0 +1,627 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        transition: all 0.3s;
+        border-left: 4px solid;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+
+    .stat-card.primary {
+        border-left-color: #0d6efd;
+    }
+
+    .stat-card.success {
+        border-left-color: #198754;
+    }
+
+    .stat-card.warning {
+        border-left-color: #ffc107;
+    }
+
+    .stat-card.info {
+        border-left-color: #0dcaf0;
+    }
+
+    .stat-card.purple {
+        border-left-color: #6f42c1;
+    }
+
+    .research-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .research-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .filter-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .researcher-item {
+        padding: 10px;
+        border-radius: 8px;
+        background: #f8f9fa;
+        margin-bottom: 8px;
+        transition: all 0.2s;
+    }
+
+    .researcher-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                <i class="bi bi-search"></i> Research Management
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="fw-bold mb-1">
+                                <i class="bi bi-search"></i> Research Management Dashboard
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {{ department.name }} ({{ department.code }})
+                            </p>
+                        </div>
+                        <a href="{% url 'cod_create_research' %}" class="btn btn-light">
+                            <i class="bi bi-plus-circle"></i> New Research Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card stat-card primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Research</p>
+                            <h3 class="fw-bold mb-0">{{ total_research }}</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-folder-fill text-primary" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card stat-card success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Ongoing</p>
+                            <h3 class="fw-bold mb-0">{{ ongoing_research }}</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-play-circle-fill text-success" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card stat-card info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Completed</p>
+                            <h3 class="fw-bold mb-0">{{ completed_research }}</h3>
+                        </div>
+                        <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-check-circle-fill text-info" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card stat-card warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Published</p>
+                            <h3 class="fw-bold mb-0">{{ published_research }}</h3>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-book-fill text-warning" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card stat-card purple shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Recent (6mo)</p>
+                            <h3 class="fw-bold mb-0">{{ recent_research }}</h3>
+                        </div>
+                        <div class="bg-purple bg-opacity-10 p-3 rounded-circle" style="--bs-bg-opacity: 0.1; background-color: #6f42c1;">
+                            <i class="bi bi-clock-fill text-purple" style="font-size: 1.5rem; color: #6f42c1;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card stat-card success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Funding</p>
+                            <h3 class="fw-bold mb-0">KES {{ total_funding|floatformat:0 }}</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-currency-dollar text-success" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-pie-chart-fill"></i> Research by Type
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-bar-chart-fill"></i> Research by Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-graph-up"></i> Research Trends
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Researchers & Funding -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-trophy-fill text-warning"></i> Top Researchers
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for researcher in top_researchers %}
+                    <div class="researcher-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-3">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ researcher.user.get_full_name }}</div>
+                                <small class="text-muted">{{ researcher.employee_number }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary">{{ researcher.research_count }} Projects</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center mb-0">No data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="fw-bold mb-0">
+                        <i class="bi bi-cash-stack"></i> Funding by Type
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="fundingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-funnel-fill"></i> Filter Research Projects
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                            <i class="bi bi-chevron-down"></i> Toggle Filters
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse show" id="filterCollapse">
+                    <div class="card-body">
+                        <form method="GET" action="{% url 'cod_research_dashboard' %}" id="filterForm">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="">All Statuses</option>
+                                        {% for value, label in status_choices %}
+                                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Research Type</label>
+                                    <select name="research_type" class="form-select">
+                                        <option value="">All Types</option>
+                                        {% for value, label in research_types %}
+                                        <option value="{{ value }}" {% if research_type_filter == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Year</label>
+                                    <select name="year" class="form-select">
+                                        <option value="">All Years</option>
+                                        {% for yr in years %}
+                                        <option value="{{ yr }}" {% if year_filter == yr|stringformat:"s" %}selected{% endif %}>
+                                            {{ yr }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">&nbsp;</label>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary flex-fill">
+                                            <i class="bi bi-search"></i> Apply
+                                        </button>
+                                        <a href="{% url 'cod_research_dashboard' %}" class="btn btn-outline-secondary flex-fill">
+                                            <i class="bi bi-x-circle"></i> Clear
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Research Projects List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-folder-fill"></i> Research Projects
+                        </h5>
+                        <span class="text-muted">
+                            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} project{{ page_obj.paginator.count|pluralize }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if page_obj %}
+                        {% for research in page_obj %}
+                        <div class="research-card mb-3 p-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold mb-2">{{ research.title }}</h6>
+                                    <div class="mb-2">
+                                        <span class="badge bg-primary">{{ research.get_research_type_display }}</span>
+                                        <span class="status-badge 
+                                            {% if research.status == 'ongoing' %}bg-success
+                                            {% elif research.status == 'completed' %}bg-info
+                                            {% elif research.status == 'published' %}bg-warning
+                                            {% elif research.status == 'proposal' %}bg-secondary
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ research.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-person-fill"></i> {{ research.principal_investigator.user.get_full_name }}
+                                    </p>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-calendar"></i> Start: {{ research.start_date|date:"M d, Y" }}
+                                    </small>
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-calendar-check"></i> Expected End: {{ research.expected_end_date|date:"M d, Y" }}
+                                    </small>
+                                    {% if research.funding_amount %}
+                                    <small class="text-success d-block mt-1">
+                                        <i class="bi bi-cash"></i> KES {{ research.funding_amount|floatformat:0 }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-md-3 text-end">
+                                    <a href="{% url 'cod_research_detail' research.id %}" class="btn btn-sm btn-outline-primary mb-1 w-100">
+                                        <i class="bi bi-eye"></i> View Details
+                                    </a>
+                                    <a href="{% url 'cod_edit_research' research.id %}" class="btn btn-sm btn-outline-secondary w-100">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Research pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if research_type_filter %}&research_type={{ research_type_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if research_type_filter %}&research_type={{ research_type_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if research_type_filter %}&research_type={{ research_type_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if research_type_filter %}&research_type={{ research_type_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if research_type_filter %}&research_type={{ research_type_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                        <h5 class="text-muted mt-3">No Research Projects Found</h5>
+                        <p class="text-muted">Click "New Research Project" to create one</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Research by Type Chart
+    const typeCtx = document.getElementById('typeChart');
+    if (typeCtx) {
+        new Chart(typeCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ research_by_type|safe }}.map(item => item.research_type),
+                datasets: [{
+                    data: {{ research_by_type|safe }}.map(item => item.count),
+                    backgroundColor: [
+                        '#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0', '#6f42c1'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Research by Status Chart
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ research_by_status|safe }}.map(item => item.status),
+                datasets: [{
+                    data: {{ research_by_status|safe }}.map(item => item.count),
+                    backgroundColor: ['#6c757d', '#198754', '#0dcaf0', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Research Trends Chart
+    const trendsCtx = document.getElementById('trendsChart');
+    if (trendsCtx) {
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: {{ research_trends|safe }}.map(item => item.year),
+                datasets: [{
+                    label: 'Research Projects',
+                    data: {{ research_trends|safe }}.map(item => item.count),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Funding by Type Chart
+    const fundingCtx = document.getElementById('fundingChart');
+    if (fundingCtx) {
+        new Chart(fundingCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ funding_by_type|safe }}.map(item => item.research_type),
+                datasets: [{
+                    label: 'Funding (KES)',
+                    data: {{ funding_by_type|safe }}.map(item => item.total_funding),
+                    backgroundColor: '#198754'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

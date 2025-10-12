@@ -1,0 +1,330 @@
+{% extends 'cod_base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .form-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .form-section {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .form-section-title {
+        font-weight: 700;
+        color: #0d6efd;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #0d6efd;
+    }
+
+    .required-label::after {
+        content: " *";
+        color: #dc3545;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-light px-3 py-2 rounded">
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'cod_research_dashboard' %}">
+                    <i class="bi bi-search"></i> Research Management
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                Create Research Project
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-gradient bg-primary text-white">
+                    <h2 class="fw-bold mb-1">
+                        <i class="bi bi-plus-circle"></i> Create New Research Project
+                    </h2>
+                    <p class="mb-0 opacity-75">{{ department.name }} ({{ department.code }})</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" action="{% url 'cod_create_research' %}" id="researchForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Basic Information -->
+                <div class="card form-card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-section-title">
+                            <i class="bi bi-info-circle"></i> Basic Information
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label fw-bold required-label">Research Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required 
+                                   placeholder="Enter comprehensive research title">
+                            <div class="help-text">
+                                <i class="bi bi-lightbulb"></i> Provide a clear and descriptive title for the research project
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="research_type" class="form-label fw-bold required-label">Research Type</label>
+                                <select class="form-select" id="research_type" name="research_type" required>
+                                    <option value="">Select Type</option>
+                                    {% for value, label in research_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="status" class="form-label fw-bold required-label">Status</label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="">Select Status</option>
+                                    {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if value == 'proposal' %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="abstract" class="form-label fw-bold required-label">Abstract</label>
+                            <textarea class="form-control" id="abstract" name="abstract" rows="6" required 
+                                      placeholder="Provide a comprehensive abstract describing the research objectives, methodology, and expected outcomes"></textarea>
+                            <div class="help-text">
+                                <i class="bi bi-file-text"></i> Minimum 200 words recommended
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="keywords" class="form-label fw-bold">Keywords</label>
+                            <input type="text" class="form-control" id="keywords" name="keywords" 
+                                   placeholder="keyword1, keyword2, keyword3">
+                            <div class="help-text">
+                                <i class="bi bi-tags"></i> Separate keywords with commas
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Research Team -->
+                <div class="card form-card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-section-title">
+                            <i class="bi bi-people-fill"></i> Research Team
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="principal_investigator" class="form-label fw-bold required-label">
+                                Principal Investigator
+                            </label>
+                            <select class="form-select select2" id="principal_investigator" name="principal_investigator" required>
+                                <option value="">Select Principal Investigator</option>
+                                {% for lecturer in lecturers %}
+                                <option value="{{ lecturer.id }}">
+                                    {{ lecturer.user.get_full_name }} - {{ lecturer.employee_number }} ({{ lecturer.get_academic_rank_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">
+                                <i class="bi bi-person-badge"></i> Lead researcher responsible for the project
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="co_investigators" class="form-label fw-bold">Co-Investigators</label>
+                            <select class="form-select select2" id="co_investigators" name="co_investigators" multiple>
+                                {% for lecturer in lecturers %}
+                                <option value="{{ lecturer.id }}">
+                                    {{ lecturer.user.get_full_name }} - {{ lecturer.employee_number }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">
+                                <i class="bi bi-people"></i> Hold Ctrl (Windows) or Cmd (Mac) to select multiple
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="students" class="form-label fw-bold">Students Involved</label>
+                            <select class="form-select select2" id="students" name="students" multiple>
+                                {% for student in students %}
+                                <option value="{{ student.id }}">
+                                    {{ student.user.get_full_name }} - {{ student.student_id }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">
+                                <i class="bi bi-mortarboard"></i> Students participating in the research
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="card form-card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-section-title">
+                            <i class="bi bi-calendar-range"></i> Timeline
+                        </h5>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="start_date" class="form-label fw-bold required-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="expected_end_date" class="form-label fw-bold required-label">Expected End Date</label>
+                                <input type="date" class="form-control" id="expected_end_date" name="expected_end_date" required>
+                            </div>
+                        </div>
+
+                        <div class="help-text mt-2">
+                            <i class="bi bi-info-circle"></i> End date must be after start date
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Funding Information -->
+                <div class="card form-card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-section-title">
+                            <i class="bi bi-cash-stack"></i> Funding
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="funding_amount" class="form-label fw-bold">Funding Amount (KES)</label>
+                            <input type="number" class="form-control" id="funding_amount" name="funding_amount" 
+                                   step="0.01" min="0" placeholder="0.00">
+                            <div class="help-text">
+                                <i class="bi bi-currency-dollar"></i> Leave blank if no funding
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="funding_source" class="form-label fw-bold">Funding Source</label>
+                            <input type="text" class="form-control" id="funding_source" name="funding_source" 
+                                   placeholder="e.g., University Grant, External Sponsor">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ethics & Compliance -->
+                <div class="card form-card mb-4">
+                    <div class="card-body">
+                        <h5 class="form-section-title">
+                            <i class="bi bi-shield-check"></i> Ethics & Compliance
+                        </h5>
+
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ethics_approval" name="ethics_approval">
+                            <label class="form-check-label fw-bold" for="ethics_approval">
+                                Ethics Approval Obtained
+                            </label>
+                        </div>
+                        <div class="help-text">
+                            <i class="bi bi-info-circle"></i> Check if ethics approval has been obtained
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="card form-card">
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Create Research Project
+                            </button>
+                            <a href="{% url 'cod_research_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+
+                        <div class="alert alert-info mt-3 mb-0">
+                            <small>
+                                <i class="bi bi-lightbulb"></i> All required fields marked with <span class="text-danger">*</span> must be completed
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<!-- jQuery and Select2 JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2
+    $('.select2').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Select option(s)',
+        allowClear: true
+    });
+
+    // Form validation
+    const form = document.getElementById('researchForm');
+    form.addEventListener('submit', function(e) {
+        const startDate = new Date(document.getElementById('start_date').value);
+        const endDate = new Date(document.getElementById('expected_end_date').value);
+
+        if (endDate <= startDate) {
+            e.preventDefault();
+            alert('Expected end date must be after start date!');
+            return false;
+        }
+    });
+
+    // Set minimum dates
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').setAttribute('min', today);
+    
+    // Update end date minimum when start date changes
+    document.getElementById('start_date').addEventListener('change', function() {
+        const startDate = this.value;
+        document.getElementById('expected_end_date').setAttribute('min', startDate);
+    });
+});
+</script>
+
+{% endblock %}

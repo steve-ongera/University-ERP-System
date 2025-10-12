@@ -25525,3 +25525,410 @@ def cod_get_courses_for_programme(request):
         return JsonResponse({'courses': list(courses)})
     except Exception as e:
         return JsonResponse({'courses': [], 'error': str(e)})
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Q, Avg
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+from .models import (
+    User, Department, Research, Lecturer, Student, 
+    AcademicYear, Programme
+)
+
+
+@login_required
+def cod_research_dashboard(request):
+    """Research dashboard with overview and analytics"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied. Only COD can access this page.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    research_type_filter = request.GET.get('research_type', '')
+    year_filter = request.GET.get('year', '')
+    
+    # Base query for research in department
+    research_query = Research.objects.filter(
+        department=department
+    ).select_related(
+        'principal_investigator__user',
+        'department'
+    ).prefetch_related(
+        'co_investigators',
+        'students'
+    ).order_by('-start_date')
+    
+    # Apply filters
+    if status_filter:
+        research_query = research_query.filter(status=status_filter)
+    
+    if research_type_filter:
+        research_query = research_query.filter(research_type=research_type_filter)
+    
+    if year_filter:
+        research_query = research_query.filter(start_date__year=year_filter)
+    
+    # Statistics
+    total_research = Research.objects.filter(department=department).count()
+    ongoing_research = Research.objects.filter(department=department, status='ongoing').count()
+    completed_research = Research.objects.filter(department=department, status='completed').count()
+    published_research = Research.objects.filter(department=department, status='published').count()
+    
+    # Total funding
+    from django.db.models import Sum
+    total_funding = Research.objects.filter(
+        department=department,
+        funding_amount__isnull=False
+    ).aggregate(total=Sum('funding_amount'))['total'] or 0
+    
+    # Research by type (for pie chart)
+    research_by_type = Research.objects.filter(
+        department=department
+    ).values('research_type').annotate(
+        count=Count('id')
+    )
+    
+    # Research by status (for donut chart)
+    research_by_status = Research.objects.filter(
+        department=department
+    ).values('status').annotate(
+        count=Count('id')
+    )
+    
+    # Research trends by year (for line chart)
+    research_trends = []
+    current_year = datetime.now().year
+    for year in range(current_year - 4, current_year + 1):
+        count = Research.objects.filter(
+            department=department,
+            start_date__year=year
+        ).count()
+        research_trends.append({
+            'year': year,
+            'count': count
+        })
+    
+    # Top researchers (lecturers with most research)
+    top_researchers = Lecturer.objects.filter(
+        department=department,
+        led_research__isnull=False
+    ).annotate(
+        research_count=Count('led_research')
+    ).order_by('-research_count')[:10]
+    
+    # Funding by research type (for bar chart)
+    funding_by_type = Research.objects.filter(
+        department=department,
+        funding_amount__isnull=False
+    ).values('research_type').annotate(
+        total_funding=Sum('funding_amount')
+    )
+    
+    # Recent research (last 6 months)
+    six_months_ago = datetime.now() - timedelta(days=180)
+    recent_research = Research.objects.filter(
+        department=department,
+        created_at__gte=six_months_ago
+    ).count()
+    
+    # Pagination
+    paginator = Paginator(research_query, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get distinct years for filter
+    years = Research.objects.filter(
+        department=department
+    ).dates('start_date', 'year').distinct()
+    
+    context = {
+        'department': department,
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'research_type_filter': research_type_filter,
+        'year_filter': year_filter,
+        'years': [date.year for date in years],
+        
+        # Statistics
+        'total_research': total_research,
+        'ongoing_research': ongoing_research,
+        'completed_research': completed_research,
+        'published_research': published_research,
+        'total_funding': total_funding,
+        'recent_research': recent_research,
+        
+        # Chart Data
+        'research_by_type': list(research_by_type),
+        'research_by_status': list(research_by_status),
+        'research_trends': research_trends,
+        'top_researchers': top_researchers,
+        'funding_by_type': list(funding_by_type),
+        
+        # Choices for filters
+        'research_types': Research.RESEARCH_TYPES,
+        'status_choices': Research.STATUS_CHOICES,
+    }
+    
+    return render(request, 'cod/research_dashboard.html', context)
+
+
+@login_required
+def cod_research_detail(request, research_id):
+    """View detailed information about a specific research project"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get research project
+    research = get_object_or_404(
+        Research.objects.select_related(
+            'principal_investigator__user',
+            'department'
+        ).prefetch_related(
+            'co_investigators__user',
+            'students__user'
+        ),
+        id=research_id,
+        department=department
+    )
+    
+    # Calculate research duration
+    if research.actual_end_date:
+        duration = (research.actual_end_date - research.start_date).days
+    else:
+        duration = (datetime.now().date() - research.start_date).days
+    
+    # Calculate progress percentage
+    if research.actual_end_date:
+        progress = 100
+    else:
+        total_days = (research.expected_end_date - research.start_date).days
+        elapsed_days = (datetime.now().date() - research.start_date).days
+        progress = min(100, (elapsed_days / total_days * 100)) if total_days > 0 else 0
+    
+    context = {
+        'department': department,
+        'research': research,
+        'duration': duration,
+        'progress': round(progress, 2),
+    }
+    
+    return render(request, 'cod/research_detail.html', context)
+
+
+@login_required
+def cod_create_research(request):
+    """Create new research project"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('cod_dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    if request.method == 'POST':
+        try:
+            # Create research project
+            research = Research.objects.create(
+                title=request.POST.get('title'),
+                research_type=request.POST.get('research_type'),
+                principal_investigator_id=request.POST.get('principal_investigator'),
+                department=department,
+                start_date=request.POST.get('start_date'),
+                expected_end_date=request.POST.get('expected_end_date'),
+                status=request.POST.get('status', 'proposal'),
+                abstract=request.POST.get('abstract'),
+                keywords=request.POST.get('keywords', ''),
+                funding_amount=request.POST.get('funding_amount') or None,
+                funding_source=request.POST.get('funding_source', ''),
+                ethics_approval=request.POST.get('ethics_approval') == 'on'
+            )
+            
+            # Add co-investigators
+            co_investigators = request.POST.getlist('co_investigators')
+            if co_investigators:
+                research.co_investigators.set(co_investigators)
+            
+            # Add students
+            students = request.POST.getlist('students')
+            if students:
+                research.students.set(students)
+            
+            messages.success(request, f"Research project '{research.title}' created successfully!")
+            return redirect('cod_research_detail', research_id=research.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error creating research project: {str(e)}")
+    
+    # Get lecturers and students in department for form
+    lecturers = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).select_related('user')
+    
+    students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).select_related('user')
+    
+    context = {
+        'department': department,
+        'lecturers': lecturers,
+        'students': students,
+        'research_types': Research.RESEARCH_TYPES,
+        'status_choices': Research.STATUS_CHOICES,
+    }
+    
+    return render(request, 'cod/research_create.html', context)
+
+
+@login_required
+def cod_edit_research(request, research_id):
+    """Edit existing research project"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get research project
+    research = get_object_or_404(
+        Research,
+        id=research_id,
+        department=department
+    )
+    
+    if request.method == 'POST':
+        try:
+            research.title = request.POST.get('title')
+            research.research_type = request.POST.get('research_type')
+            research.principal_investigator_id = request.POST.get('principal_investigator')
+            research.start_date = request.POST.get('start_date')
+            research.expected_end_date = request.POST.get('expected_end_date')
+            research.actual_end_date = request.POST.get('actual_end_date') or None
+            research.status = request.POST.get('status')
+            research.abstract = request.POST.get('abstract')
+            research.keywords = request.POST.get('keywords', '')
+            research.funding_amount = request.POST.get('funding_amount') or None
+            research.funding_source = request.POST.get('funding_source', '')
+            research.ethics_approval = request.POST.get('ethics_approval') == 'on'
+            research.save()
+            
+            # Update co-investigators
+            co_investigators = request.POST.getlist('co_investigators')
+            research.co_investigators.set(co_investigators)
+            
+            # Update students
+            students = request.POST.getlist('students')
+            research.students.set(students)
+            
+            messages.success(request, "Research project updated successfully!")
+            return redirect('cod_research_detail', research_id=research.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error updating research project: {str(e)}")
+    
+    # Get lecturers and students in department for form
+    lecturers = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).select_related('user')
+    
+    students = Student.objects.filter(
+        programme__department=department,
+        status='active'
+    ).select_related('user')
+    
+    context = {
+        'department': department,
+        'research': research,
+        'lecturers': lecturers,
+        'students': students,
+        'research_types': Research.RESEARCH_TYPES,
+        'status_choices': Research.STATUS_CHOICES,
+    }
+    
+    return render(request, 'cod/research_edit.html', context)
+
+
+@login_required
+def cod_delete_research(request, research_id):
+    """Delete research project"""
+    
+    # Verify user is COD
+    if request.user.user_type != 'cod':
+        messages.error(request, "Access denied.")
+        return redirect('dashboard')
+    
+    # Get COD's department
+    try:
+        department = request.user.headed_departments.first()
+        if not department:
+            messages.error(request, "You are not assigned as head of any department.")
+            return redirect('cod_dashboard')
+    except:
+        messages.error(request, "Department information not found.")
+        return redirect('cod_dashboard')
+    
+    # Get research project
+    research = get_object_or_404(
+        Research,
+        id=research_id,
+        department=department
+    )
+    
+    if request.method == 'POST':
+        title = research.title
+        research.delete()
+        messages.success(request, f"Research project '{title}' deleted successfully!")
+        return redirect('cod_research_dashboard')
+    
+    return redirect('cod_research_detail', research_id=research_id)

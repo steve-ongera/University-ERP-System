@@ -556,7 +556,15 @@ urlpatterns = [
     path('cod/reports/department/', views.cod_department_report, name='cod_department_report'),
     path('cod/reports/enrollment/', views.cod_enrollment_report, name='cod_enrollment_report'), 
     path('cod/reports/performance/', views.cod_performance_report, name='cod_performance_report'),
-    
+   
+    # Research Management URLs
+    path('research/', views.cod_research_dashboard, name='cod_research_dashboard'),
+    path('research/<int:research_id>/', views.cod_research_detail, name='cod_research_detail'),
+    path('research/create/', views.cod_create_research, name='cod_create_research'),
+    path('research/<int:research_id>/edit/', views.cod_edit_research, name='cod_edit_research'),
+    path('research/<int:research_id>/delete/', views.cod_delete_research, name='cod_delete_research'),
+   
+
     path('results/dashboard/', views.cod_results_dashboard, name='cod_results_dashboard'),
     path('results/view/', views.cod_view_results, name='cod_view_results'),
     path('results/student/<str:student_id>/', views.cod_student_results_detail, name='cod_student_results_detail'),
