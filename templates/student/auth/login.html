@@ -197,100 +197,166 @@
     <script src="{% static 'site.js' %}"></script>
     <script src="{% static 'loader.js' %}"></script>
     
-    <script>
-        // Enhanced Password toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const togglePassword = document.getElementById('togglePassword');
-            const passwordInput = document.getElementById('password');
-            const toggleIcon = document.getElementById('toggleIcon');
+    <!-- Replace your existing toggle script with this improved version -->
+
+<script>
+// Enhanced Password toggle functionality with multiple approaches
+document.addEventListener('DOMContentLoaded', function() {
+    initializePasswordToggle();
+});
+
+// Also initialize if the script loads after DOM
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePasswordToggle);
+} else {
+    initializePasswordToggle();
+}
+
+function initializePasswordToggle() {
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    // Check if elements exist
+    if (!togglePassword || !passwordInput || !toggleIcon) {
+        console.warn('Password toggle elements not found');
+        return;
+    }
+    
+    console.log('Password toggle initialized'); // Debug log
+    
+    // Remove any existing event listeners by cloning and replacing
+    const newToggle = togglePassword.cloneNode(true);
+    togglePassword.parentNode.replaceChild(newToggle, togglePassword);
+    
+    // Re-select the elements after cloning
+    const updatedToggle = document.getElementById('togglePassword');
+    const updatedIcon = document.getElementById('toggleIcon');
+    const updatedInput = document.getElementById('password');
+    
+    // Multiple event types for better compatibility
+    const toggleEvents = ['click', 'touchstart'];
+    
+    toggleEvents.forEach(eventType => {
+        updatedToggle.addEventListener(eventType, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Ensure elements exist before adding event listeners
-            if (togglePassword && passwordInput && toggleIcon) {
-                togglePassword.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                    passwordInput.setAttribute('type', type);
-                    
-                    // Toggle Bootstrap icons
-                    if (type === 'text') {
-                        toggleIcon.classList.remove('bi-eye-slash');
-                        toggleIcon.classList.add('bi-eye');
-                        togglePassword.setAttribute('aria-label', 'Hide password');
-                    } else {
-                        toggleIcon.classList.remove('bi-eye');
-                        toggleIcon.classList.add('bi-eye-slash');
-                        togglePassword.setAttribute('aria-label', 'Show password');
-                    }
-                });
-                
-                // Add keyboard support
-                togglePassword.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        this.click();
-                    }
-                });
+            const currentType = updatedInput.getAttribute('type');
+            const newType = currentType === 'password' ? 'text' : 'password';
+            
+            // Update input type
+            updatedInput.setAttribute('type', newType);
+            
+            // Update icon classes
+            if (newType === 'text') {
+                updatedIcon.classList.remove('bi-eye-slash');
+                updatedIcon.classList.add('bi-eye');
+                updatedToggle.setAttribute('aria-label', 'Hide password');
+                updatedToggle.setAttribute('title', 'Hide password');
+            } else {
+                updatedIcon.classList.remove('bi-eye');
+                updatedIcon.classList.add('bi-eye-slash');
+                updatedToggle.setAttribute('aria-label', 'Show password');
+                updatedToggle.setAttribute('title', 'Show password');
             }
+            
+            // Keep focus on input for better UX
+            updatedInput.focus();
+            
+            console.log('Password toggled:', newType); // Debug log
         });
+    });
+    
+    // Add keyboard support
+    updatedToggle.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.click();
+        }
+    });
+    
+    // Prevent form submission on button click
+    updatedToggle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+    });
+}
+
+// Alternative approach using jQuery if you prefer (uncomment if needed)
+/*
+$(document).ready(function() {
+    $('#togglePassword').on('click', function(e) {
+        e.preventDefault();
+        const passwordInput = $('#password');
+        const toggleIcon = $('#toggleIcon');
         
-        // Additional form validation and user experience enhancements
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form');
-            const usernameInput = document.getElementById('username');
-            const passwordInput = document.getElementById('password');
-            
-            // Add real-time validation feedback
-            if (usernameInput) {
-                usernameInput.addEventListener('input', function() {
-                    if (this.value.length > 0) {
-                        this.classList.add('is-valid');
-                        this.classList.remove('is-invalid');
-                    } else {
-                        this.classList.remove('is-valid');
-                    }
-                });
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('input', function() {
-                    if (this.value.length >= 3) {
-                        this.classList.add('is-valid');
-                        this.classList.remove('is-invalid');
-                    } else {
-                        this.classList.remove('is-valid');
-                    }
-                });
-            }
-            
-            // Form submission handling
-            if (form) {
-                form.addEventListener('submit', function(e) {
-                    let isValid = true;
-                    
-                    // Validate username
-                    if (!usernameInput.value.trim()) {
-                        usernameInput.classList.add('is-invalid');
-                        isValid = false;
-                    }
-                    
-                    // Validate password
-                    if (!passwordInput.value.trim()) {
-                        passwordInput.classList.add('is-invalid');
-                        isValid = false;
-                    }
-                    
-                    if (!isValid) {
-                        e.preventDefault();
-                        // Show error message if toastr is available
-                        if (typeof toastr !== 'undefined') {
-                            toastr.error('Please fill in all required fields');
-                        }
-                    }
-                });
-            }
-        });
-    </script>
+        const type = passwordInput.attr('type') === 'password' ? 'text' : 'password';
+        passwordInput.attr('type', type);
+        
+        toggleIcon.toggleClass('bi-eye bi-eye-slash');
+    });
+});
+*/
+</script>
+
+<!-- Add this CSS to ensure proper button styling -->
+<style>
+    .password-toggle-btn {
+        border: 1px solid #ced4da;
+        border-left: none;
+        background-color: white;
+        color: #6c757d;
+        padding: 0.375rem 0.75rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    
+    .password-toggle-btn:hover {
+        background-color: #f8f9fa;
+        color: #1a73e8;
+    }
+    
+    .password-toggle-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.25rem rgba(26, 115, 232, 0.25);
+        border-color: #1a73e8;
+    }
+    
+    .password-toggle-btn:active {
+        background-color: #e9ecef;
+    }
+    
+    /* Ensure input group has proper styling */
+    .input-group {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .input-group .form-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: none;
+    }
+    
+    .input-group .password-toggle-btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    /* Focus state for the entire input group */
+    .input-group:focus-within {
+        box-shadow: 0 0 0 0.25rem rgba(26, 115, 232, 0.25);
+        border-radius: 0.25rem;
+    }
+    
+    .input-group:focus-within .form-control,
+    .input-group:focus-within .password-toggle-btn {
+        border-color: #1a73e8;
+    }
+</style>
 </body>
 </html>
