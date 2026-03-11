@@ -1,31 +1,43 @@
-# Python
+# Ignore specific Django files
+core_application/models.py
+core_application/forms.py
+
+# Ignore python cache
 __pycache__/
 *.py[cod]
-*.so
 
-# Django
+# Ignore migrations cache
+*/migrations/__pycache__/
+
+# Logs
+logs/
 *.log
-*.pot
-*.pyc
-db.sqlite3
+
+# Media uploads
 media/
-staticfiles/
 
-# Virtualenv
+# Environment
+.env
 venv/
-env/
-ENV/
-*.env
 
-# IDE
-.vscode/
-.idea/
-*.swp
+# Database
+db.sqlite3
 
-# OS
-.DS_Store
-Thumbs.db
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Migrations (optional: keep if you want to share db schema)
-# */migrations/
-# !*/migrations/__init__.py
+# Django media uploads
+media/
+
+# Logs
+logs/
+
+# Database
+db.sqlite3
+
+# Environment
+.env
+venv/
